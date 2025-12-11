@@ -399,3 +399,47 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Assignment submission builds
+PhoenixEngine_v*/
+
+# Compiled shaders (.cso files - DirectX)
+*.cso
+
+# Game asset build outputs (keep source assets in repo)
+assets/*.dds               # If you generate DDS
+assets/compiled/          # Any compiled asset folders
+
+# DirectX compiled files (additional)
+*.fxo                     # Compiled effect files
+*.cso                     # Already added, but explicit
+
+# OS junk files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files from editors
+*.swp
+*.swo
+*~
+
+# Log files from your engine
+engine.log
+debug.log
+error.log
+
+# Premake or CMake generated files
+Makefile
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# Windows DirectX SDK temp files
+*.sdkmesh
+*.sdkmesh_ascii
+
+# Binary texture files that might be generated
+*.dds
+*.bmp
+*.tga
