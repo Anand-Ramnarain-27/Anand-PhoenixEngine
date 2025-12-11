@@ -8,6 +8,8 @@
 
 class Module;
 class ModuleD3D12;
+class ModuleResources;
+class GraphicsSamplers;
 
 class Application
 {
@@ -21,6 +23,8 @@ public:
 	bool         cleanUp();
 
     ModuleD3D12* getD3D12() { return d3d12Module; }
+    ModuleResources* getResources() { return resources; }
+    GraphicsSamplers* getGraphicsSamplers() { return graphicsSamplers; }
     void                        swapModule(Module* from, Module* to) { swapModules.push_back(std::make_pair(from, to)); }
     
     float                       getFPS() const { return 1000.0f * float(MAX_FPS_TICKS) / tickSum; }
@@ -38,6 +42,8 @@ private:
     std::vector<std::pair<Module*, Module*> > swapModules;
 
     ModuleD3D12* d3d12Module = nullptr;
+    ModuleResources* resources = nullptr;
+    GraphicsSamplers* graphicsSamplers = nullptr;
 
     uint64_t  lastMilis = 0;
     TickList  tickList;

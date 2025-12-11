@@ -3,6 +3,8 @@
 #include "ModuleInput.h"
 
 #include "ModuleD3D12.h"
+#include "ModuleResources.h"
+#include "GraphicsSamplers.h"
 
 Application::Application(int argc, wchar_t** argv, void* hWnd)
 {
@@ -10,6 +12,9 @@ Application::Application(int argc, wchar_t** argv, void* hWnd)
 
     d3d12Module = new ModuleD3D12((HWND)hWnd);
     modules.push_back(d3d12Module);
+
+    modules.push_back(resources = new ModuleResources());
+    modules.push_back(graphicsSamplers = new GraphicsSamplers());
 }
 
 Application::~Application()

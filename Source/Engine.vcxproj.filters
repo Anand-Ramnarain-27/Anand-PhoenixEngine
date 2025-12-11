@@ -40,6 +40,9 @@
       <Filter>Passes</Filter>
     </ClCompile>
     <ClCompile Include="ModuleD3D12.cpp" />
+    <ClCompile Include="GraphicsSamplers.cpp" />
+    <ClCompile Include="ModuleResources.cpp" />
+    <ClCompile Include="MathUtils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -88,6 +91,9 @@
       <Filter>Win</Filter>
     </ClInclude>
     <ClInclude Include="ModuleD3D12.h" />
+    <ClInclude Include="GraphicsSamplers.h" />
+    <ClInclude Include="ModuleResources.h" />
+    <ClInclude Include="MathUtils.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

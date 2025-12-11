@@ -173,7 +173,10 @@
     <ClInclude Include="Application.h" />
     <ClInclude Include="DebugDrawPass.h" />
     <ClInclude Include="debug_draw.hpp" />
+    <ClInclude Include="GraphicsSamplers.h" />
+    <ClInclude Include="MathUtils.h" />
     <ClInclude Include="ModuleD3D12.h" />
+    <ClInclude Include="ModuleResources.h" />
     <ClInclude Include="PhoenixEngine.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GamePad.h" />
@@ -255,7 +258,10 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="GraphicsSamplers.cpp" />
+    <ClCompile Include="MathUtils.cpp" />
     <ClCompile Include="ModuleD3D12.cpp" />
+    <ClCompile Include="ModuleResources.cpp" />
     <ClCompile Include="PhoenixEngine.cpp" />
     <ClCompile Include="GamePad.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
