@@ -7,6 +7,7 @@
 #include <chrono>
 
 class Module;
+class ModuleD3D12;
 
 class Application
 {
@@ -19,6 +20,8 @@ public:
 	void         update();
 	bool         cleanUp();
 
+    ModuleD3D12* getD3D12() { return d3d12Module; }
+    void                        swapModule(Module* from, Module* to) { swapModules.push_back(std::make_pair(from, to)); }
     
     float                       getFPS() const { return 1000.0f * float(MAX_FPS_TICKS) / tickSum; }
     float                       getAvgElapsedMs() const { return tickSum / float(MAX_FPS_TICKS); }
@@ -32,6 +35,9 @@ private:
     typedef std::array<uint64_t, MAX_FPS_TICKS> TickList;
 
     std::vector<Module*> modules;
+    std::vector<std::pair<Module*, Module*> > swapModules;
+
+    ModuleD3D12* d3d12Module = nullptr;
 
     uint64_t  lastMilis = 0;
     TickList  tickList;
@@ -39,6 +45,7 @@ private:
     uint64_t  tickSum = 0;
     uint64_t  elapsedMilis = 0;
     bool      paused = false;
+    bool      updating = false;
 };
 
 extern Application* app;

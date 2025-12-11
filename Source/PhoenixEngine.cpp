@@ -4,6 +4,7 @@
 #include "PhoenixEngine.h"
 
 #include "Application.h"
+#include "ModuleD3D12.h"
 
 #include <shellapi.h>
 
@@ -215,12 +216,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         else {
             app->setPaused(false);
+            app->getD3D12()->resize();
         }
         break;
     case WM_SYSKEYDOWN:
         if (wParam == VK_RETURN && (lParam & 0x60000000) == 0x20000000)
         {
-            // This is where you'd implement the classic ALT+ENTER hotkey for fullscreen toggle
+            app->getD3D12()->toggleFullscreen();
         }
         Keyboard::ProcessMessage(message, wParam, lParam);
         break;

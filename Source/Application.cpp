@@ -2,10 +2,14 @@
 #include "Application.h"
 #include "ModuleInput.h"
 
+#include "ModuleD3D12.h"
 
 Application::Application(int argc, wchar_t** argv, void* hWnd)
 {
     modules.push_back(new ModuleInput((HWND)hWnd));
+
+    d3d12Module = new ModuleD3D12((HWND)hWnd);
+    modules.push_back(d3d12Module);
 }
 
 Application::~Application()

@@ -39,6 +39,7 @@
     <ClCompile Include="DebugDrawPass.cpp">
       <Filter>Passes</Filter>
     </ClCompile>
+    <ClCompile Include="ModuleD3D12.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -86,6 +87,7 @@
     <ClInclude Include="Resource.h">
       <Filter>Win</Filter>
     </ClInclude>
+    <ClInclude Include="ModuleD3D12.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
