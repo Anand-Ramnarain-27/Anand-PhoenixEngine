@@ -175,6 +175,7 @@
     <ClInclude Include="debug_draw.hpp" />
     <ClInclude Include="GraphicsSamplers.h" />
     <ClInclude Include="MathUtils.h" />
+    <ClInclude Include="ModuleCamera.h" />
     <ClInclude Include="ModuleD3D12.h" />
     <ClInclude Include="ModuleResources.h" />
     <ClInclude Include="PhoenixEngine.h" />
@@ -260,6 +261,7 @@
     </ClCompile>
     <ClCompile Include="GraphicsSamplers.cpp" />
     <ClCompile Include="MathUtils.cpp" />
+    <ClCompile Include="ModuleCamera.cpp" />
     <ClCompile Include="ModuleD3D12.cpp" />
     <ClCompile Include="ModuleResources.cpp" />
     <ClCompile Include="PhoenixEngine.cpp" />
