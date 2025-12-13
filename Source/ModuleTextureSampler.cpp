@@ -5,6 +5,7 @@
 #include "ModuleD3D12.h"
 #include "ModuleCamera.h"
 #include "ModuleResources.h"
+#include "ModuleEditor.h" 
 
 #include "ReadData.h"
 
@@ -43,7 +44,6 @@ bool ModuleTextureSampler::init()
     {
         ModuleD3D12* d3d12 = app->getD3D12();
         debugDrawPass = std::make_unique<DebugDrawPass>(d3d12->getDevice(), d3d12->getDrawCommandQueue(), false);
-        imguiPass = std::make_unique<ImGuiPass>(d3d12->getDevice(), d3d12->getHWnd());
     }
 
     return ok;
@@ -58,8 +58,7 @@ bool ModuleTextureSampler::cleanUp()
 
 void ModuleTextureSampler::preRender()
 {
-    if (imguiPass)
-        imguiPass->startFrame();
+
 }
 
 void ModuleTextureSampler::render()
@@ -67,19 +66,10 @@ void ModuleTextureSampler::render()
     ModuleD3D12* d3d12 = app->getD3D12();
     ModuleCamera* camera = app->getCamera();
     GraphicsSamplers* samplers = app->getGraphicsSamplers();
+    ModuleEditor* editor = app->getEditor();
 
     ID3D12GraphicsCommandList* commandList = d3d12->beginFrameRender();
     d3d12->setBackBufferRenderTarget(Vector4(0.2f, 0.2f, 0.2f, 1.0f));
-
-    if (imguiPass)
-    {
-        ImGui::SetNextWindowSize(ImVec2(300, 200), ImGuiCond_FirstUseEver);
-        ImGui::Begin("Texture Viewer Options");
-        ImGui::Checkbox("Show grid", &showGrid);
-        ImGui::Checkbox("Show axis", &showAxis);
-        ImGui::Combo("Sampler", &currentSampler, "Linear Wrap\0Point Wrap\0Linear Clamp\0Point Clamp\0");
-        ImGui::End();
-    }
 
     unsigned width = d3d12->getWindowWidth();
     unsigned height = d3d12->getWindowHeight();
@@ -102,19 +92,24 @@ void ModuleTextureSampler::render()
     commandList->SetGraphicsRoot32BitConstants(0, sizeof(Matrix) / sizeof(UINT32), &mvp, 0);
     commandList->SetGraphicsRootDescriptorTable(1, srvGPUHandle);
 
-    GraphicsSamplers::Type samplerType;
-    switch (currentSampler) {
-    case 0: samplerType = GraphicsSamplers::LINEAR_WRAP; break;
-    case 1: samplerType = GraphicsSamplers::POINT_WRAP; break;
-    case 2: samplerType = GraphicsSamplers::LINEAR_CLAMP; break;
-    case 3: samplerType = GraphicsSamplers::POINT_CLAMP; break;
-    default: samplerType = GraphicsSamplers::LINEAR_WRAP; break;
+    GraphicsSamplers::Type samplerType = GraphicsSamplers::LINEAR_WRAP;
+    if (editor)
+    {
+        samplerType = editor->GetTextureFilter();
     }
 
     D3D12_GPU_DESCRIPTOR_HANDLE samplerHandle = samplers->getGPUHandle(samplerType);
     commandList->SetGraphicsRootDescriptorTable(2, samplerHandle);
 
     commandList->DrawInstanced(6, 1, 0, 0);
+
+    bool showGrid = true;
+    bool showAxis = true;
+    if (editor)
+    {
+        showGrid = editor->IsGridVisible();
+        showAxis = editor->IsAxisVisible();
+    }
 
     if (showGrid) dd::xzSquareGrid(-10.0f, 10.0f, 0.0f, 1.0f, dd::colors::LightGray);
     if (showAxis) dd::axisTriad(ddConvert(Matrix::Identity), 0.1f, 1.0f);

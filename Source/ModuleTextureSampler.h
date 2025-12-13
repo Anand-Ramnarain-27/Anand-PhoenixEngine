@@ -18,11 +18,6 @@ class ModuleTextureSampler : public Module
     ComPtr<ID3D12PipelineState>     pso;
     std::unique_ptr<DebugDrawPass>  debugDrawPass;
     std::unique_ptr<ImGuiPass>      imguiPass;
-
-    bool                            showAxis = true;
-    bool                            showGrid = true;
-    int                             currentSampler = 0;
-
 public:
     virtual bool init() override;
     virtual bool cleanUp() override;
