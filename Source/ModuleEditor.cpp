@@ -3,6 +3,7 @@
 #include "Application.h"
 #include "ModuleD3D12.h"
 #include "GraphicsSamplers.h"
+#include "ModuleTextureSampler.h"
 #include "ImGuiPass.h"
 
 #include <algorithm>
@@ -75,11 +76,18 @@ void ModuleEditor::render()
     if (!imguiPass) return;
 
     ModuleD3D12* d3d12 = app->getD3D12();
+    ModuleTextureSampler* textureSampler = app->getTextureSampler();
+
     ID3D12GraphicsCommandList* commandList = d3d12->beginFrameRender();
 
     d3d12->setBackBufferRenderTarget(Vector4(0.188f, 0.208f, 0.259f, 1.0f));
 
     if (!commandList) return;
+
+    if (textureSampler)
+    {
+        textureSampler->render3DContent(commandList);
+    }
 
     ID3D12DescriptorHeap* heaps[] = { imguiHeap };
     commandList->SetDescriptorHeaps(1, heaps);

@@ -24,6 +24,8 @@ public:
     virtual void preRender() override;
     virtual void render() override;
 
+    void render3DContent(ID3D12GraphicsCommandList* commandList);
+
 private:
     bool createVertexBuffer(void* bufferData, unsigned bufferSize, unsigned stride);
     bool createRootSignature();

@@ -63,13 +63,20 @@ void ModuleTextureSampler::preRender()
 
 void ModuleTextureSampler::render()
 {
+
+}
+
+void ModuleTextureSampler::render3DContent(ID3D12GraphicsCommandList* commandList)
+{
     ModuleD3D12* d3d12 = app->getD3D12();
     ModuleCamera* camera = app->getCamera();
     GraphicsSamplers* samplers = app->getGraphicsSamplers();
     ModuleEditor* editor = app->getEditor();
 
-    ID3D12GraphicsCommandList* commandList = d3d12->beginFrameRender();
-    d3d12->setBackBufferRenderTarget(Vector4(0.2f, 0.2f, 0.2f, 1.0f));
+    //ID3D12GraphicsCommandList* commandList = d3d12->beginFrameRender();
+    //d3d12->setBackBufferRenderTarget(Vector4(0.2f, 0.2f, 0.2f, 1.0f));
+
+    if (!commandList) return;
 
     unsigned width = d3d12->getWindowWidth();
     unsigned height = d3d12->getWindowHeight();
@@ -120,7 +127,8 @@ void ModuleTextureSampler::render()
     if (imguiPass)
         imguiPass->record(commandList);
 
-    d3d12->endFrameRender();
+    //d3d12->endFrameRender();
+
 }
 
 bool ModuleTextureSampler::createVertexBuffer(void* bufferData, unsigned bufferSize, unsigned stride)

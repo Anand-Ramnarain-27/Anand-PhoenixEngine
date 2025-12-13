@@ -6,6 +6,7 @@
 #include <memory>
 
 class ImGuiPass;
+class ModuleTextureSampler;
 
 class ModuleEditor : public Module
 {
