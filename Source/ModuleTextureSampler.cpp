@@ -128,7 +128,6 @@ void ModuleTextureSampler::render3DContent(ID3D12GraphicsCommandList* commandLis
         imguiPass->record(commandList);
 
     //d3d12->endFrameRender();
-
 }
 
 bool ModuleTextureSampler::createVertexBuffer(void* bufferData, unsigned bufferSize, unsigned stride)
@@ -272,16 +271,46 @@ bool ModuleTextureSampler::loadTexture()
         }
     }
 
-    const auto& metadata = image.GetMetadata();
+    auto metadata = image.GetMetadata();
 
-    LOG("Texture loaded successfully:");
+    LOG("Loaded texture: %ux%u, %u mip level(s), Format: %d",
+        metadata.width, metadata.height, metadata.mipLevels, metadata.format);
+
+    if (metadata.mipLevels == 1)
+    {
+        LOG("Texture has no mipmaps. Generating using DirectXTex...");
+
+        DirectX::ScratchImage mipChain;
+        HRESULT mipResult = DirectX::GenerateMipMaps(
+            image.GetImages(),
+            image.GetImageCount(),
+            metadata,
+            DirectX::TEX_FILTER_DEFAULT,
+            0,
+            mipChain);
+
+        if (SUCCEEDED(mipResult))
+        {
+            image = std::move(mipChain);
+            metadata = image.GetMetadata();
+            LOG("Successfully generated %u mip levels", metadata.mipLevels);
+        }
+        else
+        {
+            LOG("WARNING: Failed to generate mipmaps (HRESULT: 0x%08X)", mipResult);
+            LOG("Texture will be used without mipmaps");
+        }
+    }
+
+    LOG("Final texture properties:");
     LOG("  Format: %d (DXGI_FORMAT)", metadata.format);
     LOG("  Width: %u", metadata.width);
     LOG("  Height: %u", metadata.height);
-    LOG("  MipLevels: %u", metadata.mipLevels);
+    LOG("  MipLevels: %u", metadata.mipLevels); // This should be >1 if mips were generated
     LOG("  ArraySize: %u", metadata.arraySize);
     LOG("  Image count: %zu", image.GetImageCount());
 
+    // Create GPU texture resource with CORRECT mip level count
     CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
     CD3DX12_RESOURCE_DESC textureDesc = CD3DX12_RESOURCE_DESC::Tex2D(
         metadata.format,
@@ -358,7 +387,6 @@ bool ModuleTextureSampler::loadTexture()
     HANDLE uploadEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     UINT64 uploadFenceValue = 1;
 
-    // Create upload command allocator and list
     if (FAILED(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
         IID_PPV_ARGS(&uploadAllocator))))
     {
@@ -382,7 +410,6 @@ bool ModuleTextureSampler::loadTexture()
     UpdateSubresources(uploadCommandList.Get(), textureDog.Get(), stagingBuffer.Get(),
         0, 0, (UINT)imageCount, subresources.data());
 
-    // Transition to pixel shader resource
     CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
         textureDog.Get(),
         D3D12_RESOURCE_STATE_COPY_DEST,
@@ -421,7 +448,7 @@ bool ModuleTextureSampler::loadTexture()
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.Format = metadata.format;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Texture2D.MipLevels = static_cast<UINT>(metadata.mipLevels);
+    srvDesc.Texture2D.MipLevels = static_cast<UINT>(metadata.mipLevels); 
     srvDesc.Texture2D.MostDetailedMip = 0;
 
     device->CreateShaderResourceView(textureDog.Get(), &srvDesc,
