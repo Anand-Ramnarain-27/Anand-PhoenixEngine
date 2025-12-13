@@ -44,6 +44,7 @@
     <ClCompile Include="ModuleResources.cpp" />
     <ClCompile Include="MathUtils.cpp" />
     <ClCompile Include="ModuleCamera.cpp" />
+    <ClCompile Include="ModuleEditor.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -96,6 +97,7 @@
     <ClInclude Include="ModuleResources.h" />
     <ClInclude Include="MathUtils.h" />
     <ClInclude Include="ModuleCamera.h" />
+    <ClInclude Include="ModuleEditor.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

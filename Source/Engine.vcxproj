@@ -177,6 +177,7 @@
     <ClInclude Include="MathUtils.h" />
     <ClInclude Include="ModuleCamera.h" />
     <ClInclude Include="ModuleD3D12.h" />
+    <ClInclude Include="ModuleEditor.h" />
     <ClInclude Include="ModuleResources.h" />
     <ClInclude Include="PhoenixEngine.h" />
     <ClInclude Include="framework.h" />
@@ -263,6 +264,7 @@
     <ClCompile Include="MathUtils.cpp" />
     <ClCompile Include="ModuleCamera.cpp" />
     <ClCompile Include="ModuleD3D12.cpp" />
+    <ClCompile Include="ModuleEditor.cpp" />
     <ClCompile Include="ModuleResources.cpp" />
     <ClCompile Include="PhoenixEngine.cpp" />
     <ClCompile Include="GamePad.cpp">

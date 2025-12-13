@@ -6,6 +6,7 @@
 #include "ModuleResources.h"
 #include "GraphicsSamplers.h"
 #include "ModuleCamera.h"
+#include "ModuleEditor.h"
 
 Application::Application(int argc, wchar_t** argv, void* hWnd)
 {
@@ -16,6 +17,8 @@ Application::Application(int argc, wchar_t** argv, void* hWnd)
     modules.push_back(resources = new ModuleResources());
     modules.push_back(graphicsSamplers = new GraphicsSamplers());
 	modules.push_back(camera = new ModuleCamera());
+
+	modules.push_back(editor = new ModuleEditor());
 }
 
 Application::~Application()
