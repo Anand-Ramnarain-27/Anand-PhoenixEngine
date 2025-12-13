@@ -12,6 +12,7 @@ class ModuleResources;
 class GraphicsSamplers;
 class ModuleCamera;
 class ModuleEditor;
+class ModuleTextureSampler;
 
 class Application
 {
@@ -29,6 +30,7 @@ public:
     GraphicsSamplers* getGraphicsSamplers() { return graphicsSamplers; }
 	ModuleCamera* getCamera() { return camera; }
     ModuleEditor* getEditor() { return editor; }
+	ModuleTextureSampler* getTextureSampler() { return textureSampler; }
     void                        swapModule(Module* from, Module* to) { swapModules.push_back(std::make_pair(from, to)); }
     
     float                       getFPS() const { return 1000.0f * float(MAX_FPS_TICKS) / tickSum; }
@@ -50,6 +52,7 @@ private:
     GraphicsSamplers* graphicsSamplers = nullptr;
     ModuleCamera* camera = nullptr;
 	ModuleEditor* editor = nullptr;
+	ModuleTextureSampler* textureSampler = nullptr;
 
     uint64_t  lastMilis = 0;
     TickList  tickList;

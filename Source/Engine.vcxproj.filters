@@ -45,6 +45,7 @@
     <ClCompile Include="MathUtils.cpp" />
     <ClCompile Include="ModuleCamera.cpp" />
     <ClCompile Include="ModuleEditor.cpp" />
+    <ClCompile Include="ModuleTextureSampler.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -98,6 +99,7 @@
     <ClInclude Include="MathUtils.h" />
     <ClInclude Include="ModuleCamera.h" />
     <ClInclude Include="ModuleEditor.h" />
+    <ClInclude Include="ModuleTextureSampler.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -126,5 +128,9 @@
     <ResourceCompile Include="Engine.rc">
       <Filter>Win</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="TextureSamplerVS.hlsl" />
+    <FxCompile Include="TextureSamplerPS.hlsl" />
   </ItemGroup>
 </Project>
