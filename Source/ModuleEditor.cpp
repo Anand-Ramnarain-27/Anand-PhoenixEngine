@@ -207,7 +207,7 @@ void ModuleEditor::imGuiDrawCommands()
                     0,
                     title,
                     0.0f,
-                    100.0f,
+                    300.0f,
                     ImVec2(310, 100));
 
                 sprintf_s(title, 25, "Milliseconds %0.1f", ms_log.back());
@@ -217,7 +217,7 @@ void ModuleEditor::imGuiDrawCommands()
                     0,
                     title,
                     0.0f,
-                    40.0f,
+                    10.0f,
                     ImVec2(310, 100));
 
                 if (ImGui::CollapsingHeader("Statistics"))

@@ -75,8 +75,10 @@ void ModuleD3D12::preRender()
 
 void ModuleD3D12::postRender()
 {
-    UINT presentFlags = m_allowTearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
-    m_swapChain->Present(0, presentFlags);
+    UINT syncInterval = useVSync ? 1 : 0;
+    UINT presentFlags = (!useVSync && m_allowTearing) ? DXGI_PRESENT_ALLOW_TEARING : 0;
+
+    m_swapChain->Present(syncInterval, presentFlags);
     signalDrawQueue();
 }
 

@@ -40,6 +40,8 @@ public:
     void setBackBufferRenderTarget(const Vector4& clearColor = Vector4(0.0f, 0.0f, 0.0f, 1.0f));
     void endFrameRender();
 
+    bool useVSync = true;
+
 private:
     void enableDebugLayer();
     bool createFactory();
