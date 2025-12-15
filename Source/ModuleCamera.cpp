@@ -59,6 +59,9 @@ void ModuleCamera::update()
         Vector3 translate = Vector3::Zero;
         Vector2 rotate = Vector2::Zero;
 
+        bool isAltPressed = keyState.LeftAlt || keyState.RightAlt;
+        bool isOrbiting = isAltPressed && mouseState.leftButton;
+
         if (padState.IsConnected())
         {
             rotate.x = -padState.thumbSticks.rightX * elapsedSec * speedMultiplier;
@@ -77,7 +80,7 @@ void ModuleCamera::update()
             }
         }
 
-        if (mouseState.rightButton)
+        if (mouseState.rightButton || isOrbiting)
         {
             rotate.x = float(dragPosX - mouseState.x) * 0.005f * speedMultiplier;
             rotate.y = float(dragPosY - mouseState.y) * 0.005f * speedMultiplier;
@@ -105,6 +108,25 @@ void ModuleCamera::update()
         if (keyState.Q) translate.y += moveSpeed;
         if (keyState.E) translate.y -= moveSpeed;
 
+        if (isOrbiting)
+        {
+            params.polar += XMConvertToRadians(getRotationSpeed() * rotate.x);
+            params.azimuthal += XMConvertToRadians(getRotationSpeed() * rotate.y);
+
+            params.azimuthal = std::clamp(params.azimuthal, -XM_PIDIV2 + 0.01f, XM_PIDIV2 - 0.01f);
+
+            float radius = 5.0f; 
+            position.x = radius * sin(params.polar) * cos(params.azimuthal);
+            position.y = radius * sin(params.azimuthal);
+            position.z = radius * cos(params.polar) * cos(params.azimuthal);
+
+            position += Vector3::Zero;
+
+            params.translation = position;
+
+            view = Matrix::CreateLookAt(position, Vector3::Zero, Vector3::UnitY);
+            rotation = Quaternion::CreateFromRotationMatrix(view.Invert());
+        }
 
         Vector3 localDir = Vector3::Transform(translate, rotation);
         params.translation += localDir * getTranslationSpeed();
