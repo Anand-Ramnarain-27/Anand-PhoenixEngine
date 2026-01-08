@@ -8,6 +8,7 @@
 #include "ModuleCamera.h"
 #include "ModuleEditor.h"
 #include "ModuleTextureSampler.h"
+#include "ModuleShaderDescriptors.h"
 
 Application::Application(int argc, wchar_t** argv, void* hWnd)
 {
@@ -18,6 +19,7 @@ Application::Application(int argc, wchar_t** argv, void* hWnd)
     modules.push_back(resources = new ModuleResources());
     modules.push_back(graphicsSamplers = new GraphicsSamplers());
 	modules.push_back(camera = new ModuleCamera());
+    modules.push_back(shaderDescriptors = new ModuleShaderDescriptors());
     modules.push_back(editor = new ModuleEditor());
 
 	modules.push_back(textureSampler = new ModuleTextureSampler());
