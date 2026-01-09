@@ -174,6 +174,11 @@
     <ClInclude Include="Application.h" />
     <ClInclude Include="DebugDrawPass.h" />
     <ClInclude Include="debug_draw.hpp" />
+    <ClInclude Include="gltf_utils.h" />
+    <ClInclude Include="Material.h" />
+    <ClInclude Include="Mesh.h" />
+    <ClInclude Include="Model.h" />
+    <ClInclude Include="ModuleShaderDescriptors.h" />
     <ClInclude Include="ModuleTextureSampler.h" />
     <ClInclude Include="GraphicsSamplers.h" />
     <ClInclude Include="MathUtils.h" />
@@ -193,6 +198,7 @@
     <ClInclude Include="PlatformHelpers.h" />
     <ClInclude Include="ReadData.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="ShaderTableDesc.h" />
     <ClInclude Include="SimpleMath.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
@@ -262,6 +268,10 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="Material.cpp" />
+    <ClCompile Include="Mesh.cpp" />
+    <ClCompile Include="Model.cpp" />
+    <ClCompile Include="ModuleShaderDescriptors.cpp" />
     <ClCompile Include="ModuleTextureSampler.cpp" />
     <ClCompile Include="GraphicsSamplers.cpp" />
     <ClCompile Include="MathUtils.cpp" />
@@ -286,6 +296,7 @@
     <ClCompile Include="Keyboard.cpp" />
     <ClCompile Include="ModuleInput.cpp" />
     <ClCompile Include="Mouse.cpp" />
+    <ClCompile Include="ShaderTableDesc.cpp" />
     <ClCompile Include="SimpleMath.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>

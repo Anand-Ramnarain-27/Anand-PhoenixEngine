@@ -29,9 +29,11 @@ private:
 private:
     bool showGrid = true;
     bool showAxis = true;
+    bool showGuizmo = true;
     GraphicsSamplers::Type currentFilter = GraphicsSamplers::LINEAR_WRAP;
 
-    bool showMainWindow = true;
+    bool showTextureWindow = false;
+	bool showGeometryWindow = true;
     bool showConsole = false;
     bool showFPS = false;
     bool showAbout = false;

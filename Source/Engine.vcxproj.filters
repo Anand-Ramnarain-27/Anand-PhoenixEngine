@@ -46,6 +46,11 @@
     <ClCompile Include="ModuleCamera.cpp" />
     <ClCompile Include="ModuleEditor.cpp" />
     <ClCompile Include="ModuleTextureSampler.cpp" />
+    <ClCompile Include="ModuleShaderDescriptors.cpp" />
+    <ClCompile Include="ShaderTableDesc.cpp" />
+    <ClCompile Include="Material.cpp" />
+    <ClCompile Include="Mesh.cpp" />
+    <ClCompile Include="Model.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -100,6 +105,12 @@
     <ClInclude Include="ModuleCamera.h" />
     <ClInclude Include="ModuleEditor.h" />
     <ClInclude Include="ModuleTextureSampler.h" />
+    <ClInclude Include="ModuleShaderDescriptors.h" />
+    <ClInclude Include="ShaderTableDesc.h" />
+    <ClInclude Include="Material.h" />
+    <ClInclude Include="Mesh.h" />
+    <ClInclude Include="Model.h" />
+    <ClInclude Include="gltf_utils.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

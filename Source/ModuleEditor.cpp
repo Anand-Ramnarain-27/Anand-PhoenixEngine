@@ -103,7 +103,8 @@ void ModuleEditor::imGuiDrawCommands()
     {
         if (ImGui::BeginMenu("Windows"))
         {
-            ImGui::MenuItem("Texture Viewer Options", nullptr, &showMainWindow);
+            ImGui::MenuItem("Texture Viewer Options", nullptr, &showTextureWindow);
+            ImGui::MenuItem("Geometry Viewer Options", nullptr, &showGeometryWindow);
             ImGui::MenuItem("Console", nullptr, &showConsole);
             ImGui::MenuItem("FPS Graph", nullptr, &showFPS);
             ImGui::MenuItem("About", nullptr, &showAbout);
@@ -118,10 +119,10 @@ void ModuleEditor::imGuiDrawCommands()
         ImGui::EndMainMenuBar();
     }
 
-    if (showMainWindow)
+    if (showTextureWindow)
     {
         ImGui::SetNextWindowSize(ImVec2(320, 240), ImGuiCond_FirstUseEver);
-        ImGui::Begin("Texture Viewer Options", &showMainWindow);
+        ImGui::Begin("Texture Viewer Options", &showTextureWindow);
 
         ImGui::Checkbox("Show Grid", &showGrid);
         ImGui::Checkbox("Show Axis", &showAxis);
@@ -144,6 +145,15 @@ void ModuleEditor::imGuiDrawCommands()
 
         ImGui::End();
     }
+
+    if( showGeometryWindow)
+    {
+        ImGui::Begin("Geometry Viewer Options");
+        ImGui::Checkbox("Show grid", &showGrid);
+        ImGui::Checkbox("Show axis", &showAxis);
+        ImGui::Checkbox("Show guizmo", &showGuizmo);
+        ImGui::End();
+	}
 
     if (showConsole)
     {
