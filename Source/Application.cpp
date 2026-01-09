@@ -9,6 +9,7 @@
 #include "ModuleEditor.h"
 #include "ModuleTextureSampler.h"
 #include "ModuleShaderDescriptors.h"
+#include "ModuleModelViewer.h"
 
 Application::Application(int argc, wchar_t** argv, void* hWnd)
 {
@@ -22,7 +23,8 @@ Application::Application(int argc, wchar_t** argv, void* hWnd)
     modules.push_back(shaderDescriptors = new ModuleShaderDescriptors());
     modules.push_back(editor = new ModuleEditor());
 
-	modules.push_back(textureSampler = new ModuleTextureSampler());
+	/*modules.push_back(textureSampler = new ModuleTextureSampler());*/
+	modules.push_back(modelViewer = new ModuleModelViewer());
 }
 
 Application::~Application()

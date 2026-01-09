@@ -14,6 +14,7 @@ class ModuleCamera;
 class ModuleEditor;
 class ModuleTextureSampler;
 class ModuleShaderDescriptors;
+class ModuleModelViewer;
 
 class Application
 {
@@ -33,6 +34,7 @@ public:
     ModuleEditor* getEditor() { return editor; }
 	ModuleTextureSampler* getTextureSampler() { return textureSampler; }
     ModuleShaderDescriptors* getShaderDescriptors() { return shaderDescriptors; }
+	ModuleModelViewer* getModelViewer() { return modelViewer; }
     void                        swapModule(Module* from, Module* to) { swapModules.push_back(std::make_pair(from, to)); }
     
     float                       getFPS() const { return 1000.0f * float(MAX_FPS_TICKS) / tickSum; }
@@ -56,6 +58,7 @@ private:
 	ModuleEditor* editor = nullptr;
 	ModuleTextureSampler* textureSampler = nullptr;
     ModuleShaderDescriptors* shaderDescriptors = nullptr;
+	ModuleModelViewer* modelViewer = nullptr;
 
     uint64_t  lastMilis = 0;
     TickList  tickList;

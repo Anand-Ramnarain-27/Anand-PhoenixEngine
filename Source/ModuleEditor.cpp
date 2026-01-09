@@ -4,6 +4,7 @@
 #include "ModuleD3D12.h"
 #include "GraphicsSamplers.h"
 #include "ModuleTextureSampler.h"
+#include "ModuleModelViewer.h"
 #include "ImGuiPass.h"
 
 #include <algorithm>
@@ -67,6 +68,16 @@ void ModuleEditor::preRender()
     if (imguiPass)
     {
         imguiPass->startFrame();
+
+        ModuleD3D12* d3d12 = app->getD3D12();
+        if (d3d12)
+        {
+            unsigned width = d3d12->getWindowWidth();
+            unsigned height = d3d12->getWindowHeight();
+            ImGuizmo::BeginFrame();
+            ImGuizmo::SetRect(0, 0, float(width), float(height));
+        }
+
         imGuiDrawCommands();
     }
 }
@@ -77,6 +88,7 @@ void ModuleEditor::render()
 
     ModuleD3D12* d3d12 = app->getD3D12();
     ModuleTextureSampler* textureSampler = app->getTextureSampler();
+	ModuleModelViewer* modelViewer = app->getModelViewer();
 
     ID3D12GraphicsCommandList* commandList = d3d12->beginFrameRender();
 
@@ -87,6 +99,11 @@ void ModuleEditor::render()
     if (textureSampler)
     {
         textureSampler->render3DContent(commandList);
+    }
+
+    if (modelViewer)
+    {
+        modelViewer->render3DContent(commandList);
     }
 
     ID3D12DescriptorHeap* heaps[] = { imguiHeap };
@@ -104,7 +121,7 @@ void ModuleEditor::imGuiDrawCommands()
         if (ImGui::BeginMenu("Windows"))
         {
             ImGui::MenuItem("Texture Viewer Options", nullptr, &showTextureWindow);
-            ImGui::MenuItem("Geometry Viewer Options", nullptr, &showGeometryWindow);
+            ImGui::MenuItem("Geometry Viewer Options", nullptr, &showModelViewerWindow);
             ImGui::MenuItem("Console", nullptr, &showConsole);
             ImGui::MenuItem("FPS Graph", nullptr, &showFPS);
             ImGui::MenuItem("About", nullptr, &showAbout);
@@ -146,14 +163,81 @@ void ModuleEditor::imGuiDrawCommands()
         ImGui::End();
     }
 
-    if( showGeometryWindow)
+    if (showModelViewerWindow)
     {
-        ImGui::Begin("Geometry Viewer Options");
-        ImGui::Checkbox("Show grid", &showGrid);
-        ImGui::Checkbox("Show axis", &showAxis);
-        ImGui::Checkbox("Show guizmo", &showGuizmo);
-        ImGui::End();
-	}
+        ModuleModelViewer* modelViewer = app->getModelViewer();
+        if (modelViewer)
+        {
+            ImGui::SetNextWindowSize(ImVec2(400, 500), ImGuiCond_FirstUseEver);
+            if (ImGui::Begin("Geometry Viewer Options", &showModelViewerWindow))
+            {
+                bool modelShowGrid = modelViewer->IsGridVisible();
+                bool modelShowAxis = modelViewer->IsAxisVisible();
+                bool modelShowGuizmo = modelViewer->IsGuizmoVisible();
+                ImGuizmo::OPERATION currentGizmoOp = modelViewer->GetGizmoOperation();
+
+                if (ImGui::Checkbox("Show grid", &modelShowGrid))
+                {
+                    modelViewer->SetShowGrid(modelShowGrid);
+                }
+
+                if (ImGui::Checkbox("Show axis", &modelShowAxis))
+                {
+                    modelViewer->SetShowAxis(modelShowAxis);
+                }
+
+                if (ImGui::Checkbox("Show guizmo", &modelShowGuizmo))
+                {
+                    modelViewer->SetShowGuizmo(modelShowGuizmo);
+                }
+
+                ImGui::Separator();
+
+                if (ImGui::RadioButton("Translate", (int*)&currentGizmoOp, (int)ImGuizmo::TRANSLATE))
+                {
+                    modelViewer->SetGizmoOperation(currentGizmoOp);
+                }
+                ImGui::SameLine();
+                if (ImGui::RadioButton("Rotate", (int*)&currentGizmoOp, ImGuizmo::ROTATE))
+                {
+                    modelViewer->SetGizmoOperation(currentGizmoOp);
+                }
+                ImGui::SameLine();
+                if (ImGui::RadioButton("Scale", (int*)&currentGizmoOp, ImGuizmo::SCALE))
+                {
+                    modelViewer->SetGizmoOperation(currentGizmoOp);
+                }
+
+                if (modelViewer->HasModel())
+                {
+                    auto& model = modelViewer->GetModel();
+                    ImGui::Text("Model: %s", model->getSrcFile().c_str());
+                    ImGui::Text("Meshes: %zu", model->getMeshes().size());
+                    ImGui::Text("Materials: %zu", model->getMaterials().size());
+
+                    Matrix objectMatrix = model->getModelMatrix();
+                    float translation[3], rotation[3], scale[3];
+                    ImGuizmo::DecomposeMatrixToComponents((float*)&objectMatrix, translation, rotation, scale);
+
+                    bool transformChanged = false;
+                    transformChanged = ImGui::DragFloat3("Position", translation, 0.1f) || transformChanged;
+                    transformChanged = ImGui::DragFloat3("Rotation", rotation, 0.1f) || transformChanged;
+                    transformChanged = ImGui::DragFloat3("Scale", scale, 0.1f) || transformChanged;
+
+                    if (transformChanged)
+                    {
+                        ImGuizmo::RecomposeMatrixFromComponents(translation, rotation, scale, (float*)&objectMatrix);
+                        model->setModelMatrix(objectMatrix);
+                    }
+                }
+                else
+                {
+                    ImGui::Text("No model loaded");
+                }
+            }
+            ImGui::End();
+        }
+    }
 
     if (showConsole)
     {

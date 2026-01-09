@@ -51,6 +51,7 @@
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="Model.cpp" />
+    <ClCompile Include="ModuleModelViewer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -111,6 +112,7 @@
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="gltf_utils.h" />
+    <ClInclude Include="ModuleModelViewer.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -134,6 +136,9 @@
     <Filter Include="Win">
       <UniqueIdentifier>{ef73e4b0-04e2-49c1-a096-c5dba20c0af1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{06295b1e-4250-4577-a3ee-f1f32904bf6e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Engine.rc">
@@ -141,7 +146,17 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="TextureSamplerVS.hlsl" />
-    <FxCompile Include="TextureSamplerPS.hlsl" />
+    <FxCompile Include="TextureSamplerPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="TextureSamplerVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="ModelSamplerPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="ModelSamplerVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

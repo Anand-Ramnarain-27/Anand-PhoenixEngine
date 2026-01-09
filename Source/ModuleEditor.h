@@ -4,9 +4,12 @@
 #include "GraphicsSamplers.h"
 #include <vector>
 #include <memory>
+#include <imgui.h>
+#include "ImGuizmo.h"
 
 class ImGuiPass;
 class ModuleTextureSampler;
+class ModuleModelViewer;
 
 class ModuleEditor : public Module
 {
@@ -22,6 +25,7 @@ public:
     bool IsGridVisible() const { return showGrid; }
     bool IsAxisVisible() const { return showAxis; }
     GraphicsSamplers::Type GetTextureFilter() const { return currentFilter; }
+    ImGuizmo::OPERATION GetCurrentGizmoOperation() const { return currentGizmoOperation; }
 
 private:
     void imGuiDrawCommands();
@@ -33,7 +37,7 @@ private:
     GraphicsSamplers::Type currentFilter = GraphicsSamplers::LINEAR_WRAP;
 
     bool showTextureWindow = false;
-	bool showGeometryWindow = true;
+    bool showModelViewerWindow = true;
     bool showConsole = false;
     bool showFPS = false;
     bool showAbout = false;
@@ -49,4 +53,6 @@ private:
 
     std::unique_ptr<ImGuiPass> imguiPass;
     ID3D12DescriptorHeap* imguiHeap = nullptr;
+
+    ImGuizmo::OPERATION currentGizmoOperation = ImGuizmo::TRANSLATE;
 };
