@@ -155,27 +155,6 @@ Matrix ModuleCamera::getPerspectiveProj(float aspect, float fov)
     return Matrix::CreatePerspectiveFieldOfView(fov, aspect, NEAR_PLANE, FAR_PLANE);
 }
 
-void ModuleCamera::getFrustumPlanes(Vector4 planes[6], float aspect, bool normalize) const
-{
-    Matrix proj = getPerspectiveProj(aspect);
-    Matrix viewProjection = view * proj;
-
-    getPlanes(planes, viewProjection, normalize);
-}
-
-BoundingFrustum ModuleCamera::getFrustum(float aspect) const
-{
-    Matrix proj = getPerspectiveProj(aspect);
-
-    BoundingFrustum frustum;
-    BoundingFrustum::CreateFromMatrix(frustum, proj, true);
-
-    frustum.Origin = position;
-    frustum.Orientation = rotation;
-
-    return frustum;
-}
-
 void ModuleCamera::focusOnTarget(const Vector3& target)
 {
     Vector3 dir = position - target;
