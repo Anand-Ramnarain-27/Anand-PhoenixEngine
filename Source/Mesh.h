@@ -1,6 +1,5 @@
 #pragma once
 #include "Globals.h"
-#include <string>
 #include <vector>
 #include <wrl/client.h>
 
@@ -23,35 +22,35 @@ public:
     };
 
 public:
-    Mesh();
-    ~Mesh();
+    Mesh() = default;
+    ~Mesh() = default;
 
-    void load(const tinygltf::Primitive& primitive, const tinygltf::Model& model);
+    void load(const tinygltf::Primitive& prim, const tinygltf::Model& model);
+    void render(ID3D12GraphicsCommandList* cmdList) const;
 
-    void draw(ID3D12GraphicsCommandList* commandList) const;
+    int getMaterialIndex() const { return materialID; }
 
-    uint32_t getVertexCount() const { return m_vertexCount; }
-    uint32_t getIndexCount() const { return m_indexCount; }
-    int getMaterialIndex() const { return m_materialIndex; }
+    uint32_t getVertexCount() const { return vertexCount; }
+    uint32_t getIndexCount() const { return indexCount; }
 
-    static const D3D12_INPUT_ELEMENT_DESC* getInputLayout() { return s_inputLayout; }
-    static uint32_t getInputLayoutCount() { return 3; }
+    static const D3D12_INPUT_ELEMENT_DESC inputLayout[3];
+private:
+    bool copyVertexData(uint8_t* dest, size_t elemSize, size_t stride, size_t count,
+        const tinygltf::Model& model, int accessorIndex);
+
+    void setupGPUBuffers();
 
 private:
-    void createBuffers();
+    uint32_t vertexCount = 0;
+    uint32_t indexCount = 0;
+    int materialID = -1;
 
-    uint32_t m_vertexCount = 0;
-    uint32_t m_indexCount = 0;
-    int m_materialIndex = -1;
+    std::vector<Vertex> vertices;
+    std::vector<uint32_t> indices;
 
-    std::vector<Vertex> m_vertices;
-    std::vector<uint32_t> m_indices;
+    ComPtr<ID3D12Resource> vertexBuffer;
+    D3D12_VERTEX_BUFFER_VIEW vbView;
 
-    ComPtr<ID3D12Resource> m_vertexBuffer;
-    D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
-
-    ComPtr<ID3D12Resource> m_indexBuffer;
-    D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
-
-    static const D3D12_INPUT_ELEMENT_DESC s_inputLayout[3];
+    ComPtr<ID3D12Resource> indexBuffer;
+    D3D12_INDEX_BUFFER_VIEW ibView;
 };

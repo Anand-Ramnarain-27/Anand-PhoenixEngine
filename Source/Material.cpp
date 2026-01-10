@@ -11,74 +11,77 @@
 
 Material::Material()
 {
-    m_data.baseColour = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-    m_data.hasColourTexture = FALSE;
+
 }
 
-void Material::load(const tinygltf::Material& gltfMaterial, const tinygltf::Model& model, const char* basePath)
+void Material::load(const tinygltf::Material& gltfMat,
+    const tinygltf::Model& model,
+    const char* basePath)
 {
-    m_name = gltfMaterial.name.empty() ? "Material" : gltfMaterial.name;
+    name = gltfMat.name.empty() ? "Material" : gltfMat.name;
 
-    // Get base color from PBR metallic-roughness
-    const auto& pbr = gltfMaterial.pbrMetallicRoughness;
+    basicData.hasColorTexture = FALSE;
+    phongData.hasDiffuseTexture = FALSE;
+
+    const auto& pbr = gltfMat.pbrMetallicRoughness;
     if (pbr.baseColorFactor.size() >= 4)
     {
-        m_data.baseColour = XMFLOAT4(
+        XMFLOAT4 color{
             float(pbr.baseColorFactor[0]),
             float(pbr.baseColorFactor[1]),
             float(pbr.baseColorFactor[2]),
             float(pbr.baseColorFactor[3])
-        );
+        };
+        basicData.color = color;
+        phongData.diffuseColor = color;
     }
 
     if (pbr.baseColorTexture.index >= 0 &&
         pbr.baseColorTexture.index < (int)model.textures.size())
     {
-        const auto& texture = model.textures[pbr.baseColorTexture.index];
-        if (texture.source >= 0 && texture.source < (int)model.images.size())
+        const auto& tex = model.textures[pbr.baseColorTexture.index];
+        if (tex.source >= 0 && tex.source < (int)model.images.size())
         {
-            const auto& image = model.images[texture.source];
-            if (!image.uri.empty())
+            const auto& img = model.images[tex.source];
+            if (!img.uri.empty())
             {
-                ModuleResources* resources = app->getResources();
-                std::string fullPath = std::string(basePath) + image.uri;
-                m_texture = resources->createTextureFromFile(fullPath, true);
+                ModuleResources* res = app->getResources();
+                std::string fullPath = std::string(basePath) + img.uri;
+                texture = res->createTextureFromFile(fullPath, true);
 
-                ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
-                if (descriptors && m_texture)
+                ModuleShaderDescriptors* desc = app->getShaderDescriptors();
+                if (desc && texture)
                 {
-                    auto table = descriptors->allocTable("MaterialTexture");
+                    auto table = desc->allocTable("MaterialTexture");
                     if (table)
                     {
-                        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-                        srvDesc.Format = m_texture->GetDesc().Format;
-                        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-                        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-                        srvDesc.Texture2D.MipLevels = 1;
-                        srvDesc.Texture2D.MostDetailedMip = 0;
+                        D3D12_SHADER_RESOURCE_VIEW_DESC srv{};
+                        srv.Format = texture->GetDesc().Format;
+                        srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+                        srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+                        srv.Texture2D.MipLevels = 1;
 
-                        table->createSRV(0, m_texture.Get(), &srvDesc);
-                        m_textureGPUHandle = table->getGPUHandle();
-                        m_hasTexture = true;
+                        table->createSRV(0, texture.Get(), &srv);
+                        gpuHandle = table->getGPUHandle();
+                        textureLoaded = true;
+
+                        basicData.hasColorTexture = TRUE;
+                        phongData.hasDiffuseTexture = TRUE;
+                        return;
                     }
                 }
-
-                m_data.hasColourTexture = TRUE;
             }
         }
     }
-    else
+
+    ModuleShaderDescriptors* desc = app->getShaderDescriptors();
+    if (desc)
     {
-        ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
-        if (descriptors)
+        auto table = desc->allocTable("NullTexture");
+        if (table)
         {
-            auto table = descriptors->allocTable("NullTexture");
-            if (table)
-            {
-                table->createNullSRV(0, D3D12_SRV_DIMENSION_TEXTURE2D);
-                m_textureGPUHandle = table->getGPUHandle();
-            }
+            table->createNullSRV(0, D3D12_SRV_DIMENSION_TEXTURE2D);
+            gpuHandle = table->getGPUHandle();
         }
-        m_data.hasColourTexture = FALSE;
     }
 }
