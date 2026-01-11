@@ -505,20 +505,32 @@ void ModuleEditor::imGuiDrawCommands()
         ImGui::End();
     }
 
+    // ... rest of the file remains the same
+
     if (showAbout)
     {
         ImGui::SetNextWindowSize(ImVec2(400, 450), ImGuiCond_FirstUseEver);
         if (ImGui::Begin("About", &showAbout))
         {
-            ImGui::Text("PhoenixEngine v0.1");
+            ImGui::Text("PhoenixEngine v0.2");
             ImGui::Separator();
 
             ImGui::Text("A DirectX 12 Game Engine");
-            ImGui::Text("Built for learning and development");
+            ImGui::Text("Built for Game Engines Assignment 2");
+
+            ImGui::Separator();
+            ImGui::Text("Assignment 2 Features:");
+            ImGui::BulletText("Unity-like camera controls");
+            ImGui::BulletText("PBR Phong shading for 3D models");
+            ImGui::BulletText("ImGuizmo for transform controls");
+            ImGui::BulletText("ImGui material & light editor");
+            ImGui::BulletText("Scene rendered to texture view");
+            ImGui::BulletText("Grid and axis visualization");
 
             ImGui::Separator();
             ImGui::Text("Renderer:");
             ImGui::BulletText("DirectX 12 Graphics API");
+            ImGui::BulletText("PBR Phong shading model");
             ImGui::BulletText("Texture & Mesh Systems");
             ImGui::BulletText("Shader Management");
 
@@ -527,13 +539,15 @@ void ModuleEditor::imGuiDrawCommands()
             ImGui::BulletText("ImGui Interface");
             ImGui::BulletText("Performance Monitoring");
             ImGui::BulletText("Scene Configuration");
+            ImGui::BulletText("Real-time parameter editing");
 
             ImGui::Separator();
             ImGui::Text("Modules:");
             ImGui::BulletText("D3D12 Renderer");
             ImGui::BulletText("Resource Manager");
             ImGui::BulletText("Editor UI");
-            ImGui::BulletText("Graphics Samplers");
+            ImGui::BulletText("Model Viewer");
+            ImGui::BulletText("Camera System");
         }
         ImGui::End();
     }
@@ -543,41 +557,53 @@ void ModuleEditor::imGuiDrawCommands()
         ImGui::SetNextWindowSize(ImVec2(400, 500), ImGuiCond_FirstUseEver);
         if (ImGui::Begin("Controls", &showControls))
         {
-            ImGui::Text("Editor Controls");
+            ImGui::Text("Assignment 2 Controls");
             ImGui::Separator();
 
-            ImGui::Text("Windows:");
-            ImGui::BulletText("Main: Scene controls");
-            ImGui::BulletText("Controls: This window");
-            ImGui::BulletText("FPS Graph: Performance");
-            ImGui::BulletText("Console: Log output");
-            ImGui::BulletText("About: Engine info");
-
-            ImGui::Separator();
-            ImGui::Text("Scene Visualization:");
-            ImGui::BulletText("Show Grid: Toggle ground plane");
-            ImGui::BulletText("Show Axis: Toggle XYZ axes");
-
-            ImGui::Separator();
-            ImGui::Text("Texture Settings:");
-            ImGui::BulletText("Filtering: 4 texture modes");
-            ImGui::BulletText("Wrap/Clamp: Address modes");
-            ImGui::BulletText("Bilinear/Point: Filter types");
-
-            ImGui::Separator();
-            ImGui::Text("Camera Controls:");
+            ImGui::Text("Camera Controls (Unity-style):");
             ImGui::BulletText("Right Click + Mouse: Free look");
             ImGui::BulletText("Right Click + WASD: FPS movement");
             ImGui::BulletText("Mouse Wheel: Zoom in/out");
             ImGui::BulletText("Alt + Left Click: Orbit object");
-            ImGui::BulletText("F: Focus camera on geometry");
+            ImGui::BulletText("F: Focus camera on model");
             ImGui::BulletText("Shift: Double movement speed");
 
             ImGui::Separator();
-            ImGui::Text("Performance:");
-            ImGui::BulletText("FPS Counter: Real-time display");
-            ImGui::BulletText("Frame Time: Per-frame timing");
-            ImGui::BulletText("Graphs: Visual performance trends");
+            ImGui::Text("Transform Controls:");
+            ImGui::BulletText("Gizmo: Translate/Rotate/Scale model");
+            ImGui::BulletText("T: Translate mode");
+            ImGui::BulletText("R: Rotate mode");
+            ImGui::BulletText("S: Scale mode");
+            ImGui::BulletText("ImGui sliders: Precise transform values");
+
+            ImGui::Separator();
+            ImGui::Text("Lighting Controls:");
+            ImGui::BulletText("Light Direction: 3D vector control");
+            ImGui::BulletText("Light Color: Color picker");
+            ImGui::BulletText("Ambient Color: Color picker");
+            ImGui::BulletText("Normalize: Reset light direction");
+
+            ImGui::Separator();
+            ImGui::Text("Material Controls:");
+            ImGui::BulletText("Diffuse Color: Color picker");
+            ImGui::BulletText("Specular Color: Color picker");
+            ImGui::BulletText("Shininess: Slider control");
+            ImGui::BulletText("Kd/Ks: Diffuse/Specular strength");
+            ImGui::BulletText("Texture: View loaded textures");
+
+            ImGui::Separator();
+            ImGui::Text("Visualization:");
+            ImGui::BulletText("Grid: Toggle ground plane");
+            ImGui::BulletText("Axis: Toggle XYZ axes");
+            ImGui::BulletText("Gizmo: Toggle transform widget");
+
+            ImGui::Separator();
+            ImGui::Text("Windows:");
+            ImGui::BulletText("Geometry Viewer: Main 3D view");
+            ImGui::BulletText("Scene View: Rendered texture view");
+            ImGui::BulletText("FPS Graph: Performance monitor");
+            ImGui::BulletText("Console: Log output");
+            ImGui::BulletText("Controls: This window");
         }
         ImGui::End();
     }
