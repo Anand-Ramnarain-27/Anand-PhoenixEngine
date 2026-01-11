@@ -179,6 +179,7 @@
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="ModuleModelViewer.h" />
+    <ClInclude Include="ModuleRingBuffer.h" />
     <ClInclude Include="ModuleShaderDescriptors.h" />
     <ClInclude Include="ModuleTextureSampler.h" />
     <ClInclude Include="GraphicsSamplers.h" />
@@ -273,6 +274,7 @@
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="ModuleModelViewer.cpp" />
+    <ClCompile Include="ModuleRingBuffer.cpp" />
     <ClCompile Include="ModuleShaderDescriptors.cpp" />
     <ClCompile Include="ModuleTextureSampler.cpp" />
     <ClCompile Include="GraphicsSamplers.cpp" />
@@ -312,6 +314,7 @@
     <Image Include="small.ico" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="ModelSampler.hlsli" />
     <None Include="packages.config" />
     <None Include="SimpleMath.inl" />
   </ItemGroup>

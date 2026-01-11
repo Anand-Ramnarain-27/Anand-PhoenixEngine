@@ -7,6 +7,7 @@
 #include "ModuleShaderDescriptors.h"
 #include "ModuleResources.h"
 #include "GraphicsSamplers.h"
+#include "ModuleRingBuffer.h"
 #include <imgui.h>
 #include "ImGuizmo.h"
 
@@ -72,162 +73,153 @@ void ModuleModelViewer::render()
 {
 }
 
-void ModuleModelViewer::render3DContent(ID3D12GraphicsCommandList* commandList)
+Matrix ModuleModelViewer::getNormalMatrix() const
 {
-    ModuleD3D12* d3d12 = app->getD3D12();
-    ModuleCamera* camera = app->getCamera();
-    ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
-    GraphicsSamplers* samplers = app->getGraphicsSamplers();
+    Matrix modelMatrix = model->getModelMatrix();
+    modelMatrix.Invert();
+    modelMatrix = modelMatrix.Transpose();
+    return modelMatrix;
+}
 
-    if (!d3d12 || !camera || !model || !commandList) return;
+void ModuleModelViewer::render3DContent(ID3D12GraphicsCommandList* cmd)
+{
+    auto d3d12 = app->getD3D12();
+    auto camera = app->getCamera();
+    auto descriptors = app->getShaderDescriptors();
+    auto samplers = app->getGraphicsSamplers();
+    auto ringBuffer = app->getRingBuffer();
 
-    unsigned width = d3d12->getWindowWidth();
-    unsigned height = d3d12->getWindowHeight();
+    if (!cmd || !model || !camera) return;
+
+    const unsigned w = d3d12->getWindowWidth();
+    const unsigned h = d3d12->getWindowHeight();
 
     const Matrix& view = camera->getView();
-    Matrix proj = ModuleCamera::getPerspectiveProj(float(width) / float(height));
+    Matrix proj = ModuleCamera::getPerspectiveProj(float(w) / float(h));
 
     if (showGuizmo)
     {
-        Matrix objectMatrix = model->getModelMatrix();
-
-        float matrix[16];
-        memcpy(matrix, &objectMatrix, sizeof(float) * 16);
-
+        Matrix m = model->getModelMatrix();
         ImGuizmo::Manipulate(
-            (const float*)&view,
-            (const float*)&proj,
+            (float*)&view,
+            (float*)&proj,
             gizmoOperation,
             ImGuizmo::LOCAL,
-            matrix
+            (float*)&m
         );
 
         if (ImGuizmo::IsUsing())
-        {
-            memcpy(&objectMatrix, matrix, sizeof(float) * 16);
-            model->setModelMatrix(objectMatrix);
-        }
+            model->setModelMatrix(m);
     }
+
+    PerFrame pf{};
+    pf.L = light.L;
+    pf.Lc = light.Lc;
+    pf.Ac = light.Ac;
+    pf.viewPos = camera->getPos();
+
+    RingBufferAllocation frameAlloc = ringBuffer->allocateType(pf);
 
     Matrix mvp = model->getModelMatrix() * view * proj;
     mvp = mvp.Transpose();
 
-    D3D12_VIEWPORT viewport;
-    viewport.TopLeftX = viewport.TopLeftY = 0;
-    viewport.MinDepth = 0.0f;
-    viewport.MaxDepth = 1.0f;
-    viewport.Width = float(width);
-    viewport.Height = float(height);
+    D3D12_VIEWPORT vp{ 0,0,float(w),float(h),0,1 };
+    D3D12_RECT sc{ 0,0,(LONG)w,(LONG)h };
 
-    D3D12_RECT scissor;
-    scissor.left = 0;
-    scissor.top = 0;
-    scissor.right = width;
-    scissor.bottom = height;
+    cmd->SetPipelineState(pso.Get());
+    cmd->SetGraphicsRootSignature(rootSignature.Get());
+    cmd->RSSetViewports(1, &vp);
+    cmd->RSSetScissorRects(1, &sc);
+    cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    commandList->SetPipelineState(pso.Get());
-    commandList->SetGraphicsRootSignature(rootSignature.Get());
-    commandList->RSSetViewports(1, &viewport);
-    commandList->RSSetScissorRects(1, &scissor);
-    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-    if (descriptors && samplers)
+    ID3D12DescriptorHeap* heaps[] =
     {
-        ID3D12DescriptorHeap* descriptorHeaps[] = {
-            descriptors->getDescriptorHeap(),
-            samplers->getHeap()
-        };
-        commandList->SetDescriptorHeaps(2, descriptorHeaps);
-        commandList->SetGraphicsRootDescriptorTable(3,
-            samplers->getGPUHandle(GraphicsSamplers::LINEAR_WRAP));
-    }
+        descriptors->getDescriptorHeap(),
+        samplers->getHeap()
+    };
+    cmd->SetDescriptorHeaps(2, heaps);
 
-    commandList->SetGraphicsRoot32BitConstants(0,
-        sizeof(Matrix) / sizeof(UINT32), &mvp, 0);
+    cmd->SetGraphicsRoot32BitConstants(
+        0,
+        sizeof(Matrix) / sizeof(UINT),
+        &mvp,
+        0
+    );
 
-    BEGIN_EVENT(commandList, "Model Render Pass");
+    cmd->SetGraphicsRootConstantBufferView(
+        1,
+        frameAlloc.gpuAddress
+    );
 
-    const auto& meshes = model->getMeshes();
-    const auto& materials = model->getMaterials();
+    cmd->SetGraphicsRootDescriptorTable(
+        4,
+        samplers->getGPUHandle(GraphicsSamplers::LINEAR_WRAP)
+    );
 
-    for (size_t i = 0; i < meshes.size(); ++i)
+    BEGIN_EVENT(cmd, "Model Viewer");
+
+    for (const auto& meshPtr : model->getMeshes())
     {
-        const auto& mesh = meshes[i];
-        int materialIndex = mesh->getMaterialIndex();
-
-        if (materialIndex >= 0 && materialIndex < (int)materials.size() &&
-            materialIndex < (int)materialBuffers.size())
+        int materialID = meshPtr->getMaterialIndex();
+        if (materialID >= 0 && materialID < (int)model->getMaterials().size())
         {
-            const auto& material = materials[materialIndex];
+            const auto& materialPtr = model->getMaterials()[materialID];
 
-            if (materialBuffers[materialIndex])
+            PerInstance perInstance;
+            perInstance.modelMat = model->getModelMatrix().Transpose();
+            perInstance.normalMat = getNormalMatrix().Transpose();
+            perInstance.material = materialPtr->getPhong();
+
+            cmd->SetGraphicsRootConstantBufferView(2, ringBuffer->allocateType(perInstance).gpuAddress);
+
+            if (materialPtr->hasTexture())
             {
-                commandList->SetGraphicsRootConstantBufferView(1,
-                    materialBuffers[materialIndex]->GetGPUVirtualAddress());
+                cmd->SetGraphicsRootDescriptorTable(3, materialPtr->getTextureGPUHandle());
             }
 
-            D3D12_GPU_DESCRIPTOR_HANDLE textureHandle = material->getTextureGPUHandle();
-            if (textureHandle.ptr != 0)
-            {
-                commandList->SetGraphicsRootDescriptorTable(2, textureHandle);
-            }
-
-            mesh->draw(commandList);
-        }
-        else
-        {
-            mesh->draw(commandList);
+            meshPtr->render(cmd);
         }
     }
 
-    END_EVENT(commandList);
+    END_EVENT(cmd);
 
     if (showGrid && debugDrawPass)
-        dd::xzSquareGrid(-10.0f, 10.0f, 0.0f, 1.0f, dd::colors::LightGray);
+        dd::xzSquareGrid(-10, 10, 0, 1, dd::colors::LightGray);
+
     if (showAxis && debugDrawPass)
         dd::axisTriad(ddConvert(Matrix::Identity), 0.1f, 1.0f);
 
     if (debugDrawPass)
-        debugDrawPass->record(commandList, width, height, view, proj);
+        debugDrawPass->record(cmd, w, h, view, proj);
 }
 
 bool ModuleModelViewer::createRootSignature()
 {
-    auto device = app->getD3D12()->getDevice();
-    if (!device) return false;
-
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    CD3DX12_ROOT_PARAMETER rootParameters[4] = {};
+    CD3DX12_ROOT_PARAMETER rootParameters[5] = {};
     CD3DX12_DESCRIPTOR_RANGE tableRanges;
     CD3DX12_DESCRIPTOR_RANGE sampRange;
 
     tableRanges.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-    sampRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, GraphicsSamplers::COUNT, 0);
+    sampRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, GraphicsSamplers::COUNT, 0);  // Updated
 
     rootParameters[0].InitAsConstants((sizeof(Matrix) / sizeof(UINT32)), 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-    rootParameters[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-    rootParameters[2].InitAsDescriptorTable(1, &tableRanges, D3D12_SHADER_VISIBILITY_PIXEL);
-    rootParameters[3].InitAsDescriptorTable(1, &sampRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    rootParameters[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_ALL);
+    rootParameters[2].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_ALL);
+    rootParameters[3].InitAsDescriptorTable(1, &tableRanges, D3D12_SHADER_VISIBILITY_PIXEL);
+    rootParameters[4].InitAsDescriptorTable(1, &sampRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
-    rootSignatureDesc.Init(4, rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    rootSignatureDesc.Init(5, rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     ComPtr<ID3DBlob> rootSignatureBlob;
-    ComPtr<ID3DBlob> errorBlob;
 
-    if (FAILED(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1,
-        &rootSignatureBlob, &errorBlob)))
+    if (FAILED(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootSignatureBlob, nullptr)))
     {
-        if (errorBlob)
-        {
-            OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-        }
         return false;
     }
 
-    if (FAILED(device->CreateRootSignature(0,
-        rootSignatureBlob->GetBufferPointer(),
-        rootSignatureBlob->GetBufferSize(),
-        IID_PPV_ARGS(&rootSignature))))
+    if (FAILED(app->getD3D12()->getDevice()->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(),
+        rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature))))
     {
         return false;
     }
@@ -239,7 +231,6 @@ bool ModuleModelViewer::loadModel()
 {
     model = std::make_unique<Model>();
 
-    // Try different models
     if (!model->load("Assets/Models/Duck/duck.gltf", "Assets/Models/Duck/"))
     {
         if (!model->load("Assets/Models/BoxTextured/BoxTextured.gltf", "Assets/Models/BoxTextured/"))
@@ -252,7 +243,7 @@ bool ModuleModelViewer::loadModel()
         }
     }
 
-    model->setModelMatrix(Matrix::CreateScale(0.01f, 0.01f, 0.01f));
+    model->setModelMatrix(Matrix::CreateScale(0.01f));
 
     ModuleResources* resources = app->getResources();
     if (!resources) return false;
@@ -263,12 +254,12 @@ bool ModuleModelViewer::loadModel()
     for (size_t i = 0; i < materials.size(); ++i)
     {
         const auto& material = materials[i];
-        const Material::Data& data = material->getData();
+        const Material::BasicMaterial& data = material->getBasic();
 
         materialBuffers[i] = resources->createDefaultBuffer(
             &data,
-            sizeof(Material::Data),
-            material->getName()
+            sizeof(Material::BasicMaterial),
+            material->getName().c_str()
         );
     }
 
@@ -284,8 +275,8 @@ bool ModuleModelViewer::createPSO()
     auto device = app->getD3D12()->getDevice();
     if (!device) return false;
 
-    const D3D12_INPUT_ELEMENT_DESC* inputLayout = Mesh::getInputLayout();
-    uint32_t inputLayoutCount = Mesh::getInputLayoutCount();
+    const D3D12_INPUT_ELEMENT_DESC* inputLayout = Mesh::inputLayout;
+    uint32_t inputLayoutCount = _countof(Mesh::inputLayout);
 
     auto dataVS = DX::ReadData(L"ModelSamplerVS.cso");
     auto dataPS = DX::ReadData(L"ModelSamplerPS.cso");
@@ -302,16 +293,20 @@ bool ModuleModelViewer::createPSO()
         }
     }
 
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-    psoDesc.InputLayout = { inputLayout, inputLayoutCount };
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
+    psoDesc.InputLayout = { Mesh::inputLayout, _countof(Mesh::inputLayout) };
     psoDesc.pRootSignature = rootSignature.Get();
     psoDesc.VS = { dataVS.data(), dataVS.size() };
     psoDesc.PS = { dataPS.data(), dataPS.size() };
     psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+    psoDesc.NumRenderTargets = 1;
     psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-    psoDesc.SampleDesc = { 1, 0 };
-    psoDesc.SampleMask = 0xffffffff;
+    psoDesc.SampleDesc = { 1,0 };
+    psoDesc.SampleMask = UINT_MAX;
+    psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+    psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
     psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     psoDesc.RasterizerState.FrontCounterClockwise = TRUE; 

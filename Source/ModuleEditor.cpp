@@ -5,6 +5,7 @@
 #include "GraphicsSamplers.h"
 #include "ModuleTextureSampler.h"
 #include "ModuleModelViewer.h"
+#include "ModuleCamera.h"
 #include "ImGuiPass.h"
 
 #include <algorithm>
@@ -166,6 +167,7 @@ void ModuleEditor::imGuiDrawCommands()
     if (showModelViewerWindow)
     {
         ModuleModelViewer* modelViewer = app->getModelViewer();
+        ModuleCamera* camera = app->getCamera();
         if (modelViewer)
         {
             ImGui::SetNextWindowSize(ImVec2(400, 500), ImGuiCond_FirstUseEver);
@@ -177,62 +179,99 @@ void ModuleEditor::imGuiDrawCommands()
                 ImGuizmo::OPERATION currentGizmoOp = modelViewer->GetGizmoOperation();
 
                 if (ImGui::Checkbox("Show grid", &modelShowGrid))
-                {
                     modelViewer->SetShowGrid(modelShowGrid);
-                }
 
                 if (ImGui::Checkbox("Show axis", &modelShowAxis))
-                {
                     modelViewer->SetShowAxis(modelShowAxis);
-                }
 
                 if (ImGui::Checkbox("Show guizmo", &modelShowGuizmo))
-                {
                     modelViewer->SetShowGuizmo(modelShowGuizmo);
-                }
 
                 ImGui::Separator();
 
                 if (ImGui::RadioButton("Translate", (int*)&currentGizmoOp, (int)ImGuizmo::TRANSLATE))
-                {
                     modelViewer->SetGizmoOperation(currentGizmoOp);
-                }
                 ImGui::SameLine();
+
                 if (ImGui::RadioButton("Rotate", (int*)&currentGizmoOp, ImGuizmo::ROTATE))
-                {
                     modelViewer->SetGizmoOperation(currentGizmoOp);
-                }
+
                 ImGui::SameLine();
                 if (ImGui::RadioButton("Scale", (int*)&currentGizmoOp, ImGuizmo::SCALE))
-                {
                     modelViewer->SetGizmoOperation(currentGizmoOp);
-                }
 
                 if (modelViewer->HasModel())
                 {
                     auto& model = modelViewer->GetModel();
+
                     ImGui::Text("Model: %s", model->getSrcFile().c_str());
                     ImGui::Text("Meshes: %zu", model->getMeshes().size());
                     ImGui::Text("Materials: %zu", model->getMaterials().size());
 
-                    Matrix objectMatrix = model->getModelMatrix();
+                    ImGui::Separator();
+
+                    Matrix modelMatrix = modelViewer->GetModelMatrix();
+
                     float translation[3], rotation[3], scale[3];
-                    ImGuizmo::DecomposeMatrixToComponents((float*)&objectMatrix, translation, rotation, scale);
+                    ImGuizmo::DecomposeMatrixToComponents(
+                        (float*)&modelMatrix,
+                        translation,
+                        rotation,
+                        scale
+                    );
 
-                    bool transformChanged = false;
-                    transformChanged = ImGui::DragFloat3("Position", translation, 0.1f) || transformChanged;
-                    transformChanged = ImGui::DragFloat3("Rotation", rotation, 0.1f) || transformChanged;
-                    transformChanged = ImGui::DragFloat3("Scale", scale, 0.1f) || transformChanged;
+                    bool changed = false;
+                    changed |= ImGui::DragFloat3("Position", translation, 0.1f);
+                    changed |= ImGui::DragFloat3("Rotation", rotation, 0.1f);
+                    changed |= ImGui::DragFloat3("Scale", scale, 0.1f);
 
-                    if (transformChanged)
+                    if (changed)
                     {
-                        ImGuizmo::RecomposeMatrixFromComponents(translation, rotation, scale, (float*)&objectMatrix);
-                        model->setModelMatrix(objectMatrix);
+                        ImGuizmo::RecomposeMatrixFromComponents(
+                            translation,
+                            rotation,
+                            scale,
+                            (float*)&modelMatrix
+                        );
+                        modelViewer->SetModelMatrix(modelMatrix);
                     }
                 }
                 else
                 {
                     ImGui::Text("No model loaded");
+                }
+                ImGui::Separator();
+
+                if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    auto light = modelViewer->GetLight();
+
+                    if (ImGui::DragFloat3("Light Direction", (float*)&light.L, 0.1f, -1.0f, 1.0f))
+                    {
+                        light.L.Normalize();
+                        modelViewer->SetLight(light);
+                    }
+
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("Normalize"))
+                    {
+                        light.L.Normalize();
+                        modelViewer->SetLight(light);
+                    }
+
+                    if (ImGui::ColorEdit3("Light Colour", (float*)&light.Lc))
+                        modelViewer->SetLight(light);
+
+                    if (ImGui::ColorEdit3("Ambient Colour", (float*)&light.Ac))
+                        modelViewer->SetLight(light);
+                }
+                ImGuiIO& io = ImGui::GetIO();
+                if (camera)
+                {
+                    camera->setEnable(
+                        !io.WantCaptureMouse &&
+                        !ImGuizmo::IsUsing()
+                    );
                 }
             }
             ImGui::End();
