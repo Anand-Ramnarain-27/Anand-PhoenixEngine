@@ -32,6 +32,18 @@ public:
         float padding[3] = {};
     };
 
+    struct PBRPhongMaterial
+    {
+        XMFLOAT4 diffuseColor = XMFLOAT4(1, 1, 1, 1);
+
+        XMFLOAT3 F0 = XMFLOAT3(0.04f, 0.04f, 0.04f);
+
+        float shininess = 32.0f;
+
+        BOOL hasDiffuseTexture = FALSE;
+        float padding[3] = {};
+    };
+
 public:
     Material();
 
@@ -41,6 +53,7 @@ public:
 
     const BasicMaterial& getBasic() const { return basicData; }
     const PhongMaterial& getPhong() const { return phongData; }
+    const PBRPhongMaterial& getPBRPhong() const { return pbrPhongData; }
 
     ComPtr<ID3D12Resource> getTexture() const { return texture; }
     D3D12_GPU_DESCRIPTOR_HANDLE getTextureGPUHandle() const { return gpuHandle; }
@@ -50,6 +63,7 @@ public:
 private:
     BasicMaterial basicData;
     PhongMaterial phongData;
+    PBRPhongMaterial pbrPhongData;
 
     ComPtr<ID3D12Resource> texture;
     D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = {};
