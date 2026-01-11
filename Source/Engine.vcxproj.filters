@@ -117,6 +117,7 @@
     <ClInclude Include="ModuleModelViewer.h" />
     <ClInclude Include="ModuleRingBuffer.h" />
     <ClInclude Include="RenderTexture.h" />
+    <ClInclude Include="DeferredReleaseResource.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

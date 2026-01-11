@@ -180,7 +180,7 @@ void ModuleRingBuffer::reclaimCompletedFrames()
     ModuleD3D12* d3d12 = app->getD3D12();
     if (!d3d12) return;
 
-    unsigned lastCompletedFrame = d3d12->getLastCompletedFrame();
+    UINT64 lastCompletedFrame = d3d12->getLastCompletedFrame();
 
     for (unsigned frameIdx = 0; frameIdx < FRAMES_IN_FLIGHT; ++frameIdx)
     {

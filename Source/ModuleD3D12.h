@@ -27,7 +27,7 @@ public:
 
     unsigned getCurrentBackBufferIdx() const { return m_currentBackBufferIdx; }
     unsigned getCurrentFrame() const { return m_frameIndex; }
-    unsigned getLastCompletedFrame() const { return m_lastCompletedFrame; }
+    UINT64 getLastCompletedFrame() const { return m_lastCompletedFrame; }
     unsigned getWindowWidth() const { return m_windowWidth; }
     unsigned getWindowHeight() const { return m_windowHeight; }
     bool isFullscreen() const { return m_fullscreen; }
@@ -44,6 +44,9 @@ public:
 
     D3D12_CPU_DESCRIPTOR_HANDLE createRTV(ID3D12Resource* resource);
     D3D12_CPU_DESCRIPTOR_HANDLE createDSV(ID3D12Resource* resource);
+
+    void deferRelease(ID3D12Object* object);
+    void collectGarbage();
 private:
     void enableDebugLayer();
     bool createFactory();
@@ -59,7 +62,18 @@ private:
     void getWindowSize(unsigned& width, unsigned& height) const;
     void waitForFrameFence(UINT64 fenceValue);
 
+    size_t getDeferredReleaseCount() const { return m_deferredReleases.size(); }
+    size_t getTotalDeferredMemory() const; 
 private:
+    struct DeferredRelease
+    {
+        ID3D12Object* object;
+        unsigned frameIndex;
+    };
+
+    std::vector<DeferredRelease> m_deferredReleases;
+    size_t m_deferredMemoryUsage = 0;
+
     HWND m_hWnd = nullptr;
     unsigned m_windowWidth = 0;
     unsigned m_windowHeight = 0;
@@ -87,7 +101,7 @@ private:
 
     unsigned m_frameValues[FRAMES_IN_FLIGHT] = { 0, 0, 0 };
     unsigned m_frameIndex = 0;
-    unsigned m_lastCompletedFrame = 0;
+    UINT64 m_lastCompletedFrame = 0;
     unsigned m_currentBackBufferIdx = 0;
 
     bool m_allowTearing = false;
