@@ -121,8 +121,8 @@ void ModuleEditor::imGuiDrawCommands()
     {
         if (ImGui::BeginMenu("Windows"))
         {
-            ImGui::MenuItem("Texture Viewer Options", nullptr, &showTextureWindow);
-            ImGui::MenuItem("Geometry Viewer Options", nullptr, &showModelViewerWindow);
+            ImGui::MenuItem("Texture Viewer", nullptr, &showTextureWindow);
+            ImGui::MenuItem("Geometry Viewer", nullptr, &showModelViewerWindow);
             ImGui::MenuItem("Console", nullptr, &showConsole);
             ImGui::MenuItem("FPS Graph", nullptr, &showFPS);
             ImGui::MenuItem("About", nullptr, &showAbout);
@@ -139,28 +139,41 @@ void ModuleEditor::imGuiDrawCommands()
 
     if (showTextureWindow)
     {
-        ImGui::SetNextWindowSize(ImVec2(320, 240), ImGuiCond_FirstUseEver);
-        ImGui::Begin("Texture Viewer Options", &showTextureWindow);
-
-        ImGui::Checkbox("Show Grid", &showGrid);
-        ImGui::Checkbox("Show Axis", &showAxis);
-
-        ImGui::Separator();
-
-        const char* filterItems[] = {
-            "Wrap + Bilinear",
-            "Wrap + Point",
-            "Clamp + Bilinear",
-            "Clamp + Point"
-        };
-
-        int currentIdx = static_cast<int>(currentFilter);
-        if (ImGui::Combo("Texture Filter", &currentIdx, filterItems, IM_ARRAYSIZE(filterItems)))
+        ImGui::SetNextWindowSize(ImVec2(350, 280), ImGuiCond_FirstUseEver);
+        if (ImGui::Begin("Texture Viewer", &showTextureWindow))
         {
-            currentFilter = static_cast<GraphicsSamplers::Type>(currentIdx);
-            logBuffer.push_back(std::string("Texture filter: ") + filterItems[currentIdx]);
-        }
+            ImGui::Text("Visualization");
+            ImGui::Separator();
 
+            ImGui::Checkbox("Show Grid", &showGrid);
+            ImGui::SameLine();
+            ImGui::Checkbox("Show Axis", &showAxis);
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Text("Filter Settings");
+
+            const char* filterItems[] = {
+                "Wrap + Bilinear",
+                "Wrap + Point",
+                "Clamp + Bilinear",
+                "Clamp + Point"
+            };
+
+            int currentIdx = static_cast<int>(currentFilter);
+            if (ImGui::Combo("Texture Filter", &currentIdx, filterItems, IM_ARRAYSIZE(filterItems)))
+            {
+                currentFilter = static_cast<GraphicsSamplers::Type>(currentIdx);
+                logBuffer.push_back(std::string("Texture filter: ") + filterItems[currentIdx]);
+            }
+
+            ImGui::Spacing();
+            ImGui::Text("Description:");
+            ImGui::BulletText("Wrap: Repeats texture");
+            ImGui::BulletText("Clamp: Clamps to edge");
+            ImGui::BulletText("Bilinear: Smooth filtering");
+            ImGui::BulletText("Point: Pixelated filtering");
+        }
         ImGui::End();
     }
 
@@ -168,80 +181,97 @@ void ModuleEditor::imGuiDrawCommands()
     {
         ModuleModelViewer* modelViewer = app->getModelViewer();
         ModuleCamera* camera = app->getCamera();
+
         if (modelViewer)
         {
-            ImGui::SetNextWindowSize(ImVec2(400, 500), ImGuiCond_FirstUseEver);
-            if (ImGui::Begin("Geometry Viewer Options", &showModelViewerWindow))
+            ImGui::SetNextWindowSize(ImVec2(420, 600), ImGuiCond_FirstUseEver);
+            if (ImGui::Begin("Geometry Viewer", &showModelViewerWindow))
             {
-                bool modelShowGrid = modelViewer->IsGridVisible();
-                bool modelShowAxis = modelViewer->IsAxisVisible();
-                bool modelShowGuizmo = modelViewer->IsGuizmoVisible();
-                ImGuizmo::OPERATION currentGizmoOp = modelViewer->GetGizmoOperation();
-
-                if (ImGui::Checkbox("Show grid", &modelShowGrid))
-                    modelViewer->SetShowGrid(modelShowGrid);
-
-                if (ImGui::Checkbox("Show axis", &modelShowAxis))
-                    modelViewer->SetShowAxis(modelShowAxis);
-
-                if (ImGui::Checkbox("Show guizmo", &modelShowGuizmo))
-                    modelViewer->SetShowGuizmo(modelShowGuizmo);
-
-                ImGui::Separator();
-
-                if (ImGui::RadioButton("Translate", (int*)&currentGizmoOp, (int)ImGuizmo::TRANSLATE))
-                    modelViewer->SetGizmoOperation(currentGizmoOp);
-                ImGui::SameLine();
-
-                if (ImGui::RadioButton("Rotate", (int*)&currentGizmoOp, ImGuizmo::ROTATE))
-                    modelViewer->SetGizmoOperation(currentGizmoOp);
-
-                ImGui::SameLine();
-                if (ImGui::RadioButton("Scale", (int*)&currentGizmoOp, ImGuizmo::SCALE))
-                    modelViewer->SetGizmoOperation(currentGizmoOp);
-
-                if (modelViewer->HasModel())
+                // Visualization Section
+                if (ImGui::CollapsingHeader("Visualization", ImGuiTreeNodeFlags_DefaultOpen))
                 {
-                    auto& model = modelViewer->GetModel();
+                    bool modelShowGrid = modelViewer->IsGridVisible();
+                    bool modelShowAxis = modelViewer->IsAxisVisible();
+                    bool modelShowGuizmo = modelViewer->IsGuizmoVisible();
 
-                    ImGui::Text("Model: %s", model->getSrcFile().c_str());
-                    ImGui::Text("Meshes: %zu", model->getMeshes().size());
-                    ImGui::Text("Materials: %zu", model->getMaterials().size());
+                    if (ImGui::Checkbox("Show grid", &modelShowGrid))
+                        modelViewer->SetShowGrid(modelShowGrid);
 
-                    ImGui::Separator();
+                    ImGui::SameLine();
+                    if (ImGui::Checkbox("Show axis", &modelShowAxis))
+                        modelViewer->SetShowAxis(modelShowAxis);
 
-                    Matrix modelMatrix = modelViewer->GetModelMatrix();
+                    ImGui::SameLine();
+                    if (ImGui::Checkbox("Show guizmo", &modelShowGuizmo))
+                        modelViewer->SetShowGuizmo(modelShowGuizmo);
 
-                    float translation[3], rotation[3], scale[3];
-                    ImGuizmo::DecomposeMatrixToComponents(
-                        (float*)&modelMatrix,
-                        translation,
-                        rotation,
-                        scale
-                    );
+                    ImGuizmo::OPERATION currentGizmoOp = modelViewer->GetGizmoOperation();
 
-                    bool changed = false;
-                    changed |= ImGui::DragFloat3("Position", translation, 0.1f);
-                    changed |= ImGui::DragFloat3("Rotation", rotation, 0.1f);
-                    changed |= ImGui::DragFloat3("Scale", scale, 0.1f);
+                    if (ImGui::RadioButton("Translate", currentGizmoOp == ImGuizmo::TRANSLATE))
+                        modelViewer->SetGizmoOperation(ImGuizmo::TRANSLATE);
 
-                    if (changed)
+                    ImGui::SameLine();
+                    if (ImGui::RadioButton("Rotate", currentGizmoOp == ImGuizmo::ROTATE))
+                        modelViewer->SetGizmoOperation(ImGuizmo::ROTATE);
+
+                    ImGui::SameLine();
+                    if (ImGui::RadioButton("Scale", currentGizmoOp == ImGuizmo::SCALE))
+                        modelViewer->SetGizmoOperation(ImGuizmo::SCALE);
+                }
+
+                if (ImGui::CollapsingHeader("Model Information", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    if (modelViewer->HasModel())
                     {
-                        ImGuizmo::RecomposeMatrixFromComponents(
+                        auto& model = modelViewer->GetModel();
+                        ImGui::Text("Model: %s", model->getSrcFile().c_str());
+                        ImGui::Text("Meshes: %zu", model->getMeshes().size());
+                        ImGui::Text("Materials: %zu", model->getMaterials().size());
+
+                        ImGui::Spacing();
+                        ImGui::Separator();
+                        ImGui::Text("Transform");
+
+                        Matrix modelMatrix = modelViewer->GetModelMatrix();
+                        float translation[3], rotation[3], scale[3];
+                        ImGuizmo::DecomposeMatrixToComponents(
+                            (float*)&modelMatrix,
                             translation,
                             rotation,
-                            scale,
-                            (float*)&modelMatrix
+                            scale
                         );
-                        modelViewer->SetModelMatrix(modelMatrix);
+
+                        bool changed = false;
+                        changed |= ImGui::DragFloat3("Position", translation, 0.1f);
+                        changed |= ImGui::DragFloat3("Rotation", rotation, 0.1f);
+                        changed |= ImGui::DragFloat3("Scale", scale, 0.1f);
+
+                        if (changed)
+                        {
+                            ImGuizmo::RecomposeMatrixFromComponents(
+                                translation,
+                                rotation,
+                                scale,
+                                (float*)&modelMatrix
+                            );
+                            modelViewer->SetModelMatrix(modelMatrix);
+                        }
                     }
-
-                    ImGui::Separator();
-                    if (ImGui::CollapsingHeader("Material Editor", ImGuiTreeNodeFlags_DefaultOpen))
+                    else
                     {
-                        const auto& materials = model->getMaterials();
+                        ImGui::Text("No model loaded");
+                    }
+                }
 
+                if (modelViewer->HasModel() && ImGui::CollapsingHeader("Material Editor"))
+                {
+                    auto& model = modelViewer->GetModel();
+                    const auto& materials = model->getMaterials();
+
+                    if (!materials.empty())
+                    {
                         static int selectedMaterial = 0;
+
                         if (materials.size() > 1)
                         {
                             std::vector<std::string> materialNames;
@@ -265,7 +295,6 @@ void ModuleEditor::imGuiDrawCommands()
                         if (selectedMaterial < materials.size())
                         {
                             auto* material = materials[selectedMaterial].get();
-
                             Material::PhongMaterial currentPhongMat = material->getPhong();
                             bool materialChanged = false;
 
@@ -278,40 +307,32 @@ void ModuleEditor::imGuiDrawCommands()
                                 currentPhongMat.diffuseColor.z
                             };
 
+                            float specularColor[3] = {
+                                currentPhongMat.specularColor.x,
+                                currentPhongMat.specularColor.y,
+                                currentPhongMat.specularColor.z
+                            };
+
                             if (ImGui::ColorEdit3("Diffuse Color", diffuseColor))
                             {
                                 currentPhongMat.diffuseColor = XMFLOAT4(diffuseColor[0], diffuseColor[1], diffuseColor[2], 1.0f);
                                 materialChanged = true;
                             }
 
-                            if (ImGui::DragFloat("Diffuse Strength (Kd)", &currentPhongMat.Kd, 0.01f, 0.0f, 1.0f))
-                            {
-                                materialChanged = true;
-                            }
-
-                            if (ImGui::DragFloat("Specular Strength (Ks)", &currentPhongMat.Ks, 0.01f, 0.0f, 1.0f))
-                            {
-                                materialChanged = true;
-                            }
-
-                            if (ImGui::DragFloat("Shininess", &currentPhongMat.shininess, 1.0f, 1.0f, 512.0f))
-                            {
-                                materialChanged = true;
-                            }
-
-                            if (materialChanged)
-                            {
-                                material->setPhong(currentPhongMat);
-                                logBuffer.push_back("Updated material: " + material->getName());
-                            }
-                            float specularColor[3] = { currentPhongMat.specularColor.x,currentPhongMat.specularColor.y,currentPhongMat.specularColor.z
-                            };
-
                             if (ImGui::ColorEdit3("Specular Color", specularColor))
                             {
                                 currentPhongMat.specularColor = XMFLOAT4(specularColor[0], specularColor[1], specularColor[2], 1.0f);
                                 materialChanged = true;
                             }
+
+                            if (ImGui::DragFloat("Diffuse Strength (Kd)", &currentPhongMat.Kd, 0.01f, 0.0f, 1.0f))
+                                materialChanged = true;
+
+                            if (ImGui::DragFloat("Specular Strength (Ks)", &currentPhongMat.Ks, 0.01f, 0.0f, 1.0f))
+                                materialChanged = true;
+
+                            if (ImGui::DragFloat("Shininess", &currentPhongMat.shininess, 1.0f, 1.0f, 512.0f))
+                                materialChanged = true;
 
                             ImGui::Separator();
                             ImGui::Text("Texture:");
@@ -326,23 +347,20 @@ void ModuleEditor::imGuiDrawCommands()
                                 ImGui::TextColored(ImVec4(0.8f, 0.2f, 0.2f, 1.0f), "None");
                             }
 
-                            ImGui::Separator();
-                            ImGui::Text("Material Stats:");
-                            ImGui::Text("  Kd: %.2f", currentPhongMat.Kd);
-                            ImGui::Text("  Ks: %.2f", currentPhongMat.Ks);
-                            ImGui::Text("  Shininess: %.0f", currentPhongMat.shininess);
-                            ImGui::Text("  Has Texture: %s", material->hasTexture() ? "Yes" : "No");
-
                             if (ImGui::Button("Reset Coefficients"))
                             {
                                 Material::PhongMaterial current = material->getPhong();
-
                                 current.Kd = 0.8f;
                                 current.Ks = 0.2f;
                                 current.shininess = 32.f;
-
                                 material->setPhong(current);
                                 logBuffer.push_back("Reset coefficients for material: " + material->getName());
+                            }
+
+                            if (materialChanged && !ImGui::IsItemActive())
+                            {
+                                material->setPhong(currentPhongMat);
+                                logBuffer.push_back("Updated material: " + material->getName());
                             }
                         }
                         else if (!materials.empty())
@@ -351,13 +369,8 @@ void ModuleEditor::imGuiDrawCommands()
                         }
                     }
                 }
-                else
-                {
-                    ImGui::Text("No model loaded");
-                }
-                ImGui::Separator();
 
-                if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen))
+                if (ImGui::CollapsingHeader("Lighting"))
                 {
                     auto light = modelViewer->GetLight();
 
@@ -380,6 +393,7 @@ void ModuleEditor::imGuiDrawCommands()
                     if (ImGui::ColorEdit3("Ambient Colour", (float*)&light.Ac))
                         modelViewer->SetLight(light);
                 }
+
                 ImGuiIO& io = ImGui::GetIO();
                 if (camera)
                 {
@@ -395,6 +409,7 @@ void ModuleEditor::imGuiDrawCommands()
 
     if (showConsole)
     {
+        ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
         if (ImGui::Begin("Console", &showConsole))
         {
             if (ImGui::Button("Clear"))
@@ -492,6 +507,7 @@ void ModuleEditor::imGuiDrawCommands()
 
     if (showAbout)
     {
+        ImGui::SetNextWindowSize(ImVec2(400, 450), ImGuiCond_FirstUseEver);
         if (ImGui::Begin("About", &showAbout))
         {
             ImGui::Text("PhoenixEngine v0.1");
@@ -524,7 +540,7 @@ void ModuleEditor::imGuiDrawCommands()
 
     if (showControls)
     {
-        ImGui::SetNextWindowSize(ImVec2(350, 300), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(400, 500), ImGuiCond_FirstUseEver);
         if (ImGui::Begin("Controls", &showControls))
         {
             ImGui::Text("Editor Controls");
