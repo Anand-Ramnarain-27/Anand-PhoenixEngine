@@ -46,6 +46,8 @@ class ModuleModelViewer : public Module
     std::vector<ComPtr<ID3D12Resource>> materialBuffers;
     std::unique_ptr<Model> model;
 
+    bool pendingPIXCapture = false;
+
 public:
     ModuleModelViewer();
     ~ModuleModelViewer();
@@ -74,6 +76,9 @@ public:
     void SetShowGrid(bool show) { showGrid = show; }
     void SetShowAxis(bool show) { showAxis = show; }
     void SetShowGuizmo(bool show) { showGuizmo = show; }
+
+    bool capturePIXFrame();
+    void validateGraphicsResources();
 
     ImGuizmo::OPERATION GetGizmoOperation() const { return gizmoOperation; }
     void SetGizmoOperation(ImGuizmo::OPERATION operation) { gizmoOperation = operation; }
