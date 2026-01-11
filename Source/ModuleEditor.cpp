@@ -304,6 +304,14 @@ void ModuleEditor::imGuiDrawCommands()
                                 material->setPhong(currentPhongMat);
                                 logBuffer.push_back("Updated material: " + material->getName());
                             }
+                            float specularColor[3] = { currentPhongMat.specularColor.x,currentPhongMat.specularColor.y,currentPhongMat.specularColor.z
+                            };
+
+                            if (ImGui::ColorEdit3("Specular Color", specularColor))
+                            {
+                                currentPhongMat.specularColor = XMFLOAT4(specularColor[0], specularColor[1], specularColor[2], 1.0f);
+                                materialChanged = true;
+                            }
 
                             ImGui::Separator();
                             ImGui::Text("Texture:");

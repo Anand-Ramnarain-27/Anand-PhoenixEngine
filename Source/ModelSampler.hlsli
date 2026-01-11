@@ -13,6 +13,7 @@ cbuffer PerInstance : register(b2)
     float4x4 normalMat;
     
     float4 diffuseColour;
+    float4 specularColour;
     float Kd;
     float Ks;
     float shininess;

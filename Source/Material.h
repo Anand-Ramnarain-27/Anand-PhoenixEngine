@@ -25,6 +25,7 @@ public:
     struct PhongMaterial
     {
         XMFLOAT4 diffuseColor = XMFLOAT4(1, 1, 1, 1);
+        XMFLOAT4 specularColor = XMFLOAT4(1, 1, 1, 1);
         float Kd = 0.8f;
         float Ks = 0.2f;
         float shininess = 32.f;

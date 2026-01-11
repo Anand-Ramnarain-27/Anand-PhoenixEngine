@@ -30,7 +30,7 @@ float4 main(
 
     float3 R = reflect(Ln, N);
     float RdotV = saturate(dot(R, V));
-    float3 specular = Ks * Lc * pow(RdotV, shininess);
+    float3 specular = Ks * specularColour.rgb * pow(RdotV, shininess);
 
     float3 finalColor = ambient + diffuse + specular;
     
