@@ -463,6 +463,21 @@ void ModuleD3D12::setBackBufferRenderTarget(const Vector4& clearColor)
     m_commandList->RSSetScissorRects(1, &scissor);
 }
 
+D3D12_CPU_DESCRIPTOR_HANDLE ModuleD3D12::createRTV(ID3D12Resource* resource)
+{
+    D3D12_CPU_DESCRIPTOR_HANDLE handle = m_rtDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+    m_device->CreateRenderTargetView(resource, nullptr, handle);
+    return handle;
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE ModuleD3D12::createDSV(ID3D12Resource* resource)
+{
+    D3D12_CPU_DESCRIPTOR_HANDLE handle = m_dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+    m_device->CreateDepthStencilView(resource, nullptr, handle);
+    return handle;
+}
+
+
 void ModuleD3D12::endFrameRender()
 {
     CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(

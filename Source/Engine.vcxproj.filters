@@ -53,6 +53,7 @@
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="ModuleModelViewer.cpp" />
     <ClCompile Include="ModuleRingBuffer.cpp" />
+    <ClCompile Include="RenderTexture.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -115,6 +116,7 @@
     <ClInclude Include="gltf_utils.h" />
     <ClInclude Include="ModuleModelViewer.h" />
     <ClInclude Include="ModuleRingBuffer.h" />
+    <ClInclude Include="RenderTexture.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

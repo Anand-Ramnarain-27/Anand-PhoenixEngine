@@ -42,6 +42,8 @@ public:
 
     bool useVSync = true;
 
+    D3D12_CPU_DESCRIPTOR_HANDLE createRTV(ID3D12Resource* resource);
+    D3D12_CPU_DESCRIPTOR_HANDLE createDSV(ID3D12Resource* resource);
 private:
     void enableDebugLayer();
     bool createFactory();
