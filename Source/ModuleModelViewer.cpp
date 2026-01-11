@@ -310,9 +310,6 @@ bool ModuleModelViewer::createPSO()
 
     if (dataVS.empty() || dataPS.empty())
     {
-        dataVS = DX::ReadData(L"Exercise5VS.cso");
-        dataPS = DX::ReadData(L"Exercise5PS.cso");
-
         if (dataVS.empty() || dataPS.empty())
         {
             LOG("Shader files not found! Please compile ModelViewerVS.hlsl and ModelViewerPS.hlsl");
