@@ -235,6 +235,113 @@ void ModuleEditor::imGuiDrawCommands()
                         );
                         modelViewer->SetModelMatrix(modelMatrix);
                     }
+
+                    ImGui::Separator();
+                    if (ImGui::CollapsingHeader("Material Editor", ImGuiTreeNodeFlags_DefaultOpen))
+                    {
+                        const auto& materials = model->getMaterials();
+
+                        static int selectedMaterial = 0;
+                        if (materials.size() > 1)
+                        {
+                            std::vector<std::string> materialNames;
+                            for (const auto& mat : materials)
+                            {
+                                materialNames.push_back(mat->getName().empty()
+                                    ? "Material " + std::to_string(materialNames.size())
+                                    : mat->getName());
+                            }
+
+                            std::vector<const char*> materialNamesCStr;
+                            for (const auto& name : materialNames)
+                            {
+                                materialNamesCStr.push_back(name.c_str());
+                            }
+
+                            ImGui::Combo("Select Material", &selectedMaterial,
+                                materialNamesCStr.data(), (int)materialNamesCStr.size());
+                        }
+
+                        if (selectedMaterial < materials.size())
+                        {
+                            auto* material = materials[selectedMaterial].get();
+
+                            Material::PhongMaterial currentPhongMat = material->getPhong();
+                            bool materialChanged = false;
+
+                            ImGui::Separator();
+                            ImGui::Text("Editing: %s", material->getName().c_str());
+
+                            float diffuseColor[3] = {
+                                currentPhongMat.diffuseColor.x,
+                                currentPhongMat.diffuseColor.y,
+                                currentPhongMat.diffuseColor.z
+                            };
+
+                            if (ImGui::ColorEdit3("Diffuse Color", diffuseColor))
+                            {
+                                currentPhongMat.diffuseColor = XMFLOAT4(diffuseColor[0], diffuseColor[1], diffuseColor[2], 1.0f);
+                                materialChanged = true;
+                            }
+
+                            if (ImGui::DragFloat("Diffuse Strength (Kd)", &currentPhongMat.Kd, 0.01f, 0.0f, 1.0f))
+                            {
+                                materialChanged = true;
+                            }
+
+                            if (ImGui::DragFloat("Specular Strength (Ks)", &currentPhongMat.Ks, 0.01f, 0.0f, 1.0f))
+                            {
+                                materialChanged = true;
+                            }
+
+                            if (ImGui::DragFloat("Shininess", &currentPhongMat.shininess, 1.0f, 1.0f, 512.0f))
+                            {
+                                materialChanged = true;
+                            }
+
+                            if (materialChanged)
+                            {
+                                material->setPhong(currentPhongMat);
+                                logBuffer.push_back("Updated material: " + material->getName());
+                            }
+
+                            ImGui::Separator();
+                            ImGui::Text("Texture:");
+                            ImGui::SameLine();
+
+                            if (material->hasTexture())
+                            {
+                                ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "Loaded");
+                            }
+                            else
+                            {
+                                ImGui::TextColored(ImVec4(0.8f, 0.2f, 0.2f, 1.0f), "None");
+                            }
+
+                            ImGui::Separator();
+                            ImGui::Text("Material Stats:");
+                            ImGui::Text("  Kd: %.2f", currentPhongMat.Kd);
+                            ImGui::Text("  Ks: %.2f", currentPhongMat.Ks);
+                            ImGui::Text("  Shininess: %.0f", currentPhongMat.shininess);
+                            ImGui::Text("  Has Texture: %s", material->hasTexture() ? "Yes" : "No");
+
+                            if (ImGui::Button("Reset Coefficients"))
+                            {
+                                Material::PhongMaterial current = material->getPhong();
+
+                                current.Kd = 0.8f;
+                                current.Ks = 0.2f;
+                                current.shininess = 32.f;
+
+                                material->setPhong(current);
+                                logBuffer.push_back("Reset coefficients for material: " + material->getName());
+                            }
+                        }
+                        else if (!materials.empty())
+                        {
+                            ImGui::Text("No material selected");
+                        }
+                    }
                 }
                 else
                 {
