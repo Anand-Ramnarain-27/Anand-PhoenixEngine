@@ -85,4 +85,21 @@ void Model::draw(ID3D12GraphicsCommandList* cmdList)
     }
 }
 
+void Model::showImGuiControls()
+{
+    ImGui::Text("Model: %s", m_srcFile.c_str());
+    ImGui::Separator();
 
+    if (ImGui::DragFloat3("Position", &m_position.x, 0.1f) ||
+        ImGui::DragFloat3("Rotation", &m_rotation.x, 0.01f) ||
+        ImGui::DragFloat3("Scale", &m_scale.x, 0.01f))
+    {
+        m_modelMatrix = Matrix::CreateScale(m_scale) *
+            Matrix::CreateFromYawPitchRoll(m_rotation.y, m_rotation.x, m_rotation.z) *
+            Matrix::CreateTranslation(m_position);
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Meshes: %zu", m_meshes.size());
+    ImGui::Text("Materials: %zu", m_materials.size());
+}

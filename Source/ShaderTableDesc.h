@@ -20,15 +20,24 @@ public:
 
     bool createCBV(UINT slot, ID3D12Resource* resource, const D3D12_CONSTANT_BUFFER_VIEW_DESC* desc = nullptr);
     bool createSRV(UINT slot, ID3D12Resource* resource, const D3D12_SHADER_RESOURCE_VIEW_DESC* desc = nullptr);
-   
+    bool createUAV(UINT slot, ID3D12Resource* resource, const D3D12_UNORDERED_ACCESS_VIEW_DESC* desc = nullptr);
+
     bool createNullSRV(UINT slot, D3D12_SRV_DIMENSION dimension = D3D12_SRV_DIMENSION_TEXTURE2D);
+    bool createNullUAV(UINT slot, D3D12_UAV_DIMENSION dimension = D3D12_UAV_DIMENSION_TEXTURE2D);
+
     bool createBufferSRV(UINT slot, ID3D12Resource* resource,
         UINT firstElement = 0, UINT numElements = 0,
         UINT structureByteStride = 0);
     bool createTexture2DSRV(UINT slot, ID3D12Resource* texture,
         DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN,
         UINT mipLevels = 1, UINT mostDetailedMip = 0);
-  
+    bool createTextureArraySRV(UINT slot, ID3D12Resource* textureArray,
+        DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN,
+        UINT arraySize = 1, UINT mipLevels = 1);
+    bool createCubemapSRV(UINT slot, ID3D12Resource* cubemap,
+        DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN,
+        UINT mipLevels = 1);
+
     bool createConstantBufferView(UINT slot, ID3D12Resource* buffer,
         UINT64 sizeInBytes, UINT64 offset = 0);
 

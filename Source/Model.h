@@ -23,6 +23,8 @@ public:
     const std::vector<std::unique_ptr<Mesh>>& getMeshes() const { return m_meshes; }
     const std::vector<std::unique_ptr<Material>>& getMaterials() const { return m_materials; }
 
+    void showImGuiControls();
+
 private:
     std::string m_srcFile;
     std::vector<std::unique_ptr<Mesh>> m_meshes;

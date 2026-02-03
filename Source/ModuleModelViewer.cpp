@@ -270,33 +270,6 @@ bool ModuleModelViewer::loadModel()
     return true;
 }
 
-
-bool ModuleModelViewer::capturePIXFrame()
-{
-#ifdef _DEBUG
-    if (GetAsyncKeyState(VK_F11) & 0x8000)
-    {
-        ID3D12GraphicsCommandList* cmd = app->getD3D12()->getCommandList();
-        PIXBeginCapture(PIX_CAPTURE_GPU, nullptr);
-        /*PIXEndCapture();*/
-        return true;
-    }
-#endif
-    return false;
-}
-
-void ModuleModelViewer::validateGraphicsResources()
-{
-#ifdef _DEBUG
-    ID3D12DebugDevice* debugDevice = nullptr;
-    if (SUCCEEDED(app->getD3D12()->getDevice()->QueryInterface(IID_PPV_ARGS(&debugDevice))))
-    {
-        debugDevice->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL);
-        debugDevice->Release();
-    }
-#endif
-}
-
 bool ModuleModelViewer::createPSO()
 {
     auto device = app->getD3D12()->getDevice();

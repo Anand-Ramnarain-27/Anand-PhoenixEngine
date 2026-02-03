@@ -142,6 +142,30 @@ bool ShaderTableDesc::createSRV(UINT slot, ID3D12Resource* resource, const D3D12
     return true;
 }
 
+bool ShaderTableDesc::createUAV(UINT slot, ID3D12Resource* resource, const D3D12_UNORDERED_ACCESS_VIEW_DESC* desc)
+{
+    if (!isValidSlot(slot) || !m_isValid || !resource)
+        return false;
+
+    ModuleD3D12* d3d12 = app->getD3D12();
+    if (!d3d12)
+        return false;
+
+    ID3D12Device* device = d3d12->getDevice();
+    D3D12_CPU_DESCRIPTOR_HANDLE handle = getSlotCPUHandle(slot);
+
+    if (desc)
+    {
+        device->CreateUnorderedAccessView(resource, nullptr, desc, handle);
+    }
+    else
+    {
+        device->CreateUnorderedAccessView(resource, nullptr, nullptr, handle);
+    }
+
+    return true;
+}
+
 bool ShaderTableDesc::createNullSRV(UINT slot, D3D12_SRV_DIMENSION dimension)
 {
     if (!isValidSlot(slot) || !m_isValid)
@@ -198,6 +222,26 @@ bool ShaderTableDesc::createNullSRV(UINT slot, D3D12_SRV_DIMENSION dimension)
     return true;
 }
 
+bool ShaderTableDesc::createNullUAV(UINT slot, D3D12_UAV_DIMENSION dimension)
+{
+    if (!isValidSlot(slot) || !m_isValid)
+        return false;
+
+    ModuleD3D12* d3d12 = app->getD3D12();
+    if (!d3d12)
+        return false;
+
+    ID3D12Device* device = d3d12->getDevice();
+    D3D12_CPU_DESCRIPTOR_HANDLE handle = getSlotCPUHandle(slot);
+
+    D3D12_UNORDERED_ACCESS_VIEW_DESC nullDesc = {};
+    nullDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    nullDesc.ViewDimension = dimension;
+
+    device->CreateUnorderedAccessView(nullptr, nullptr, &nullDesc, handle);
+    return true;
+}
+
 bool ShaderTableDesc::createBufferSRV(UINT slot, ID3D12Resource* resource,
     UINT firstElement, UINT numElements,
     UINT structureByteStride)
@@ -236,6 +280,46 @@ bool ShaderTableDesc::createTexture2DSRV(UINT slot, ID3D12Resource* texture,
     srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
     return createSRV(slot, texture, &srvDesc);
+}
+
+bool ShaderTableDesc::createTextureArraySRV(UINT slot, ID3D12Resource* textureArray,
+    DXGI_FORMAT format, UINT arraySize,
+    UINT mipLevels)
+{
+    if (!isValidSlot(slot) || !m_isValid || !textureArray)
+        return false;
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = format == DXGI_FORMAT_UNKNOWN ? textureArray->GetDesc().Format : format;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+    srvDesc.Texture2DArray.MipLevels = mipLevels;
+    srvDesc.Texture2DArray.MostDetailedMip = 0;
+    srvDesc.Texture2DArray.FirstArraySlice = 0;
+    srvDesc.Texture2DArray.ArraySize = arraySize;
+    srvDesc.Texture2DArray.PlaneSlice = 0;
+    srvDesc.Texture2DArray.ResourceMinLODClamp = 0.0f;
+
+    return createSRV(slot, textureArray, &srvDesc);
+}
+
+bool ShaderTableDesc::createCubemapSRV(UINT slot, ID3D12Resource* cubemap,
+    DXGI_FORMAT format, UINT mipLevels)
+{
+    if (!isValidSlot(slot) || !m_isValid || !cubemap)
+        return false;
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = format == DXGI_FORMAT_UNKNOWN ? cubemap->GetDesc().Format : format;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+    srvDesc.TextureCube.MipLevels = mipLevels;
+    srvDesc.TextureCube.MostDetailedMip = 0;
+    srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+
+    return createSRV(slot, cubemap, &srvDesc);
 }
 
 bool ShaderTableDesc::createConstantBufferView(UINT slot, ID3D12Resource* buffer,
