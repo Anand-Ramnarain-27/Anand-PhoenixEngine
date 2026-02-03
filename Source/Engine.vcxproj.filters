@@ -93,6 +93,12 @@
     <ClCompile Include="GraphicsSamplers.cpp">
       <Filter>Modules</Filter>
     </ClCompile>
+    <ClCompile Include="RenderTargetDesc.cpp">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="DepthStencilDesc.cpp">
+      <Filter>Modules</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -202,6 +208,27 @@
     </ClInclude>
     <ClInclude Include="gltf_utils.h">
       <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="DescriptorBase.h">
+      <Filter>Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleDescriptorsBase.h">
+      <Filter>Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderTargetDesc.h">
+      <Filter>Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="DepthStencilDesc.h">
+      <Filter>Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleRTDescriptors.h">
+      <Filter>Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleDSDescriptors.h">
+      <Filter>Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="HandleManager.h">
+      <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

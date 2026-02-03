@@ -10,6 +10,8 @@
 #include "ModuleTextureSampler.h"
 #include "ModuleShaderDescriptors.h"
 #include "ModuleRingBuffer.h"
+#include "ModuleRTDescriptors.h"
+#include "ModuleDSDescriptors.h"
 
 Application::Application(int argc, wchar_t** argv, void* hWnd)
 {
@@ -21,6 +23,8 @@ Application::Application(int argc, wchar_t** argv, void* hWnd)
     modules.push_back(graphicsSamplers = new GraphicsSamplers());
 	modules.push_back(camera = new ModuleCamera());
     modules.push_back(shaderDescriptors = new ModuleShaderDescriptors());
+    modules.push_back(rtDescriptors = new ModuleRTDescriptors());
+    modules.push_back(dsDescriptors = new ModuleDSDescriptors());
 	modules.push_back(ringBuffer = new ModuleRingBuffer());
     modules.push_back(editor = new ModuleEditor());
 

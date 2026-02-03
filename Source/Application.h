@@ -15,6 +15,8 @@ class ModuleEditor;
 class ModuleTextureSampler;
 class ModuleShaderDescriptors;
 class ModuleRingBuffer;
+class ModuleRTDescriptors;
+class ModuleDSDescriptors;
 
 class Application
 {
@@ -35,6 +37,8 @@ public:
 	ModuleTextureSampler* getTextureSampler() { return textureSampler; }
     ModuleShaderDescriptors* getShaderDescriptors() { return shaderDescriptors; }
 	ModuleRingBuffer* getRingBuffer() { return ringBuffer; }
+    ModuleRTDescriptors* getRTDescriptors() { return rtDescriptors; }
+    ModuleDSDescriptors* getDSDescriptors() { return dsDescriptors; }
     void                        swapModule(Module* from, Module* to) { swapModules.push_back(std::make_pair(from, to)); }
     
     float                       getFPS() const { return 1000.0f * float(MAX_FPS_TICKS) / tickSum; }
@@ -59,6 +63,8 @@ private:
 	ModuleTextureSampler* textureSampler = nullptr;
     ModuleShaderDescriptors* shaderDescriptors = nullptr;
 	ModuleRingBuffer* ringBuffer = nullptr;
+    ModuleRTDescriptors* rtDescriptors = nullptr;
+    ModuleDSDescriptors* dsDescriptors = nullptr;
 
     uint64_t  lastMilis = 0;
     TickList  tickList;

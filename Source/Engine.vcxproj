@@ -174,11 +174,17 @@
     <ClInclude Include="Application.h" />
     <ClInclude Include="DebugDrawPass.h" />
     <ClInclude Include="debug_draw.hpp" />
+    <ClInclude Include="DepthStencilDesc.h" />
+    <ClInclude Include="DescriptorBase.h" />
     <ClInclude Include="gltf_utils.h" />
+    <ClInclude Include="HandleManager.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="Model.h" />
+    <ClInclude Include="ModuleDescriptorsBase.h" />
+    <ClInclude Include="ModuleDSDescriptors.h" />
     <ClInclude Include="ModuleRingBuffer.h" />
+    <ClInclude Include="ModuleRTDescriptors.h" />
     <ClInclude Include="ModuleShaderDescriptors.h" />
     <ClInclude Include="ModuleTextureSampler.h" />
     <ClInclude Include="GraphicsSamplers.h" />
@@ -198,6 +204,7 @@
     <ClInclude Include="Mouse.h" />
     <ClInclude Include="PlatformHelpers.h" />
     <ClInclude Include="ReadData.h" />
+    <ClInclude Include="RenderTargetDesc.h" />
     <ClInclude Include="RenderTexture.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="ShaderTableDesc.h" />
@@ -270,6 +277,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="DepthStencilDesc.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="Model.cpp" />
@@ -299,6 +307,7 @@
     <ClCompile Include="Keyboard.cpp" />
     <ClCompile Include="ModuleInput.cpp" />
     <ClCompile Include="Mouse.cpp" />
+    <ClCompile Include="RenderTargetDesc.cpp" />
     <ClCompile Include="RenderTexture.cpp" />
     <ClCompile Include="ShaderTableDesc.cpp" />
     <ClCompile Include="SimpleMath.cpp">
