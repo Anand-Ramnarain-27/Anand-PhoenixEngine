@@ -11,7 +11,6 @@
 
 Material::Material()
 {
-
 }
 
 void Material::load(const tinygltf::Material& gltfMat,
@@ -36,6 +35,7 @@ void Material::load(const tinygltf::Material& gltfMat,
         phongData.diffuseColor = color;
     }
 
+    // Try to load texture
     if (pbr.baseColorTexture.index >= 0 &&
         pbr.baseColorTexture.index < (int)model.textures.size())
     {
@@ -52,36 +52,45 @@ void Material::load(const tinygltf::Material& gltfMat,
                 ModuleShaderDescriptors* desc = app->getShaderDescriptors();
                 if (desc && texture)
                 {
-                    auto table = desc->allocTable("MaterialTexture");
-                    if (table)
-                    {
-                        D3D12_SHADER_RESOURCE_VIEW_DESC srv{};
-                        srv.Format = texture->GetDesc().Format;
-                        srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-                        srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-                        srv.Texture2D.MipLevels = 1;
+                    // NEW: Use value semantics instead of shared_ptr
+                    shaderTable = desc->allocTable();
 
-                        table->createSRV(0, texture.Get(), &srv);
-                        gpuHandle = table->getGPUHandle();
+                    if (shaderTable)
+                    {
+                        // NEW: Simpler API call
+                        shaderTable.createTexture2DSRV(texture.Get(),
+                            DXGI_FORMAT_UNKNOWN,  // Use texture's format
+                            1,                    // Mip levels
+                            0,                    // Most detailed mip
+                            0);                   // Slot 0
+
+                        gpuHandle = shaderTable.getGPUHandle();
                         textureLoaded = true;
 
                         basicData.hasColorTexture = TRUE;
                         phongData.hasDiffuseTexture = TRUE;
-                        return;
+                        return; // Success - we have a texture
                     }
                 }
             }
         }
     }
 
+    // Fallback: Create null texture descriptor
     ModuleShaderDescriptors* desc = app->getShaderDescriptors();
     if (desc)
     {
-        auto table = desc->allocTable("NullTexture");
-        if (table)
+        // NEW: Use value semantics
+        shaderTable = desc->allocTable();
+
+        if (shaderTable)
         {
-            table->createNullSRV(0, D3D12_SRV_DIMENSION_TEXTURE2D);
-            gpuHandle = table->getGPUHandle();
+            // NEW: Simpler null SRV creation
+            shaderTable.createNullSRV(D3D12_SRV_DIMENSION_TEXTURE2D,
+                DXGI_FORMAT_R8G8B8A8_UNORM,
+                0);  // Slot 0
+
+            gpuHandle = shaderTable.getGPUHandle();
         }
     }
 }
