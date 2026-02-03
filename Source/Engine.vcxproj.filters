@@ -1,14 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="Application.cpp" />
-    <ClCompile Include="PhoenixEngine.cpp" />
-    <ClCompile Include="GamePad.cpp" />
-    <ClCompile Include="Globals.cpp" />
-    <ClCompile Include="Keyboard.cpp" />
-    <ClCompile Include="ModuleInput.cpp" />
-    <ClCompile Include="Mouse.cpp" />
-    <ClCompile Include="SimpleMath.cpp" />
     <ClCompile Include="3rdParty\imgui-docking\imgui.cpp">
       <Filter>imgui</Filter>
     </ClCompile>
@@ -39,35 +31,71 @@
     <ClCompile Include="DebugDrawPass.cpp">
       <Filter>Passes</Filter>
     </ClCompile>
-    <ClCompile Include="ModuleD3D12.cpp" />
-    <ClCompile Include="GraphicsSamplers.cpp" />
-    <ClCompile Include="ModuleResources.cpp" />
-    <ClCompile Include="MathUtils.cpp" />
-    <ClCompile Include="ModuleCamera.cpp" />
     <ClCompile Include="ModuleEditor.cpp" />
     <ClCompile Include="ModuleTextureSampler.cpp" />
-    <ClCompile Include="ModuleShaderDescriptors.cpp" />
-    <ClCompile Include="ShaderTableDesc.cpp" />
-    <ClCompile Include="Material.cpp" />
-    <ClCompile Include="Mesh.cpp" />
-    <ClCompile Include="Model.cpp" />
-    <ClCompile Include="ModuleModelViewer.cpp" />
-    <ClCompile Include="ModuleRingBuffer.cpp" />
-    <ClCompile Include="RenderTexture.cpp" />
+    <ClCompile Include="Application.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="GamePad.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Globals.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Keyboard.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Mouse.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="SimpleMath.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderTexture.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="PhoenixEngine.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="MathUtils.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleCamera.cpp">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleD3D12.cpp">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleInput.cpp">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleResources.cpp">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleRingBuffer.cpp">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleShaderDescriptors.cpp">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="ShaderTableDesc.cpp">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="Material.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Mesh.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Model.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="GraphicsSamplers.cpp">
+      <Filter>Modules</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Application.h" />
     <ClInclude Include="debug_draw.hpp" />
-    <ClInclude Include="PhoenixEngine.h" />
-    <ClInclude Include="GamePad.h" />
-    <ClInclude Include="Globals.h" />
-    <ClInclude Include="Keyboard.h" />
-    <ClInclude Include="Module.h" />
-    <ClInclude Include="ModuleInput.h" />
-    <ClInclude Include="Mouse.h" />
-    <ClInclude Include="PlatformHelpers.h" />
-    <ClInclude Include="ReadData.h" />
-    <ClInclude Include="SimpleMath.h" />
     <ClInclude Include="3rdParty\imgui-docking\imgui.h">
       <Filter>imgui</Filter>
     </ClInclude>
@@ -101,22 +129,80 @@
     <ClInclude Include="Resource.h">
       <Filter>Win</Filter>
     </ClInclude>
-    <ClInclude Include="ModuleD3D12.h" />
-    <ClInclude Include="GraphicsSamplers.h" />
-    <ClInclude Include="ModuleResources.h" />
-    <ClInclude Include="MathUtils.h" />
-    <ClInclude Include="ModuleCamera.h" />
     <ClInclude Include="ModuleEditor.h" />
     <ClInclude Include="ModuleTextureSampler.h" />
-    <ClInclude Include="ModuleShaderDescriptors.h" />
-    <ClInclude Include="ShaderTableDesc.h" />
-    <ClInclude Include="Material.h" />
-    <ClInclude Include="Mesh.h" />
-    <ClInclude Include="Model.h" />
-    <ClInclude Include="gltf_utils.h" />
-    <ClInclude Include="ModuleModelViewer.h" />
-    <ClInclude Include="ModuleRingBuffer.h" />
-    <ClInclude Include="RenderTexture.h" />
+    <ClInclude Include="Application.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Globals.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="GamePad.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Keyboard.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Mouse.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="SimpleMath.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="ReadData.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderTexture.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="PhoenixEngine.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="PlatformHelpers.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="MathUtils.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleCamera.h">
+      <Filter>Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleD3D12.h">
+      <Filter>Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleInput.h">
+      <Filter>Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleResources.h">
+      <Filter>Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleRingBuffer.h">
+      <Filter>Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleShaderDescriptors.h">
+      <Filter>Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderTableDesc.h">
+      <Filter>Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="Material.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Mesh.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Model.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Module.h">
+      <Filter>Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="GraphicsSamplers.h">
+      <Filter>Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="gltf_utils.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -127,10 +213,12 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <None Include="SimpleMath.inl" />
     <None Include="packages.config" />
     <None Include="ModelSampler.hlsli">
       <Filter>Shaders</Filter>
+    </None>
+    <None Include="SimpleMath.inl">
+      <Filter>Core</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -145,6 +233,15 @@
     </Filter>
     <Filter Include="Shaders">
       <UniqueIdentifier>{06295b1e-4250-4577-a3ee-f1f32904bf6e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core">
+      <UniqueIdentifier>{1130b643-056d-4340-9405-a93cdd1ca373}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Modules">
+      <UniqueIdentifier>{3aa5def9-7c3f-44f5-bcc1-3b1be653f93b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene">
+      <UniqueIdentifier>{fc504caf-36f5-43da-9895-257d07c4173d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

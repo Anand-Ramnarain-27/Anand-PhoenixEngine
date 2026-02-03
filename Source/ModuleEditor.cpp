@@ -4,7 +4,6 @@
 #include "ModuleD3D12.h"
 #include "GraphicsSamplers.h"
 #include "ModuleTextureSampler.h"
-#include "ModuleModelViewer.h"
 #include "ModuleCamera.h"
 #include "ImGuiPass.h"
 
@@ -89,7 +88,6 @@ void ModuleEditor::render()
 
     ModuleD3D12* d3d12 = app->getD3D12();
     ModuleTextureSampler* textureSampler = app->getTextureSampler();
-	ModuleModelViewer* modelViewer = app->getModelViewer();
 
     ID3D12GraphicsCommandList* commandList = d3d12->beginFrameRender();
 
@@ -102,10 +100,6 @@ void ModuleEditor::render()
         textureSampler->render3DContent(commandList);
     }
 
-    if (modelViewer)
-    {
-        modelViewer->render3DContent(commandList);
-    }
 
     ID3D12DescriptorHeap* heaps[] = { imguiHeap };
     commandList->SetDescriptorHeaps(1, heaps);
@@ -162,120 +156,6 @@ void ModuleEditor::imGuiDrawCommands()
         }
 
         ImGui::End();
-    }
-
-    if (showModelViewerWindow)
-    {
-        ModuleModelViewer* modelViewer = app->getModelViewer();
-        ModuleCamera* camera = app->getCamera();
-        if (modelViewer)
-        {
-            ImGui::SetNextWindowSize(ImVec2(400, 500), ImGuiCond_FirstUseEver);
-            if (ImGui::Begin("Geometry Viewer Options", &showModelViewerWindow))
-            {
-                bool modelShowGrid = modelViewer->IsGridVisible();
-                bool modelShowAxis = modelViewer->IsAxisVisible();
-                bool modelShowGuizmo = modelViewer->IsGuizmoVisible();
-                ImGuizmo::OPERATION currentGizmoOp = modelViewer->GetGizmoOperation();
-
-                if (ImGui::Checkbox("Show grid", &modelShowGrid))
-                    modelViewer->SetShowGrid(modelShowGrid);
-
-                if (ImGui::Checkbox("Show axis", &modelShowAxis))
-                    modelViewer->SetShowAxis(modelShowAxis);
-
-                if (ImGui::Checkbox("Show guizmo", &modelShowGuizmo))
-                    modelViewer->SetShowGuizmo(modelShowGuizmo);
-
-                ImGui::Separator();
-
-                if (ImGui::RadioButton("Translate", (int*)&currentGizmoOp, (int)ImGuizmo::TRANSLATE))
-                    modelViewer->SetGizmoOperation(currentGizmoOp);
-                ImGui::SameLine();
-
-                if (ImGui::RadioButton("Rotate", (int*)&currentGizmoOp, ImGuizmo::ROTATE))
-                    modelViewer->SetGizmoOperation(currentGizmoOp);
-
-                ImGui::SameLine();
-                if (ImGui::RadioButton("Scale", (int*)&currentGizmoOp, ImGuizmo::SCALE))
-                    modelViewer->SetGizmoOperation(currentGizmoOp);
-
-                if (modelViewer->HasModel())
-                {
-                    auto& model = modelViewer->GetModel();
-
-                    ImGui::Text("Model: %s", model->getSrcFile().c_str());
-                    ImGui::Text("Meshes: %zu", model->getMeshes().size());
-                    ImGui::Text("Materials: %zu", model->getMaterials().size());
-
-                    ImGui::Separator();
-
-                    Matrix modelMatrix = modelViewer->GetModelMatrix();
-
-                    float translation[3], rotation[3], scale[3];
-                    ImGuizmo::DecomposeMatrixToComponents(
-                        (float*)&modelMatrix,
-                        translation,
-                        rotation,
-                        scale
-                    );
-
-                    bool changed = false;
-                    changed |= ImGui::DragFloat3("Position", translation, 0.1f);
-                    changed |= ImGui::DragFloat3("Rotation", rotation, 0.1f);
-                    changed |= ImGui::DragFloat3("Scale", scale, 0.1f);
-
-                    if (changed)
-                    {
-                        ImGuizmo::RecomposeMatrixFromComponents(
-                            translation,
-                            rotation,
-                            scale,
-                            (float*)&modelMatrix
-                        );
-                        modelViewer->SetModelMatrix(modelMatrix);
-                    }
-                }
-                else
-                {
-                    ImGui::Text("No model loaded");
-                }
-                ImGui::Separator();
-
-                if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen))
-                {
-                    auto light = modelViewer->GetLight();
-
-                    if (ImGui::DragFloat3("Light Direction", (float*)&light.L, 0.1f, -1.0f, 1.0f))
-                    {
-                        light.L.Normalize();
-                        modelViewer->SetLight(light);
-                    }
-
-                    ImGui::SameLine();
-                    if (ImGui::SmallButton("Normalize"))
-                    {
-                        light.L.Normalize();
-                        modelViewer->SetLight(light);
-                    }
-
-                    if (ImGui::ColorEdit3("Light Colour", (float*)&light.Lc))
-                        modelViewer->SetLight(light);
-
-                    if (ImGui::ColorEdit3("Ambient Colour", (float*)&light.Ac))
-                        modelViewer->SetLight(light);
-                }
-                ImGuiIO& io = ImGui::GetIO();
-                if (camera)
-                {
-                    camera->setEnable(
-                        !io.WantCaptureMouse &&
-                        !ImGuizmo::IsUsing()
-                    );
-                }
-            }
-            ImGui::End();
-        }
     }
 
     if (showConsole)

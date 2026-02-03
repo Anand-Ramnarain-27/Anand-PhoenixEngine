@@ -14,7 +14,6 @@ class ModuleCamera;
 class ModuleEditor;
 class ModuleTextureSampler;
 class ModuleShaderDescriptors;
-class ModuleModelViewer;
 class ModuleRingBuffer;
 
 class Application
@@ -35,7 +34,6 @@ public:
     ModuleEditor* getEditor() { return editor; }
 	ModuleTextureSampler* getTextureSampler() { return textureSampler; }
     ModuleShaderDescriptors* getShaderDescriptors() { return shaderDescriptors; }
-	ModuleModelViewer* getModelViewer() { return modelViewer; }
 	ModuleRingBuffer* getRingBuffer() { return ringBuffer; }
     void                        swapModule(Module* from, Module* to) { swapModules.push_back(std::make_pair(from, to)); }
     
@@ -60,7 +58,6 @@ private:
 	ModuleEditor* editor = nullptr;
 	ModuleTextureSampler* textureSampler = nullptr;
     ModuleShaderDescriptors* shaderDescriptors = nullptr;
-	ModuleModelViewer* modelViewer = nullptr;
 	ModuleRingBuffer* ringBuffer = nullptr;
 
     uint64_t  lastMilis = 0;
