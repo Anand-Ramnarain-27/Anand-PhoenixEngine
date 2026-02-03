@@ -34,7 +34,6 @@ void Material::load(const tinygltf::Material& gltfMat,
         };
         basicData.color = color;
         phongData.diffuseColor = color;
-        phongData.specularColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
         pbrPhongData.diffuseColor = color;
         pbrPhongData.F0 = XMFLOAT3(0.04f, 0.04f, 0.04f);
         pbrPhongData.shininess = phongData.shininess;
