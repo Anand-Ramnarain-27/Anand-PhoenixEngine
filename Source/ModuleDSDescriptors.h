@@ -6,7 +6,8 @@
 class ModuleDSDescriptors : public ModuleDescriptorsBase<
     D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
     256,
-    DepthStencilDesc>
+    DepthStencilDesc,
+    false>
 {
 public:
     DepthStencilDesc create(ID3D12Resource* resource)

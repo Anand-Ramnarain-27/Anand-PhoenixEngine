@@ -9,10 +9,7 @@
 #include "Application.h"
 #include "ModuleD3D12.h"
 
-struct D3D12_RENDER_TARGET_VIEW_DESC;
-struct D3D12_DEPTH_STENCIL_VIEW_DESC;
-
-template<D3D12_DESCRIPTOR_HEAP_TYPE HeapType, size_t MaxDescriptors, typename DescriptorType>
+template<D3D12_DESCRIPTOR_HEAP_TYPE HeapType, size_t MaxDescriptors, typename DescriptorType, bool ShaderVisible = false>
 class ModuleDescriptorsBase : public Module
 {
     static_assert(MaxDescriptors > 0, "Must have at least one descriptor slot");
@@ -22,6 +19,7 @@ protected:
 
     ComPtr<ID3D12DescriptorHeap> heap;
     D3D12_CPU_DESCRIPTOR_HANDLE cpuStart = {};
+    D3D12_GPU_DESCRIPTOR_HANDLE gpuStart = {};
     UINT descriptorSize = 0;
 
     std::array<UINT, MaxDescriptors> refCounts = {};
@@ -44,7 +42,7 @@ public:
         D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {
             .Type = HeapType,
             .NumDescriptors = static_cast<UINT>(MaxDescriptors),
-            .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
+            .Flags = ShaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
             .NodeMask = 0
         };
 
@@ -52,6 +50,10 @@ public:
         if (SUCCEEDED(hr))
         {
             cpuStart = heap->GetCPUDescriptorHandleForHeapStart();
+            if (ShaderVisible)
+            {
+                gpuStart = heap->GetGPUDescriptorHandleForHeapStart();
+            }
             return true;
         }
         return false;
@@ -92,7 +94,24 @@ public:
         );
     }
 
+    D3D12_GPU_DESCRIPTOR_HANDLE getGPUHandle(UINT handle) const
+    {
+        static_assert(ShaderVisible, "GPU handles only available for shader-visible heaps");
+        return CD3DX12_GPU_DESCRIPTOR_HANDLE(
+            gpuStart,
+            handles.indexFromHandle(handle),
+            descriptorSize
+        );
+    }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE getGPUStart() const
+    {
+        static_assert(ShaderVisible, "GPU handles only available for shader-visible heaps");
+        return gpuStart;
+    }
+
     bool isValid(UINT handle) const { return handles.validHandle(handle); }
+    ID3D12DescriptorHeap* getHeap() { return heap.Get(); }
 
 protected:
     virtual void createViewInternal(ID3D12Resource* resource, const void* pDesc, D3D12_CPU_DESCRIPTOR_HANDLE destHandle) = 0;
