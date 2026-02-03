@@ -8,21 +8,13 @@
 #define TINYGLTF_NO_STB_IMAGE
 #define TINYGLTF_NO_EXTERNAL_IMAGE
 #define TINYGLTF_IMPLEMENTATION
+#pragma warning(push)
+#pragma warning(disable : 4018) 
+#pragma warning(disable : 4267) 
 #include "tiny_gltf.h"
+#pragma warning(pop)
 
 #include <imgui.h>
-
-Model::Model()
-    : m_position(0, 0, 0), m_rotation(0, 0, 0), m_scale(1, 1, 1)
-{
-    m_modelMatrix = Matrix::Identity;
-}
-
-Model::~Model()
-{
-    m_meshes.clear();
-    m_materials.clear();
-}
 
 bool Model::load(const char* fileName, const char* basePath)
 {
@@ -36,69 +28,84 @@ bool Model::load(const char* fileName, const char* basePath)
         LOG("Failed to load GLTF: %s", err.c_str());
         return false;
     }
+
     if (!warn.empty())
         LOG("GLTF warning: %s", warn.c_str());
 
     m_srcFile = fileName;
 
+    // Load materials
+    m_materials.reserve(gltfModel.materials.size());
     for (const auto& gltfMat : gltfModel.materials)
     {
-        auto mat = std::make_unique<Material>();
-        mat->load(gltfMat, gltfModel, basePath);
-        m_materials.push_back(std::move(mat));
+        Material mat;
+        if (mat.load(gltfMat, gltfModel, basePath))
+        {
+            m_materials.push_back(std::move(mat));
+        }
     }
 
+    // Ensure at least one material exists
     if (m_materials.empty())
-        m_materials.push_back(std::make_unique<Material>()); 
+    {
+        m_materials.emplace_back();
+    }
 
+    // Load meshes
+    size_t totalPrimitives = 0;
+    for (const auto& gltfMesh : gltfModel.meshes)
+        totalPrimitives += gltfMesh.primitives.size();
+
+    m_meshes.reserve(totalPrimitives);
     for (const auto& gltfMesh : gltfModel.meshes)
     {
         for (const auto& prim : gltfMesh.primitives)
         {
-            auto mesh = std::make_unique<Mesh>();
-            mesh->load(prim, gltfModel);
-            m_meshes.push_back(std::move(mesh));
+            Mesh mesh;
+            if (mesh.load(prim, gltfModel))
+            {
+                m_meshes.push_back(std::move(mesh));
+            }
         }
     }
 
-    LOG("Loaded model: %s (%zu meshes, %zu materials)", fileName, m_meshes.size(), m_materials.size());
-    return true;
+    LOG("Loaded model: %s (%zu meshes, %zu materials)",
+        fileName, m_meshes.size(), m_materials.size());
+
+    return !m_meshes.empty();
 }
 
-void Model::draw(ID3D12GraphicsCommandList* cmdList)
+void Model::render(ID3D12GraphicsCommandList* cmdList) const
 {
     if (!cmdList) return;
 
-    for (const auto& meshPtr : m_meshes)
+    // Bind model matrix (typically root constant or CBV)
+    // This depends on your renderer architecture
+
+    for (const auto& mesh : m_meshes)
     {
-        Mesh* mesh = meshPtr.get();
-        Material* mat = nullptr;
+        int matID = mesh.getMaterialIndex();
+        if (matID >= 0 && matID < int(m_materials.size()))
+        {
+            const auto& mat = m_materials[matID];
+            if (mat.hasTexture())
+            {
+                cmdList->SetGraphicsRootDescriptorTable(3, mat.getGPUHandle());
+            }
+        }
 
-        int matID = mesh->getMaterialIndex();
-        if (matID >= 0 && matID < (int)m_materials.size())
-            mat = m_materials[matID].get();
-
-        if (mat && mat->hasTexture())
-            cmdList->SetGraphicsRootDescriptorTable(3, mat->getTextureGPUHandle());
-
-        mesh->render(cmdList);
+        mesh.render(cmdList);
     }
+}
+
+void Model::update(float deltaTime)
+{
+    // Animation or transform updates would go here
 }
 
 void Model::showImGuiControls()
 {
     ImGui::Text("Model: %s", m_srcFile.c_str());
-    ImGui::Separator();
-
-    if (ImGui::DragFloat3("Position", &m_position.x, 0.1f) ||
-        ImGui::DragFloat3("Rotation", &m_rotation.x, 0.01f) ||
-        ImGui::DragFloat3("Scale", &m_scale.x, 0.01f))
-    {
-        m_modelMatrix = Matrix::CreateScale(m_scale) *
-            Matrix::CreateFromYawPitchRoll(m_rotation.y, m_rotation.x, m_rotation.z) *
-            Matrix::CreateTranslation(m_position);
-    }
-
     ImGui::Separator();
     ImGui::Text("Meshes: %zu", m_meshes.size());
     ImGui::Text("Materials: %zu", m_materials.size());
