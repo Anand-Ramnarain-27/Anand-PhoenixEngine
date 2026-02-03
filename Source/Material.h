@@ -60,15 +60,6 @@ public:
     bool hasTexture() const { return textureLoaded; }
     const std::string& getName() const { return name; }
 
-    bool isDirty() const { return dirty; }
-    void clearDirty() { dirty = false; }
-
-    void setPhong(const PhongMaterial& phong)
-    {
-        phongData = phong;
-        dirty = true;
-    }
-
 private:
     BasicMaterial basicData;
     PhongMaterial phongData;
@@ -78,5 +69,4 @@ private:
     D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = {};
     std::string name;
     bool textureLoaded = false;
-    bool dirty = false;
 };
