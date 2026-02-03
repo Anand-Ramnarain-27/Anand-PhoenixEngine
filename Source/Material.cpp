@@ -34,10 +34,6 @@ void Material::load(const tinygltf::Material& gltfMat,
         };
         basicData.color = color;
         phongData.diffuseColor = color;
-        pbrPhongData.diffuseColor = color;
-        pbrPhongData.F0 = XMFLOAT3(0.04f, 0.04f, 0.04f);
-        pbrPhongData.shininess = phongData.shininess;
-        pbrPhongData.hasDiffuseTexture = phongData.hasDiffuseTexture;
     }
 
     if (pbr.baseColorTexture.index >= 0 &&
