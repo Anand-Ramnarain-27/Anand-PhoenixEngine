@@ -81,7 +81,7 @@ private:
     {
         size_t startOffset = 0;
         size_t size = 0;
-        UINT64 frameIndex = 0;
+        unsigned frameIndex = 0;
     };
 
     ComPtr<ID3D12Resource> m_buffer;
@@ -94,7 +94,7 @@ private:
     size_t m_usedMemory = 0;
 
     std::vector<FrameAllocation> m_frameAllocations[FRAMES_IN_FLIGHT];
-    UINT64 m_currentFrameIndex = 0;
+    unsigned m_currentFrameIndex = 0;
 
     static constexpr size_t DEFAULT_BUFFER_SIZE = 16 * 1024 * 1024;
 };

@@ -33,6 +33,8 @@ void RenderTexture::resize(UINT newWidth, UINT newHeight)
     width = newWidth;
     height = newHeight;
 
+    app->getD3D12()->flush();
+
     releaseResources();
     createResources();
 }
@@ -79,19 +81,8 @@ void RenderTexture::createResources()
 
 void RenderTexture::releaseResources()
 {
-    if (colorTexture)
-    {
-        app->getD3D12()->deferRelease(colorTexture.Detach());
-    }
-
-    if (depthTexture)
-    {
-        app->getD3D12()->deferRelease(depthTexture.Detach());
-    }
-
-    rtvHandle = {};
-    dsvHandle = {};
-    srvGpuHandle = {};
+    colorTexture.Reset();
+    depthTexture.Reset();
 }
 
 void RenderTexture::beginRender(ID3D12GraphicsCommandList* cmdList)

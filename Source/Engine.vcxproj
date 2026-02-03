@@ -174,7 +174,6 @@
     <ClInclude Include="Application.h" />
     <ClInclude Include="DebugDrawPass.h" />
     <ClInclude Include="debug_draw.hpp" />
-    <ClInclude Include="DeferredReleaseResource.h" />
     <ClInclude Include="gltf_utils.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="Mesh.h" />

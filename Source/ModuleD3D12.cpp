@@ -58,68 +58,19 @@ void ModuleD3D12::preRender()
 
     waitForFrameFence(m_drawFenceValues[m_currentBackBufferIdx]);
 
-    const UINT64 completedValue = m_drawFence->GetCompletedValue();
-    if (completedValue > m_lastCompletedFrame)
-    {
-        m_lastCompletedFrame = completedValue;
-    }
-
     m_frameIndex++;
     m_frameValues[m_currentBackBufferIdx] = m_frameIndex;
 
+    const UINT64 completedValue = m_drawFence->GetCompletedValue();
+    for (unsigned i = 0; i < FRAMES_IN_FLIGHT; ++i)
+    {
+        if (m_frameValues[i] > m_lastCompletedFrame && m_drawFenceValues[i] <= completedValue)
+        {
+            m_lastCompletedFrame = m_frameValues[i];
+        }
+    }
+
     m_commandAllocators[m_currentBackBufferIdx]->Reset();
-
-    collectGarbage();
-}
-
-void ModuleD3D12::deferRelease(ID3D12Object* object)
-{
-    if (object)
-    {
-        ComPtr<ID3D12Resource> resource;
-        if (SUCCEEDED(object->QueryInterface(IID_PPV_ARGS(&resource))))
-        {
-            D3D12_RESOURCE_DESC desc = resource->GetDesc();
-
-            D3D12_RESOURCE_ALLOCATION_INFO1 allocInfo = {};
-            D3D12_RESOURCE_ALLOCATION_INFO basicInfo =
-                m_device->GetResourceAllocationInfo1(0, 1, &desc, &allocInfo);
-
-            m_deferredMemoryUsage += basicInfo.SizeInBytes;
-        }
-
-        unsigned releaseFrame = m_frameValues[m_currentBackBufferIdx] + FRAMES_IN_FLIGHT;
-
-        m_deferredReleases.push_back({ object, releaseFrame });
-    }
-}
-
-void ModuleD3D12::collectGarbage()
-{
-    auto it = m_deferredReleases.begin();
-    while (it != m_deferredReleases.end())
-    {
-        if (m_lastCompletedFrame >= it->frameIndex)
-        {
-            ComPtr<ID3D12Resource> resource;
-            if (SUCCEEDED(it->object->QueryInterface(IID_PPV_ARGS(&resource))))
-            {
-                D3D12_RESOURCE_DESC desc = resource->GetDesc();
-                D3D12_RESOURCE_ALLOCATION_INFO1 allocInfo = {};
-                D3D12_RESOURCE_ALLOCATION_INFO basicInfo =
-                    m_device->GetResourceAllocationInfo1(0, 1, &desc, &allocInfo);
-
-                m_deferredMemoryUsage -= basicInfo.SizeInBytes;
-            }
-
-            it->object->Release();
-            it = m_deferredReleases.erase(it);
-        }
-        else
-        {
-            ++it;
-        }
-    }
 }
 
 void ModuleD3D12::postRender()
@@ -128,9 +79,7 @@ void ModuleD3D12::postRender()
     UINT presentFlags = (!useVSync && m_allowTearing) ? DXGI_PRESENT_ALLOW_TEARING : 0;
 
     m_swapChain->Present(syncInterval, presentFlags);
-    UINT64 fenceValue = signalDrawQueue();
-
-    m_drawFenceValues[m_currentBackBufferIdx] = fenceValue;
+    signalDrawQueue();
 }
 
 UINT64 ModuleD3D12::signalDrawQueue()
