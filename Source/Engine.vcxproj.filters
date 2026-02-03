@@ -45,19 +45,15 @@
     <ClCompile Include="MathUtils.cpp" />
     <ClCompile Include="ModuleCamera.cpp" />
     <ClCompile Include="ModuleEditor.cpp" />
+    <ClCompile Include="ModuleTextureSampler.cpp" />
     <ClCompile Include="ModuleShaderDescriptors.cpp" />
     <ClCompile Include="ShaderTableDesc.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="Model.cpp" />
+    <ClCompile Include="ModuleModelViewer.cpp" />
     <ClCompile Include="ModuleRingBuffer.cpp" />
     <ClCompile Include="RenderTexture.cpp" />
-    <ClCompile Include="ModuleModelViewer.cpp">
-      <Filter>Assignments</Filter>
-    </ClCompile>
-    <ClCompile Include="ModuleTextureSampler.cpp">
-      <Filter>Assignments</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -111,21 +107,17 @@
     <ClInclude Include="MathUtils.h" />
     <ClInclude Include="ModuleCamera.h" />
     <ClInclude Include="ModuleEditor.h" />
+    <ClInclude Include="ModuleTextureSampler.h" />
     <ClInclude Include="ModuleShaderDescriptors.h" />
     <ClInclude Include="ShaderTableDesc.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="gltf_utils.h" />
+    <ClInclude Include="ModuleModelViewer.h" />
     <ClInclude Include="ModuleRingBuffer.h" />
     <ClInclude Include="RenderTexture.h" />
     <ClInclude Include="DeferredReleaseResource.h" />
-    <ClInclude Include="ModuleModelViewer.h">
-      <Filter>Assignments</Filter>
-    </ClInclude>
-    <ClInclude Include="ModuleTextureSampler.h">
-      <Filter>Assignments</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -154,9 +146,6 @@
     </Filter>
     <Filter Include="Shaders">
       <UniqueIdentifier>{06295b1e-4250-4577-a3ee-f1f32904bf6e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Assignments">
-      <UniqueIdentifier>{039905bd-a3da-4095-83f1-358da980cf03}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
