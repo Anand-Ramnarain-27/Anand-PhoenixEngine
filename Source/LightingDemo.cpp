@@ -5,14 +5,10 @@
 #include "ModuleD3D12.h"
 #include "ModuleCamera.h"
 #include "ModuleShaderDescriptors.h"
-#include "ModuleRTDescriptors.h"
-#include "ModuleDSDescriptors.h"
-#include "GraphicsSamplers.h"  // Changed from ModuleSamplers
+#include "GraphicsSamplers.h"  
 #include "ModuleRingBuffer.h"
-#include "ModuleResources.h"
-#include "Model.h"            // Changed from BasicModel
-#include "Mesh.h"             // Changed from BasicMesh
-#include "RenderTexture.h"
+#include "Model.h"
+#include "Mesh.h"
 
 #include "ReadData.h"
 
@@ -20,6 +16,10 @@
 #include <d3d12.h>
 #include "d3dx12.h"
 
+static Matrix getNormalMatrix(const Matrix& modelMatrix)
+{
+    return modelMatrix.Invert().Transpose();
+}
 
 LightingDemo::LightingDemo()
 {
@@ -38,23 +38,20 @@ bool LightingDemo::init()
     if (ok)
     {
         ModuleD3D12* d3d12 = app->getD3D12();
-        ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
 
         debugDrawPass = std::make_unique<DebugDrawPass>(d3d12->getDevice(), d3d12->getDrawCommandQueue(), false);
-
-        descTable = descriptors->allocTable();
-        imguiPass = std::make_unique<ImGuiPass>(d3d12->getDevice(), d3d12->getHWnd(), descTable.getCPUHandle(), descTable.getGPUHandle());
-
-        renderTexture = std::make_unique<RenderTexture>("LightingDemo", DXGI_FORMAT_R8G8B8A8_UNORM,
-            Vector4(0.188f, 0.208f, 0.259f, 1.0f), DXGI_FORMAT_D32_FLOAT, 1.0f);
+        imguiPass = std::make_unique<ImGuiPass>(d3d12->getDevice(), d3d12->getHWnd());
     }
 
-    return true;
+    return ok;
 }
 
 bool LightingDemo::cleanUp()
 {
     imguiPass.reset();
+    debugDrawPass.reset();
+    model.reset();
+
     return true;
 }
 
@@ -63,28 +60,12 @@ void LightingDemo::preRender()
     imguiPass->startFrame();
     ImGuizmo::BeginFrame();
 
-    ImGuiID dockspace_id = ImGui::GetID("MyDockNodeId");
-    ImGui::DockSpaceOverViewport(dockspace_id);
+    ModuleD3D12* d3d12 = app->getD3D12();
 
-    static bool init = true;
-    ImVec2 mainSize = ImGui::GetMainViewport()->Size;
-    if (init)
-    {
-        init = false;
-        ImGui::DockBuilderRemoveNode(dockspace_id);
-        ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_CentralNode);
-        ImGui::DockBuilderSetNodeSize(dockspace_id, mainSize);
+    unsigned width = d3d12->getWindowWidth();
+    unsigned height = d3d12->getWindowHeight();
 
-        ImGuiID dock_id_left = 0, dock_id_right = 0;
-        ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.75f, &dock_id_left, &dock_id_right);
-        ImGui::DockBuilderDockWindow("Lighting Demo Options", dock_id_right);
-        ImGui::DockBuilderDockWindow("Scene", dock_id_left);
-
-        ImGui::DockBuilderFinish(dockspace_id);
-    }
-
-    if (canvasSize.x > 0.0f && canvasSize.y > 0.0f)
-        renderTexture->resize(int(canvasSize.x), int(canvasSize.y));
+    ImGuizmo::SetRect(0, 0, float(width), float(height));
 }
 
 void LightingDemo::imGuiCommands()
@@ -97,18 +78,22 @@ void LightingDemo::imGuiCommands()
     ImGui::Checkbox("Show axis", &showAxis);
     ImGui::Checkbox("Show guizmo", &showGuizmo);
     ImGui::Text("Model loaded %s with %zu meshes and %zu materials",
-        model->getSrcFile().c_str(), model->getMeshCount(), model->getMaterialCount());
+        model->getSrcFile().c_str(),
+        model->getMeshCount(),
+        model->getMaterialCount());
 
+    size_t meshIndex = 0;
     for (const auto& mesh : model->getMeshes())
     {
-        ImGui::Text("Mesh with %u vertices and %u triangles",
-            mesh->getVertexCount(), mesh->getIndexCount() / 3);
+        ImGui::Text("Mesh %zu with %d vertices and %d triangles",
+            meshIndex++,
+            mesh->getVertexCount(),
+            mesh->getIndexCount() / 3);
     }
 
     Matrix objectMatrix = model->getModelMatrix();
 
     ImGui::Separator();
-    // Set ImGuizmo operation mode (TRANSLATE, ROTATE, SCALE)
     static ImGuizmo::OPERATION gizmoOperation = ImGuizmo::TRANSLATE;
     if (ImGui::IsKeyPressed(ImGuiKey_T)) gizmoOperation = ImGuizmo::TRANSLATE;
     if (ImGui::IsKeyPressed(ImGuiKey_R)) gizmoOperation = ImGuizmo::ROTATE;
@@ -144,44 +129,23 @@ void LightingDemo::imGuiCommands()
         ImGui::ColorEdit3("Ambient Colour", reinterpret_cast<float*>(&light.Ac), ImGuiColorEditFlags_NoAlpha);
     }
 
+    size_t materialIndex = 0;
     for (const auto& material : model->getMaterials())
     {
         char tmp[256];
-        _snprintf_s(tmp, 255, "Material %s", material->getName());
+        _snprintf_s(tmp, 255, "Material %zu: %s", materialIndex++, material->getName());
 
         if (ImGui::CollapsingHeader(tmp, ImGuiTreeNodeFlags_DefaultOpen))
         {
             Material::Data matData = material->getData();
-
-            // Convert to XMFLOAT3 for ColorEdit3
-            XMFLOAT3 diffuseColour = XMFLOAT3(matData.baseColour.x, matData.baseColour.y, matData.baseColour.z);
-
-            if (ImGui::ColorEdit3("Diffuse Colour", reinterpret_cast<float*>(&diffuseColour)))
+            if (ImGui::ColorEdit3("Base Colour", reinterpret_cast<float*>(&matData.baseColour)))
             {
-                matData.baseColour.x = diffuseColour.x;
-                matData.baseColour.y = diffuseColour.y;
-                matData.baseColour.z = diffuseColour.z;
-                // Note: Need to add a setData method to Material class
-                // material->setData(matData);
             }
 
             bool hasTexture = matData.hasColourTexture;
             if (ImGui::Checkbox("Use Texture", &hasTexture))
             {
                 matData.hasColourTexture = hasTexture;
-                // material->setData(matData);
-            }
-
-            // For PBRPhong materials
-            PBRPhongMaterialData pbrData = material->getPBRPhongData();
-            if (ImGui::ColorEdit3("Specular Colour", reinterpret_cast<float*>(&pbrData.specularColour)))
-            {
-                material->setPBRPhongData(pbrData);
-            }
-
-            if (ImGui::DragFloat("shininess", &pbrData.shininess))
-            {
-                material->setPBRPhongData(pbrData);
             }
         }
     }
@@ -189,41 +153,22 @@ void LightingDemo::imGuiCommands()
     ImGui::End();
 
     ModuleCamera* camera = app->getCamera();
-    bool viewerFocused = false;
-    ImGui::Begin("Scene");
-    const char* frameName = "Scene Frame";
-    ImGuiID id(10);
-
-    ImVec2 max = ImGui::GetWindowContentRegionMax();
-    ImVec2 min = ImGui::GetWindowContentRegionMin();
-    canvasPos = min;
-    canvasSize = ImVec2(max.x - min.x, max.y - min.y);
-    ImVec2 cursorPos = ImGui::GetCursorScreenPos();
-
-    ImGui::BeginChildFrame(id, canvasSize, ImGuiWindowFlags_NoScrollbar);
-    viewerFocused = ImGui::IsWindowFocused();
-
-    if (renderTexture->getSrvTableDesc())
-    {
-        ImGui::Image((ImTextureID)renderTexture->getSrvHandle().ptr, canvasSize);
-    }
+    ModuleD3D12* d3d12 = app->getD3D12();
 
     if (showGuizmo)
     {
-        const Matrix& viewMatrix = camera->getView();
-        Matrix projMatrix = ModuleCamera::getPerspectiveProj(float(canvasSize.x) / float(canvasSize.y));
+        unsigned width = d3d12->getWindowWidth();
+        unsigned height = d3d12->getWindowHeight();
 
-        // Manipulate the object
-        ImGuizmo::SetRect(cursorPos.x, cursorPos.y, canvasSize.x, canvasSize.y);
-        ImGuizmo::SetDrawlist();
-        ImGuizmo::Manipulate((const float*)&viewMatrix, (const float*)&projMatrix,
-            gizmoOperation, ImGuizmo::LOCAL, (float*)&objectMatrix);
+        const Matrix& viewMatrix = camera->getView();
+        Matrix projMatrix = ModuleCamera::getPerspectiveProj(float(width) / float(height));
+
+        ImGuizmo::Manipulate((const float*)&viewMatrix, (const float*)&projMatrix, gizmoOperation, ImGuizmo::LOCAL, (float*)&objectMatrix);
     }
 
-    ImGui::EndChildFrame();
-    ImGui::End();
+    ImGuiIO& io = ImGui::GetIO();
 
-    camera->setEnable(viewerFocused && !ImGuizmo::IsUsing());
+    camera->setEnable(!io.WantCaptureMouse && !ImGuizmo::IsUsing());
 
     if (ImGuizmo::IsUsing())
     {
@@ -231,20 +176,29 @@ void LightingDemo::imGuiCommands()
     }
 }
 
-void LightingDemo::renderToTexture(ID3D12GraphicsCommandList* commandList)
+void LightingDemo::render()
 {
+    imGuiCommands();
+
     ModuleD3D12* d3d12 = app->getD3D12();
     ModuleCamera* camera = app->getCamera();
     ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
-    ModuleRTDescriptors* rtDescriptors = app->getRTDescriptors();
-    ModuleDSDescriptors* dsDescriptors = app->getDSDescriptors();
-    GraphicsSamplers* samplers = app->getGraphicsSamplers();  // Changed from ModuleSamplers
+    GraphicsSamplers* samplers = app->getGraphicsSamplers(); 
     ModuleRingBuffer* ringBuffer = app->getRingBuffer();
 
-    commandList->SetPipelineState(pso.Get());
+    ID3D12GraphicsCommandList* commandList = d3d12->getCommandList();
 
-    unsigned width = unsigned(canvasSize.x);
-    unsigned height = unsigned(canvasSize.y);
+    commandList->Reset(d3d12->getCommandAllocator(), pso.Get());
+
+    CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+        d3d12->getBackBuffer(),
+        D3D12_RESOURCE_STATE_PRESENT,
+        D3D12_RESOURCE_STATE_RENDER_TARGET
+    );
+    commandList->ResourceBarrier(1, &barrier);
+
+    unsigned width = d3d12->getWindowWidth();
+    unsigned height = d3d12->getWindowHeight();
 
     const Matrix& view = camera->getView();
     Matrix proj = ModuleCamera::getPerspectiveProj(float(width) / float(height));
@@ -252,23 +206,52 @@ void LightingDemo::renderToTexture(ID3D12GraphicsCommandList* commandList)
     Matrix mvp = model->getModelMatrix() * view * proj;
     mvp = mvp.Transpose();
 
+    D3D12_VIEWPORT viewport;
+    viewport.TopLeftX = viewport.TopLeftY = 0;
+    viewport.MinDepth = 0.0f;
+    viewport.MaxDepth = 1.0f;
+    viewport.Width = float(width);
+    viewport.Height = float(height);
+
+    D3D12_RECT scissor;
+    scissor.left = 0;
+    scissor.top = 0;
+    scissor.right = width;
+    scissor.bottom = height;
+
+    float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
+    D3D12_CPU_DESCRIPTOR_HANDLE rtv = d3d12->getRenderTargetDescriptor();
+    D3D12_CPU_DESCRIPTOR_HANDLE dsv = d3d12->getDepthStencilDescriptor();
+
     PerFrame perFrame;
     perFrame.L = light.L;
     perFrame.Lc = light.Lc;
     perFrame.Ac = light.Ac;
     perFrame.viewPos = camera->getPos();
+
     perFrame.L.Normalize();
 
-    renderTexture->beginRender(commandList);
+    commandList->OMSetRenderTargets(1, &rtv, false, &dsv);
+
+    commandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
+    commandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+    commandList->SetGraphicsRootSignature(rootSignature.Get());
+    commandList->RSSetViewports(1, &viewport);
+    commandList->RSSetScissorRects(1, &scissor);
+    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    ID3D12DescriptorHeap* descriptorHeaps[] = {
+        descriptors->getHeap(),
+        samplers->getHeap()  
+    };
+    commandList->SetDescriptorHeaps(2, descriptorHeaps);
 
     commandList->SetGraphicsRoot32BitConstants(0, sizeof(Matrix) / sizeof(UINT32), &mvp, 0);
-    commandList->SetGraphicsRootConstantBufferView(1, ringBuffer->allocate(&perFrame));
+    commandList->SetGraphicsRootConstantBufferView(1, ringBuffer->allocateConstantBuffer(&perFrame, sizeof(PerFrame)));
     commandList->SetGraphicsRootDescriptorTable(4, samplers->getGPUHandle(GraphicsSamplers::LINEAR_WRAP));
 
     BEGIN_EVENT(commandList, "Model Render Pass");
-
-    const auto& materials = model->getMaterials();
-    size_t materialCount = materials.size();
 
     for (const auto& mesh : model->getMeshes())
     {
@@ -277,18 +260,16 @@ void LightingDemo::renderToTexture(ID3D12GraphicsCommandList* commandList)
         {
             const auto& material = model->getMaterials()[materialIndex];
 
-            // Calculate normal matrix (inverse transpose of model matrix)
-            Matrix normalMatrix = model->getModelMatrix();
-            normalMatrix.Invert();
-            normalMatrix.Transpose();
-
             PerInstance perInstance;
             perInstance.modelMat = model->getModelMatrix().Transpose();
-            perInstance.normalMat = normalMatrix.Transpose();
+            perInstance.normalMat = getNormalMatrix(model->getModelMatrix()).Transpose();
             perInstance.material = material->getData();
 
-            commandList->SetGraphicsRootConstantBufferView(2, ringBuffer->allocate(&perInstance));
-            commandList->SetGraphicsRootDescriptorTable(3, material->getDescriptorTable().getGPUHandle());
+            commandList->SetGraphicsRootConstantBufferView(2,
+                ringBuffer->allocateConstantBuffer(&perInstance, sizeof(PerInstance)));
+
+            D3D12_GPU_DESCRIPTOR_HANDLE textureHandle = material->getTextureGPUHandle();
+            commandList->SetGraphicsRootDescriptorTable(3, textureHandle);
 
             mesh->draw(commandList);
         }
@@ -300,45 +281,13 @@ void LightingDemo::renderToTexture(ID3D12GraphicsCommandList* commandList)
     if (showAxis) dd::axisTriad(ddConvert(Matrix::Identity), 0.1f, 1.0f);
 
     debugDrawPass->record(commandList, width, height, view, proj);
-
-    renderTexture->endRender(commandList);
-}
-
-void LightingDemo::render()
-{
-    imGuiCommands();
-
-    ModuleD3D12* d3d12 = app->getD3D12();
-    ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
-    GraphicsSamplers* samplers = app->getGraphicsSamplers();  // Changed from ModuleSamplers
-
-    ID3D12GraphicsCommandList* commandList = d3d12->getCommandList();
-
-    commandList->Reset(d3d12->getCommandAllocator(), nullptr);
-
-    commandList->SetGraphicsRootSignature(rootSignature.Get());
-    ID3D12DescriptorHeap* descriptorHeaps[] = { descriptors->getHeap(), samplers->getHeap() };
-    commandList->SetDescriptorHeaps(2, descriptorHeaps);
-
-    if (renderTexture->isValid() && canvasSize.x > 0.0f && canvasSize.y > 0.0f)
-    {
-        renderToTexture(commandList);
-    }
-
-    CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-        d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-    commandList->ResourceBarrier(1, &barrier);
-
-    D3D12_CPU_DESCRIPTOR_HANDLE rtv = d3d12->getRenderTargetDescriptor();
-    commandList->OMSetRenderTargets(1, &rtv, false, nullptr);
-
-    float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-    commandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
-
     imguiPass->record(commandList);
 
-    barrier = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(),
-        D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+    barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+        d3d12->getBackBuffer(),
+        D3D12_RESOURCE_STATE_RENDER_TARGET,
+        D3D12_RESOURCE_STATE_PRESENT
+    );
     commandList->ResourceBarrier(1, &barrier);
 
     if (SUCCEEDED(commandList->Close()))
@@ -356,7 +305,7 @@ bool LightingDemo::createRootSignature()
     CD3DX12_DESCRIPTOR_RANGE sampRange;
 
     tableRanges.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-    sampRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, GraphicsSamplers::COUNT, 0);
+    sampRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, GraphicsSamplers::COUNT, 0); 
 
     rootParameters[0].InitAsConstants((sizeof(Matrix) / sizeof(UINT32)), 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
     rootParameters[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_ALL);
@@ -373,8 +322,10 @@ bool LightingDemo::createRootSignature()
         return false;
     }
 
-    if (FAILED(app->getD3D12()->getDevice()->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(),
-        rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature))))
+    if (FAILED(app->getD3D12()->getDevice()->CreateRootSignature(0,
+        rootSignatureBlob->GetBufferPointer(),
+        rootSignatureBlob->GetBufferSize(),
+        IID_PPV_ARGS(&rootSignature))))
     {
         return false;
     }
@@ -384,17 +335,14 @@ bool LightingDemo::createRootSignature()
 
 bool LightingDemo::createPSO()
 {
-    D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
-        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
-    };
+    const D3D12_INPUT_ELEMENT_DESC* inputLayout = Mesh::getInputLayout();
+    UINT inputLayoutCount = Mesh::getInputLayoutCount();
 
-    auto dataVS = DX::ReadData(L"LightingDemoVS.cso");
-    auto dataPS = DX::ReadData(L"LightingDemoPS.cso");
+    auto dataVS = DX::ReadData(L"LightingDemoVS.cso"); 
+    auto dataPS = DX::ReadData(L"LightingDemoPS.cso"); 
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-    psoDesc.InputLayout = { inputLayout, sizeof(inputLayout) / sizeof(D3D12_INPUT_ELEMENT_DESC) };
+    psoDesc.InputLayout = { inputLayout, inputLayoutCount };
     psoDesc.pRootSignature = rootSignature.Get();
     psoDesc.VS = { dataVS.data(), dataVS.size() };
     psoDesc.PS = { dataPS.data(), dataPS.size() };
@@ -415,15 +363,14 @@ bool LightingDemo::createPSO()
 bool LightingDemo::loadModel()
 {
     model = std::make_unique<Model>();
-    // Use loadPBRPhong instead of load to support PBR materials
-    if (!model->loadPBRPhong("Assets/Models/Duck/duck.gltf", "Assets/Models/Duck/"))
+    bool loaded = model->load("Assets/Models/Duck/duck.gltf", "Assets/Models/Duck/");
+    if (!loaded)
     {
-        // Fallback to regular load if PBR fails
-        if (!model->load("Assets/Models/Duck/duck.gltf", "Assets/Models/Duck/"))
-        {
-            return false;
-        }
+        LOG("Failed to load model");
+        return false;
     }
+
     model->setModelMatrix(Matrix::CreateScale(0.01f, 0.01f, 0.01f));
+
     return true;
 }

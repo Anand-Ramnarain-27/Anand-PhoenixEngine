@@ -5,10 +5,9 @@
 #include "Module.h"
 #include <imgui.h>
 #include "ImGuizmo.h"
-#include "Material.h"  // Changed from BasicMaterial.h
-#include "Model.h"     // Changed from BasicModel.h
+#include "Material.h"  
 
-class RenderTexture;
+class Model;  
 
 class LightingDemo : public Module
 {
@@ -16,7 +15,8 @@ class LightingDemo : public Module
     {
         Matrix modelMat;
         Matrix normalMat;
-        Material::Data material;  // Using your Material::Data struct
+
+        Material::Data material;
     };
 
     struct PerFrame
@@ -38,22 +38,16 @@ class LightingDemo : public Module
         Vector3 Ac = Vector3::One * (0.1f);
     };
 
-    Light                               light;
-    ComPtr<ID3D12RootSignature>         rootSignature;
-    ComPtr<ID3D12PipelineState>         pso;
-    std::unique_ptr<DebugDrawPass>      debugDrawPass;
-    std::unique_ptr<ImGuiPass>          imguiPass;
-    bool                                showAxis = false;
-    bool                                showGrid = true;
-    bool                                showGuizmo = false;
-    ImGuizmo::OPERATION                 moOperation = ImGuizmo::TRANSLATE;
-    std::unique_ptr<Model>              model;  // Changed from BasicModel
-
-    std::unique_ptr<RenderTexture>      renderTexture;
-    ImVec2                              canvasSize;
-    ImVec2                              canvasPos;
-
-    ShaderTableDesc descTable;
+    Light                           light;
+    ComPtr<ID3D12RootSignature>     rootSignature;
+    ComPtr<ID3D12PipelineState>     pso;
+    std::unique_ptr<DebugDrawPass>  debugDrawPass;
+    std::unique_ptr<ImGuiPass>      imguiPass;
+    bool                            showAxis = false;
+    bool                            showGrid = true;
+    bool                            showGuizmo = false;
+    ImGuizmo::OPERATION             gizmoOperation = ImGuizmo::TRANSLATE;
+    std::unique_ptr<Model>          model;  
 
 public:
     LightingDemo();
@@ -69,5 +63,4 @@ private:
     bool createRootSignature();
     bool createPSO();
     bool loadModel();
-    void renderToTexture(ID3D12GraphicsCommandList* commandList);
 };
