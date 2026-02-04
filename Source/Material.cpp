@@ -9,13 +9,9 @@
 #define TINYGLTF_NO_EXTERNAL_IMAGE
 #include "tiny_gltf.h"
 
-Material::Material()
-{
-    m_data.baseColour = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-    m_data.hasColourTexture = FALSE;
-}
-
-void Material::load(const tinygltf::Material& gltfMaterial, const tinygltf::Model& model, const char* basePath)
+bool Material::load(const tinygltf::Material& gltfMaterial,
+    const tinygltf::Model& model,
+    const char* basePath)
 {
     m_name = gltfMaterial.name.empty() ? "Material" : gltfMaterial.name;
 
@@ -27,63 +23,76 @@ void Material::load(const tinygltf::Material& gltfMaterial, const tinygltf::Mode
     if (pbr.baseColorFactor.size() >= 4)
     {
         m_data.baseColour = XMFLOAT4(
-            float(pbr.baseColorFactor[0]),
-            float(pbr.baseColorFactor[1]),
-            float(pbr.baseColorFactor[2]),
-            float(pbr.baseColorFactor[3])
+            static_cast<float>(pbr.baseColorFactor[0]),
+            static_cast<float>(pbr.baseColorFactor[1]),
+            static_cast<float>(pbr.baseColorFactor[2]),
+            static_cast<float>(pbr.baseColorFactor[3])
         );
     }
 
-    if (pbr.baseColorTexture.index >= 0 &&
-        pbr.baseColorTexture.index < (int)model.textures.size())
+    m_data.metallicFactor = static_cast<float>(pbr.metallicFactor);
+    m_data.roughnessFactor = static_cast<float>(pbr.roughnessFactor);
+
+    if (pbr.baseColorTexture.index >= 0)
     {
-        const auto& texture = model.textures[pbr.baseColorTexture.index];
-        if (texture.source >= 0 && texture.source < (int)model.images.size())
-        {
-            const auto& image = model.images[texture.source];
-            if (!image.uri.empty())
-            {
-                ModuleResources* resources = app->getResources();
-                std::string fullPath = std::string(basePath) + image.uri;
-
-                // Load texture
-                m_texture = resources->createTextureFromFile(fullPath, true);
-
-                // Create descriptor table for texture
-                ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
-                if (descriptors && m_texture)
-                {
-                    m_descriptorTable = descriptors->allocTable(m_name.c_str());
-                    if (m_descriptorTable.isValid())
-                    {
-                        // Create SRV for the texture
-                        m_descriptorTable.createTexture2DSRV(m_texture.Get(), 0);
-                        m_hasTexture = true;
-                        m_data.hasColourTexture = TRUE;
-
-                        LOG("Material '%s' loaded with texture: %s",
-                            m_name.c_str(), fullPath.c_str());
-                    }
-                }
-            }
-        }
+        m_hasTexture = loadTextureFromGltf(model, pbr.baseColorTexture.index, basePath);
+        m_data.hasColourTexture = m_hasTexture ? TRUE : FALSE;
     }
 
     if (!m_hasTexture)
     {
-        ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
-        if (descriptors)
-        {
-            std::string tableName = m_name + "_Null";
-            m_descriptorTable = descriptors->allocTable(tableName.c_str());
-            if (m_descriptorTable.isValid())
-            {
-                m_descriptorTable.createNullSRV(0);
-                m_data.hasColourTexture = FALSE;
+        createNullDescriptor();
+        m_data.hasColourTexture = FALSE;
+    }
 
-                LOG("Material '%s' created with null texture", m_name.c_str());
-            }
-        }
+    return m_descriptorTable.isValid();
+}
+
+bool Material::loadTextureFromGltf(const tinygltf::Model& model, int textureIndex, const char* basePath)
+{
+    if (textureIndex < 0 || textureIndex >= static_cast<int>(model.textures.size()))
+        return false;
+
+    const auto& texture = model.textures[textureIndex];
+    if (texture.source < 0 || texture.source >= static_cast<int>(model.images.size()))
+        return false;
+
+    const auto& image = model.images[texture.source];
+    if (image.uri.empty())
+        return false;
+
+    ModuleResources* resources = app->getResources();
+    std::string fullPath = std::string(basePath) + image.uri;
+
+    ComPtr<ID3D12Resource> textureResource = resources->createTextureFromFile(fullPath, true);
+    if (!textureResource)
+        return false;
+
+    m_texture.Swap(textureResource);
+
+    ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
+    if (!descriptors)
+        return false;
+
+    m_descriptorTable = descriptors->allocTable(m_name.c_str());
+    if (!m_descriptorTable.isValid())
+        return false;
+
+    m_descriptorTable.createTexture2DSRV(m_texture.Get(), 0);
+    return true;
+}
+
+void Material::createNullDescriptor()
+{
+    ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
+    if (!descriptors)
+        return;
+
+    std::string tableName = m_name + "_Null";
+    m_descriptorTable = descriptors->allocTable(tableName.c_str());
+    if (m_descriptorTable.isValid())
+    {
+        m_descriptorTable.createNullSRV(0);
     }
 }
 
