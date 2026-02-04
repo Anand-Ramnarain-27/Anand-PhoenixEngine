@@ -1,27 +1,26 @@
 #pragma once
 
 #include "ModuleShaderDescriptorsBase.h"
-#include "ShaderTableDesc.h"
+
+class ShaderTableDesc;
 
 class ModuleShaderDescriptors : public ModuleShaderDescriptorsBase<
     4096,   
-    8,     
+    8,  
     ShaderTableDesc>
 {
 public:
-    void preRender() override
-    {
-        // Optional: Add frame-based garbage collection logic here if needed
-        // The base class handles ref counting automatically
-    }
+    // No preRender needed unless you add frame-based logic
+    // void preRender() override {}
+
+    // No createViewInternal needed - shader descriptors don't use it
+    // void createViewInternal(ID3D12Resource* resource, const void* pDesc,
+    //     D3D12_CPU_DESCRIPTOR_HANDLE destHandle) override {}
 
 protected:
-    void createViewInternal(ID3D12Resource* resource, const void* pDesc,
-        D3D12_CPU_DESCRIPTOR_HANDLE destHandle) override
+    void createViewInternal(ID3D12Resource* /*resource*/, const void* /*pDesc*/,
+        D3D12_CPU_DESCRIPTOR_HANDLE /*destHandle*/) override
     {
-        UNREFERENCED_PARAMETER(resource);
-        UNREFERENCED_PARAMETER(pDesc);
-        UNREFERENCED_PARAMETER(destHandle);
-        assert(false && "Use createTable() for shader descriptors");
+      
     }
 };

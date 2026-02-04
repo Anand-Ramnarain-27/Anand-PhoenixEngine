@@ -7,7 +7,7 @@ class ModuleShaderDescriptorsBase :
     public ModuleDescriptorsBase<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
     MaxTables* DescriptorsPerTable,
     DescriptorType,
-    true>  
+    true>
 {
     using Base = ModuleDescriptorsBase<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
         MaxTables* DescriptorsPerTable,
@@ -41,7 +41,7 @@ public:
     {
         UINT handle = handles.allocHandle();
         if (handle == 0)
-            return DescriptorType();
+            return DescriptorType(); 
 
         UINT index = handles.indexFromHandle(handle);
         return DescriptorType(handle, &this->refCounts[index]);

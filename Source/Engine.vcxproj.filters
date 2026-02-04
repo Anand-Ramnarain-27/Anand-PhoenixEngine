@@ -75,9 +75,6 @@
     <ClCompile Include="ModuleRingBuffer.cpp">
       <Filter>Modules</Filter>
     </ClCompile>
-    <ClCompile Include="ModuleShaderDescriptors.cpp">
-      <Filter>Modules</Filter>
-    </ClCompile>
     <ClCompile Include="ShaderTableDesc.cpp">
       <Filter>Modules</Filter>
     </ClCompile>
@@ -233,6 +230,9 @@
     <ClInclude Include="ModuleShaderDescriptorsBase.h">
       <Filter>Modules</Filter>
     </ClInclude>
+    <ClInclude Include="DescriptorForward.h">
+      <Filter>Modules</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -244,9 +244,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="ModelSampler.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="SimpleMath.inl">
       <Filter>Core</Filter>
     </None>
@@ -284,12 +281,6 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="TextureSamplerVS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="ModelSamplerPS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="ModelSamplerVS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

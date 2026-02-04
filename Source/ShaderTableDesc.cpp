@@ -1,7 +1,7 @@
 #include "Globals.h"
 #include "ShaderTableDesc.h"
-#include "Application.h"
 #include "ModuleShaderDescriptors.h"
+#include "Application.h"
 #include "ModuleD3D12.h"
 
 ModuleShaderDescriptors* ShaderTableDesc::getModule()

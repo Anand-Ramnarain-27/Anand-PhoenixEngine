@@ -3,114 +3,117 @@
 #include "Application.h"
 #include "ModuleResources.h"
 #include "ModuleShaderDescriptors.h"
+#include "ShaderTableDesc.h"
 
+#define TINYGLTF_NO_STB_IMAGE_WRITE
+#define TINYGLTF_NO_STB_IMAGE
+#define TINYGLTF_NO_EXTERNAL_IMAGE
 #include "tiny_gltf.h"
 
-// REMOVED: Material::Material() {} - Using default constructor
-
-bool Material::loadTexture(int texIndex, const tinygltf::Model& model,
-    const char* basePath, bool sRGB, ComPtr<ID3D12Resource>& outTex)
+Material::Material()
 {
-    if (texIndex < 0 || texIndex >= int(model.textures.size()))
-        return false;
-
-    const auto& tex = model.textures[texIndex];
-    if (tex.source < 0 || tex.source >= int(model.images.size()))
-        return false;
-
-    const auto& img = model.images[tex.source];
-    if (img.uri.empty())
-        return false;
-
-    ModuleResources* res = app->getResources();
-    std::string fullPath = std::string(basePath) + img.uri;
-    outTex = res->createTextureFromFile(fullPath, sRGB);
-    return outTex != nullptr;
+    m_data.baseColour = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+    m_data.hasColourTexture = FALSE;
 }
 
-bool Material::load(const tinygltf::Material& gltfMat,
-    const tinygltf::Model& model,
-    const char* basePath)
+Material::Material(Material&& other) noexcept
+    : m_data(other.m_data)
+    , m_texture(std::move(other.m_texture))
+    , m_shaderTable(std::move(other.m_shaderTable))
+    , m_name(std::move(other.m_name))
+    , m_hasTexture(other.m_hasTexture)
+    , m_textureGPUHandle(other.m_textureGPUHandle)
 {
-    m_name = gltfMat.name.empty() ? "Unnamed" : gltfMat.name;
+    other.m_textureGPUHandle = { 0 };
+    other.m_hasTexture = false;
+}
 
-    const auto& pbr = gltfMat.pbrMetallicRoughness;
+Material& Material::operator=(Material&& other) noexcept
+{
+    if (this != &other)
+    {
+        m_data = other.m_data;
+        m_texture = std::move(other.m_texture);
+        m_shaderTable = std::move(other.m_shaderTable);
+        m_name = std::move(other.m_name);
+        m_hasTexture = other.m_hasTexture;
+        m_textureGPUHandle = other.m_textureGPUHandle;
 
-    // Load base color
+        other.m_textureGPUHandle = { 0 };
+        other.m_hasTexture = false;
+    }
+    return *this;
+}
+
+Material::~Material() = default;
+
+void Material::load(const tinygltf::Material& gltfMaterial, const tinygltf::Model& model, const char* basePath)
+{
+    m_name = gltfMaterial.name.empty() ? "Material" : gltfMaterial.name;
+    m_hasTexture = false;
+    m_textureGPUHandle = { 0 };
+
+    const auto& pbr = gltfMaterial.pbrMetallicRoughness;
     if (pbr.baseColorFactor.size() >= 4)
     {
-        m_data.baseColor = XMFLOAT4{
+        m_data.baseColour = XMFLOAT4(
             float(pbr.baseColorFactor[0]),
             float(pbr.baseColorFactor[1]),
             float(pbr.baseColorFactor[2]),
             float(pbr.baseColorFactor[3])
-        };
+        );
     }
 
-    m_data.metallic = float(pbr.metallicFactor);
-    m_data.roughness = float(pbr.roughnessFactor);
-
-    // Load emissive factor
-    if (gltfMat.emissiveFactor.size() >= 3)
+    if (pbr.baseColorTexture.index >= 0 &&
+        pbr.baseColorTexture.index < (int)model.textures.size())
     {
-        m_data.emissive = XMFLOAT3{
-            float(gltfMat.emissiveFactor[0]),
-            float(gltfMat.emissiveFactor[1]),
-            float(gltfMat.emissiveFactor[2])
-        };
+        const auto& texture = model.textures[pbr.baseColorTexture.index];
+        if (texture.source >= 0 && texture.source < (int)model.images.size())
+        {
+            const auto& image = model.images[texture.source];
+            if (!image.uri.empty())
+            {
+                ModuleResources* resources = app->getResources();
+                std::string fullPath = std::string(basePath) + image.uri;
+                m_texture = resources->createTextureFromFile(fullPath, true);
+
+                ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
+                if (descriptors && m_texture)
+                {
+                    m_shaderTable = descriptors->createTable();
+
+                    if (m_shaderTable)
+                    {
+                        m_shaderTable.createTexture2DSRV(m_texture.Get(),
+                            DXGI_FORMAT_UNKNOWN,  
+                            1,                 
+                            0,               
+                            0);         
+
+                        m_textureGPUHandle = m_shaderTable.getGPUHandle();
+                        m_hasTexture = true;
+                        m_data.hasColourTexture = TRUE;
+                        return;
+                    }
+                }
+            }
+        }
     }
 
-    // Load occlusion strength
-    if (gltfMat.occlusionTexture.strength > 0)
+    ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
+    if (descriptors)
     {
-        m_data.occlusion = float(gltfMat.occlusionTexture.strength);
+        m_shaderTable = descriptors->createTable();
+
+        if (m_shaderTable)
+        {
+            m_shaderTable.createNullSRV(D3D12_SRV_DIMENSION_TEXTURE2D,
+                DXGI_FORMAT_R8G8B8A8_UNORM,
+                0); 
+
+            m_textureGPUHandle = m_shaderTable.getGPUHandle();
+        }
     }
 
-    // Load all textures
-    m_data.hasBaseColorTex = loadTexture(pbr.baseColorTexture.index, model, basePath, true, m_baseColorTex);
-    m_data.hasMetallicRoughnessTex = loadTexture(pbr.metallicRoughnessTexture.index, model, basePath, false, m_metallicRoughnessTex);
-    m_data.hasNormalTex = loadTexture(gltfMat.normalTexture.index, model, basePath, false, m_normalTex);
-    m_data.hasEmissiveTex = loadTexture(gltfMat.emissiveTexture.index, model, basePath, true, m_emissiveTex);
-    m_data.hasOcclusionTex = loadTexture(gltfMat.occlusionTexture.index, model, basePath, false, m_occlusionTex);
-
-    m_hasTexture = m_data.hasBaseColorTex || m_data.hasMetallicRoughnessTex ||
-        m_data.hasNormalTex || m_data.hasEmissiveTex || m_data.hasOcclusionTex;
-
-    // Create descriptor table
-    ModuleShaderDescriptors* desc = app->getShaderDescriptors();
-    if (!desc)
-        return false;
-
-    m_shaderTable = desc->createTable();
-    if (!m_shaderTable)
-        return false;
-
-    // Bind textures to slots (consistent ordering)
-    if (m_data.hasBaseColorTex)
-        m_shaderTable.createTexture2DSRV(m_baseColorTex.Get(), DXGI_FORMAT_UNKNOWN, 0, 0);
-    else
-        m_shaderTable.createNullSRV(D3D12_SRV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
-
-    if (m_data.hasMetallicRoughnessTex)
-        m_shaderTable.createTexture2DSRV(m_metallicRoughnessTex.Get(), DXGI_FORMAT_UNKNOWN, 1, 1);
-    else
-        m_shaderTable.createNullSRV(D3D12_SRV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
-
-    if (m_data.hasNormalTex)
-        m_shaderTable.createTexture2DSRV(m_normalTex.Get(), DXGI_FORMAT_UNKNOWN, 2, 2);
-    else
-        m_shaderTable.createNullSRV(D3D12_SRV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R8G8B8A8_UNORM, 2);
-
-    if (m_data.hasEmissiveTex)
-        m_shaderTable.createTexture2DSRV(m_emissiveTex.Get(), DXGI_FORMAT_UNKNOWN, 3, 3);
-    else
-        m_shaderTable.createNullSRV(D3D12_SRV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R8G8B8A8_UNORM, 3);
-
-    if (m_data.hasOcclusionTex)
-        m_shaderTable.createTexture2DSRV(m_occlusionTex.Get(), DXGI_FORMAT_UNKNOWN, 4, 4);
-    else
-        m_shaderTable.createNullSRV(D3D12_SRV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R8G8B8A8_UNORM, 4);
-
-    m_gpuHandle = m_shaderTable.getGPUHandle();
-    return true;
+    m_data.hasColourTexture = FALSE;
 }

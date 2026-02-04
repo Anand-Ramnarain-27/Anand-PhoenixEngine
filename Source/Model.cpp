@@ -1,111 +1,112 @@
 #include "Globals.h"
 #include "Model.h"
 #include "Application.h"
-#include "ModuleResources.h"
-#include "ModuleShaderDescriptors.h"
 
 #define TINYGLTF_NO_STB_IMAGE_WRITE
 #define TINYGLTF_NO_STB_IMAGE
-#define TINYGLTF_NO_EXTERNAL_IMAGE
+#define TINYGLTF_NO_EXTERNAL_IMAGE 
 #define TINYGLTF_IMPLEMENTATION
-#pragma warning(push)
-#pragma warning(disable : 4018) 
-#pragma warning(disable : 4267) 
 #include "tiny_gltf.h"
-#pragma warning(pop)
 
 #include <imgui.h>
+
+Model::Model()
+    : m_position(0, 0, 0)
+    , m_rotation(0, 0, 0)
+    , m_scale(1, 1, 1)
+{
+    m_modelMatrix = Matrix::Identity;
+}
+
+Model::~Model()
+{
+    m_meshes.clear();
+    m_materials.clear();
+}
 
 bool Model::load(const char* fileName, const char* basePath)
 {
     tinygltf::TinyGLTF loader;
-    tinygltf::Model gltfModel;
-    std::string err, warn;
+    tinygltf::Model model;
+    std::string error, warning;
 
-    bool success = loader.LoadASCIIFromFile(&gltfModel, &err, &warn, fileName);
+    bool success = loader.LoadASCIIFromFile(&model, &error, &warning, fileName);
+
     if (!success)
     {
-        LOG("Failed to load GLTF: %s", err.c_str());
+        LOG("Failed to load GLTF file: %s", error.c_str());
         return false;
     }
 
-    if (!warn.empty())
-        LOG("GLTF warning: %s", warn.c_str());
+    if (!warning.empty())
+    {
+        LOG("GLTF warning: %s", warning.c_str());
+    }
 
     m_srcFile = fileName;
 
-    // Load materials
-    m_materials.reserve(gltfModel.materials.size());
-    for (const auto& gltfMat : gltfModel.materials)
+    for (const auto& gltfMaterial : model.materials)
     {
-        Material mat;
-        if (mat.load(gltfMat, gltfModel, basePath))
-        {
-            m_materials.push_back(std::move(mat));
-        }
+        auto material = std::make_unique<Material>();
+        material->load(gltfMaterial, model, basePath);
+        m_materials.push_back(std::move(material));
     }
 
-    // Ensure at least one material exists
     if (m_materials.empty())
     {
-        m_materials.emplace_back();
+        auto defaultMaterial = std::make_unique<Material>();
+        m_materials.push_back(std::move(defaultMaterial));
     }
 
-    // Load meshes
-    size_t totalPrimitives = 0;
-    for (const auto& gltfMesh : gltfModel.meshes)
-        totalPrimitives += gltfMesh.primitives.size();
-
-    m_meshes.reserve(totalPrimitives);
-    for (const auto& gltfMesh : gltfModel.meshes)
+    for (const auto& gltfMesh : model.meshes)
     {
-        for (const auto& prim : gltfMesh.primitives)
+        for (const auto& primitive : gltfMesh.primitives)
         {
-            Mesh mesh;
-            if (mesh.load(prim, gltfModel))
-            {
-                m_meshes.push_back(std::move(mesh));
-            }
+            auto mesh = std::make_unique<Mesh>();
+            mesh->load(primitive, model);
+            m_meshes.push_back(std::move(mesh));
         }
     }
 
     LOG("Loaded model: %s (%zu meshes, %zu materials)",
         fileName, m_meshes.size(), m_materials.size());
 
-    return !m_meshes.empty();
+    return true;
 }
 
-void Model::render(ID3D12GraphicsCommandList* cmdList) const
+void Model::draw(ID3D12GraphicsCommandList* commandList)
 {
-    if (!cmdList) return;
-
-    // Bind model matrix (typically root constant or CBV)
-    // This depends on your renderer architecture
-
     for (const auto& mesh : m_meshes)
     {
-        int matID = mesh.getMaterialIndex();
-        if (matID >= 0 && matID < int(m_materials.size()))
-        {
-            const auto& mat = m_materials[matID];
-            if (mat.hasTexture())
-            {
-                cmdList->SetGraphicsRootDescriptorTable(3, mat.getGPUHandle());
-            }
-        }
-
-        mesh.render(cmdList);
+        mesh->draw(commandList);
     }
-}
-
-void Model::update(float deltaTime)
-{
-    // Animation or transform updates would go here
 }
 
 void Model::showImGuiControls()
 {
     ImGui::Text("Model: %s", m_srcFile.c_str());
+    ImGui::Separator();
+
+    ImGui::Text("Transform");
+    if (ImGui::DragFloat3("Position", &m_position.x, 0.1f))
+    {
+        m_modelMatrix = Matrix::CreateScale(m_scale) *
+            Matrix::CreateFromYawPitchRoll(m_rotation.y, m_rotation.x, m_rotation.z) *
+            Matrix::CreateTranslation(m_position);
+    }
+    if (ImGui::DragFloat3("Rotation", &m_rotation.x, 0.01f))
+    {
+        m_modelMatrix = Matrix::CreateScale(m_scale) *
+            Matrix::CreateFromYawPitchRoll(m_rotation.y, m_rotation.x, m_rotation.z) *
+            Matrix::CreateTranslation(m_position);
+    }
+    if (ImGui::DragFloat3("Scale", &m_scale.x, 0.01f))
+    {
+        m_modelMatrix = Matrix::CreateScale(m_scale) *
+            Matrix::CreateFromYawPitchRoll(m_rotation.y, m_rotation.x, m_rotation.z) *
+            Matrix::CreateTranslation(m_position);
+    }
+
     ImGui::Separator();
     ImGui::Text("Meshes: %zu", m_meshes.size());
     ImGui::Text("Materials: %zu", m_materials.size());
