@@ -11,7 +11,7 @@ class ModuleDSDescriptors : public ModuleDescriptorsBase<
 public:
     DepthStencilDesc create(ID3D12Resource* resource)
     {
-        return createView(resource, nullptr);
+        return ModuleDescriptorsBase::create(resource, nullptr);
     }
 
 protected:

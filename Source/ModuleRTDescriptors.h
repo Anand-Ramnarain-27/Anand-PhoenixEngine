@@ -11,7 +11,7 @@ class ModuleRTDescriptors : public ModuleDescriptorsBase<
 public:
     RenderTargetDesc create(ID3D12Resource* resource)
     {
-        return createView(resource, nullptr);
+        return ModuleDescriptorsBase::create(resource, nullptr);
     }
 
     RenderTargetDesc create(ID3D12Resource* resource, UINT arraySlice, UINT mipSlice, DXGI_FORMAT format)
@@ -24,7 +24,7 @@ public:
         rtvDesc.Texture2DArray.ArraySize = 1;
         rtvDesc.Texture2DArray.PlaneSlice = 0;
 
-        return createView(resource, &rtvDesc);
+        return ModuleDescriptorsBase::create(resource, &rtvDesc);
     }
 
 protected:

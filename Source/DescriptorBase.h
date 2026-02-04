@@ -12,9 +12,14 @@ protected:
 
 public:
     DescriptorBase() = default;
-    DescriptorBase(UINT handle, UINT* refCount) : handle(handle), refCount(refCount) { addRef(); }
+    DescriptorBase(UINT handle, UINT* refCount) : handle(handle), refCount(refCount) {
+        if (refCount) ++(*refCount);
+    }
 
-    DescriptorBase(const DescriptorBase& other) : handle(other.handle), refCount(other.refCount) { addRef(); }
+    DescriptorBase(const DescriptorBase& other) : handle(other.handle), refCount(other.refCount) {
+        if (refCount) ++(*refCount);
+    }
+
     DescriptorBase(DescriptorBase&& other) noexcept : handle(other.handle), refCount(other.refCount)
     {
         other.handle = 0;
@@ -30,7 +35,7 @@ public:
             release();
             handle = other.handle;
             refCount = other.refCount;
-            addRef();
+            if (refCount) ++(*refCount);
         }
         return *this;
     }
@@ -57,6 +62,7 @@ public:
 
     D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const
     {
+        if (handle == 0) return { 0 };
         return Derived::getModule()->getCPUHandle(handle);
     }
 
@@ -73,8 +79,4 @@ private:
         }
     }
 
-    void addRef()
-    {
-        if (refCount) ++(*refCount);
-    }
 };

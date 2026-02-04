@@ -1,70 +1,122 @@
 #pragma once
 
-#include "ModuleD3D12.h"
-#include <vector>
+#include <array>
 #include <cassert>
 
+template<size_t Size>
 class HandleManager
 {
-public:
-    HandleManager(size_t maxHandles) : maxHandles(maxHandles), freeIndices(maxHandles)
+    static_assert(Size > 0, "HandleManager size must be positive");
+    static_assert(Size < (1 << 24), "HandleManager size too large for 24-bit index");
+
+    struct Data
     {
-        for (size_t i = 0; i < maxHandles; ++i)
+        UINT index : 24;  
+        UINT number : 8;  
+
+        Data() : index(Size), number(0) { ; }
+        explicit Data(UINT handle) {
+            *reinterpret_cast<UINT*>(this) = handle;
+        }
+        operator UINT() const {
+            return *reinterpret_cast<const UINT*>(this);
+        }
+    };
+
+    std::array<Data, Size> data;
+    UINT firstFree = 0;
+    UINT genNumber = 0;
+
+public:
+    HandleManager()
+    {
+        UINT nextIndex = 0;
+        for (Data& item : data)
         {
-            freeIndices[i] = static_cast<UINT>(maxHandles - i - 1);
+            item.index = ++nextIndex; 
+            item.number = 0;
         }
     }
 
     UINT allocHandle()
     {
-        if (freeIndices.empty())
-            return 0;
+        assert(firstFree < Size && "Out of handles");
 
-        UINT handle = freeIndices.back();
-        freeIndices.pop_back();
+        if (firstFree < Size)
+        {
+            UINT index = firstFree;  
+            Data& item = data[index];
 
-        UINT generation = ++generations[handle];
-        return (generation << 24) | (handle + 1); 
+            firstFree = item.index;
+
+            genNumber = (genNumber + 1) % (1 << 8);
+
+            if (index == 0 && genNumber == 0)
+            {
+                ++genNumber;
+            }
+
+            item.index = index;    
+            item.number = genNumber;
+
+            return static_cast<UINT>(item);
+        }
+
+        return 0;  
     }
 
     void freeHandle(UINT handle)
     {
-        if (handle == 0) return;
+        assert(validHandle(handle) && "Invalid handle");
 
-        UINT index = indexFromHandle(handle);
-        if (index < maxHandles)
-        {
-            freeIndices.push_back(index);
-        }
+        Data item(handle);
+        UINT index = item.index;
+
+        Data& freedItem = data[index];
+        freedItem.index = firstFree;
+        firstFree = index;
+    }
+
+    UINT indexFromHandle(UINT handle) const
+    {
+        assert(validHandle(handle) && "Invalid handle");
+        return Data(handle).index;
     }
 
     bool validHandle(UINT handle) const
     {
         if (handle == 0) return false;
 
-        UINT index = indexFromHandle(handle);
-        if (index >= maxHandles) return false;
+        Data item(handle);
+        UINT index = item.index;
+        UINT number = item.number;
 
-        UINT generation = generationFromHandle(handle);
-        return generations[index] == generation;
+        return index < Size &&
+            data[index].index == index &&
+            data[index].number == number;
     }
 
-    UINT indexFromHandle(UINT handle) const
+    size_t getSize() const { return Size; }
+
+    size_t getFreeCount() const
     {
-        if (handle == 0) return 0;
-        return ((handle & 0x00FFFFFF) - 1);
-    }
+        size_t freeCount = 0;
+        size_t index = firstFree;
 
-    size_t getFreeCount() const { return freeIndices.size(); }
-    size_t getSize() const { return maxHandles; }
+        while (index < Size)
+        {
+            ++freeCount;
+            index = data[index].index;
+        }
+
+        return freeCount;
+    }
 
 private:
-    UINT generationFromHandle(UINT handle) const
+    bool valid(UINT index, UINT genNumber) const
     {
-        return handle >> 24;
+        return index < Size &&
+            data[index].index == index &&
+            data[index].number == genNumber;
     }
-
-    size_t maxHandles;
-    std::vector<UINT> freeIndices;
-    std::vector<UINT> generations; 
 };
