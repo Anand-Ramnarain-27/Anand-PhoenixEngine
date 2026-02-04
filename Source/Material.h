@@ -1,10 +1,6 @@
 #pragma once
-#include "Globals.h"  
+#include "Globals.h"
 #include "ShaderTableDesc.h"
-#include <string>
-#include <wrl/client.h>
-
-using Microsoft::WRL::ComPtr;
 
 namespace tinygltf
 {
@@ -17,37 +13,55 @@ class Material
 public:
     struct Data
     {
-        XMFLOAT4 baseColour;
-        BOOL hasColourTexture;
+        XMFLOAT4 baseColor = XMFLOAT4(1, 1, 1, 1);
+        XMFLOAT3 emissive = XMFLOAT3(0, 0, 0);
+        float metallic = 0.0f;
+        float roughness = 1.0f;
+        float occlusion = 1.0f;
+        BOOL hasBaseColorTex = FALSE;
+        BOOL hasMetallicRoughnessTex = FALSE;
+        BOOL hasNormalTex = FALSE;
+        BOOL hasEmissiveTex = FALSE;
+        BOOL hasOcclusionTex = FALSE;
+        float padding[3] = {}; // For 16-byte alignment
     };
 
 public:
-    Material();
+    Material() = default; // Use default constructor
+    ~Material() = default;
 
-    Material(Material&& other) noexcept;
-    Material& operator=(Material&& other) noexcept;
-
+    // Enable move, disable copy
+    Material(Material&&) = default;
+    Material& operator=(Material&&) = default;
     Material(const Material&) = delete;
     Material& operator=(const Material&) = delete;
 
-    ~Material();
-
-    void load(const tinygltf::Material& gltfMaterial, const tinygltf::Model& model, const char* basePath);
+    bool load(const tinygltf::Material& gltfMat,
+        const tinygltf::Model& model,
+        const char* basePath);
 
     const Data& getData() const { return m_data; }
-    ComPtr<ID3D12Resource> getTexture() const { return m_texture; }
-    const char* getName() const { return m_name.c_str(); }
+    const ShaderTableDesc& getShaderTable() const { return m_shaderTable; }
+    D3D12_GPU_DESCRIPTOR_HANDLE getGPUHandle() const { return m_gpuHandle; }
+    const std::string& getName() const { return m_name; }
 
-    D3D12_GPU_DESCRIPTOR_HANDLE getTextureGPUHandle() const { return m_textureGPUHandle; }
     bool hasTexture() const { return m_hasTexture; }
 
-    const ShaderTableDesc& getShaderTable() const { return m_shaderTable; }
+private:
+    bool loadTexture(int texIndex, const tinygltf::Model& model,
+        const char* basePath, bool sRGB, ComPtr<ID3D12Resource>& outTex);
 
 private:
     Data m_data;
-    ComPtr<ID3D12Resource> m_texture;
-    ShaderTableDesc m_shaderTable;
     std::string m_name;
+    ShaderTableDesc m_shaderTable;
+    D3D12_GPU_DESCRIPTOR_HANDLE m_gpuHandle = {};
+
+    ComPtr<ID3D12Resource> m_baseColorTex;
+    ComPtr<ID3D12Resource> m_metallicRoughnessTex;
+    ComPtr<ID3D12Resource> m_normalTex;
+    ComPtr<ID3D12Resource> m_emissiveTex;
+    ComPtr<ID3D12Resource> m_occlusionTex;
+
     bool m_hasTexture = false;
-    D3D12_GPU_DESCRIPTOR_HANDLE m_textureGPUHandle = { 0 };
 };

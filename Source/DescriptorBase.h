@@ -1,6 +1,7 @@
 #pragma once
 
-#include "DescriptorForward.h" 
+class ModuleRTDescriptors;
+class ModuleDSDescriptors;
 
 template<typename Derived, typename ModuleType>
 class DescriptorBase
