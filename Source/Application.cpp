@@ -16,6 +16,7 @@
 #include "ModuleTextureSampler.h"
 #include "BasicModelScene.h"
 #include "LightingDemo.h"
+#include "RenderToTextureDemo.h"
 
 Application::Application(int argc, wchar_t** argv, void* hWnd)
 {
@@ -33,7 +34,8 @@ Application::Application(int argc, wchar_t** argv, void* hWnd)
     //modules.push_back(editor = new ModuleEditor());
 
 	//modules.push_back(basicModelScene = new BasicModelScene());
-	modules.push_back(lightingDemo = new LightingDemo());
+	//modules.push_back(lightingDemo = new LightingDemo());
+	modules.push_back(renderToTextureDemo = new RenderToTextureDemo());
 
 	/*modules.push_back(textureSampler = new ModuleTextureSampler());*/
 }
