@@ -12,13 +12,15 @@ class ModuleResources;
 class GraphicsSamplers;
 class ModuleCamera;
 class ModuleEditor;
-class ModuleTextureSampler;
 class ModuleShaderDescriptors;
 class ModuleRingBuffer;
 class ModuleRTDescriptors;
 class ModuleDSDescriptors;
+class RenderTexture;
 
 class BasicModelScene;
+class ModuleTextureSampler;
+class LightingDemo;
 
 class Application
 {
@@ -36,13 +38,15 @@ public:
     GraphicsSamplers* getGraphicsSamplers() { return graphicsSamplers; }
 	ModuleCamera* getCamera() { return camera; }
     ModuleEditor* getEditor() { return editor; }
-	ModuleTextureSampler* getTextureSampler() { return textureSampler; }
     ModuleShaderDescriptors* getShaderDescriptors() { return shaderDescriptors; }
 	ModuleRingBuffer* getRingBuffer() { return ringBuffer; }
     ModuleRTDescriptors* getRTDescriptors() { return rtDescriptors; }
     ModuleDSDescriptors* getDSDescriptors() { return dsDescriptors; }
+	RenderTexture* getRenderTexture() { return renderTexture; }
 
 	BasicModelScene* getBasicModelScene() { return basicModelScene; }
+    ModuleTextureSampler* getTextureSampler() { return textureSampler; }
+	LightingDemo* getLightingDemo() { return lightingDemo; }
 
     void                        swapModule(Module* from, Module* to) { swapModules.push_back(std::make_pair(from, to)); }
     
@@ -65,13 +69,15 @@ private:
     GraphicsSamplers* graphicsSamplers = nullptr;
     ModuleCamera* camera = nullptr;
 	ModuleEditor* editor = nullptr;
-	ModuleTextureSampler* textureSampler = nullptr;
     ModuleShaderDescriptors* shaderDescriptors = nullptr;
 	ModuleRingBuffer* ringBuffer = nullptr;
     ModuleRTDescriptors* rtDescriptors = nullptr;
     ModuleDSDescriptors* dsDescriptors = nullptr;
+	RenderTexture* renderTexture = nullptr;
 
+    ModuleTextureSampler* textureSampler = nullptr;
 	BasicModelScene* basicModelScene = nullptr;
+	LightingDemo* lightingDemo = nullptr;
 
     uint64_t  lastMilis = 0;
     TickList  tickList;

@@ -28,24 +28,56 @@ bool Material::load(const tinygltf::Material& gltfMaterial,
             static_cast<float>(pbr.baseColorFactor[2]),
             static_cast<float>(pbr.baseColorFactor[3])
         );
-    }
 
-    m_data.metallicFactor = static_cast<float>(pbr.metallicFactor);
-    m_data.roughnessFactor = static_cast<float>(pbr.roughnessFactor);
+        m_pbrData.diffuseColour = XMFLOAT3(
+            static_cast<float>(pbr.baseColorFactor[0]),
+            static_cast<float>(pbr.baseColorFactor[1]),
+            static_cast<float>(pbr.baseColorFactor[2])
+        );
+    }
 
     if (pbr.baseColorTexture.index >= 0)
     {
         m_hasTexture = loadTextureFromGltf(model, pbr.baseColorTexture.index, basePath);
         m_data.hasColourTexture = m_hasTexture ? TRUE : FALSE;
+        m_pbrData.hasDiffuseTex = m_hasTexture ? TRUE : FALSE;
     }
 
     if (!m_hasTexture)
     {
         createNullDescriptor();
         m_data.hasColourTexture = FALSE;
+        m_pbrData.hasDiffuseTex = FALSE;
     }
 
     return m_descriptorTable.isValid();
+}
+
+bool Material::loadPBRPhong(const tinygltf::Material& gltfMaterial,
+    const tinygltf::Model& model,
+    const char* basePath)
+{
+    if (!load(gltfMaterial, model, basePath))
+        return false;
+
+    const auto& pbr = gltfMaterial.pbrMetallicRoughness;
+
+    m_pbrData.metallicFactor = static_cast<float>(pbr.metallicFactor);
+    m_pbrData.roughnessFactor = static_cast<float>(pbr.roughnessFactor);
+
+    m_pbrData.specularColour = XMFLOAT3(0.04f, 0.04f, 0.04f);
+
+    m_pbrData.shininess = 100.0f * (1.0f - m_pbrData.roughnessFactor);
+
+    return true;
+}
+
+void Material::setPBRPhongData(const PBRPhongMaterialData& data)
+{
+    m_pbrData = data;
+
+    m_data.baseColour = XMFLOAT4(data.diffuseColour.x, data.diffuseColour.y, data.diffuseColour.z, 1.0f);
+    m_data.hasColourTexture = data.hasDiffuseTex;
 }
 
 bool Material::loadTextureFromGltf(const tinygltf::Model& model, int textureIndex, const char* basePath)

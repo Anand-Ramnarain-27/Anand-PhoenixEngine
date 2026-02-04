@@ -13,10 +13,9 @@ public:
     Model() = default;
     ~Model() = default;
 
-    Model(const Model&) = delete;
-    Model& operator=(const Model&) = delete;
-
     bool load(const char* fileName, const char* basePath = nullptr);
+
+    bool loadPBRPhong(const char* fileName, const char* basePath = nullptr);
 
     void draw(ID3D12GraphicsCommandList* commandList);
 
@@ -24,7 +23,6 @@ public:
     void setModelMatrix(const Matrix& matrix) { m_modelMatrix = matrix; }
 
     const std::string& getSrcFile() const { return m_srcFile; }
-
     const std::vector<std::unique_ptr<Mesh>>& getMeshes() const { return m_meshes; }
     const std::vector<std::unique_ptr<Material>>& getMaterials() const { return m_materials; }
 
@@ -36,8 +34,10 @@ public:
     void showImGuiControls();
 
 private:
-    bool loadMaterials(const tinygltf::Model& gltfModel, const std::string& basePath);
+    bool loadMaterials(const tinygltf::Model& gltfModel, const std::string& basePath, bool usePBR = false);
     bool loadMeshes(const tinygltf::Model& gltfModel);
+
+    bool loadMaterialsAndMeshes(const char* fileName, const char* basePath, bool usePBR);
 
     std::string m_srcFile;
     std::vector<std::unique_ptr<Mesh>> m_meshes;

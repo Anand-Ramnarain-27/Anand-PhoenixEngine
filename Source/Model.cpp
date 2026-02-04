@@ -13,6 +13,16 @@
 
 bool Model::load(const char* fileName, const char* basePath)
 {
+    return loadMaterialsAndMeshes(fileName, basePath, false);
+}
+
+bool Model::loadPBRPhong(const char* fileName, const char* basePath)
+{
+    return loadMaterialsAndMeshes(fileName, basePath, true);
+}
+
+bool Model::loadMaterialsAndMeshes(const char* fileName, const char* basePath, bool usePBR)
+{
     namespace fs = std::filesystem;
 
     tinygltf::TinyGLTF loader;
@@ -45,7 +55,7 @@ bool Model::load(const char* fileName, const char* basePath)
         actualBasePath = filePath.parent_path().string() + "/";
     }
 
-    if (!loadMaterials(gltfModel, actualBasePath))
+    if (!loadMaterials(gltfModel, actualBasePath, usePBR))
     {
         LOG("Failed to load materials");
         return false;
@@ -57,18 +67,29 @@ bool Model::load(const char* fileName, const char* basePath)
         return false;
     }
 
-    LOG("Loaded model: %s (%zu meshes, %zu materials)",
-        fileName, m_meshes.size(), m_materials.size());
+    LOG("Loaded model: %s (%zu meshes, %zu materials, PBR: %s)",
+        fileName, m_meshes.size(), m_materials.size(), usePBR ? "yes" : "no");
 
     return true;
 }
 
-bool Model::loadMaterials(const tinygltf::Model& gltfModel, const std::string& basePath)
+bool Model::loadMaterials(const tinygltf::Model& gltfModel, const std::string& basePath, bool usePBR)
 {
     for (const auto& gltfMaterial : gltfModel.materials)
     {
         auto material = std::make_unique<Material>();
-        if (!material->load(gltfMaterial, gltfModel, basePath.c_str()))
+        bool loaded = false;
+
+        if (usePBR)
+        {
+            loaded = material->loadPBRPhong(gltfMaterial, gltfModel, basePath.c_str());
+        }
+        else
+        {
+            loaded = material->load(gltfMaterial, gltfModel, basePath.c_str());
+        }
+
+        if (!loaded)
         {
             LOG("Warning: Failed to load material: %s", gltfMaterial.name.c_str());
         }
