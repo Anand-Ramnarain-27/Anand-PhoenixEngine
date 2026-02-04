@@ -1,62 +1,47 @@
 #pragma once
 
-#include "Globals.h"
-#include <memory>
-#include <string>
-
 class ModuleShaderDescriptors;
 
-class ShaderTableDesc : public std::enable_shared_from_this<ShaderTableDesc>
+class ShaderTableDesc
 {
 public:
-    ShaderTableDesc(ModuleShaderDescriptors* manager, size_t tableIndex);
+    ShaderTableDesc() = default;
+    ShaderTableDesc(UINT handle, UINT* refCount, ModuleShaderDescriptors* mgr);
+    ShaderTableDesc(const ShaderTableDesc& other);
+    ShaderTableDesc(ShaderTableDesc&& other) noexcept;
     ~ShaderTableDesc();
 
-    ShaderTableDesc(const ShaderTableDesc&) = delete;
-    ShaderTableDesc& operator=(const ShaderTableDesc&) = delete;
+    ShaderTableDesc& operator=(const ShaderTableDesc& other);
+    ShaderTableDesc& operator=(ShaderTableDesc&& other) noexcept;
 
-    D3D12_GPU_DESCRIPTOR_HANDLE getGPUHandle() const;
-    D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const;
+    explicit operator bool() const { return m_handle != 0 && m_refCount && *m_refCount > 0; }
 
-    bool createCBV(UINT slot, ID3D12Resource* resource, const D3D12_CONSTANT_BUFFER_VIEW_DESC* desc = nullptr);
-    bool createSRV(UINT slot, ID3D12Resource* resource, const D3D12_SHADER_RESOURCE_VIEW_DESC* desc = nullptr);
-    bool createUAV(UINT slot, ID3D12Resource* resource, const D3D12_UNORDERED_ACCESS_VIEW_DESC* desc = nullptr);
+    void createCBV(ID3D12Resource* buffer, UINT slot = 0, UINT64 size = 0, UINT64 offset = 0);
+    void createSRV(ID3D12Resource* resource, UINT slot = 0, const D3D12_SHADER_RESOURCE_VIEW_DESC* desc = nullptr);
+    void createUAV(ID3D12Resource* resource, UINT slot = 0, const D3D12_UNORDERED_ACCESS_VIEW_DESC* desc = nullptr);
 
-    bool createNullSRV(UINT slot, D3D12_SRV_DIMENSION dimension = D3D12_SRV_DIMENSION_TEXTURE2D);
-    bool createNullUAV(UINT slot, D3D12_UAV_DIMENSION dimension = D3D12_UAV_DIMENSION_TEXTURE2D);
-
-    bool createBufferSRV(UINT slot, ID3D12Resource* resource,
+    void createBufferSRV(ID3D12Resource* buffer, UINT slot = 0,
         UINT firstElement = 0, UINT numElements = 0,
-        UINT structureByteStride = 0);
-    bool createTexture2DSRV(UINT slot, ID3D12Resource* texture,
+        UINT stride = 0);
+    void createTexture2DSRV(ID3D12Resource* texture, UINT slot = 0,
         DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN,
-        UINT mipLevels = 1, UINT mostDetailedMip = 0);
-    bool createTextureArraySRV(UINT slot, ID3D12Resource* textureArray,
-        DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN,
-        UINT arraySize = 1, UINT mipLevels = 1);
-    bool createCubemapSRV(UINT slot, ID3D12Resource* cubemap,
-        DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN,
-        UINT mipLevels = 1);
+        UINT mipLevels = UINT_MAX);
+    void createNullSRV(UINT slot = 0);
 
-    bool createConstantBufferView(UINT slot, ID3D12Resource* buffer,
-        UINT64 sizeInBytes, UINT64 offset = 0);
+    D3D12_GPU_DESCRIPTOR_HANDLE getGPUHandle(UINT slot = 0) const;
+    D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle(UINT slot = 0) const;
 
+    UINT getHandle() const { return m_handle; }
+    bool isValid() const { return static_cast<bool>(*this); }
+    void reset() { release(); }
+
+private:
     void addRef();
     void release();
-    UINT getRefCount() const;
-
-    size_t getIndex() const { return m_tableIndex; }
-    const char* getName() const;
-    bool isValid() const;
+    bool isValidSlot(UINT slot) const { return slot < 8; }
 
 private:
-    D3D12_CPU_DESCRIPTOR_HANDLE getSlotCPUHandle(UINT slot) const;
-
-    bool isValidSlot(UINT slot) const;
-
-private:
+    UINT m_handle = 0;
+    UINT* m_refCount = nullptr;
     ModuleShaderDescriptors* m_manager = nullptr;
-    size_t m_tableIndex = 0;
-    UINT m_refCount = 0;
-    bool m_isValid = false;
 };

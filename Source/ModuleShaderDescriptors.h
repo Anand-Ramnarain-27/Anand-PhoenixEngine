@@ -1,59 +1,56 @@
 #pragma once
 
 #include "Module.h"
+#include <array>
 #include <vector>
-#include <queue>
-#include <memory>
+#include <bitset>
 
-class ModuleD3D12;
 class ShaderTableDesc;
 
 class ModuleShaderDescriptors : public Module
 {
-public:
-    ModuleShaderDescriptors();
-    ~ModuleShaderDescriptors() override;
-
-    bool init() override;
-    bool cleanUp() override;
-    void preRender() override;
-
-    std::shared_ptr<ShaderTableDesc> allocTable(const char* name = nullptr);
-
-    ID3D12DescriptorHeap* getDescriptorHeap() const { return m_descriptorHeap.Get(); }
-
-    void collectGarbage();
-
-private:
     friend class ShaderTableDesc;
 
-    struct DescriptorTable
-    {
-        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = { 0 };
-        D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = { 0 };
-        size_t index = 0;
-        UINT refCount = 0;
-        UINT frameFreed = 0;
-        char name[64] = "";
-        bool isFree = true;
-    };
+public:
+    static constexpr size_t MAX_TABLES = 4096;
+    static constexpr size_t SLOTS_PER_TABLE = 8;
+    static constexpr size_t TOTAL_DESCRIPTORS = MAX_TABLES * SLOTS_PER_TABLE;
 
-    void freeTable(size_t index);
+    ModuleShaderDescriptors();
+    virtual ~ModuleShaderDescriptors();
 
-    // Find a free table slot
-    size_t findFreeTable() const;
+    bool init() override;
+    void preRender() override;
+
+    ShaderTableDesc allocTable(const char* name = nullptr);
+    ID3D12DescriptorHeap* getHeap() const { return m_heap.Get(); }
 
 private:
-    static constexpr size_t MAX_TABLES = 4096;
-    static constexpr size_t DESCRIPTORS_PER_TABLE = 8;
-    static constexpr size_t MAX_DESCRIPTORS = MAX_TABLES * DESCRIPTORS_PER_TABLE;
+    void freeHandle(UINT handle);
+    void collectGarbage();
+
+    bool isValidHandle(UINT handle) const;
+
+    D3D12_GPU_DESCRIPTOR_HANDLE getGPUHandle(UINT handle, UINT slot = 0) const;
+    D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle(UINT handle, UINT slot = 0) const;
+
+private:
+    struct TableEntry
+    {
+        UINT frameFreed = 0;
+        char name[32] = "";
+    };
 
     ComPtr<ID3D12Device> m_device;
-    ComPtr<ID3D12DescriptorHeap> m_descriptorHeap;
+    ComPtr<ID3D12DescriptorHeap> m_heap;
 
-    std::vector<DescriptorTable> m_tables;
-    std::queue<size_t> m_freeTableIndices;
-
-    size_t m_descriptorSize = 0;
+    D3D12_GPU_DESCRIPTOR_HANDLE m_gpuStart = { 0 };
+    D3D12_CPU_DESCRIPTOR_HANDLE m_cpuStart = { 0 };
+    UINT m_descriptorSize = 0;
     UINT m_currentFrame = 0;
+
+    std::array<TableEntry, MAX_TABLES> m_tables;
+    std::array<UINT, MAX_TABLES> m_refCounts = { 0 };
+    std::bitset<MAX_TABLES> m_freeBits;  
+    std::vector<UINT> m_freeList;
 };

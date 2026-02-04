@@ -6,10 +6,10 @@
 #include "ModuleCamera.h"
 #include "ModuleShaderDescriptors.h"
 #include "ModuleResources.h"
-#include "ModuleTextureSampler.h"  // Your sampler module
-#include "Model.h"                 // Your Model class
-#include "Mesh.h"                  // Your Mesh class
-#include "Material.h"              // Your Material class
+#include "GraphicsSamplers.h" 
+#include "Model.h"
+#include "Mesh.h"
+#include "Material.h"
 
 #include "ReadData.h"
 
@@ -46,14 +46,11 @@ bool BasicModelScene::init()
 bool BasicModelScene::cleanUp()
 {
     imguiPass.reset();
-    model.reset();  // Clean up model
+    model.reset();
 
-    // Clear material buffers
     materialBuffers.clear();
-
     pso.Reset();
     rootSignature.Reset();
-
     debugDrawPass.reset();
 
     return true;
@@ -69,7 +66,6 @@ void BasicModelScene::preRender()
     unsigned width = d3d12->getWindowWidth();
     unsigned height = d3d12->getWindowHeight();
 
-    // Set the viewport size (adjust based on your application)
     ImGuizmo::SetRect(0, 0, float(width), float(height));
 }
 
@@ -80,7 +76,6 @@ void BasicModelScene::imGuiCommands()
     ImGui::Checkbox("Show axis", &showAxis);
     ImGui::Checkbox("Show guizmo", &showGuizmo);
 
-    // Use your Model class methods
     ImGui::Text("Model loaded %s with %zu meshes and %zu materials",
         model->getSrcFile().c_str(),
         model->getMeshes().size(),
@@ -97,7 +92,6 @@ void BasicModelScene::imGuiCommands()
 
     ImGui::Separator();
 
-    // Set ImGuizmo operation mode (TRANSLATE, ROTATE, SCALE)
     static ImGuizmo::OPERATION gizmoOperation = ImGuizmo::TRANSLATE;
     if (ImGui::IsKeyPressed(ImGuiKey_T)) gizmoOperation = ImGuizmo::TRANSLATE;
     if (ImGui::IsKeyPressed(ImGuiKey_R)) gizmoOperation = ImGuizmo::ROTATE;
@@ -134,7 +128,6 @@ void BasicModelScene::imGuiCommands()
         const Matrix& viewMatrix = camera->getView();
         Matrix projMatrix = ModuleCamera::getPerspectiveProj(float(width) / float(height));
 
-        // Manipulate the object
         ImGuizmo::Manipulate((const float*)&viewMatrix, (const float*)&projMatrix,
             gizmoOperation, ImGuizmo::LOCAL, (float*)&objectMatrix);
     }
@@ -155,7 +148,7 @@ void BasicModelScene::render()
     ModuleD3D12* d3d12 = app->getD3D12();
     ModuleCamera* camera = app->getCamera();
     ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
-    ModuleTextureSampler* textureSampler = app->getTextureSampler();  // Your sampler
+    GraphicsSamplers* samplers = app->getGraphicsSamplers();
 
     ID3D12GraphicsCommandList* commandList = d3d12->getCommandList();
 
@@ -202,20 +195,13 @@ void BasicModelScene::render()
     commandList->RSSetScissorRects(1, &scissor);
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    // Setup descriptor heaps - adapt to your system
     ID3D12DescriptorHeap* descriptorHeaps[] = {
-        descriptors->getDescriptorHeap(),
-        // You need to get the sampler heap from your texture sampler module
-        // If ModuleTextureSampler doesn't have getHeap(), you may need to adjust
-        nullptr  // Placeholder - adjust based on your sampler system
+        descriptors->getHeap(),
+        samplers->getHeap()  
     };
+    commandList->SetDescriptorHeaps(2, descriptorHeaps);
 
-    // Adjust based on your actual descriptor count
-    UINT descriptorHeapCount = 1;  // Only shader descriptors if no separate sampler heap
-    commandList->SetDescriptorHeaps(descriptorHeapCount, descriptorHeaps);
-
-    // Set sampler - adjust based on your system
-    // commandList->SetGraphicsRootDescriptorTable(3, textureSampler->getGPUHandle(...));
+    commandList->SetGraphicsRootDescriptorTable(3, samplers->getGPUHandle(GraphicsSamplers::LINEAR_WRAP));
 
     commandList->SetGraphicsRoot32BitConstants(0, sizeof(Matrix) / sizeof(UINT32), &mvp, 0);
 
@@ -233,13 +219,13 @@ void BasicModelScene::render()
         {
             const auto& material = materials[materialIndex];
 
-            // Set material constant buffer
             commandList->SetGraphicsRootConstantBufferView(1,
                 materialBuffers[materialIndex]->GetGPUVirtualAddress());
 
-            // Set texture descriptor - adjust based on your Material class
-            commandList->SetGraphicsRootDescriptorTable(2,
-                material->getTextureGPUHandle());
+            if (material->hasTexture())
+            {
+                commandList->SetGraphicsRootDescriptorTable(2, material->getTextureGPUHandle());
+            }
 
             mesh->draw(commandList);
         }
@@ -271,30 +257,30 @@ bool BasicModelScene::createRootSignature()
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
     CD3DX12_ROOT_PARAMETER rootParameters[4] = {};
     CD3DX12_DESCRIPTOR_RANGE tableRanges;
-    CD3DX12_DESCRIPTOR_RANGE sampRange;
+    CD3DX12_DESCRIPTOR_RANGE samplerRange;
 
-    // Adjust ranges based on your system
     tableRanges.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-
-    // Sampler range - adjust count based on your system
-    // ModuleSamplers::COUNT doesn't exist in your code, use appropriate constant
-    sampRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);  // Single sampler for now
-
-    rootParameters[0].InitAsConstants((sizeof(Matrix) / sizeof(UINT32)), 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+    samplerRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, GraphicsSamplers::COUNT, 0);
+    rootParameters[0].InitAsConstants(sizeof(Matrix) / sizeof(UINT32), 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
     rootParameters[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_PIXEL);
     rootParameters[2].InitAsDescriptorTable(1, &tableRanges, D3D12_SHADER_VISIBILITY_PIXEL);
-    rootParameters[3].InitAsDescriptorTable(1, &sampRange, D3D12_SHADER_VISIBILITY_PIXEL);
-
+    rootParameters[3].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
     rootSignatureDesc.Init(4, rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     ComPtr<ID3DBlob> rootSignatureBlob;
+    ComPtr<ID3DBlob> errorBlob;
 
-    if (FAILED(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootSignatureBlob, nullptr)))
+    if (FAILED(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootSignatureBlob, &errorBlob)))
     {
+        if (errorBlob)
+        {
+            OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+        }
         return false;
     }
 
-    if (FAILED(app->getD3D12()->getDevice()->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature))))
+    if (FAILED(app->getD3D12()->getDevice()->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(),
+        rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature))))
     {
         return false;
     }
@@ -306,8 +292,6 @@ bool BasicModelScene::loadModel()
 {
     model = std::make_unique<Model>();
 
-    // Load a model - adjust paths as needed
-    //model->load("Assets/Models/BoxInterleaved/BoxInterleaved.gltf", "Assets/Models/BoxInterleaved/");
     model->load("Assets/Models/Duck/duck.gltf", "Assets/Models/Duck/");
     model->setModelMatrix(Matrix::CreateScale(0.01f, 0.01f, 0.01f));
 
@@ -319,10 +303,12 @@ bool BasicModelScene::loadModel()
         const auto& material = materials[i];
         const auto& materialData = material->getData();
 
-        // Create constant buffer for material
+        UINT bufferSize = sizeof(Material::Data);
+        UINT alignedSize = (bufferSize + 255) & ~255;  
+
         materialBuffers.push_back(resources->createDefaultBuffer(
             &materialData,
-            sizeof(Material::Data),  // Use your Material::Data size
+            alignedSize,
             "MaterialCB"));
     }
 
@@ -331,18 +317,14 @@ bool BasicModelScene::loadModel()
 
 bool BasicModelScene::createPSO()
 {
-    // Use your Mesh class input layout
-    D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
-        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}  // Added normal
-    };
+    const D3D12_INPUT_ELEMENT_DESC* meshInputLayout = Mesh::getInputLayout();
+    UINT inputLayoutCount = Mesh::getInputLayoutCount();
 
-    auto dataVS = DX::ReadData(L"BasicModelSceneVS.cso");  // Renamed shaders
+    auto dataVS = DX::ReadData(L"BasicModelSceneVS.cso");
     auto dataPS = DX::ReadData(L"BasicModelScenePS.cso");
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-    psoDesc.InputLayout = { inputLayout, sizeof(inputLayout) / sizeof(D3D12_INPUT_ELEMENT_DESC) };
+    psoDesc.InputLayout = { meshInputLayout, inputLayoutCount };
     psoDesc.pRootSignature = rootSignature.Get();
     psoDesc.VS = { dataVS.data(), dataVS.size() };
     psoDesc.PS = { dataPS.data(), dataPS.size() };

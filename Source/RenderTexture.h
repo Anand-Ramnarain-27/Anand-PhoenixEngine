@@ -1,11 +1,9 @@
-// RenderTexture.h
 #pragma once
 
 #include "ShaderTableDesc.h"
 #include "RenderTargetDesc.h"
 #include "DepthStencilDesc.h"
 
-// Enhanced RenderTexture with better resource management and efficiency
 class RenderTexture
 {
     struct TexturePair {
@@ -26,11 +24,10 @@ class RenderTexture
     bool m_autoResolveMSAA = false;
     bool m_msaa = false;
 
-    std::shared_ptr<ShaderTableDesc> m_srvDesc;
+    ShaderTableDesc m_srvDesc;
     RenderTargetDesc m_rtvDesc;
     DepthStencilDesc m_dsvDesc;
 
-    // Cached handles for performance
     mutable D3D12_CPU_DESCRIPTOR_HANDLE m_cachedRTV = {};
     mutable D3D12_CPU_DESCRIPTOR_HANDLE m_cachedDSV = {};
     mutable D3D12_GPU_DESCRIPTOR_HANDLE m_cachedSRV = {};
@@ -45,23 +42,19 @@ public:
         m_msaa(msaa), m_autoResolveMSAA(autoResolve) {
     };
 
-    ~RenderTexture();
+    ~RenderTexture() = default;
 
-    bool isValid() const { return m_width > 0 && m_height > 0; }
+    bool isValid() const { return m_width > 0 && m_height > 0 && m_srvDesc.isValid(); }
     bool isMSAA() const { return m_msaa; }
 
     void resize(UINT width, UINT height);
 
-    // Single call to set up rendering
     void beginRender(ID3D12GraphicsCommandList* cmdList, bool clear = true);
 
-    // Single call to finish rendering
     void endRender(ID3D12GraphicsCommandList* cmdList);
 
-    // Quick bind helper
     void bindAsShaderResource(ID3D12GraphicsCommandList* cmdList, int slot);
 
-    // Getters with cached performance
     UINT getWidth() const { return m_width; }
     UINT getHeight() const { return m_height; }
 
@@ -82,6 +75,10 @@ public:
 
     ID3D12Resource* getTexture() const { return m_textures.texture.Get(); }
     ID3D12Resource* getDepthTexture() const { return m_textures.depthTexture.Get(); }
+
+    const ShaderTableDesc& getSrvTableDesc() const { return m_srvDesc; }
+    const RenderTargetDesc& getRtvDesc() const { return m_rtvDesc; }
+    const DepthStencilDesc& getDsvDesc() const { return m_dsvDesc; }
 
 private:
     void createResources();

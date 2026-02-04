@@ -1,4 +1,5 @@
 #pragma once
+
 #include "Globals.h"
 #include "ShaderTableDesc.h"
 #include <string>
@@ -30,7 +31,7 @@ public:
     ComPtr<ID3D12Resource> getTexture() const { return m_texture; }
     const char* getName() const { return m_name.c_str(); }
 
-    D3D12_GPU_DESCRIPTOR_HANDLE getTextureGPUHandle() const { return m_textureGPUHandle; }
+    D3D12_GPU_DESCRIPTOR_HANDLE getTextureGPUHandle() const;
     bool hasTexture() const { return m_hasTexture; }
 
 private:
@@ -38,5 +39,5 @@ private:
     ComPtr<ID3D12Resource> m_texture;
     std::string m_name;
     bool m_hasTexture = false;
-    D3D12_GPU_DESCRIPTOR_HANDLE m_textureGPUHandle = { 0 };
+    ShaderTableDesc m_descriptorTable; 
 };
