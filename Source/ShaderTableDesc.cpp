@@ -7,7 +7,7 @@
 ShaderTableDesc::ShaderTableDesc(UINT handle, UINT* refCount, ModuleShaderDescriptors* mgr)
     : m_handle(handle), m_refCount(refCount), m_manager(mgr)
 {
-    if (m_refCount) ++(*m_refCount);
+    addRef();
 }
 
 ShaderTableDesc::ShaderTableDesc(const ShaderTableDesc& other)
@@ -64,31 +64,43 @@ void ShaderTableDesc::addRef()
 
 void ShaderTableDesc::release()
 {
-    if (m_refCount && --(*m_refCount) == 0 && m_manager)
-    {
-        m_manager->freeHandle(m_handle);
-        m_handle = 0;
-        m_refCount = nullptr;
-        m_manager = nullptr;
-    }
+    if (!m_refCount) return;
+    if (--(*m_refCount) == 0 && m_manager)
+        m_manager->releaseTable(m_handle);
+    m_handle = 0;
+    m_refCount = nullptr;
+    m_manager = nullptr;
+}
+
+bool ShaderTableDesc::isValidSlot(UINT slot) const
+{
+    return slot < ModuleShaderDescriptors::SLOTS_PER_TABLE;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE ShaderTableDesc::getGPUHandle(UINT slot) const
+{
+    return m_manager ? m_manager->getGPUHandle(m_handle, slot) : D3D12_GPU_DESCRIPTOR_HANDLE{ 0 };
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE ShaderTableDesc::getCPUHandle(UINT slot) const
+{
+    return m_manager ? m_manager->getCPUHandle(m_handle, slot) : D3D12_CPU_DESCRIPTOR_HANDLE{ 0 };
 }
 
 void ShaderTableDesc::createCBV(ID3D12Resource* buffer, UINT slot, UINT64 size, UINT64 offset)
 {
     if (!isValid() || !isValidSlot(slot)) return;
 
-    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+    D3D12_CONSTANT_BUFFER_VIEW_DESC desc{};
     if (buffer)
     {
-        cbvDesc.BufferLocation = buffer->GetGPUVirtualAddress() + offset;
-        cbvDesc.SizeInBytes = size ? static_cast<UINT>(size) :
+        desc.BufferLocation = buffer->GetGPUVirtualAddress() + offset;
+        desc.SizeInBytes = size ? static_cast<UINT>(size) :
             static_cast<UINT>((buffer->GetDesc().Width + 255) & ~255);
     }
 
-    app->getD3D12()->getDevice()->CreateConstantBufferView(
-        buffer ? &cbvDesc : nullptr,
-        getCPUHandle(slot)
-    );
+    auto device = app->getD3D12()->getDevice();
+    device->CreateConstantBufferView(buffer ? &desc : nullptr, getCPUHandle(slot));
 }
 
 void ShaderTableDesc::createSRV(ID3D12Resource* resource, UINT slot, const D3D12_SHADER_RESOURCE_VIEW_DESC* desc)
@@ -103,59 +115,51 @@ void ShaderTableDesc::createUAV(ID3D12Resource* resource, UINT slot, const D3D12
     app->getD3D12()->getDevice()->CreateUnorderedAccessView(resource, nullptr, desc, getCPUHandle(slot));
 }
 
-void ShaderTableDesc::createBufferSRV(ID3D12Resource* buffer, UINT slot, UINT firstElement, UINT numElements, UINT stride)
+void ShaderTableDesc::createBufferSRV(ID3D12Resource* buffer, UINT slot,
+    UINT firstElement, UINT numElements, UINT stride)
 {
     if (!buffer || !isValid() || !isValidSlot(slot)) return;
 
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Buffer.FirstElement = firstElement;
-    srvDesc.Buffer.NumElements = numElements;
-    srvDesc.Buffer.StructureByteStride = stride;
-    srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+    D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+    desc.Format = DXGI_FORMAT_UNKNOWN;
+    desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+    desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    desc.Buffer.FirstElement = firstElement;
+    desc.Buffer.NumElements = numElements;
+    desc.Buffer.StructureByteStride = stride;
+    desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-    createSRV(buffer, slot, &srvDesc);
+    createSRV(buffer, slot, &desc);
 }
 
-void ShaderTableDesc::createTexture2DSRV(ID3D12Resource* texture, UINT slot, DXGI_FORMAT format, UINT mipLevels)
+void ShaderTableDesc::createTexture2DSRV(ID3D12Resource* texture, UINT slot,
+    DXGI_FORMAT format, UINT mipLevels)
 {
     if (!texture || !isValid() || !isValidSlot(slot)) return;
 
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Format = format == DXGI_FORMAT_UNKNOWN ? texture->GetDesc().Format : format;
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Texture2D.MipLevels = mipLevels;
-    srvDesc.Texture2D.MostDetailedMip = 0;
-    srvDesc.Texture2D.PlaneSlice = 0;
-    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+    D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+    desc.Format = format == DXGI_FORMAT_UNKNOWN ? texture->GetDesc().Format : format;
+    desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    desc.Texture2D.MostDetailedMip = 0;
+    desc.Texture2D.MipLevels = mipLevels;
+    desc.Texture2D.PlaneSlice = 0;
+    desc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-    createSRV(texture, slot, &srvDesc);
+    createSRV(texture, slot, &desc);
 }
 
 void ShaderTableDesc::createNullSRV(UINT slot)
 {
     if (!isValid() || !isValidSlot(slot)) return;
 
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Texture2D.MipLevels = 1;
-    srvDesc.Texture2D.MostDetailedMip = 0;
-    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+    D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    desc.Texture2D.MipLevels = 1;
+    desc.Texture2D.MostDetailedMip = 0;
+    desc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-    createSRV(nullptr, slot, &srvDesc);
-}
-
-D3D12_GPU_DESCRIPTOR_HANDLE ShaderTableDesc::getGPUHandle(UINT slot) const
-{
-    return m_manager ? m_manager->getGPUHandle(m_handle, slot) : D3D12_GPU_DESCRIPTOR_HANDLE{ 0 };
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE ShaderTableDesc::getCPUHandle(UINT slot) const
-{
-    return m_manager ? m_manager->getCPUHandle(m_handle, slot) : D3D12_CPU_DESCRIPTOR_HANDLE{ 0 };
+    createSRV(nullptr, slot, &desc);
 }
