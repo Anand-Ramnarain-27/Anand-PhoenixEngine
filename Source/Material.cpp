@@ -53,7 +53,7 @@ void Material::load(const tinygltf::Material& gltfMat,
                 if (desc && texture)
                 {
                     // NEW: Use value semantics instead of shared_ptr
-                    shaderTable = desc->createTable();
+                    shaderTable = desc->allocTable();
 
                     if (shaderTable)
                     {
@@ -81,7 +81,7 @@ void Material::load(const tinygltf::Material& gltfMat,
     if (desc)
     {
         // NEW: Use value semantics
-        shaderTable = desc->createTable();
+        shaderTable = desc->allocTable();
 
         if (shaderTable)
         {

@@ -1,16 +1,15 @@
 #pragma once
 
-#include "DescriptorBase.h"
-
-class ModuleShaderDescriptors;
-
-class ShaderTableDesc : public DescriptorBase<ShaderTableDesc, ModuleShaderDescriptors>
+class ShaderTableDesc
 {
-    using Base = DescriptorBase<ShaderTableDesc, ModuleShaderDescriptors>;
-    friend Base;
+    UINT handle = 0;
 
 public:
-    using Base::Base;
+    ShaderTableDesc() = default;
+    explicit ShaderTableDesc(UINT handle) : handle(handle) {}
+
+    bool isValid() const { return handle != 0; }
+    explicit operator bool() const { return handle != 0; }
 
     void createCBV(ID3D12Resource* resource, UINT slot = 0);
     void createSRV(ID3D12Resource* resource, const D3D12_SHADER_RESOURCE_VIEW_DESC* desc = nullptr, UINT slot = 0);
@@ -26,8 +25,22 @@ public:
     D3D12_GPU_DESCRIPTOR_HANDLE getGPUHandle(UINT slot = 0) const;
     D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle(UINT slot = 0) const;
 
-    static ModuleShaderDescriptors* getModule();
+    UINT getHandle() const { return handle; }
+    void reset() { handle = 0; }
+
+    ShaderTableDesc(ShaderTableDesc&& other) noexcept : handle(other.handle) { other.handle = 0; }
+    ShaderTableDesc& operator=(ShaderTableDesc&& other) noexcept {
+        if (this != &other) {
+            handle = other.handle;
+            other.handle = 0;
+        }
+        return *this;
+    }
+
+    ShaderTableDesc(const ShaderTableDesc&) = delete;
+    ShaderTableDesc& operator=(const ShaderTableDesc&) = delete;
 
 private:
+    D3D12_CPU_DESCRIPTOR_HANDLE getSlotCPUHandle(UINT slot) const;
     static bool validateSlot(UINT slot);
 };

@@ -230,9 +230,6 @@
     <ClInclude Include="HandleManager.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="ModuleShaderDescriptorsBase.h">
-      <Filter>Modules</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

@@ -6,8 +6,7 @@
 class ModuleRTDescriptors : public ModuleDescriptorsBase<
     D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
     256,
-    RenderTargetDesc,
-    false>
+    RenderTargetDesc>
 {
 public:
     RenderTargetDesc create(ID3D12Resource* resource)

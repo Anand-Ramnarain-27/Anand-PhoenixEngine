@@ -4,58 +4,57 @@
 #include "ModuleShaderDescriptors.h"
 #include "ModuleD3D12.h"
 
-ModuleShaderDescriptors* ShaderTableDesc::getModule()
-{
-    return app->getShaderDescriptors();
-}
-
 bool ShaderTableDesc::validateSlot(UINT slot)
 {
-    return getModule()->isValidSlot(slot);
+    return slot < ModuleShaderDescriptors::DESCRIPTORS_PER_TABLE;
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE ShaderTableDesc::getSlotCPUHandle(UINT slot) const
+{
+    if (!handle || !validateSlot(slot)) return { 0 };
+    return app->getShaderDescriptors()->getCPUHandle(handle, slot);
 }
 
 void ShaderTableDesc::createCBV(ID3D12Resource* resource, UINT slot)
 {
-    if (!*this || !validateSlot(slot)) return;
+    if (!handle || !validateSlot(slot)) return;
 
-    ModuleShaderDescriptors* module = getModule();
-    D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = module->getCPUHandle(handle, slot);
+    ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
+    D3D12_CPU_DESCRIPTOR_HANDLE handle = descriptors->getCPUHandle(this->handle, slot);
 
-    if (resource)
-    {
+    if (resource) {
         D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
         cbvDesc.BufferLocation = resource->GetGPUVirtualAddress();
         cbvDesc.SizeInBytes = static_cast<UINT>(resource->GetDesc().Width);
-        app->getD3D12()->getDevice()->CreateConstantBufferView(&cbvDesc, cpuHandle);
+        app->getD3D12()->getDevice()->CreateConstantBufferView(&cbvDesc, handle);
     }
-    else
-    {
-        app->getD3D12()->getDevice()->CreateConstantBufferView(nullptr, cpuHandle);
+    else {
+        app->getD3D12()->getDevice()->CreateConstantBufferView(nullptr, handle);
     }
 }
 
 void ShaderTableDesc::createSRV(ID3D12Resource* resource, const D3D12_SHADER_RESOURCE_VIEW_DESC* desc, UINT slot)
 {
-    if (!*this || !validateSlot(slot)) return;
+    if (!handle || !validateSlot(slot)) return;
 
-    ModuleShaderDescriptors* module = getModule();
-    D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = module->getCPUHandle(handle, slot);
-    app->getD3D12()->getDevice()->CreateShaderResourceView(resource, desc, cpuHandle);
+    ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
+    D3D12_CPU_DESCRIPTOR_HANDLE handle = descriptors->getCPUHandle(this->handle, slot);
+    app->getD3D12()->getDevice()->CreateShaderResourceView(resource, desc, handle);
 }
 
 void ShaderTableDesc::createUAV(ID3D12Resource* resource, const D3D12_UNORDERED_ACCESS_VIEW_DESC* desc, UINT slot)
 {
-    if (!*this || !validateSlot(slot)) return;
+    if (!handle || !validateSlot(slot)) return;
 
-    ModuleShaderDescriptors* module = getModule();
-    D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = module->getCPUHandle(handle, slot);
-    app->getD3D12()->getDevice()->CreateUnorderedAccessView(resource, nullptr, desc, cpuHandle);
+    ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
+    D3D12_CPU_DESCRIPTOR_HANDLE handle = descriptors->getCPUHandle(this->handle, slot);
+    app->getD3D12()->getDevice()->CreateUnorderedAccessView(resource, nullptr, desc, handle);
 }
 
 void ShaderTableDesc::createBufferSRV(ID3D12Resource* resource, UINT firstElement, UINT numElements,
     UINT structureByteStride, UINT slot)
 {
-    if (!resource || !*this || !validateSlot(slot)) return;
+    if (!resource || !handle || !validateSlot(slot)) return;
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -72,7 +71,7 @@ void ShaderTableDesc::createBufferSRV(ID3D12Resource* resource, UINT firstElemen
 void ShaderTableDesc::createTexture2DSRV(ID3D12Resource* texture, DXGI_FORMAT format,
     UINT mipLevels, UINT mostDetailedMip, UINT slot)
 {
-    if (!texture || !*this || !validateSlot(slot)) return;
+    if (!texture || !handle || !validateSlot(slot)) return;
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Format = format == DXGI_FORMAT_UNKNOWN ? texture->GetDesc().Format : format;
@@ -88,7 +87,7 @@ void ShaderTableDesc::createTexture2DSRV(ID3D12Resource* texture, DXGI_FORMAT fo
 
 void ShaderTableDesc::createNullSRV(D3D12_SRV_DIMENSION dimension, DXGI_FORMAT format, UINT slot)
 {
-    if (!*this || !validateSlot(slot)) return;
+    if (!handle || !validateSlot(slot)) return;
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Format = format;
@@ -114,12 +113,12 @@ void ShaderTableDesc::createNullSRV(D3D12_SRV_DIMENSION dimension, DXGI_FORMAT f
 
 D3D12_GPU_DESCRIPTOR_HANDLE ShaderTableDesc::getGPUHandle(UINT slot) const
 {
-    if (!*this || !validateSlot(slot)) return { 0 };
-    return getModule()->getGPUHandle(handle, slot);
+    if (!handle || !validateSlot(slot)) return { 0 };
+    return app->getShaderDescriptors()->getGPUHandle(handle, slot);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE ShaderTableDesc::getCPUHandle(UINT slot) const
 {
-    if (!*this || !validateSlot(slot)) return { 0 };
-    return getModule()->getCPUHandle(handle, slot);
+    if (!handle || !validateSlot(slot)) return { 0 };
+    return app->getShaderDescriptors()->getCPUHandle(handle, slot);
 }

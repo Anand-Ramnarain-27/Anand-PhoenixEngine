@@ -186,7 +186,6 @@
     <ClInclude Include="ModuleRingBuffer.h" />
     <ClInclude Include="ModuleRTDescriptors.h" />
     <ClInclude Include="ModuleShaderDescriptors.h" />
-    <ClInclude Include="ModuleShaderDescriptorsBase.h" />
     <ClInclude Include="ModuleTextureSampler.h" />
     <ClInclude Include="GraphicsSamplers.h" />
     <ClInclude Include="MathUtils.h" />
