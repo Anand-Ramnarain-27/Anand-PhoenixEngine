@@ -204,7 +204,7 @@ void BasicModelScene::render()
 
     // Setup descriptor heaps - adapt to your system
     ID3D12DescriptorHeap* descriptorHeaps[] = {
-        descriptors->getHeap(),
+        descriptors->getDescriptorHeap(),
         // You need to get the sampler heap from your texture sampler module
         // If ModuleTextureSampler doesn't have getHeap(), you may need to adjust
         nullptr  // Placeholder - adjust based on your sampler system

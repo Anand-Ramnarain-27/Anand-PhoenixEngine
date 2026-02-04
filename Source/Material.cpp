@@ -19,6 +19,7 @@ void Material::load(const tinygltf::Material& gltfMaterial, const tinygltf::Mode
 {
     m_name = gltfMaterial.name.empty() ? "Material" : gltfMaterial.name;
 
+    // Get base color from PBR metallic-roughness
     const auto& pbr = gltfMaterial.pbrMetallicRoughness;
     if (pbr.baseColorFactor.size() >= 4)
     {
@@ -46,8 +47,8 @@ void Material::load(const tinygltf::Material& gltfMaterial, const tinygltf::Mode
                 ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
                 if (descriptors && m_texture)
                 {
-                    auto table = descriptors->allocTable();
-                    if (table.isValid()) 
+                    auto table = descriptors->allocTable("MaterialTexture");
+                    if (table)
                     {
                         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
                         srvDesc.Format = m_texture->GetDesc().Format;
@@ -56,8 +57,8 @@ void Material::load(const tinygltf::Material& gltfMaterial, const tinygltf::Mode
                         srvDesc.Texture2D.MipLevels = 1;
                         srvDesc.Texture2D.MostDetailedMip = 0;
 
-                        table.createSRV(m_texture.Get(), &srvDesc, 0);
-                        m_textureGPUHandle = table.getGPUHandle();  
+                        table->createSRV(0, m_texture.Get(), &srvDesc);
+                        m_textureGPUHandle = table->getGPUHandle();
                         m_hasTexture = true;
                     }
                 }
@@ -71,13 +72,11 @@ void Material::load(const tinygltf::Material& gltfMaterial, const tinygltf::Mode
         ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
         if (descriptors)
         {
-            auto table = descriptors->allocTable();
-            if (table.isValid())
+            auto table = descriptors->allocTable("NullTexture");
+            if (table)
             {
-                // FIX: Correct parameter order
-                table.createNullSRV(D3D12_SRV_DIMENSION_TEXTURE2D,
-                    DXGI_FORMAT_R8G8B8A8_UNORM, 0);
-                m_textureGPUHandle = table.getGPUHandle(); 
+                table->createNullSRV(0, D3D12_SRV_DIMENSION_TEXTURE2D);
+                m_textureGPUHandle = table->getGPUHandle();
             }
         }
         m_data.hasColourTexture = FALSE;

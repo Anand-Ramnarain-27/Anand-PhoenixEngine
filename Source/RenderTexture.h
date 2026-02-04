@@ -1,83 +1,96 @@
+// RenderTexture.h
 #pragma once
 
-#include "Globals.h"
 #include "ShaderTableDesc.h"
 #include "RenderTargetDesc.h"
 #include "DepthStencilDesc.h"
 
+// Enhanced RenderTexture with better resource management and efficiency
 class RenderTexture
 {
-    ComPtr<ID3D12Resource> texture;
-    ComPtr<ID3D12Resource> resolvedTexture;
-    ComPtr<ID3D12Resource> depthTexture;
+    struct TexturePair {
+        ComPtr<ID3D12Resource> texture;
+        ComPtr<ID3D12Resource> resolved;
+        ComPtr<ID3D12Resource> depthTexture;
+    };
 
-    ShaderTableDesc srvDesc;
-    RenderTargetDesc rtvDesc;
-    DepthStencilDesc dsvDesc;
+    TexturePair m_textures;
+    UINT m_width = 0;
+    UINT m_height = 0;
 
-    UINT width = 0;
-    UINT height = 0;
-    DXGI_FORMAT format;
-    DXGI_FORMAT depthFormat;
-    const char* name;
-    Vector4 clearColor;
-    float clearDepth;
-    bool enableMSAA = false;
-    bool autoResolveMSAA = false;
-    UINT msaaSampleCount = 1;
+    DXGI_FORMAT m_format;
+    DXGI_FORMAT m_depthFormat;
+    const char* m_name;
+    Vector4 m_clearColor;
+    FLOAT m_clearDepth;
+    bool m_autoResolveMSAA = false;
+    bool m_msaa = false;
 
-    D3D12_RESOURCE_STATES currentState = D3D12_RESOURCE_STATE_COMMON;
+    std::shared_ptr<ShaderTableDesc> m_srvDesc;
+    RenderTargetDesc m_rtvDesc;
+    DepthStencilDesc m_dsvDesc;
+
+    // Cached handles for performance
+    mutable D3D12_CPU_DESCRIPTOR_HANDLE m_cachedRTV = {};
+    mutable D3D12_CPU_DESCRIPTOR_HANDLE m_cachedDSV = {};
+    mutable D3D12_GPU_DESCRIPTOR_HANDLE m_cachedSRV = {};
+    mutable bool m_handlesValid = false;
 
 public:
-    RenderTexture(const char* name,
-        DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM,
-        const Vector4& clearColor = Vector4(0, 0, 0, 1),
+    RenderTexture(const char* name, DXGI_FORMAT format, const Vector4& clearColor,
         DXGI_FORMAT depthFormat = DXGI_FORMAT_UNKNOWN,
-        float clearDepth = 1.0f,
-        bool msaa = false,
-        UINT sampleCount = 4,
-        bool autoResolve = false)
-        : format(format)
-        , depthFormat(depthFormat)
-        , name(name)
-        , clearColor(clearColor)
-        , clearDepth(clearDepth)
-        , enableMSAA(msaa)
-        , msaaSampleCount(msaa ? sampleCount : 1)
-        , autoResolveMSAA(autoResolve&& msaa)
-    {
-    }
+        float clearDepth = 1.0f, bool msaa = false, bool autoResolve = false)
+        : m_format(format), m_depthFormat(depthFormat), m_name(name),
+        m_clearColor(clearColor), m_clearDepth(clearDepth),
+        m_msaa(msaa), m_autoResolveMSAA(autoResolve) {
+    };
 
     ~RenderTexture();
 
-    void resize(UINT newWidth, UINT newHeight);
-    void beginRendering(ID3D12GraphicsCommandList* cmdList);
-    void endRendering(ID3D12GraphicsCommandList* cmdList);
+    bool isValid() const { return m_width > 0 && m_height > 0; }
+    bool isMSAA() const { return m_msaa; }
 
-    bool isValid() const { return width > 0 && height > 0; }
-    UINT getWidth() const { return width; }
-    UINT getHeight() const { return height; }
-    ID3D12Resource* getTexture() const { return texture.Get(); }
-    ID3D12Resource* getResolvedTexture() const { return resolvedTexture.Get(); }
-    D3D12_GPU_DESCRIPTOR_HANDLE getSRVHandle() const { return srvDesc.getGPUHandle(); }
-    const ShaderTableDesc& getSRVDesc() const { return srvDesc; }
-    D3D12_CPU_DESCRIPTOR_HANDLE getRTVHandle() const { return rtvDesc.getCPUHandle(); }
-    D3D12_CPU_DESCRIPTOR_HANDLE getDSVHandle() const { return dsvDesc.getCPUHandle(); }
+    void resize(UINT width, UINT height);
 
-    void bindAsShaderResource(ID3D12GraphicsCommandList* cmdList, UINT rootParameterIndex = 0);
-    void transitionToState(ID3D12GraphicsCommandList* cmdList, D3D12_RESOURCE_STATES newState);
+    // Single call to set up rendering
+    void beginRender(ID3D12GraphicsCommandList* cmdList, bool clear = true);
+
+    // Single call to finish rendering
+    void endRender(ID3D12GraphicsCommandList* cmdList);
+
+    // Quick bind helper
+    void bindAsShaderResource(ID3D12GraphicsCommandList* cmdList, int slot);
+
+    // Getters with cached performance
+    UINT getWidth() const { return m_width; }
+    UINT getHeight() const { return m_height; }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE getSrvHandle() const {
+        if (!m_handlesValid) updateCachedHandles();
+        return m_cachedSRV;
+    }
+
+    D3D12_CPU_DESCRIPTOR_HANDLE getRtvHandle() const {
+        if (!m_handlesValid) updateCachedHandles();
+        return m_cachedRTV;
+    }
+
+    D3D12_CPU_DESCRIPTOR_HANDLE getDsvHandle() const {
+        if (!m_handlesValid) updateCachedHandles();
+        return m_cachedDSV;
+    }
+
+    ID3D12Resource* getTexture() const { return m_textures.texture.Get(); }
+    ID3D12Resource* getDepthTexture() const { return m_textures.depthTexture.Get(); }
 
 private:
-    void releaseResources();
     void createResources();
-    void updateDescriptors();
+    void releaseResources();
+    void updateCachedHandles() const;
 
-    void transitionToRTV(ID3D12GraphicsCommandList* cmdList);
-    void transitionToSRV(ID3D12GraphicsCommandList* cmdList);
     void resolveMSAA(ID3D12GraphicsCommandList* cmdList);
-    void setRenderTarget(ID3D12GraphicsCommandList* cmdList);
-
-    ID3D12Resource* getSRVTexture() const {
-        return (enableMSAA && autoResolveMSAA) ? resolvedTexture.Get() : texture.Get();
-    }
+    void transition(ID3D12GraphicsCommandList* cmdList,
+        D3D12_RESOURCE_STATES before,
+        D3D12_RESOURCE_STATES after,
+        ID3D12Resource* resource = nullptr);
 };
