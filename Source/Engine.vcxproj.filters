@@ -99,6 +99,7 @@
     <ClCompile Include="DepthStencilDesc.cpp">
       <Filter>Modules</Filter>
     </ClCompile>
+    <ClCompile Include="BasicModelScene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -230,6 +231,7 @@
     <ClInclude Include="HandleManager.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="BasicModelScene.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -241,9 +243,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="ModelSampler.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="SimpleMath.inl">
       <Filter>Core</Filter>
     </None>
@@ -283,10 +282,10 @@
     <FxCompile Include="TextureSamplerVS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="ModelSamplerPS.hlsl">
+    <FxCompile Include="BasicModelScenePS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="ModelSamplerVS.hlsl">
+    <FxCompile Include="BasicModelSceneVS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

@@ -18,6 +18,8 @@ class ModuleRingBuffer;
 class ModuleRTDescriptors;
 class ModuleDSDescriptors;
 
+class BasicModelScene;
+
 class Application
 {
 public:
@@ -39,6 +41,9 @@ public:
 	ModuleRingBuffer* getRingBuffer() { return ringBuffer; }
     ModuleRTDescriptors* getRTDescriptors() { return rtDescriptors; }
     ModuleDSDescriptors* getDSDescriptors() { return dsDescriptors; }
+
+	BasicModelScene* getBasicModelScene() { return basicModelScene; }
+
     void                        swapModule(Module* from, Module* to) { swapModules.push_back(std::make_pair(from, to)); }
     
     float                       getFPS() const { return 1000.0f * float(MAX_FPS_TICKS) / tickSum; }
@@ -65,6 +70,8 @@ private:
 	ModuleRingBuffer* ringBuffer = nullptr;
     ModuleRTDescriptors* rtDescriptors = nullptr;
     ModuleDSDescriptors* dsDescriptors = nullptr;
+
+	BasicModelScene* basicModelScene = nullptr;
 
     uint64_t  lastMilis = 0;
     TickList  tickList;

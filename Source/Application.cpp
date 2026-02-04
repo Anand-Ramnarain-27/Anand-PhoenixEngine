@@ -12,6 +12,7 @@
 #include "ModuleRingBuffer.h"
 #include "ModuleRTDescriptors.h"
 #include "ModuleDSDescriptors.h"
+#include "BasicModelScene.h"
 
 Application::Application(int argc, wchar_t** argv, void* hWnd)
 {
@@ -26,7 +27,9 @@ Application::Application(int argc, wchar_t** argv, void* hWnd)
     modules.push_back(rtDescriptors = new ModuleRTDescriptors());
     modules.push_back(dsDescriptors = new ModuleDSDescriptors());
 	modules.push_back(ringBuffer = new ModuleRingBuffer());
-    modules.push_back(editor = new ModuleEditor());
+    //modules.push_back(editor = new ModuleEditor());
+
+	modules.push_back(basicModelScene = new BasicModelScene());
 
 	/*modules.push_back(textureSampler = new ModuleTextureSampler());*/
 }
