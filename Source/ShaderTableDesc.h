@@ -7,7 +7,6 @@ class ModuleShaderDescriptors;
 
 class ShaderTableDesc
 {
-    std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> m_descriptors;
 public:
     ShaderTableDesc() = default;
     ShaderTableDesc(UINT handle, UINT* refCount, ModuleShaderDescriptors* mgr);
@@ -23,9 +22,6 @@ public:
     UINT getHandle() const { return m_handle; }
     void reset() { release(); }
     bool isValid() const { return static_cast<bool>(*this); }
-
-    size_t numDescriptors() const { return m_descriptors.size(); }
-    void allocate(size_t count) { m_descriptors.resize(count); }
 
     void createCBV(ID3D12Resource* buffer, UINT slot = 0, UINT64 size = 0, UINT64 offset = 0);
     void createSRV(ID3D12Resource* resource, UINT slot = 0, const D3D12_SHADER_RESOURCE_VIEW_DESC* desc = nullptr);

@@ -74,7 +74,7 @@ void ShaderTableDesc::release()
 
 bool ShaderTableDesc::isValidSlot(UINT slot) const
 {
-    return slot < m_descriptors.size();
+    return slot < ModuleShaderDescriptors::SLOTS_PER_TABLE;
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE ShaderTableDesc::getGPUHandle(UINT slot) const
