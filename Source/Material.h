@@ -15,56 +15,28 @@ namespace tinygltf
 class Material
 {
 public:
-    struct BasicMaterial
+    struct Data
     {
-        XMFLOAT4 color = XMFLOAT4(1, 1, 1, 1);
-        BOOL hasColorTexture = FALSE;
-        float padding[3] = {};
-    };
-
-    struct PhongMaterial
-    {
-        XMFLOAT4 diffuseColor = XMFLOAT4(1, 1, 1, 1);
-        float Kd = 0.8f;
-        float Ks = 0.2f;
-        float shininess = 32.f;
-        BOOL hasDiffuseTexture = FALSE;
-        float padding[3] = {};
+        XMFLOAT4 baseColour;
+        BOOL hasColourTexture;
     };
 
 public:
     Material();
 
-    // Rule of five - enable move semantics
-    Material(Material&& other) noexcept = default;
-    Material& operator=(Material&& other) noexcept = default;
+    void load(const tinygltf::Material& gltfMaterial, const tinygltf::Model& model, const char* basePath);
 
-    // Disable copying
-    Material(const Material&) = delete;
-    Material& operator=(const Material&) = delete;
+    const Data& getData() const { return m_data; }
+    ComPtr<ID3D12Resource> getTexture() const { return m_texture; }
+    const char* getName() const { return m_name.c_str(); }
 
-    void load(const tinygltf::Material& gltfMat,
-        const tinygltf::Model& model,
-        const char* basePath);
-
-    const BasicMaterial& getBasic() const { return basicData; }
-    const PhongMaterial& getPhong() const { return phongData; }
-
-    ComPtr<ID3D12Resource> getTexture() const { return texture; }
-    D3D12_GPU_DESCRIPTOR_HANDLE getTextureGPUHandle() const { return gpuHandle; }
-    bool hasTexture() const { return textureLoaded; }
-    const std::string& getName() const { return name; }
-
-    // NEW: Get the shader table directly if needed
-    const ShaderTableDesc& getShaderTable() const { return shaderTable; }
+    D3D12_GPU_DESCRIPTOR_HANDLE getTextureGPUHandle() const { return m_textureGPUHandle; }
+    bool hasTexture() const { return m_hasTexture; }
 
 private:
-    BasicMaterial basicData;
-    PhongMaterial phongData;
-
-    ComPtr<ID3D12Resource> texture;
-    ShaderTableDesc shaderTable;  // NEW: Store the descriptor table
-    D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = {};
-    std::string name;
-    bool textureLoaded = false;
+    Data m_data;
+    ComPtr<ID3D12Resource> m_texture;
+    std::string m_name;
+    bool m_hasTexture = false;
+    D3D12_GPU_DESCRIPTOR_HANDLE m_textureGPUHandle = { 0 };
 };

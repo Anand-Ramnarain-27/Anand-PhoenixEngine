@@ -83,7 +83,7 @@ void RenderTexture::updateDescriptors()
 
     rtvDesc = rtDescriptors->create(texture.Get());
 
-    srvDesc = shaderDescriptors->createTable();
+    srvDesc = shaderDescriptors->allocTable();
     srvDesc.createTexture2DSRV(
         getSRVTexture(),
         format,

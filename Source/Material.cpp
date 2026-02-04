@@ -11,86 +11,75 @@
 
 Material::Material()
 {
+    m_data.baseColour = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+    m_data.hasColourTexture = FALSE;
 }
 
-void Material::load(const tinygltf::Material& gltfMat,
-    const tinygltf::Model& model,
-    const char* basePath)
+void Material::load(const tinygltf::Material& gltfMaterial, const tinygltf::Model& model, const char* basePath)
 {
-    name = gltfMat.name.empty() ? "Material" : gltfMat.name;
+    m_name = gltfMaterial.name.empty() ? "Material" : gltfMaterial.name;
 
-    basicData.hasColorTexture = FALSE;
-    phongData.hasDiffuseTexture = FALSE;
-
-    const auto& pbr = gltfMat.pbrMetallicRoughness;
+    const auto& pbr = gltfMaterial.pbrMetallicRoughness;
     if (pbr.baseColorFactor.size() >= 4)
     {
-        XMFLOAT4 color{
+        m_data.baseColour = XMFLOAT4(
             float(pbr.baseColorFactor[0]),
             float(pbr.baseColorFactor[1]),
             float(pbr.baseColorFactor[2]),
             float(pbr.baseColorFactor[3])
-        };
-        basicData.color = color;
-        phongData.diffuseColor = color;
+        );
     }
 
-    // Try to load texture
     if (pbr.baseColorTexture.index >= 0 &&
         pbr.baseColorTexture.index < (int)model.textures.size())
     {
-        const auto& tex = model.textures[pbr.baseColorTexture.index];
-        if (tex.source >= 0 && tex.source < (int)model.images.size())
+        const auto& texture = model.textures[pbr.baseColorTexture.index];
+        if (texture.source >= 0 && texture.source < (int)model.images.size())
         {
-            const auto& img = model.images[tex.source];
-            if (!img.uri.empty())
+            const auto& image = model.images[texture.source];
+            if (!image.uri.empty())
             {
-                ModuleResources* res = app->getResources();
-                std::string fullPath = std::string(basePath) + img.uri;
-                texture = res->createTextureFromFile(fullPath, true);
+                ModuleResources* resources = app->getResources();
+                std::string fullPath = std::string(basePath) + image.uri;
+                m_texture = resources->createTextureFromFile(fullPath, true);
 
-                ModuleShaderDescriptors* desc = app->getShaderDescriptors();
-                if (desc && texture)
+                ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
+                if (descriptors && m_texture)
                 {
-                    // NEW: Use value semantics instead of shared_ptr
-                    shaderTable = desc->allocTable();
-
-                    if (shaderTable)
+                    auto table = descriptors->allocTable();
+                    if (table.isValid()) 
                     {
-                        // NEW: Simpler API call
-                        shaderTable.createTexture2DSRV(texture.Get(),
-                            DXGI_FORMAT_UNKNOWN,  // Use texture's format
-                            1,                    // Mip levels
-                            0,                    // Most detailed mip
-                            0);                   // Slot 0
+                        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+                        srvDesc.Format = m_texture->GetDesc().Format;
+                        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+                        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+                        srvDesc.Texture2D.MipLevels = 1;
+                        srvDesc.Texture2D.MostDetailedMip = 0;
 
-                        gpuHandle = shaderTable.getGPUHandle();
-                        textureLoaded = true;
-
-                        basicData.hasColorTexture = TRUE;
-                        phongData.hasDiffuseTexture = TRUE;
-                        return; // Success - we have a texture
+                        table.createSRV(m_texture.Get(), &srvDesc, 0);
+                        m_textureGPUHandle = table.getGPUHandle();  
+                        m_hasTexture = true;
                     }
                 }
+
+                m_data.hasColourTexture = TRUE;
             }
         }
     }
-
-    // Fallback: Create null texture descriptor
-    ModuleShaderDescriptors* desc = app->getShaderDescriptors();
-    if (desc)
+    else
     {
-        // NEW: Use value semantics
-        shaderTable = desc->allocTable();
-
-        if (shaderTable)
+        ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
+        if (descriptors)
         {
-            // NEW: Simpler null SRV creation
-            shaderTable.createNullSRV(D3D12_SRV_DIMENSION_TEXTURE2D,
-                DXGI_FORMAT_R8G8B8A8_UNORM,
-                0);  // Slot 0
-
-            gpuHandle = shaderTable.getGPUHandle();
+            auto table = descriptors->allocTable();
+            if (table.isValid())
+            {
+                // FIX: Correct parameter order
+                table.createNullSRV(D3D12_SRV_DIMENSION_TEXTURE2D,
+                    DXGI_FORMAT_R8G8B8A8_UNORM, 0);
+                m_textureGPUHandle = table.getGPUHandle(); 
+            }
         }
+        m_data.hasColourTexture = FALSE;
     }
 }
