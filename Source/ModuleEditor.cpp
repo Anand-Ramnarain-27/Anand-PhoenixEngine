@@ -34,6 +34,8 @@ bool ModuleEditor::init()
         descTable.getGPUHandle()
     );
 
+    log("[Editor] ModuleEditor initialized", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+
     return true;
 }
 
@@ -47,6 +49,8 @@ void ModuleEditor::preRender()
 {
     imguiPass->startFrame();
 
+    updateFPS();
+
     drawDockspace();
     drawMenuBar();
 
@@ -57,6 +61,8 @@ void ModuleEditor::preRender()
     }
 
     drawViewport();
+    drawConsole();
+    drawFPSWindow();
 }
 
 void ModuleEditor::render()
@@ -75,7 +81,6 @@ void ModuleEditor::render()
 
     cmd->SetDescriptorHeaps(1, heaps);
 
-    // Backbuffer -> RT
     auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
         d3d12->getBackBuffer(),
         D3D12_RESOURCE_STATE_PRESENT,
@@ -88,14 +93,11 @@ void ModuleEditor::render()
 
     cmd->OMSetRenderTargets(1, &rtv, false, nullptr);
 
-    // Clear black
     float clear[] = { 0,0,0,1 };
     cmd->ClearRenderTargetView(rtv, clear, 0, nullptr);
 
-    // Render ImGui
     imguiPass->record(cmd);
 
-    // RT -> Present
     barrier = CD3DX12_RESOURCE_BARRIER::Transition(
         d3d12->getBackBuffer(),
         D3D12_RESOURCE_STATE_RENDER_TARGET,
@@ -110,6 +112,20 @@ void ModuleEditor::render()
 
     d3d12->getDrawCommandQueue()->ExecuteCommandLists(1, lists);
 }
+
+void ModuleEditor::log(const char* text, const ImVec4& color)
+{
+    console.push_back({ text, color });
+}
+
+void ModuleEditor::updateFPS()
+{
+    float fps = app->getFPS();
+
+    fpsHistory[fpsIndex] = fps;
+    fpsIndex = (fpsIndex + 1) % FPS_HISTORY;
+}
+
 
 void ModuleEditor::drawDockspace()
 {
@@ -146,24 +162,45 @@ void ModuleEditor::drawDockspace()
         firstFrame = false;
 
         ImGui::DockBuilderRemoveNode(dockID);
-        ImGui::DockBuilderAddNode(dockID, ImGuiDockNodeFlags_DockSpace);
+        ImGui::DockBuilderAddNode(
+            dockID,
+            ImGuiDockNodeFlags_DockSpace | ImGuiDockNodeFlags_PassthruCentralNode
+        );
 
-        ImGuiID left, right;
+        ImGui::DockBuilderSetNodeSize(dockID, ImGui::GetMainViewport()->Size);
+
+        ImGuiID dockLeft;
+        ImGuiID dockMain;
+        ImGuiID dockBottom;
 
         ImGui::DockBuilderSplitNode(
             dockID,
             ImGuiDir_Left,
-            0.25f,
-            &left,
-            &right
+            0.22f,      
+            &dockLeft,
+            &dockMain
         );
 
-        ImGui::DockBuilderDockWindow("Editor", left);
-        ImGui::DockBuilderDockWindow("Exercises", left);
-        ImGui::DockBuilderDockWindow("Viewport", right);
+        ImGui::DockBuilderSplitNode(
+            dockMain,
+            ImGuiDir_Down,
+            0.28f,        
+            &dockBottom,
+            &dockMain
+        );
+
+        ImGui::DockBuilderDockWindow("Editor", dockLeft);
+        ImGui::DockBuilderDockWindow("Exercises", dockLeft);
+
+        ImGui::DockBuilderDockWindow("Viewport", dockMain);
+
+        ImGui::DockBuilderDockWindow("Console", dockBottom);
+        ImGui::DockBuilderDockWindow("FPS / Performance", dockBottom);
 
         ImGui::DockBuilderFinish(dockID);
     }
+
+
 
     ImGui::End();
 }
@@ -185,9 +222,11 @@ void ModuleEditor::drawMenuBar()
         if (ImGui::BeginMenu("View"))
         {
             ImGui::MenuItem("Show Editor", nullptr, &showEditor);
+            ImGui::MenuItem("Show FPS", nullptr, &showFPSWindow);
 
             ImGui::EndMenu();
         }
+
 
         if (ImGui::BeginMenu("Help"))
         {
@@ -258,7 +297,6 @@ void ModuleEditor::drawViewport()
 
     ImVec2 size = ImGui::GetContentRegionAvail();
 
-    // Fake black viewport
     ImGui::GetWindowDrawList()->AddRectFilled(
         ImGui::GetCursorScreenPos(),
         ImVec2(
@@ -273,4 +311,79 @@ void ModuleEditor::drawViewport()
     ImGui::End();
 }
 
+void ModuleEditor::drawConsole()
+{
+    ImGui::Begin("Console");
 
+    if (ImGui::Button("Clear"))
+    {
+        console.clear();
+    }
+
+    ImGui::SameLine();
+    ImGui::Checkbox("Auto-scroll", &autoScrollConsole);
+
+    ImGui::Separator();
+
+    ImGui::BeginChild("ConsoleScroll");
+
+    for (const auto& entry : console)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text, entry.color);
+        ImGui::TextUnformatted(entry.text.c_str());
+        ImGui::PopStyleColor();
+    }
+
+    if (autoScrollConsole && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+    {
+        ImGui::SetScrollHereY(1.0f);
+    }
+
+    ImGui::EndChild();
+
+    ImGui::End();
+}
+
+void ModuleEditor::drawFPSWindow()
+{
+    if (!showFPSWindow)
+        return;
+
+    ImGui::Begin("FPS / Performance", &showFPSWindow);
+
+    float fps = app->getFPS();
+    float ms = app->getAvgElapsedMs();
+
+    ImGui::Text("FPS: %.1f", fps);
+    ImGui::Text("Frame Time: %.2f ms", ms);
+
+    ImGui::Separator();
+
+    static float ordered[FPS_HISTORY];
+
+    for (int i = 0; i < FPS_HISTORY; i++)
+    {
+        int index = (fpsIndex + i) % FPS_HISTORY;
+        ordered[i] = fpsHistory[index];
+    }
+
+    float maxFPS = 0.0f;
+    for (float v : ordered)
+        if (v > maxFPS) maxFPS = v;
+
+    if (maxFPS < 60.0f)
+        maxFPS = 60.0f;
+
+    ImGui::PlotLines(
+        "##FPSGraph",
+        ordered,
+        FPS_HISTORY,
+        0,
+        nullptr,
+        0.0f,
+        maxFPS * 1.1f,
+        ImVec2(0, 120)
+    );
+
+    ImGui::End();
+}
