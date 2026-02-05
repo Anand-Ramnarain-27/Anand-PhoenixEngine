@@ -36,6 +36,28 @@ bool ModuleEditor::init()
 
     log("[Editor] ModuleEditor initialized", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
 
+    D3D12_QUERY_HEAP_DESC qDesc = {};
+    qDesc.Count = 2;
+    qDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+
+    app->getD3D12()->getDevice()->CreateQueryHeap(
+        &qDesc,
+        IID_PPV_ARGS(&gpuQueryHeap)
+    );
+
+    D3D12_RESOURCE_DESC bufDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(UINT64) * 2);
+
+    auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
+
+    app->getD3D12()->getDevice()->CreateCommittedResource(
+        &heapProps,
+        D3D12_HEAP_FLAG_NONE,
+        &bufDesc,
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        nullptr,
+        IID_PPV_ARGS(&gpuReadbackBuffer)
+    );
+
     return true;
 }
 
@@ -63,6 +85,7 @@ void ModuleEditor::preRender()
     drawViewport();
     drawConsole();
     drawFPSWindow();
+    drawViewportOverlay();
 }
 
 void ModuleEditor::render()
@@ -73,6 +96,10 @@ void ModuleEditor::render()
     ID3D12GraphicsCommandList* cmd = d3d12->getCommandList();
 
     cmd->Reset(d3d12->getCommandAllocator(), nullptr);
+
+    cmd->EndQuery(gpuQueryHeap.Get(),
+        D3D12_QUERY_TYPE_TIMESTAMP,
+        0);
 
     ID3D12DescriptorHeap* heaps[] =
     {
@@ -106,11 +133,46 @@ void ModuleEditor::render()
 
     cmd->ResourceBarrier(1, &barrier);
 
+    cmd->EndQuery(gpuQueryHeap.Get(),
+        D3D12_QUERY_TYPE_TIMESTAMP,
+        1);
+
+    cmd->ResolveQueryData(
+        gpuQueryHeap.Get(),
+        D3D12_QUERY_TYPE_TIMESTAMP,
+        0,
+        2,
+        gpuReadbackBuffer.Get(),
+        0
+    );
+
     cmd->Close();
 
     ID3D12CommandList* lists[] = { cmd };
 
     d3d12->getDrawCommandQueue()->ExecuteCommandLists(1, lists);
+
+    UINT64* data = nullptr;
+
+    gpuReadbackBuffer->Map(0, nullptr, (void**)&data);
+
+    if (data)
+    {
+        UINT64 start = data[0];
+        UINT64 end = data[1];
+
+        UINT64 freq = 0;
+        app->getD3D12()->getDrawCommandQueue()
+            ->GetTimestampFrequency(&freq);
+
+        gpuFrameTimeMs =
+            double(end - start) / double(freq) * 1000.0;
+
+        gpuTimerReady = true;
+
+        gpuReadbackBuffer->Unmap(0, nullptr);
+    }
+
 }
 
 void ModuleEditor::log(const char* text, const ImVec4& color)
@@ -351,11 +413,20 @@ void ModuleEditor::drawFPSWindow()
 
     ImGui::Begin("FPS / Performance", &showFPSWindow);
 
-    float fps = app->getFPS();
-    float ms = app->getAvgElapsedMs();
+    ImGui::Text("Performance");
+    ImGui::Separator();
 
-    ImGui::Text("FPS: %.1f", fps);
-    ImGui::Text("Frame Time: %.2f ms", ms);
+    ImGui::Text("FPS: %.1f", app->getFPS());
+    ImGui::Text("CPU: %.2f ms", app->getAvgElapsedMs());
+
+    if (gpuTimerReady)
+        ImGui::Text("GPU: %.2f ms", gpuFrameTimeMs);
+
+    ImGui::Separator();
+
+    ImGui::Text("Memory");
+    ImGui::Text("VRAM: %llu MB", gpuMemoryMB);
+    ImGui::Text("RAM:  %llu MB", systemMemoryMB);
 
     ImGui::Separator();
 
@@ -387,3 +458,75 @@ void ModuleEditor::drawFPSWindow()
 
     ImGui::End();
 }
+
+void ModuleEditor::updateMemory()
+{
+    gpuMemoryMB = 0;
+    systemMemoryMB = 0;
+
+    ID3D12Device* device = app->getD3D12()->getDevice();
+
+    if (device)
+    {
+        ComPtr<IDXGIDevice> dxgiDevice;
+        device->QueryInterface(IID_PPV_ARGS(&dxgiDevice));
+
+        ComPtr<IDXGIAdapter> adapter;
+        dxgiDevice->GetAdapter(&adapter);
+
+        ComPtr<IDXGIAdapter3> adapter3;
+        adapter.As(&adapter3);
+
+        if (adapter3)
+        {
+            DXGI_QUERY_VIDEO_MEMORY_INFO info = {};
+
+            adapter3->QueryVideoMemoryInfo(
+                0,
+                DXGI_MEMORY_SEGMENT_GROUP_LOCAL,
+                &info
+            );
+
+            gpuMemoryMB = info.CurrentUsage / (1024 * 1024);
+        }
+    }
+
+    MEMORYSTATUSEX mem = {};
+    mem.dwLength = sizeof(mem);
+
+    GlobalMemoryStatusEx(&mem);
+
+    systemMemoryMB =
+        (mem.ullTotalPhys - mem.ullAvailPhys) / (1024 * 1024);
+}
+
+void ModuleEditor::drawViewportOverlay()
+{
+    ImGuiWindow* window = ImGui::FindWindowByName("Viewport");
+
+    if (!window)
+        return;
+
+    ImDrawList* draw = ImGui::GetForegroundDrawList();
+
+    ImVec2 pos = window->Pos;
+
+    pos.x += 10;
+    pos.y += 30;
+
+    char buf[128];
+
+    sprintf_s(buf,
+        "FPS: %.1f | CPU: %.2f ms | GPU: %.2f ms",
+        app->getFPS(),
+        app->getAvgElapsedMs(),
+        gpuFrameTimeMs
+    );
+
+    draw->AddText(
+        pos,
+        IM_COL32(0, 255, 0, 255),
+        buf
+    );
+}
+

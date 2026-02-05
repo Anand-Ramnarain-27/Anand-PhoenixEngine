@@ -41,6 +41,17 @@ private:
     static constexpr int FPS_HISTORY = 200;
     float fpsHistory[FPS_HISTORY] = {};
     int fpsIndex = 0;
+
+    // GPU Timing
+    ComPtr<ID3D12QueryHeap> gpuQueryHeap;
+    ComPtr<ID3D12Resource> gpuReadbackBuffer;
+
+    double gpuFrameTimeMs = 0.0;
+    bool gpuTimerReady = false;
+
+    // Memory
+    uint64_t gpuMemoryMB = 0;
+    uint64_t systemMemoryMB = 0;
 private:
     void drawMenuBar();
     void drawDockspace();
@@ -54,4 +65,9 @@ private:
     void updateFPS();
     void drawFPSWindow();
 
+    void updateMemory();
+
+    void drawCameraStats();
+
+    void drawViewportOverlay();
 };
