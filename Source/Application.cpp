@@ -21,9 +21,7 @@
 Application::Application(int argc, wchar_t** argv, void* hWnd)
 {
     modules.push_back(new ModuleInput((HWND)hWnd));
-
     modules.push_back(d3d12Module = new ModuleD3D12((HWND)hWnd));
-
     modules.push_back(resources = new ModuleResources());
     modules.push_back(graphicsSamplers = new GraphicsSamplers());
 	modules.push_back(camera = new ModuleCamera());

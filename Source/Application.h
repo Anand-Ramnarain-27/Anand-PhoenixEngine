@@ -16,7 +16,6 @@ class ModuleShaderDescriptors;
 class ModuleRingBuffer;
 class ModuleRTDescriptors;
 class ModuleDSDescriptors;
-class RenderTexture;
 
 class BasicModelScene;
 class ModuleTextureSampler;
@@ -70,13 +69,12 @@ private:
     ModuleResources* resources = nullptr;
     GraphicsSamplers* graphicsSamplers = nullptr;
     ModuleCamera* camera = nullptr;
-	ModuleEditor* editor = nullptr;
     ModuleShaderDescriptors* shaderDescriptors = nullptr;
 	ModuleRingBuffer* ringBuffer = nullptr;
     ModuleRTDescriptors* rtDescriptors = nullptr;
     ModuleDSDescriptors* dsDescriptors = nullptr;
-	RenderTexture* renderTexture = nullptr;
 
+    ModuleEditor* editor = nullptr;
     ModuleTextureSampler* textureSampler = nullptr;
 	BasicModelScene* basicModelScene = nullptr;
 	LightingDemo* lightingDemo = nullptr;
