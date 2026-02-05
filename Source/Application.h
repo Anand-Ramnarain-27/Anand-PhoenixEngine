@@ -42,7 +42,6 @@ public:
 	ModuleRingBuffer* getRingBuffer() { return ringBuffer; }
     ModuleRTDescriptors* getRTDescriptors() { return rtDescriptors; }
     ModuleDSDescriptors* getDSDescriptors() { return dsDescriptors; }
-	RenderTexture* getRenderTexture() { return renderTexture; }
 
 	BasicModelScene* getBasicModelScene() { return basicModelScene; }
     ModuleTextureSampler* getTextureSampler() { return textureSampler; }
