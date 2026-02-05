@@ -55,4 +55,8 @@ public:
 
     void setSpeedBoost(float multiplier) { speedBoostMultiplier = multiplier; }
     float getSpeedBoost() const { return speedBoostMultiplier; }
+
+    Vector3 getForward() const;
+    Vector3 getRight() const;
+    Vector3 getUp() const;
 };

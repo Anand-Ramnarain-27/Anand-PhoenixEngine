@@ -168,3 +168,19 @@ void ModuleCamera::focusOnTarget(const Vector3& target)
     rotation = Quaternion::CreateFromRotationMatrix(view.Invert());
 }
 
+Vector3 ModuleCamera::getForward() const
+{
+
+    return Vector3::Transform(-Vector3::UnitZ, rotation);
+}
+
+Vector3 ModuleCamera::getRight() const
+{
+    return Vector3::Transform(Vector3::UnitX, rotation);
+}
+
+Vector3 ModuleCamera::getUp() const
+{
+    return Vector3::Transform(Vector3::UnitY, rotation);
+}
+
