@@ -238,6 +238,7 @@
     <ClInclude Include="LightingDemo.h" />
     <ClInclude Include="RenderToTextureDemo.h" />
     <ClInclude Include="ViewportDemo.h" />
+    <ClInclude Include="Scene.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
