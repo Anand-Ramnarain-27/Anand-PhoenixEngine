@@ -17,6 +17,7 @@
 #include "BasicModelScene.h"
 #include "LightingDemo.h"
 #include "RenderToTextureDemo.h"
+#include "ViewportDemo.h"
 
 Application::Application(int argc, wchar_t** argv, void* hWnd)
 {
@@ -29,11 +30,12 @@ Application::Application(int argc, wchar_t** argv, void* hWnd)
     modules.push_back(rtDescriptors = new ModuleRTDescriptors());
     modules.push_back(dsDescriptors = new ModuleDSDescriptors());
 	modules.push_back(ringBuffer = new ModuleRingBuffer());
-    modules.push_back(editor = new ModuleEditor());
+    //modules.push_back(editor = new ModuleEditor());
 
 	//modules.push_back(basicModelScene = new BasicModelScene());
 	//modules.push_back(lightingDemo = new LightingDemo());
 	//modules.push_back(renderToTextureDemo = new RenderToTextureDemo());
+	modules.push_back(viewportDemo = new ViewportDemo());
 
 	/*modules.push_back(textureSampler = new ModuleTextureSampler());*/
 }

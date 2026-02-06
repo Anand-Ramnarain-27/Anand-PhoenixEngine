@@ -21,6 +21,7 @@ class BasicModelScene;
 class ModuleTextureSampler;
 class LightingDemo;
 class RenderToTextureDemo;
+class ViewportDemo;
 
 class Application
 {
@@ -47,6 +48,7 @@ public:
     ModuleTextureSampler* getTextureSampler() { return textureSampler; }
 	LightingDemo* getLightingDemo() { return lightingDemo; }
 	RenderToTextureDemo* getRenderToTextureDemo() { return renderToTextureDemo; }
+	ViewportDemo* getViewportDemo() { return viewportDemo; }
 
     void                        swapModule(Module* from, Module* to) { swapModules.push_back(std::make_pair(from, to)); }
     
@@ -78,6 +80,7 @@ private:
 	BasicModelScene* basicModelScene = nullptr;
 	LightingDemo* lightingDemo = nullptr;
 	RenderToTextureDemo* renderToTextureDemo = nullptr;
+	ViewportDemo* viewportDemo = nullptr;
 
     uint64_t  lastMilis = 0;
     TickList  tickList;

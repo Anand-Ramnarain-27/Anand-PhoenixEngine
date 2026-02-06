@@ -102,6 +102,7 @@
     <ClCompile Include="BasicModelScene.cpp" />
     <ClCompile Include="LightingDemo.cpp" />
     <ClCompile Include="RenderToTextureDemo.cpp" />
+    <ClCompile Include="ViewportDemo.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -236,6 +237,7 @@
     <ClInclude Include="BasicModelScene.h" />
     <ClInclude Include="LightingDemo.h" />
     <ClInclude Include="RenderToTextureDemo.h" />
+    <ClInclude Include="ViewportDemo.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -254,6 +256,9 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="RenderToTextureDemo.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="ViewportDemo.hlsli">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
@@ -308,6 +313,12 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="RenderToTextureDemoPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="ViewportDemoVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="ViewportDemoPS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
