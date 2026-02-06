@@ -3,9 +3,13 @@
 #include "Module.h"
 #include "ImGuiPass.h"
 #include "ShaderTableDesc.h"
+#include "RenderTexture.h"
+#include "DebugDrawPass.h"
 
 #include <memory>
 #include <imgui.h>
+
+class ModuleCamera;
 
 class ModuleEditor : public Module
 {
@@ -52,6 +56,13 @@ private:
     // Memory
     uint64_t gpuMemoryMB = 0;
     uint64_t systemMemoryMB = 0;
+
+    std::unique_ptr<RenderTexture> viewportRT;
+    std::unique_ptr<DebugDrawPass> debugDrawPass;
+
+    bool showGrid = true;
+    bool showAxis = true;
+
 private:
     void drawMenuBar();
     void drawDockspace();
@@ -69,5 +80,6 @@ private:
 
     void drawCameraStats();
 
+    void renderViewportToTexture(ID3D12GraphicsCommandList* cmd);
     void drawViewportOverlay();
 };

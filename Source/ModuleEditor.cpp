@@ -4,6 +4,9 @@
 #include "Application.h"
 #include "ModuleD3D12.h"
 #include "ModuleShaderDescriptors.h"
+#include "ModuleCamera.h"  
+#include "ModuleDSDescriptors.h"
+#include "ModuleRTDescriptors.h"
 
 #include "ImGuiPass.h"
 #include <imgui.h>
@@ -32,6 +35,20 @@ bool ModuleEditor::init()
         d3d12->getHWnd(),
         descTable.getCPUHandle(),
         descTable.getGPUHandle()
+    );
+
+    debugDrawPass = std::make_unique<DebugDrawPass>(
+        d3d12->getDevice(),
+        d3d12->getDrawCommandQueue(),
+        false
+    );
+
+    viewportRT = std::make_unique<RenderTexture>(
+        "EditorViewport",
+        DXGI_FORMAT_R8G8B8A8_UNORM,
+        Vector4(0.0f, 0.0f, 0.0f, 1.0f),
+        DXGI_FORMAT_D32_FLOAT,
+        1.0f
     );
 
     log("[Editor] ModuleEditor initialized", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
@@ -64,6 +81,12 @@ bool ModuleEditor::init()
 bool ModuleEditor::cleanUp()
 {
     imguiPass.reset();
+    debugDrawPass.reset();
+    viewportRT.reset();
+
+    gpuQueryHeap.Reset();
+    gpuReadbackBuffer.Reset();
+
     return true;
 }
 
@@ -86,6 +109,15 @@ void ModuleEditor::preRender()
     drawConsole();
     drawFPSWindow();
     drawViewportOverlay();
+
+    if (viewportRT && viewportSize.x > 0 && viewportSize.y > 0)
+    {
+        viewportRT->resize(
+            int(viewportSize.x),
+            int(viewportSize.y)
+        );
+    }
+
 }
 
 void ModuleEditor::render()
@@ -107,6 +139,11 @@ void ModuleEditor::render()
     };
 
     cmd->SetDescriptorHeaps(1, heaps);
+
+    if (viewportRT && viewportRT->isValid())
+    {
+        renderViewportToTexture(cmd);
+    }
 
     auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
         d3d12->getBackBuffer(),
@@ -174,6 +211,45 @@ void ModuleEditor::render()
     }
 
 }
+
+void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
+{
+    ModuleCamera* camera = app->getCamera();
+
+    const UINT width = UINT(viewportSize.x);
+    const UINT height = UINT(viewportSize.y);
+
+    if (!viewportRT || width == 0 || height == 0)
+        return;
+
+    const Matrix& view = camera->getView();
+    Matrix proj = ModuleCamera::getPerspectiveProj(
+        float(width) / float(height)
+    );
+
+    viewportRT->beginRender(cmd);
+
+    BEGIN_EVENT(cmd, "Editor Viewport Pass");
+
+    if (showGrid)
+        dd::xzSquareGrid(-10.0f, 10.0f, 0.0f, 1.0f, dd::colors::LightGray);
+
+    if (showAxis)
+        dd::axisTriad(ddConvert(Matrix::Identity), 0.1f, 1.0f);
+
+    debugDrawPass->record(
+        cmd,
+        width,
+        height,
+        view,
+        proj
+    );
+
+    END_EVENT(cmd);
+
+    viewportRT->endRender(cmd);
+}
+
 
 void ModuleEditor::log(const char* text, const ImVec4& color)
 {
@@ -347,31 +423,40 @@ void ModuleEditor::drawViewport()
 {
     ImGui::Begin("Viewport");
 
-    ImVec2 min = ImGui::GetWindowContentRegionMin();
-    ImVec2 max = ImGui::GetWindowContentRegionMax();
-
-    viewportPos = ImGui::GetWindowPos();
-    viewportSize = ImVec2(max.x - min.x, max.y - min.y);
-
-    ImGui::Text("Scene View");
-
-    ImGui::Separator();
-
+    ImVec2 min = ImGui::GetCursorScreenPos();
     ImVec2 size = ImGui::GetContentRegionAvail();
 
-    ImGui::GetWindowDrawList()->AddRectFilled(
-        ImGui::GetCursorScreenPos(),
-        ImVec2(
-            ImGui::GetCursorScreenPos().x + size.x,
-            ImGui::GetCursorScreenPos().y + size.y
-        ),
-        IM_COL32(0, 0, 0, 255)
+    viewportPos = min;
+    viewportSize = size;
+
+    ImVec2 cursorPos = ImGui::GetCursorScreenPos();
+
+    ImGuiID frameID = ImGui::GetID("EditorViewportFrame");
+    ImGui::BeginChildFrame(
+        frameID,
+        viewportSize,
+        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse
     );
 
-    ImGui::InvisibleButton("viewport", size);
+    // --- BLACK SCREEN PLACEHOLDER ---
+    /*ImDrawList* drawList = ImGui::GetWindowDrawList();
+    drawList->AddRectFilled(
+        cursorPos,
+        ImVec2(cursorPos.x + viewportSize.x, cursorPos.y + viewportSize.y),
+        IM_COL32(0, 0, 0, 255)
+    );*/
 
+    // This is where ImGui::Image(renderTexture) will go later
+    // ImGui::Image((ImTextureID)textureHandle, viewportSize);
+    ImGui::Image(
+        (ImTextureID)viewportRT->getSrvHandle().ptr,
+        viewportSize
+    );
+
+    ImGui::EndChildFrame();
     ImGui::End();
 }
+
 
 void ModuleEditor::drawConsole()
 {
