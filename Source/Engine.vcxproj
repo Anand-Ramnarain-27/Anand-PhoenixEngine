@@ -210,7 +210,6 @@
     <ClInclude Include="RenderTexture.h" />
     <ClInclude Include="RenderToTextureDemo.h" />
     <ClInclude Include="Resource.h" />
-    <ClInclude Include="Scene.h" />
     <ClInclude Include="ShaderTableDesc.h" />
     <ClInclude Include="SimpleMath.h" />
     <ClInclude Include="targetver.h" />
