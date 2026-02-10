@@ -6,7 +6,6 @@
 GameObject::GameObject(const std::string& name)
     : name(name)
 {
-    // Every GameObject ALWAYS has a Transform
     transform = createComponent<ComponentTransform>();
 }
 
@@ -43,5 +42,4 @@ T* GameObject::createComponent(Args&&... args)
     return ptr;
 }
 
-// Explicit template instantiation
 template ComponentTransform* GameObject::createComponent<ComponentTransform>();

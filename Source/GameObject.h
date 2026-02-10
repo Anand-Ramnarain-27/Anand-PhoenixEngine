@@ -15,12 +15,10 @@ public:
 
     void update(float deltaTime);
 
-    // Hierarchy
     void setParent(GameObject* newParent);
     GameObject* getParent() const { return parent; }
     const std::vector<GameObject*>& getChildren() const { return children; }
 
-    // Components
     ComponentTransform* getTransform() const { return transform; }
 
     template<typename T, typename... Args>

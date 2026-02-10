@@ -4,6 +4,7 @@
 #include <wrl.h>
 
 class GameObject;
+class ModuleScene;
 
 class RenderPipelineTestScene final : public IScene
 {
@@ -25,7 +26,8 @@ public:
     void shutdown() override;
 
 private:
-    std::unique_ptr<GameObject> parent;
-    std::unique_ptr<GameObject> child;
+    std::unique_ptr<ModuleScene> scene;
+    GameObject* parent = nullptr;
+    GameObject* child = nullptr;
     float m_time = 0.0f;
 };

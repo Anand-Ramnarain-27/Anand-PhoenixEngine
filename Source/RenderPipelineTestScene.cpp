@@ -4,6 +4,7 @@
 #include "ComponentTransform.h"
 #include "ModuleCamera.h"
 #include "DebugDrawPass.h"
+#include "ModuleScene.h"
 
 RenderPipelineTestScene::RenderPipelineTestScene() = default;
 RenderPipelineTestScene::~RenderPipelineTestScene() = default;
@@ -20,16 +21,18 @@ const char* RenderPipelineTestScene::getDescription() const
 
 bool RenderPipelineTestScene::initialize(ID3D12Device*)
 {
-    m_time = 0.0f;
-    parent = std::make_unique<GameObject>("Parent");
-    child = std::make_unique<GameObject>("Child");
+    scene = std::make_unique<ModuleScene>();
 
-    child->setParent(parent.get());
+    parent = scene->createGameObject("Parent");
+    child = scene->createGameObject("Child", parent);
 
     parent->getTransform()->position = { 0, 0, 0 };
     child->getTransform()->position = { 0, 1, 0 };
+
+    m_time = 0.0f;
     return true;
 }
+
 
 void RenderPipelineTestScene::update(float deltaTime)
 {
@@ -42,8 +45,9 @@ void RenderPipelineTestScene::update(float deltaTime)
         );
 
     parent->getTransform()->markDirty();
-}
 
+    scene->update(deltaTime);
+}
 
 void RenderPipelineTestScene::render(
     ID3D12GraphicsCommandList*,
@@ -51,17 +55,14 @@ void RenderPipelineTestScene::render(
     uint32_t,
     uint32_t)
 {
-    // Grid (world reference)
     dd::xzSquareGrid(-5.0f, 5.0f, 0.0f, 1.0f, dd::colors::LightGray);
 
-    // Parent axis
     dd::axisTriad(
         ddConvert(parent->getTransform()->getGlobalMatrix()),
         0.3f,
         1.0f
     );
 
-    // Child axis (inherits parent transform)
     dd::axisTriad(
         ddConvert(child->getTransform()->getGlobalMatrix()),
         0.2f,
