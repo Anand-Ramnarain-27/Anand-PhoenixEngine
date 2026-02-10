@@ -118,6 +118,32 @@ bool ModuleEditor::cleanUp()
 
 void ModuleEditor::preRender()
 {
+    ModuleD3D12* d3d12 = app->getD3D12();
+
+    // ✅ APPLY RESIZE AT FRAME BOUNDARY
+    if (pendingViewportResize)
+    {
+        if (pendingViewportWidth > 4 && pendingViewportHeight > 4)
+        {
+            d3d12->flush();
+
+            viewportRT->resize(
+                pendingViewportWidth,
+                pendingViewportHeight
+            );
+
+            if (sceneManager)
+            {
+                sceneManager->onViewportResized(
+                    pendingViewportWidth,
+                    pendingViewportHeight
+                );
+            }
+        }
+
+        pendingViewportResize = false;
+    }
+
     imguiPass->startFrame();
 
     if (sceneManager && !app->isPaused())
@@ -161,31 +187,6 @@ void ModuleEditor::preRender()
 void ModuleEditor::render()
 {
     ModuleD3D12* d3d12 = app->getD3D12();
-
-    if (pendingViewportResize)
-    {
-        // ImGui can briefly report garbage sizes
-        if (pendingViewportWidth > 4 && pendingViewportHeight > 4)
-        {
-            // THIS is the critical line
-            d3d12->flush();
-
-            viewportRT->resize(
-                pendingViewportWidth,
-                pendingViewportHeight
-            );
-
-            if (sceneManager)
-            {
-                sceneManager->onViewportResized(
-                    pendingViewportWidth,
-                    pendingViewportHeight
-                );
-            }
-        }
-
-        pendingViewportResize = false;
-	}
     ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
 
     ID3D12GraphicsCommandList* cmd = d3d12->getCommandList();
@@ -532,20 +533,17 @@ void ModuleEditor::drawViewport()
         ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse
     );
 
-    // --- BLACK SCREEN PLACEHOLDER ---
-    /*ImDrawList* drawList = ImGui::GetWindowDrawList();
-    drawList->AddRectFilled(
-        cursorPos,
-        ImVec2(cursorPos.x + viewportSize.x, cursorPos.y + viewportSize.y),
-        IM_COL32(0, 0, 0, 255)
-    );*/
-
-    // This is where ImGui::Image(renderTexture) will go later
-    // ImGui::Image((ImTextureID)textureHandle, viewportSize);
-    ImGui::Image(
-        (ImTextureID)viewportRT->getSrvHandle().ptr,
-        viewportSize
-    );
+    if (pendingViewportResize || !viewportRT || !viewportRT->isValid())
+    {
+        ImGui::TextDisabled("Resizing viewport...");
+    }
+    else
+    {
+        ImGui::Image(
+            (ImTextureID)viewportRT->getSrvHandle().ptr,
+            viewportSize
+        );
+    }
 
     ImGui::EndChildFrame();
     ImGui::End();
