@@ -120,7 +120,6 @@ void ModuleEditor::preRender()
 {
     ModuleD3D12* d3d12 = app->getD3D12();
 
-    // ✅ APPLY RESIZE AT FRAME BOUNDARY
     if (pendingViewportResize)
     {
         if (pendingViewportWidth > 4 && pendingViewportHeight > 4)
@@ -146,11 +145,9 @@ void ModuleEditor::preRender()
 
     imguiPass->startFrame();
 
-    if (sceneManager && !app->isPaused())
+    if (sceneManager)
     {
-        float deltaTime =
-            static_cast<float>(app->getElapsedMilis()) * 0.001f;
-
+        float deltaTime = app->getElapsedMilis() * 0.001f;
         sceneManager->update(deltaTime);
     }
 
@@ -433,6 +430,23 @@ void ModuleEditor::drawMenuBar()
 
             ImGui::EndMenu();
         }
+
+        if (ImGui::BeginMenu("Scene"))
+        {
+            bool playing = sceneManager->isPlaying();
+
+            if (ImGui::MenuItem("Play", nullptr, false, !playing))
+                sceneManager->play();
+
+            if (ImGui::MenuItem("Pause", nullptr, false, playing))
+                sceneManager->pause();
+
+            if (ImGui::MenuItem("Stop"))
+                sceneManager->stop();
+
+            ImGui::EndMenu();
+        }
+
 
 
         if (ImGui::BeginMenu("Help"))
