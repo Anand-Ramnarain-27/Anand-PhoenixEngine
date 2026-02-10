@@ -179,6 +179,7 @@
     <ClInclude Include="DescriptorBase.h" />
     <ClInclude Include="gltf_utils.h" />
     <ClInclude Include="HandleManager.h" />
+    <ClInclude Include="IScene.h" />
     <ClInclude Include="LightingDemo.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="Mesh.h" />
@@ -206,6 +207,7 @@
     <ClInclude Include="Mouse.h" />
     <ClInclude Include="PlatformHelpers.h" />
     <ClInclude Include="ReadData.h" />
+    <ClInclude Include="RenderPipelineTestScene.h" />
     <ClInclude Include="RenderTargetDesc.h" />
     <ClInclude Include="RenderTexture.h" />
     <ClInclude Include="RenderToTextureDemo.h" />
@@ -313,6 +315,7 @@
     <ClCompile Include="Keyboard.cpp" />
     <ClCompile Include="ModuleInput.cpp" />
     <ClCompile Include="Mouse.cpp" />
+    <ClCompile Include="RenderPipelineTestScene.cpp" />
     <ClCompile Include="RenderTargetDesc.cpp" />
     <ClCompile Include="RenderTexture.cpp" />
     <ClCompile Include="RenderToTextureDemo.cpp" />

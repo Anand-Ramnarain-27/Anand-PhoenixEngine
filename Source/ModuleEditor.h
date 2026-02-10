@@ -5,6 +5,7 @@
 #include "ShaderTableDesc.h"
 #include "RenderTexture.h"
 #include "DebugDrawPass.h"
+#include "IScene.h"
 
 #include <memory>
 #include <imgui.h>
@@ -62,6 +63,8 @@ private:
 
     bool showGrid = true;
     bool showAxis = true;
+
+    std::unique_ptr<IScene> activeScene;
 
 private:
     void drawMenuBar();

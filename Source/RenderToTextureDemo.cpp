@@ -49,7 +49,6 @@ bool RenderToTextureDemo::init()
         descTable = descriptors->allocTable();
         imguiPass = std::make_unique<ImGuiPass>(d3d12->getDevice(), d3d12->getHWnd(), descTable.getCPUHandle(), descTable.getGPUHandle());
 
-        // Create render texture for rendering the scene
         renderTexture = std::make_unique<RenderTexture>("RenderToTextureDemo",
             DXGI_FORMAT_R8G8B8A8_UNORM,
             Vector4(0.188f, 0.208f, 0.259f, 1.0f),
@@ -75,7 +74,6 @@ void RenderToTextureDemo::preRender()
     imguiPass->startFrame();
     ImGuizmo::BeginFrame();
 
-    // Create dock space
     ImGuiID dockspace_id = ImGui::GetID("RenderToTextureDockSpace");
     ImGui::DockSpaceOverViewport(dockspace_id);
 
@@ -96,7 +94,6 @@ void RenderToTextureDemo::preRender()
         ImGui::DockBuilderFinish(dockspace_id);
     }
 
-    // Resize render texture based on canvas size
     if (canvasSize.x > 0.0f && canvasSize.y > 0.0f)
         renderTexture->resize(int(canvasSize.x), int(canvasSize.y));
 }
@@ -127,7 +124,6 @@ void RenderToTextureDemo::imGuiCommands()
     Matrix objectMatrix = model->getModelMatrix();
 
     ImGui::Separator();
-    // Set ImGuizmo operation mode
     static ImGuizmo::OPERATION gizmoOperation = ImGuizmo::TRANSLATE;
     if (ImGui::IsKeyPressed(ImGuiKey_T)) gizmoOperation = ImGuizmo::TRANSLATE;
     if (ImGui::IsKeyPressed(ImGuiKey_R)) gizmoOperation = ImGuizmo::ROTATE;
@@ -206,7 +202,6 @@ void RenderToTextureDemo::imGuiCommands()
     ImGui::BeginChildFrame(id, canvasSize, ImGuiWindowFlags_NoScrollbar);
     viewerFocused = ImGui::IsWindowFocused();
 
-    // Display the rendered texture in ImGui
     if (renderTexture->getSrvTableDesc().isValid())
     {
         ImGui::Image((ImTextureID)renderTexture->getSrvHandle().ptr, canvasSize);
@@ -217,7 +212,6 @@ void RenderToTextureDemo::imGuiCommands()
         const Matrix& viewMatrix = camera->getView();
         Matrix projMatrix = ModuleCamera::getPerspectiveProj(float(canvasSize.x) / float(canvasSize.y));
 
-        // Setup ImGuizmo for the scene view
         ImGuizmo::SetRect(cursorPos.x, cursorPos.y, canvasSize.x, canvasSize.y);
         ImGuizmo::SetDrawlist();
         ImGuizmo::Manipulate((const float*)&viewMatrix, (const float*)&projMatrix,
@@ -263,7 +257,6 @@ void RenderToTextureDemo::renderToTexture(ID3D12GraphicsCommandList* commandList
 
     perFrame.L.Normalize();
 
-    // Begin rendering to the render texture
     renderTexture->beginRender(commandList);
 
     commandList->SetGraphicsRoot32BitConstants(0, sizeof(Matrix) / sizeof(UINT32), &mvp, 0);
@@ -272,7 +265,6 @@ void RenderToTextureDemo::renderToTexture(ID3D12GraphicsCommandList* commandList
 
     BEGIN_EVENT(commandList, "Model Render Pass");
 
-    // SAFER VERSION: Check all conditions carefully
     const auto& meshes = model->getMeshes();
     const auto& materials = model->getMaterials();
 
@@ -280,7 +272,6 @@ void RenderToTextureDemo::renderToTexture(ID3D12GraphicsCommandList* commandList
     {
         int materialIndex = mesh->getMaterialIndex();
 
-        // More robust check
         bool hasValidMaterial = false;
         const Material* materialPtr = nullptr;
 
@@ -309,7 +300,6 @@ void RenderToTextureDemo::renderToTexture(ID3D12GraphicsCommandList* commandList
         }
         else
         {
-            // Use default material if no valid material found
             Material::Data defaultMaterial;
             defaultMaterial.baseColour = Vector4(0.8f, 0.8f, 0.8f, 1.0f);
             defaultMaterial.hasColourTexture = FALSE;
@@ -318,7 +308,6 @@ void RenderToTextureDemo::renderToTexture(ID3D12GraphicsCommandList* commandList
             commandList->SetGraphicsRootConstantBufferView(2,
                 ringBuffer->allocateConstantBuffer(&perInstance, sizeof(PerInstance)));
 
-            // Use null descriptor for texture
             D3D12_GPU_DESCRIPTOR_HANDLE nullHandle = {};
             commandList->SetGraphicsRootDescriptorTable(3, nullHandle);
         }
@@ -333,7 +322,6 @@ void RenderToTextureDemo::renderToTexture(ID3D12GraphicsCommandList* commandList
 
     debugDrawPass->record(commandList, width, height, view, proj);
 
-    // End rendering to the render texture
     renderTexture->endRender(commandList);
 }
 
@@ -353,13 +341,11 @@ void RenderToTextureDemo::render()
     ID3D12DescriptorHeap* descriptorHeaps[] = { descriptors->getHeap(), samplers->getHeap() };
     commandList->SetDescriptorHeaps(2, descriptorHeaps);
 
-    // Render to texture if we have a valid canvas size
     if (renderTexture->isValid() && canvasSize.x > 0.0f && canvasSize.y > 0.0f)
     {
         renderToTexture(commandList);
     }
 
-    // Transition back buffer to render target for ImGui
     CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
         d3d12->getBackBuffer(),
         D3D12_RESOURCE_STATE_PRESENT,
@@ -375,7 +361,6 @@ void RenderToTextureDemo::render()
     float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
     commandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
 
-    // Render ImGui on top
     imguiPass->record(commandList);
 
     barrier = CD3DX12_RESOURCE_BARRIER::Transition(

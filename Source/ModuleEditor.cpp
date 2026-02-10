@@ -7,6 +7,7 @@
 #include "ModuleCamera.h"  
 #include "ModuleDSDescriptors.h"
 #include "ModuleRTDescriptors.h"
+#include "RenderPipelineTestScene.h"
 
 #include "ImGuiPass.h"
 #include <imgui.h>
@@ -51,6 +52,15 @@ bool ModuleEditor::init()
         1.0f
     );
 
+    activeScene = std::make_unique<RenderPipelineTestScene>();
+    activeScene->initialize(app->getD3D12()->getDevice());
+
+    log(
+        "[Editor] Active scene: RenderPipelineTestScene",
+        ImVec4(0.6f, 0.8f, 1.0f, 1.0f)
+    );
+
+
     log("[Editor] ModuleEditor initialized", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
 
     D3D12_QUERY_HEAP_DESC qDesc = {};
@@ -93,6 +103,14 @@ bool ModuleEditor::cleanUp()
 void ModuleEditor::preRender()
 {
     imguiPass->startFrame();
+
+    if (activeScene && !app->isPaused())
+    {
+        float deltaTime =
+            static_cast<float>(app->getElapsedMilis()) * 0.001f;
+
+        activeScene->update(deltaTime);
+    }
 
     updateFPS();
 
@@ -231,6 +249,16 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
 
     BEGIN_EVENT(cmd, "Editor Viewport Pass");
 
+    if (activeScene)
+    {
+        activeScene->render(
+            cmd,
+            *camera,
+            width,
+            height
+        );
+    }
+
     if (showGrid)
         dd::xzSquareGrid(-10.0f, 10.0f, 0.0f, 1.0f, dd::colors::LightGray);
 
@@ -248,6 +276,7 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     END_EVENT(cmd);
 
     viewportRT->endRender(cmd);
+
 }
 
 
