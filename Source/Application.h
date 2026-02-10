@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Globals.h"
+#include "ModuleFileSystem.h"
 
 #include <array>
 #include <vector>
@@ -16,7 +17,6 @@ class ModuleShaderDescriptors;
 class ModuleRingBuffer;
 class ModuleRTDescriptors;
 class ModuleDSDescriptors;
-class ModuleFileSystem;
 
 class BasicModelScene;
 class ModuleTextureSampler;

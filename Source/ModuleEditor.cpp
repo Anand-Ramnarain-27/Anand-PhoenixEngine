@@ -15,7 +15,6 @@
 #include "backends/imgui_impl_win32.h"
 
 #include <d3dx12.h>
-
 ModuleEditor::ModuleEditor()
 {
 }
@@ -30,6 +29,10 @@ bool ModuleEditor::init()
     ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
 
     descTable = descriptors->allocTable();
+
+    /*auto fs = app->getFileSystem();
+
+    fs->Save("Library/test.txt", "Hello", 5);*/
 
     imguiPass = std::make_unique<ImGuiPass>(
         d3d12->getDevice(),

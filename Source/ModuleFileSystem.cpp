@@ -2,29 +2,22 @@
 #include "ModuleFileSystem.h"
 
 #include <filesystem>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
 namespace fs = std::filesystem;
 
-ModuleFileSystem::ModuleFileSystem()
-{
-}
-
-ModuleFileSystem::~ModuleFileSystem()
-{
-}
+ModuleFileSystem::ModuleFileSystem() = default;
+ModuleFileSystem::~ModuleFileSystem() = default;
 
 bool ModuleFileSystem::init()
 {
-    // Base project directories
     assetsPath = "Assets/";
     libraryPath = "Library/";
 
     CreateProjectDirectories();
 
     std::cout << "[FileSystem] Initialized\n";
-
     return true;
 }
 
@@ -55,7 +48,7 @@ bool ModuleFileSystem::CreateDir(const char* path)
     }
     catch (const fs::filesystem_error& e)
     {
-        std::cerr << "[FileSystem] CreateDir failed: "
+        std::cerr << "[FileSystem] CreateDir error: "
             << e.what() << std::endl;
 
         return false;
@@ -82,8 +75,15 @@ bool ModuleFileSystem::Save(
 
     try
     {
+        fs::path p(path);
+
+        if (p.has_parent_path())
+        {
+            fs::create_directories(p.parent_path());
+        }
+
         std::ofstream file(
-            path,
+            p,
             std::ios::binary | std::ios::out | std::ios::trunc
         );
 
@@ -94,8 +94,6 @@ bool ModuleFileSystem::Save(
             reinterpret_cast<const char*>(data),
             size
         );
-
-        file.close();
 
         return true;
     }
@@ -136,8 +134,6 @@ bool ModuleFileSystem::Load(
         {
             return false;
         }
-
-        file.close();
 
         return true;
     }

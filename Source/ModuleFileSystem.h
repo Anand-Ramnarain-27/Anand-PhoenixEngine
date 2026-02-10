@@ -2,6 +2,10 @@
 
 #include "Module.h"
 
+#include <string>
+#include <vector>
+#include <cstdint>
+
 class ModuleFileSystem : public Module
 {
 public:
@@ -11,14 +15,16 @@ public:
     bool init() override;
     bool cleanUp() override;
 
+    // Directories
     bool CreateDir(const char* path);
 
     const std::string& GetAssetsPath() const;
     const std::string& GetLibraryPath() const;
 
-    // Binary IO
+    // Binary I/O
     bool Save(const char* path, const void* data, size_t size);
     bool Load(const char* path, std::vector<uint8_t>& outData);
+
 private:
     void CreateProjectDirectories();
 
