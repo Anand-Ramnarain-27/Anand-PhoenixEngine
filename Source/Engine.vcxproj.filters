@@ -32,7 +32,6 @@
       <Filter>Passes</Filter>
     </ClCompile>
     <ClCompile Include="ModuleEditor.cpp" />
-    <ClCompile Include="ModuleTextureSampler.cpp" />
     <ClCompile Include="Application.cpp">
       <Filter>Core</Filter>
     </ClCompile>
@@ -99,12 +98,24 @@
     <ClCompile Include="DepthStencilDesc.cpp">
       <Filter>Modules</Filter>
     </ClCompile>
-    <ClCompile Include="BasicModelScene.cpp" />
-    <ClCompile Include="LightingDemo.cpp" />
-    <ClCompile Include="RenderToTextureDemo.cpp" />
-    <ClCompile Include="ViewportDemo.cpp" />
     <ClCompile Include="RenderPipelineTestScene.cpp" />
     <ClCompile Include="SceneManager.cpp" />
+    <ClCompile Include="BasicModelScene.cpp">
+      <Filter>Exercises</Filter>
+    </ClCompile>
+    <ClCompile Include="LightingDemo.cpp">
+      <Filter>Exercises</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderToTextureDemo.cpp">
+      <Filter>Exercises</Filter>
+    </ClCompile>
+    <ClCompile Include="ViewportDemo.cpp">
+      <Filter>Exercises</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleTextureSampler.cpp">
+      <Filter>Exercises</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleFileSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -142,7 +153,6 @@
       <Filter>Win</Filter>
     </ClInclude>
     <ClInclude Include="ModuleEditor.h" />
-    <ClInclude Include="ModuleTextureSampler.h" />
     <ClInclude Include="Application.h">
       <Filter>Core</Filter>
     </ClInclude>
@@ -236,13 +246,25 @@
     <ClInclude Include="HandleManager.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="BasicModelScene.h" />
-    <ClInclude Include="LightingDemo.h" />
-    <ClInclude Include="RenderToTextureDemo.h" />
-    <ClInclude Include="ViewportDemo.h" />
     <ClInclude Include="IScene.h" />
     <ClInclude Include="RenderPipelineTestScene.h" />
     <ClInclude Include="SceneManager.h" />
+    <ClInclude Include="BasicModelScene.h">
+      <Filter>Exercises</Filter>
+    </ClInclude>
+    <ClInclude Include="LightingDemo.h">
+      <Filter>Exercises</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderToTextureDemo.h">
+      <Filter>Exercises</Filter>
+    </ClInclude>
+    <ClInclude Include="ViewportDemo.h">
+      <Filter>Exercises</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleTextureSampler.h">
+      <Filter>Exercises</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleFileSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -288,6 +310,9 @@
     </Filter>
     <Filter Include="Scene">
       <UniqueIdentifier>{fc504caf-36f5-43da-9895-257d07c4173d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Exercises">
+      <UniqueIdentifier>{a7244081-a8d6-4fbf-901f-3d6276011f94}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

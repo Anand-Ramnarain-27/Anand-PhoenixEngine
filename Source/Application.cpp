@@ -12,6 +12,7 @@
 #include "ModuleRTDescriptors.h"
 #include "ModuleDSDescriptors.h"
 #include "RenderTexture.h"
+#include "ModuleFileSystem.h"
 
 #include "ModuleTextureSampler.h"
 #include "BasicModelScene.h"
@@ -31,6 +32,7 @@ Application::Application(int argc, wchar_t** argv, void* hWnd)
     modules.push_back(dsDescriptors = new ModuleDSDescriptors());
 	modules.push_back(ringBuffer = new ModuleRingBuffer());
     modules.push_back(editor = new ModuleEditor());
+	modules.push_back(fileSystem = new ModuleFileSystem());
 
 	//modules.push_back(basicModelScene = new BasicModelScene());
 	//modules.push_back(lightingDemo = new LightingDemo());
