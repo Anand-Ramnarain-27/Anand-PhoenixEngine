@@ -11,6 +11,7 @@ public:
 
     virtual ~Component() = default;
 
+    virtual void render(ID3D12GraphicsCommandList*) {}
     virtual void update(float) {}
     virtual void onEditor() {}
 
