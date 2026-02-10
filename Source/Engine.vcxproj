@@ -173,10 +173,13 @@
     <ClInclude Include="3rdParty\ImGuizmo\ImGuizmo.h" />
     <ClInclude Include="Application.h" />
     <ClInclude Include="BasicModelScene.h" />
+    <ClInclude Include="Component.h" />
+    <ClInclude Include="ComponentTransform.h" />
     <ClInclude Include="DebugDrawPass.h" />
     <ClInclude Include="debug_draw.hpp" />
     <ClInclude Include="DepthStencilDesc.h" />
     <ClInclude Include="DescriptorBase.h" />
+    <ClInclude Include="GameObject.h" />
     <ClInclude Include="gltf_utils.h" />
     <ClInclude Include="HandleManager.h" />
     <ClInclude Include="IScene.h" />
@@ -282,11 +285,13 @@
     </ClCompile>
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="BasicModelScene.cpp" />
+    <ClCompile Include="ComponentTransform.cpp" />
     <ClCompile Include="DebugDrawPass.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="DepthStencilDesc.cpp" />
+    <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="LightingDemo.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="Mesh.cpp" />

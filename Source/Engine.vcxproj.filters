@@ -116,6 +116,8 @@
       <Filter>Exercises</Filter>
     </ClCompile>
     <ClCompile Include="ModuleFileSystem.cpp" />
+    <ClCompile Include="ComponentTransform.cpp" />
+    <ClCompile Include="GameObject.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -265,6 +267,9 @@
       <Filter>Exercises</Filter>
     </ClInclude>
     <ClInclude Include="ModuleFileSystem.h" />
+    <ClInclude Include="GameObject.h" />
+    <ClInclude Include="Component.h" />
+    <ClInclude Include="ComponentTransform.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

@@ -1,16 +1,15 @@
 #pragma once
 
 #include "IScene.h"
-
 #include <wrl.h>
 
-using Microsoft::WRL::ComPtr;
+class GameObject;
 
 class RenderPipelineTestScene final : public IScene
 {
 public:
-    RenderPipelineTestScene() = default;
-    ~RenderPipelineTestScene() override = default;
+    RenderPipelineTestScene();
+    ~RenderPipelineTestScene() override;
 
     const char* getName() const override;
     const char* getDescription() const override;
@@ -26,5 +25,7 @@ public:
     void shutdown() override;
 
 private:
+    std::unique_ptr<GameObject> parent;
+    std::unique_ptr<GameObject> child;
     float m_time = 0.0f;
 };

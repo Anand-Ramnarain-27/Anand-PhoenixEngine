@@ -1,8 +1,12 @@
 #include "Globals.h"
 #include "RenderPipelineTestScene.h"
-
+#include "GameObject.h"
+#include "ComponentTransform.h"
 #include "ModuleCamera.h"
 #include "DebugDrawPass.h"
+
+RenderPipelineTestScene::RenderPipelineTestScene() = default;
+RenderPipelineTestScene::~RenderPipelineTestScene() = default;
 
 const char* RenderPipelineTestScene::getName() const
 {
@@ -17,28 +21,54 @@ const char* RenderPipelineTestScene::getDescription() const
 bool RenderPipelineTestScene::initialize(ID3D12Device*)
 {
     m_time = 0.0f;
+    parent = std::make_unique<GameObject>("Parent");
+    child = std::make_unique<GameObject>("Child");
+
+    child->setParent(parent.get());
+
+    parent->getTransform()->position = { 0, 0, 0 };
+    child->getTransform()->position = { 0, 1, 0 };
     return true;
 }
 
 void RenderPipelineTestScene::update(float deltaTime)
 {
     m_time += deltaTime;
+
+    parent->getTransform()->rotation =
+        Quaternion::CreateFromAxisAngle(
+            Vector3::Up,
+            m_time
+        );
+
+    parent->getTransform()->markDirty();
 }
 
-void RenderPipelineTestScene::render(ID3D12GraphicsCommandList*, const ModuleCamera& , uint32_t , uint32_t
-)
-{
-    float height = 0.5f + 0.25f * sinf(m_time);
 
+void RenderPipelineTestScene::render(
+    ID3D12GraphicsCommandList*,
+    const ModuleCamera&,
+    uint32_t,
+    uint32_t)
+{
+    // Grid (world reference)
     dd::xzSquareGrid(-5.0f, 5.0f, 0.0f, 1.0f, dd::colors::LightGray);
 
-    dd::axisTriad(ddConvert(Matrix::Identity), 0.2f, 1.0f);
+    // Parent axis
+    dd::axisTriad(
+        ddConvert(parent->getTransform()->getGlobalMatrix()),
+        0.3f,
+        1.0f
+    );
 
-    float start[3] = { 0.0f, 0.0f, 0.0f };
-    float end[3] = { 0.0f, height, 0.0f };
-
-    dd::line(dd::colors::Orange, start, end);
+    // Child axis (inherits parent transform)
+    dd::axisTriad(
+        ddConvert(child->getTransform()->getGlobalMatrix()),
+        0.2f,
+        1.0f
+    );
 }
+
 
 
 void RenderPipelineTestScene::shutdown()
