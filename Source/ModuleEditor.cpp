@@ -52,8 +52,24 @@ bool ModuleEditor::init()
         1.0f
     );
 
-    activeScene = std::make_unique<RenderPipelineTestScene>();
-    activeScene->initialize(app->getD3D12()->getDevice());
+    sceneManager = std::make_unique<SceneManager>();
+
+    availableScenes =
+    {
+        {
+            "Render Pipeline Test",
+            []() { return std::make_unique<RenderPipelineTestScene>(); }
+        }
+        // Later:
+        // { "Lighting Demo", [](){ return std::make_unique<LightingScene>(); } },
+        // { "PBR Materials", [](){ return std::make_unique<PBRScene>(); } }
+    };
+    selectedSceneIndex = 0;
+    sceneManager->setScene(
+        availableScenes[0].create(),
+        app->getD3D12()->getDevice()
+    );
+
 
     log(
         "[Editor] Active scene: RenderPipelineTestScene",
@@ -104,12 +120,12 @@ void ModuleEditor::preRender()
 {
     imguiPass->startFrame();
 
-    if (activeScene && !app->isPaused())
+    if (sceneManager && !app->isPaused())
     {
         float deltaTime =
             static_cast<float>(app->getElapsedMilis()) * 0.001f;
 
-        activeScene->update(deltaTime);
+        sceneManager->update(deltaTime);
     }
 
     updateFPS();
@@ -249,21 +265,15 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
 
     BEGIN_EVENT(cmd, "Editor Viewport Pass");
 
-    if (activeScene)
+    if (sceneManager)
     {
-        activeScene->render(
+        sceneManager->render(
             cmd,
             *camera,
             width,
             height
         );
     }
-
-    if (showGrid)
-        dd::xzSquareGrid(-10.0f, 10.0f, 0.0f, 1.0f, dd::colors::LightGray);
-
-    if (showAxis)
-        dd::axisTriad(ddConvert(Matrix::Identity), 0.1f, 1.0f);
 
     debugDrawPass->record(
         cmd,
@@ -433,20 +443,46 @@ void ModuleEditor::drawExerciseList()
 {
     ImGui::Begin("Exercises");
 
-    ImGui::Text("Available Exercises");
+    ImGui::Text("Available Scenes");
     ImGui::Separator();
 
-    ImGui::Selectable("Exercise 1");
-    ImGui::Selectable("Exercise 2");
-    ImGui::Selectable("Exercise 3");
-    ImGui::Selectable("Render To Texture");
+    for (int i = 0; i < (int)availableScenes.size(); ++i)
+    {
+        bool selected = (i == selectedSceneIndex);
+
+        if (ImGui::Selectable(availableScenes[i].name, selected))
+        {
+            if (i != selectedSceneIndex)
+            {
+                selectedSceneIndex = i;
+
+                sceneManager->setScene(
+                    availableScenes[i].create(),
+                    app->getD3D12()->getDevice()
+                );
+
+                log(
+                    ("Switched to scene: " +
+                        std::string(availableScenes[i].name)).c_str(),
+                    ImVec4(0.6f, 0.8f, 1.0f, 1.0f)
+                );
+            }
+        }
+    }
 
     ImGui::Separator();
 
-    ImGui::Text("Selected: None");
+    if (selectedSceneIndex >= 0)
+    {
+        ImGui::Text(
+            "Active: %s",
+            availableScenes[selectedSceneIndex].name
+        );
+    }
 
     ImGui::End();
 }
+
 
 void ModuleEditor::drawViewport()
 {

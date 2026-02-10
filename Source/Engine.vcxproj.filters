@@ -104,6 +104,7 @@
     <ClCompile Include="RenderToTextureDemo.cpp" />
     <ClCompile Include="ViewportDemo.cpp" />
     <ClCompile Include="RenderPipelineTestScene.cpp" />
+    <ClCompile Include="SceneManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -241,6 +242,7 @@
     <ClInclude Include="ViewportDemo.h" />
     <ClInclude Include="IScene.h" />
     <ClInclude Include="RenderPipelineTestScene.h" />
+    <ClInclude Include="SceneManager.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

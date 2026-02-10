@@ -5,10 +5,17 @@
 #include "ShaderTableDesc.h"
 #include "RenderTexture.h"
 #include "DebugDrawPass.h"
-#include "IScene.h"
+#include "SceneManager.h"
 
 #include <memory>
 #include <imgui.h>
+#include <functional>
+
+struct SceneEntry
+{
+    const char* name;
+    std::function<std::unique_ptr<IScene>()> create;
+};
 
 class ModuleCamera;
 
@@ -64,8 +71,10 @@ private:
     bool showGrid = true;
     bool showAxis = true;
 
-    std::unique_ptr<IScene> activeScene;
+    std::unique_ptr<SceneManager> sceneManager;
 
+    std::vector<SceneEntry> availableScenes;
+    int selectedSceneIndex = -1;
 private:
     void drawMenuBar();
     void drawDockspace();
