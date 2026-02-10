@@ -39,3 +39,12 @@ void SceneManager::render(ID3D12GraphicsCommandList* cmd, const ModuleCamera& ca
         activeScene->render(cmd, camera, width, height);
     }
 }
+
+void SceneManager::onViewportResized(uint32_t width, uint32_t height)
+{
+    if (activeScene)
+    {
+        activeScene->onViewportResized(width, height);
+    }
+}
+

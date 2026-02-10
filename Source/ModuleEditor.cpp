@@ -146,17 +146,46 @@ void ModuleEditor::preRender()
 
     if (viewportRT && viewportSize.x > 0 && viewportSize.y > 0)
     {
-        viewportRT->resize(
-            int(viewportSize.x),
-            int(viewportSize.y)
-        );
-    }
+        if (viewportSize.x != lastViewportSize.x ||
+            viewportSize.y != lastViewportSize.y)
+        {
+            pendingViewportResize = true;
+            pendingViewportWidth = (UINT)viewportSize.x;
+            pendingViewportHeight = (UINT)viewportSize.y;
 
+            lastViewportSize = viewportSize;
+        }
+    }
 }
 
 void ModuleEditor::render()
 {
     ModuleD3D12* d3d12 = app->getD3D12();
+
+    if (pendingViewportResize)
+    {
+        // ImGui can briefly report garbage sizes
+        if (pendingViewportWidth > 4 && pendingViewportHeight > 4)
+        {
+            // THIS is the critical line
+            d3d12->flush();
+
+            viewportRT->resize(
+                pendingViewportWidth,
+                pendingViewportHeight
+            );
+
+            if (sceneManager)
+            {
+                sceneManager->onViewportResized(
+                    pendingViewportWidth,
+                    pendingViewportHeight
+                );
+            }
+        }
+
+        pendingViewportResize = false;
+	}
     ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
 
     ID3D12GraphicsCommandList* cmd = d3d12->getCommandList();

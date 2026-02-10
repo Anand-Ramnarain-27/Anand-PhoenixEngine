@@ -26,13 +26,9 @@ public:
     // ------------------------------------------------------------
 
     void update(float deltaTime);
-    void render(
-        ID3D12GraphicsCommandList* cmd,
-        const ModuleCamera& camera,
-        uint32_t width,
-        uint32_t height
-    );
+    void render(ID3D12GraphicsCommandList* cmd, const ModuleCamera& camera, uint32_t width, uint32_t height);
 
+    void onViewportResized(uint32_t width, uint32_t height);
 private:
     std::unique_ptr<IScene> activeScene;
 };

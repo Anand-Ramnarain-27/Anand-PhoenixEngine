@@ -47,6 +47,11 @@ private:
 
     ImVec2 viewportSize = { 0,0 };
     ImVec2 viewportPos = { 0,0 };
+    ImVec2 lastViewportSize = { 0, 0 };
+
+    bool pendingViewportResize = false;
+    UINT pendingViewportWidth = 0;
+    UINT pendingViewportHeight = 0;
 
     bool showFPSWindow = false;
 
