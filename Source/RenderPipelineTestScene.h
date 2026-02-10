@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IScene.h"
+#include "SceneGraph.h"
 
 #include <wrl.h>
 
@@ -27,4 +28,5 @@ public:
 
 private:
     float m_time = 0.0f;
+    std::unique_ptr<SceneGraph> scene;
 };

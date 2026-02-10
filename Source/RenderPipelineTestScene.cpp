@@ -1,5 +1,9 @@
 #include "Globals.h"
 #include "RenderPipelineTestScene.h"
+#include "SceneGraph.h"
+#include "GameObject.h" 
+#include "ComponentTransform.h"
+#include "ComponentMeshRenderer.h"
 
 #include "ModuleCamera.h"
 #include "DebugDrawPass.h"
@@ -16,9 +20,35 @@ const char* RenderPipelineTestScene::getDescription() const
 
 bool RenderPipelineTestScene::initialize(ID3D12Device*)
 {
-    m_time = 0.0f;
+    scene = std::make_unique<SceneGraph>();
+
+    GameObject* root = scene->getRoot();
+
+    auto cube = std::make_unique<GameObject>("Cube");
+    auto* transform = cube->addComponent<ComponentTransform>();
+    transform->position = { 0, 0, 0 };
+
+    cube->addComponent<ComponentMeshRenderer>();
+
+    root->addChild(std::move(cube));
+
     return true;
 }
+
+void RenderPipelineTestScene::update(float dt)
+{
+    scene->update(dt);
+}
+
+void RenderPipelineTestScene::render(
+    ID3D12GraphicsCommandList* cmd,
+    const ModuleCamera& camera,
+    uint32_t,
+    uint32_t)
+{
+    scene->render(cmd, camera);
+}
+
 
 void RenderPipelineTestScene::update(float deltaTime)
 {
