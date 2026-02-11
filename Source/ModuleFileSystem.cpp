@@ -65,36 +65,58 @@ const std::string& ModuleFileSystem::GetLibraryPath() const
     return libraryPath;
 }
 
-bool ModuleFileSystem::Save(
-    const char* path,
-    const void* data,
-    size_t size)
+unsigned int ModuleFileSystem::Load(const char* path, char** buffer) const
 {
-    if (!data || size == 0)
-        return false;
+    if (!Exists(path))
+        return 0;
 
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+
+    if (!file.is_open())
+        return 0;
+
+    std::streamsize size = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    *buffer = new char[size];
+
+    if (!file.read(*buffer, size))
+    {
+        delete[] * buffer;
+        *buffer = nullptr;
+        return 0;
+    }
+
+    return (unsigned int)size;
+}
+
+bool ModuleFileSystem::Exists(const char* path) const
+{
+    return fs::exists(path);
+}
+
+bool ModuleFileSystem::IsDirectory(const char* path) const
+{
+    return fs::is_directory(path);
+}
+
+bool ModuleFileSystem::Delete(const char* path)
+{
     try
     {
-        fs::path p(path);
+        return fs::remove_all(path) > 0;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
 
-        if (p.has_parent_path())
-        {
-            fs::create_directories(p.parent_path());
-        }
-
-        std::ofstream file(
-            p,
-            std::ios::binary | std::ios::out | std::ios::trunc
-        );
-
-        if (!file.is_open())
-            return false;
-
-        file.write(
-            reinterpret_cast<const char*>(data),
-            size
-        );
-
+bool ModuleFileSystem::Copy(const char* source, const char* destination)
+{
+    try
+    {
+        fs::copy(source, destination,fs::copy_options::overwrite_existing | fs::copy_options::recursive);
         return true;
     }
     catch (...)
@@ -103,42 +125,4 @@ bool ModuleFileSystem::Save(
     }
 }
 
-bool ModuleFileSystem::Load(
-    const char* path,
-    std::vector<uint8_t>& outData)
-{
-    outData.clear();
 
-    try
-    {
-        std::ifstream file(
-            path,
-            std::ios::binary | std::ios::in | std::ios::ate
-        );
-
-        if (!file.is_open())
-            return false;
-
-        std::streamsize size = file.tellg();
-
-        if (size <= 0)
-            return false;
-
-        file.seekg(0, std::ios::beg);
-
-        outData.resize((size_t)size);
-
-        if (!file.read(
-            reinterpret_cast<char*>(outData.data()),
-            size))
-        {
-            return false;
-        }
-
-        return true;
-    }
-    catch (...)
-    {
-        return false;
-    }
-}
