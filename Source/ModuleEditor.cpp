@@ -15,13 +15,9 @@
 #include "ModuleCamera.h"
 
 #include <d3dx12.h>
-ModuleEditor::ModuleEditor()
-{
-}
 
-ModuleEditor::~ModuleEditor()
-{
-}
+ModuleEditor::ModuleEditor() {}
+ModuleEditor::~ModuleEditor() {}
 
 bool ModuleEditor::init()
 {
@@ -34,26 +30,11 @@ bool ModuleEditor::init()
 
     fs->Save("Library/test.txt", "Hello", 5);*/
 
-    imguiPass = std::make_unique<ImGuiPass>(
-        d3d12->getDevice(),
-        d3d12->getHWnd(),
-        descTable.getCPUHandle(),
-        descTable.getGPUHandle()
-    );
+    imguiPass = std::make_unique<ImGuiPass>(d3d12->getDevice(), d3d12->getHWnd(), descTable.getCPUHandle(), descTable.getGPUHandle());
 
-    debugDrawPass = std::make_unique<DebugDrawPass>(
-        d3d12->getDevice(),
-        d3d12->getDrawCommandQueue(),
-        false
-    );
+    debugDrawPass = std::make_unique<DebugDrawPass>(d3d12->getDevice(), d3d12->getDrawCommandQueue(), false);
 
-    viewportRT = std::make_unique<RenderTexture>(
-        "EditorViewport",
-        DXGI_FORMAT_R8G8B8A8_UNORM,
-        Vector4(0.0f, 0.0f, 0.0f, 1.0f),
-        DXGI_FORMAT_D32_FLOAT,
-        1.0f
-    );
+    viewportRT = std::make_unique<RenderTexture>("EditorViewport", DXGI_FORMAT_R8G8B8A8_UNORM, Vector4(0.0f, 0.0f, 0.0f, 1.0f), DXGI_FORMAT_D32_FLOAT, 1.0f);
 
     sceneManager = std::make_unique<SceneManager>();
 
@@ -65,44 +46,24 @@ bool ModuleEditor::init()
         }
         // Later:
         // { "Lighting Demo", [](){ return std::make_unique<LightingScene>(); } },
-        // { "PBR Materials", [](){ return std::make_unique<PBRScene>(); } }
     };
     selectedSceneIndex = 0;
-    sceneManager->setScene(
-        availableScenes[0].create(),
-        app->getD3D12()->getDevice()
-    );
+    sceneManager->setScene(availableScenes[0].create(), app->getD3D12()->getDevice());
 
-
-    log(
-        "[Editor] Active scene: RenderPipelineTestScene",
-        ImVec4(0.6f, 0.8f, 1.0f, 1.0f)
-    );
-
-
+    log("[Editor] Active scene: RenderPipelineTestScene", ImVec4(0.6f, 0.8f, 1.0f, 1.0f));
     log("[Editor] ModuleEditor initialized", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
 
     D3D12_QUERY_HEAP_DESC qDesc = {};
     qDesc.Count = 2;
     qDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
 
-    app->getD3D12()->getDevice()->CreateQueryHeap(
-        &qDesc,
-        IID_PPV_ARGS(&gpuQueryHeap)
-    );
+    app->getD3D12()->getDevice()->CreateQueryHeap(&qDesc, IID_PPV_ARGS(&gpuQueryHeap));
 
     D3D12_RESOURCE_DESC bufDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(UINT64) * 2);
 
     auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
 
-    app->getD3D12()->getDevice()->CreateCommittedResource(
-        &heapProps,
-        D3D12_HEAP_FLAG_NONE,
-        &bufDesc,
-        D3D12_RESOURCE_STATE_COPY_DEST,
-        nullptr,
-        IID_PPV_ARGS(&gpuReadbackBuffer)
-    );
+    app->getD3D12()->getDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&gpuReadbackBuffer));
 
     return true;
 }
@@ -112,6 +73,7 @@ bool ModuleEditor::cleanUp()
     imguiPass.reset();
     debugDrawPass.reset();
     viewportRT.reset();
+    sceneManager.reset();
 
     gpuQueryHeap.Reset();
     gpuReadbackBuffer.Reset();
@@ -129,48 +91,38 @@ void ModuleEditor::preRender()
         {
             d3d12->flush();
 
-            viewportRT->resize(
-                pendingViewportWidth,
-                pendingViewportHeight
-            );
+            viewportRT->resize(pendingViewportWidth, pendingViewportHeight);
 
             if (sceneManager)
             {
-                sceneManager->onViewportResized(
-                    pendingViewportWidth,
-                    pendingViewportHeight
-                );
+                sceneManager->onViewportResized(pendingViewportWidth, pendingViewportHeight);
             }
         }
-
         pendingViewportResize = false;
     }
 
     imguiPass->startFrame();
 
     if (sceneManager)
-    {
-        float deltaTime = app->getElapsedMilis() * 0.001f;
-        sceneManager->update(deltaTime);
-    }
+        sceneManager->update(app->getElapsedMilis() * 0.001f);
+
 
     updateFPS();
 
     drawDockspace();
     drawMenuBar();
 
-    if (showEditor)
-    {
-        drawEditorPanel();
-        drawExercises();
+    if (showViewport){
+        drawViewport();
+        drawViewportOverlay();
     }
 
-    drawViewport();
-    drawConsole();
-	drawPerformanceWindow();
-    drawViewportOverlay();
-    drawHierarchy();
-    drawInspector();
+    if (showHierarchy)   drawHierarchy();
+    if (showInspector)   drawInspector();
+    if (showConsole)     drawConsole();
+    if (showViewport)    drawViewport();
+    if (showPerformance) drawPerformanceWindow();
+    if (showExercises)   drawExercises();
 
     if (viewportRT && viewportSize.x > 0 && viewportSize.y > 0)
     {
@@ -195,15 +147,12 @@ void ModuleEditor::render()
 
     cmd->Reset(d3d12->getCommandAllocator(), nullptr);
 
-    cmd->EndQuery(gpuQueryHeap.Get(),
-        D3D12_QUERY_TYPE_TIMESTAMP,
-        0);
+    cmd->EndQuery(gpuQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
 
     ID3D12DescriptorHeap* heaps[] =
     {
         descriptors->getHeap()
     };
-
     cmd->SetDescriptorHeaps(1, heaps);
 
     if (viewportRT && viewportRT->isValid())
@@ -211,11 +160,7 @@ void ModuleEditor::render()
         renderViewportToTexture(cmd);
     }
 
-    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-        d3d12->getBackBuffer(),
-        D3D12_RESOURCE_STATE_PRESENT,
-        D3D12_RESOURCE_STATE_RENDER_TARGET
-    );
+    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     cmd->ResourceBarrier(1, &barrier);
 
@@ -228,26 +173,12 @@ void ModuleEditor::render()
 
     imguiPass->record(cmd);
 
-    barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-        d3d12->getBackBuffer(),
-        D3D12_RESOURCE_STATE_RENDER_TARGET,
-        D3D12_RESOURCE_STATE_PRESENT
-    );
-
+    barrier = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     cmd->ResourceBarrier(1, &barrier);
 
-    cmd->EndQuery(gpuQueryHeap.Get(),
-        D3D12_QUERY_TYPE_TIMESTAMP,
-        1);
+    cmd->EndQuery(gpuQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 1);
 
-    cmd->ResolveQueryData(
-        gpuQueryHeap.Get(),
-        D3D12_QUERY_TYPE_TIMESTAMP,
-        0,
-        2,
-        gpuReadbackBuffer.Get(),
-        0
-    );
+    cmd->ResolveQueryData(gpuQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 2, gpuReadbackBuffer.Get(), 0);
 
     cmd->Close();
 
@@ -265,14 +196,10 @@ void ModuleEditor::render()
         UINT64 end = data[1];
 
         UINT64 freq = 0;
-        app->getD3D12()->getDrawCommandQueue()
-            ->GetTimestampFrequency(&freq);
+        app->getD3D12()->getDrawCommandQueue()->GetTimestampFrequency(&freq);
 
-        gpuFrameTimeMs =
-            double(end - start) / double(freq) * 1000.0;
-
+        gpuFrameTimeMs =double(end - start) / double(freq) * 1000.0;
         gpuTimerReady = true;
-
         gpuReadbackBuffer->Unmap(0, nullptr);
     }
 
@@ -289,36 +216,20 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
         return;
 
     const Matrix& view = camera->getView();
-    Matrix proj = ModuleCamera::getPerspectiveProj(
-        float(width) / float(height)
-    );
+    Matrix proj = ModuleCamera::getPerspectiveProj(float(width) / float(height));
 
     viewportRT->beginRender(cmd);
 
     BEGIN_EVENT(cmd, "Editor Viewport Pass");
 
     if (sceneManager)
-    {
-        sceneManager->render(
-            cmd,
-            *camera,
-            width,
-            height
-        );
-    }
+        sceneManager->render(cmd, *camera, width, height);
 
-    debugDrawPass->record(
-        cmd,
-        width,
-        height,
-        view,
-        proj
-    );
+    debugDrawPass->record(cmd, width, height, view, proj);
 
     END_EVENT(cmd);
 
     viewportRT->endRender(cmd);
-
 }
 
 
