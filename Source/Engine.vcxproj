@@ -196,7 +196,7 @@
     <ClInclude Include="ModuleScene.h" />
     <ClInclude Include="ModuleShaderDescriptors.h" />
     <ClInclude Include="ModuleTextureSampler.h" />
-    <ClInclude Include="GraphicsSamplers.h" />
+    <ClInclude Include="ModuleSamplerHeap.h" />
     <ClInclude Include="MathUtils.h" />
     <ClInclude Include="ModuleCamera.h" />
     <ClInclude Include="ModuleD3D12.h" />
@@ -304,7 +304,7 @@
     <ClCompile Include="ModuleScene.cpp" />
     <ClCompile Include="ModuleShaderDescriptors.cpp" />
     <ClCompile Include="ModuleTextureSampler.cpp" />
-    <ClCompile Include="GraphicsSamplers.cpp" />
+    <ClCompile Include="ModuleSamplerHeap.cpp" />
     <ClCompile Include="MathUtils.cpp" />
     <ClCompile Include="ModuleCamera.cpp" />
     <ClCompile Include="ModuleD3D12.cpp" />

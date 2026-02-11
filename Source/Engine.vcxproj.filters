@@ -2,363 +2,446 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="3rdParty\imgui-docking\imgui.cpp">
-      <Filter>imgui</Filter>
+      <Filter>engine\ui\imgui</Filter>
     </ClCompile>
     <ClCompile Include="3rdParty\imgui-docking\imgui_demo.cpp">
-      <Filter>imgui</Filter>
+      <Filter>engine\ui\imgui</Filter>
     </ClCompile>
     <ClCompile Include="3rdParty\imgui-docking\imgui_draw.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="3rdParty\imgui-docking\backends\imgui_impl_dx12.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="3rdParty\imgui-docking\backends\imgui_impl_win32.cpp">
-      <Filter>imgui</Filter>
+      <Filter>engine\ui\imgui</Filter>
     </ClCompile>
     <ClCompile Include="3rdParty\imgui-docking\imgui_tables.cpp">
-      <Filter>imgui</Filter>
+      <Filter>engine\ui\imgui</Filter>
     </ClCompile>
     <ClCompile Include="3rdParty\imgui-docking\imgui_widgets.cpp">
-      <Filter>imgui</Filter>
+      <Filter>engine\ui\imgui</Filter>
     </ClCompile>
     <ClCompile Include="3rdParty\ImGuizmo\ImGuizmo.cpp">
-      <Filter>imgui</Filter>
+      <Filter>engine\ui\imgui</Filter>
     </ClCompile>
     <ClCompile Include="ImGuiPass.cpp">
-      <Filter>Passes</Filter>
+      <Filter>engine\graphics\passes</Filter>
     </ClCompile>
     <ClCompile Include="DebugDrawPass.cpp">
-      <Filter>Passes</Filter>
+      <Filter>engine\graphics\passes</Filter>
     </ClCompile>
-    <ClCompile Include="ModuleEditor.cpp" />
     <ClCompile Include="Application.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="GamePad.cpp">
-      <Filter>Core</Filter>
+      <Filter>engine\core</Filter>
     </ClCompile>
     <ClCompile Include="Globals.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="Keyboard.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="Mouse.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="SimpleMath.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="RenderTexture.cpp">
-      <Filter>Core</Filter>
+      <Filter>engine\core</Filter>
     </ClCompile>
     <ClCompile Include="PhoenixEngine.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="MathUtils.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="ModuleCamera.cpp">
-      <Filter>Modules</Filter>
-    </ClCompile>
-    <ClCompile Include="ModuleD3D12.cpp">
-      <Filter>Modules</Filter>
-    </ClCompile>
-    <ClCompile Include="ModuleInput.cpp">
-      <Filter>Modules</Filter>
-    </ClCompile>
-    <ClCompile Include="ModuleResources.cpp">
-      <Filter>Modules</Filter>
-    </ClCompile>
-    <ClCompile Include="ModuleRingBuffer.cpp">
-      <Filter>Modules</Filter>
-    </ClCompile>
-    <ClCompile Include="ModuleShaderDescriptors.cpp">
-      <Filter>Modules</Filter>
-    </ClCompile>
-    <ClCompile Include="ShaderTableDesc.cpp">
-      <Filter>Modules</Filter>
-    </ClCompile>
-    <ClCompile Include="Material.cpp">
-      <Filter>Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Mesh.cpp">
-      <Filter>Scene</Filter>
+      <Filter>engine\core</Filter>
     </ClCompile>
     <ClCompile Include="Model.cpp">
-      <Filter>Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="GraphicsSamplers.cpp">
-      <Filter>Modules</Filter>
-    </ClCompile>
-    <ClCompile Include="RenderTargetDesc.cpp">
-      <Filter>Modules</Filter>
-    </ClCompile>
-    <ClCompile Include="DepthStencilDesc.cpp">
-      <Filter>Modules</Filter>
+      <Filter>engine\graphics\scene</Filter>
     </ClCompile>
     <ClCompile Include="RenderPipelineTestScene.cpp" />
-    <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="BasicModelScene.cpp">
-      <Filter>Exercises</Filter>
+      <Filter>exercises</Filter>
     </ClCompile>
     <ClCompile Include="LightingDemo.cpp">
-      <Filter>Exercises</Filter>
+      <Filter>exercises</Filter>
     </ClCompile>
     <ClCompile Include="RenderToTextureDemo.cpp">
-      <Filter>Exercises</Filter>
+      <Filter>exercises</Filter>
     </ClCompile>
     <ClCompile Include="ViewportDemo.cpp">
-      <Filter>Exercises</Filter>
+      <Filter>exercises</Filter>
     </ClCompile>
     <ClCompile Include="ModuleTextureSampler.cpp">
-      <Filter>Exercises</Filter>
+      <Filter>exercises</Filter>
     </ClCompile>
-    <ClCompile Include="ModuleFileSystem.cpp" />
-    <ClCompile Include="ComponentTransform.cpp" />
-    <ClCompile Include="GameObject.cpp" />
-    <ClCompile Include="ModuleScene.cpp" />
-    <ClCompile Include="ComponentMesh.cpp" />
+    <ClCompile Include="GamePad.cpp">
+      <Filter>engine\input</Filter>
+    </ClCompile>
+    <ClCompile Include="Keyboard.cpp">
+      <Filter>engine\input</Filter>
+    </ClCompile>
+    <ClCompile Include="Mouse.cpp">
+      <Filter>engine\input</Filter>
+    </ClCompile>
+    <ClCompile Include="SimpleMath.cpp">
+      <Filter>engine\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="MathUtils.cpp">
+      <Filter>engine\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderTexture.cpp">
+      <Filter>engine\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderTargetDesc.cpp">
+      <Filter>engine\descriptors</Filter>
+    </ClCompile>
+    <ClCompile Include="ShaderTableDesc.cpp">
+      <Filter>engine\descriptors</Filter>
+    </ClCompile>
+    <ClCompile Include="DepthStencilDesc.cpp">
+      <Filter>engine\descriptors</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleD3D12.cpp">
+      <Filter>engine\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleShaderDescriptors.cpp">
+      <Filter>engine\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleResources.cpp">
+      <Filter>engine\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleInput.cpp">
+      <Filter>engine\input</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleCamera.cpp">
+      <Filter>engine\modules</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleSamplerHeap.cpp">
+      <Filter>engine\graphics\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleRingBuffer.cpp">
+      <Filter>engine\graphics\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdParty\imgui-docking\backends\imgui_impl_dx12.cpp">
+      <Filter>engine\ui\imgui\backends</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdParty\imgui-docking\backends\imgui_impl_win32.cpp">
+      <Filter>engine\ui\imgui\backends</Filter>
+    </ClCompile>
+    <ClCompile Include="Material.cpp">
+      <Filter>engine\graphics\materials</Filter>
+    </ClCompile>
+    <ClCompile Include="Mesh.cpp">
+      <Filter>engine\graphics\geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="GameObject.cpp">
+      <Filter>engine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentMesh.cpp">
+      <Filter>engine\scene\components</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentTransform.cpp">
+      <Filter>engine\scene\components</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleEditor.cpp">
+      <Filter>engine\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleScene.cpp">
+      <Filter>engine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneManager.cpp">
+      <Filter>engine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleFileSystem.cpp">
+      <Filter>engine\core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
     <ClInclude Include="3rdParty\imgui-docking\imgui.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="3rdParty\imgui-docking\backends\imgui_impl_dx12.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="3rdParty\imgui-1.89.8\backends\imgui_impl_win32.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="3rdParty\imgui-docking\backends\imgui_impl_win32.h">
-      <Filter>imgui</Filter>
+      <Filter>engine\ui\imgui</Filter>
     </ClInclude>
     <ClInclude Include="3rdParty\imgui-docking\imgui_internal.h">
-      <Filter>imgui</Filter>
+      <Filter>engine\ui\imgui</Filter>
     </ClInclude>
     <ClInclude Include="3rdParty\ImGuizmo\ImGuizmo.h">
-      <Filter>imgui</Filter>
+      <Filter>engine\ui\imgui</Filter>
     </ClInclude>
     <ClInclude Include="ImGuiPass.h">
-      <Filter>Passes</Filter>
+      <Filter>engine\graphics\passes</Filter>
     </ClInclude>
     <ClInclude Include="DebugDrawPass.h">
-      <Filter>Passes</Filter>
+      <Filter>engine\graphics\passes</Filter>
     </ClInclude>
     <ClInclude Include="framework.h">
-      <Filter>Win</Filter>
+      <Filter>win</Filter>
     </ClInclude>
     <ClInclude Include="targetver.h">
-      <Filter>Win</Filter>
+      <Filter>win</Filter>
     </ClInclude>
     <ClInclude Include="Resource.h">
-      <Filter>Win</Filter>
+      <Filter>win</Filter>
     </ClInclude>
-    <ClInclude Include="ModuleEditor.h" />
     <ClInclude Include="Application.h">
-      <Filter>Core</Filter>
+      <Filter>engine\core</Filter>
     </ClInclude>
     <ClInclude Include="Globals.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="GamePad.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="Keyboard.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="Mouse.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="SimpleMath.h">
-      <Filter>Core</Filter>
+      <Filter>engine\core</Filter>
     </ClInclude>
     <ClInclude Include="ReadData.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="RenderTexture.h">
-      <Filter>Core</Filter>
+      <Filter>engine\core</Filter>
     </ClInclude>
     <ClInclude Include="PhoenixEngine.h">
-      <Filter>Core</Filter>
+      <Filter>engine\core</Filter>
     </ClInclude>
     <ClInclude Include="PlatformHelpers.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="MathUtils.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="ModuleCamera.h">
-      <Filter>Modules</Filter>
-    </ClInclude>
-    <ClInclude Include="ModuleD3D12.h">
-      <Filter>Modules</Filter>
-    </ClInclude>
-    <ClInclude Include="ModuleInput.h">
-      <Filter>Modules</Filter>
-    </ClInclude>
-    <ClInclude Include="ModuleResources.h">
-      <Filter>Modules</Filter>
-    </ClInclude>
-    <ClInclude Include="ModuleRingBuffer.h">
-      <Filter>Modules</Filter>
-    </ClInclude>
-    <ClInclude Include="ModuleShaderDescriptors.h">
-      <Filter>Modules</Filter>
-    </ClInclude>
-    <ClInclude Include="ShaderTableDesc.h">
-      <Filter>Modules</Filter>
-    </ClInclude>
-    <ClInclude Include="Material.h">
-      <Filter>Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="Mesh.h">
-      <Filter>Scene</Filter>
+      <Filter>engine\core</Filter>
     </ClInclude>
     <ClInclude Include="Model.h">
-      <Filter>Scene</Filter>
+      <Filter>engine\graphics\scene</Filter>
     </ClInclude>
-    <ClInclude Include="Module.h">
-      <Filter>Modules</Filter>
-    </ClInclude>
-    <ClInclude Include="GraphicsSamplers.h">
-      <Filter>Modules</Filter>
-    </ClInclude>
-    <ClInclude Include="gltf_utils.h">
-      <Filter>Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="DescriptorBase.h">
-      <Filter>Modules</Filter>
-    </ClInclude>
-    <ClInclude Include="ModuleDescriptorsBase.h">
-      <Filter>Modules</Filter>
-    </ClInclude>
-    <ClInclude Include="RenderTargetDesc.h">
-      <Filter>Modules</Filter>
-    </ClInclude>
-    <ClInclude Include="DepthStencilDesc.h">
-      <Filter>Modules</Filter>
-    </ClInclude>
-    <ClInclude Include="ModuleRTDescriptors.h">
-      <Filter>Modules</Filter>
-    </ClInclude>
-    <ClInclude Include="ModuleDSDescriptors.h">
-      <Filter>Modules</Filter>
-    </ClInclude>
-    <ClInclude Include="HandleManager.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="IScene.h" />
     <ClInclude Include="RenderPipelineTestScene.h" />
-    <ClInclude Include="SceneManager.h" />
     <ClInclude Include="BasicModelScene.h">
-      <Filter>Exercises</Filter>
+      <Filter>exercises</Filter>
     </ClInclude>
     <ClInclude Include="LightingDemo.h">
-      <Filter>Exercises</Filter>
+      <Filter>exercises</Filter>
     </ClInclude>
     <ClInclude Include="RenderToTextureDemo.h">
-      <Filter>Exercises</Filter>
+      <Filter>exercises</Filter>
     </ClInclude>
     <ClInclude Include="ViewportDemo.h">
-      <Filter>Exercises</Filter>
+      <Filter>exercises</Filter>
     </ClInclude>
     <ClInclude Include="ModuleTextureSampler.h">
-      <Filter>Exercises</Filter>
+      <Filter>exercises</Filter>
     </ClInclude>
-    <ClInclude Include="ModuleFileSystem.h" />
-    <ClInclude Include="GameObject.h" />
-    <ClInclude Include="Component.h" />
-    <ClInclude Include="ComponentTransform.h" />
-    <ClInclude Include="ModuleScene.h" />
-    <ClInclude Include="ComponentMesh.h" />
+    <ClInclude Include="GamePad.h">
+      <Filter>engine\input</Filter>
+    </ClInclude>
+    <ClInclude Include="Keyboard.h">
+      <Filter>engine\input</Filter>
+    </ClInclude>
+    <ClInclude Include="Mouse.h">
+      <Filter>engine\input</Filter>
+    </ClInclude>
+    <ClInclude Include="SimpleMath.h">
+      <Filter>engine\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="MathUtils.h">
+      <Filter>engine\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderTexture.h">
+      <Filter>engine\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderTargetDesc.h">
+      <Filter>engine\descriptors</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderTableDesc.h">
+      <Filter>engine\descriptors</Filter>
+    </ClInclude>
+    <ClInclude Include="DepthStencilDesc.h">
+      <Filter>engine\descriptors</Filter>
+    </ClInclude>
+    <ClInclude Include="DescriptorBase.h">
+      <Filter>engine\descriptors</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleD3D12.h">
+      <Filter>engine\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleDescriptorsBase.h">
+      <Filter>engine\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleDSDescriptors.h">
+      <Filter>engine\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleRTDescriptors.h">
+      <Filter>engine\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleShaderDescriptors.h">
+      <Filter>engine\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleResources.h">
+      <Filter>engine\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleInput.h">
+      <Filter>engine\input</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleCamera.h">
+      <Filter>engine\modules</Filter>
+    </ClInclude>
+    <ClInclude Include="Module.h">
+      <Filter>engine\core</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleSamplerHeap.h">
+      <Filter>engine\graphics\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleRingBuffer.h">
+      <Filter>engine\graphics\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdParty\imgui-docking\backends\imgui_impl_dx12.h">
+      <Filter>engine\ui\imgui\backends</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdParty\imgui-1.89.8\backends\imgui_impl_win32.h">
+      <Filter>engine\ui\imgui\backends</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdParty\imgui-docking\backends\imgui_impl_win32.h">
+      <Filter>engine\ui\imgui\backends</Filter>
+    </ClInclude>
+    <ClInclude Include="gltf_utils.h">
+      <Filter>engine\assets\assets</Filter>
+    </ClInclude>
+    <ClInclude Include="Material.h">
+      <Filter>engine\graphics\materials</Filter>
+    </ClInclude>
+    <ClInclude Include="Mesh.h">
+      <Filter>engine\graphics\geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="Component.h">
+      <Filter>engine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="GameObject.h">
+      <Filter>engine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentTransform.h">
+      <Filter>engine\scene\components</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentMesh.h">
+      <Filter>engine\scene\components</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleEditor.h">
+      <Filter>engine\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="IScene.h">
+      <Filter>engine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleScene.h">
+      <Filter>engine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneManager.h">
+      <Filter>engine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleFileSystem.h">
+      <Filter>engine\core</Filter>
+    </ClInclude>
+    <ClInclude Include="HandleManager.h">
+      <Filter>engine\core\utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
-      <Filter>Win</Filter>
+      <Filter>win</Filter>
     </Image>
     <Image Include="Engine.ico">
-      <Filter>Win</Filter>
+      <Filter>win</Filter>
     </Image>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="SimpleMath.inl">
-      <Filter>Core</Filter>
-    </None>
     <None Include="LightingDemo.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>exercises\shaders</Filter>
     </None>
     <None Include="RenderToTextureDemo.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>exercises\shaders</Filter>
     </None>
     <None Include="ViewportDemo.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>exercises\shaders</Filter>
+    </None>
+    <None Include="SimpleMath.inl">
+      <Filter>engine\utils</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="imgui">
-      <UniqueIdentifier>{63f02602-225f-4f0a-9213-e082ed36c04d}</UniqueIdentifier>
+    <Filter Include="engine">
+      <UniqueIdentifier>{b254d8d0-ba83-4c53-b520-22b621f40ad6}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Passes">
-      <UniqueIdentifier>{cfd145a4-246d-4cf4-82a9-d9bc929bbf9c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Win">
-      <UniqueIdentifier>{ef73e4b0-04e2-49c1-a096-c5dba20c0af1}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Shaders">
-      <UniqueIdentifier>{06295b1e-4250-4577-a3ee-f1f32904bf6e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Core">
+    <Filter Include="engine\core">
       <UniqueIdentifier>{1130b643-056d-4340-9405-a93cdd1ca373}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Modules">
-      <UniqueIdentifier>{3aa5def9-7c3f-44f5-bcc1-3b1be653f93b}</UniqueIdentifier>
+    <Filter Include="engine\input">
+      <UniqueIdentifier>{e94ffb33-3bac-41a9-9424-bff1697e8b00}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Scene">
+    <Filter Include="engine\graphics">
+      <UniqueIdentifier>{db6767ae-6d57-4833-9968-69e014b874e4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\utils">
+      <UniqueIdentifier>{1571de28-eb99-4b78-a2fd-1eb234b3be61}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\descriptors">
+      <UniqueIdentifier>{c8a1abe8-b4c1-4d0c-93d0-7d41409779b1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\d3d12">
+      <UniqueIdentifier>{b4c39943-5606-4bc2-b9c8-183df5f81c71}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\modules">
+      <UniqueIdentifier>{f852dab9-2b89-4d15-98ef-b942676493b1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\graphics\d3d12">
+      <UniqueIdentifier>{7c6813fd-c4ee-48f3-9fb6-cfd14ac84964}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\ui">
+      <UniqueIdentifier>{e6404642-2af1-4009-83aa-c49e7f3601b7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\ui\imgui">
+      <UniqueIdentifier>{63f02602-225f-4f0a-9213-e082ed36c04d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\ui\imgui\backends">
+      <UniqueIdentifier>{dc6caaf3-8679-4ed8-bff9-f6e2c612bf5a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="exercises">
+      <UniqueIdentifier>{a7244081-a8d6-4fbf-901f-3d6276011f94}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\graphics\passes">
+      <UniqueIdentifier>{cfd145a4-246d-4cf4-82a9-d9bc929bbf9c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\assets">
+      <UniqueIdentifier>{81fcc77b-a85f-47ff-b977-0f2ec5c5eba8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\assets\assets">
+      <UniqueIdentifier>{9a0d9602-0bac-40fa-9682-7b0abe58d771}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\graphics\materials">
+      <UniqueIdentifier>{d7539963-aa59-4373-9b82-2898cf1de558}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\graphics\geometry">
+      <UniqueIdentifier>{7736e186-0fc0-47d1-8893-105d83fd331d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\graphics\scene">
       <UniqueIdentifier>{fc504caf-36f5-43da-9895-257d07c4173d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Exercises">
-      <UniqueIdentifier>{a7244081-a8d6-4fbf-901f-3d6276011f94}</UniqueIdentifier>
+    <Filter Include="engine\scene">
+      <UniqueIdentifier>{7ef8a48e-ca33-4fbf-b1e0-8e6e3cb69ac0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\scene\components">
+      <UniqueIdentifier>{d05fa394-18ec-4acc-88ed-a160a37c61ff}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="win">
+      <UniqueIdentifier>{ef73e4b0-04e2-49c1-a096-c5dba20c0af1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\editor">
+      <UniqueIdentifier>{2cef77e4-b439-43cd-8e0a-86f01d317eae}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="exercises\shaders">
+      <UniqueIdentifier>{06295b1e-4250-4577-a3ee-f1f32904bf6e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\core\utils">
+      <UniqueIdentifier>{c75a7c56-98a7-4b34-b412-2efac88d181f}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Engine.rc">
-      <Filter>Win</Filter>
+      <Filter>win</Filter>
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="TextureSamplerPS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>exercises\shaders</Filter>
     </FxCompile>
     <FxCompile Include="TextureSamplerVS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>exercises\shaders</Filter>
     </FxCompile>
     <FxCompile Include="BasicModelScenePS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>exercises\shaders</Filter>
     </FxCompile>
     <FxCompile Include="BasicModelSceneVS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>exercises\shaders</Filter>
     </FxCompile>
     <FxCompile Include="LightingDemoPS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>exercises\shaders</Filter>
     </FxCompile>
     <FxCompile Include="LightingDemoVS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>exercises\shaders</Filter>
     </FxCompile>
     <FxCompile Include="RenderToTextureDemoVS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>exercises\shaders</Filter>
     </FxCompile>
     <FxCompile Include="RenderToTextureDemoPS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>exercises\shaders</Filter>
     </FxCompile>
     <FxCompile Include="ViewportDemoVS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>exercises\shaders</Filter>
     </FxCompile>
     <FxCompile Include="ViewportDemoPS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>exercises\shaders</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>
