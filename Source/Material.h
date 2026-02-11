@@ -3,11 +3,16 @@
 #include "Globals.h"
 #include "ShaderTableDesc.h"
 #include <string>
-#include <vector>
 #include <wrl/client.h>
 #include "UID.h"
 
 using Microsoft::WRL::ComPtr;
+
+namespace tinygltf
+{
+    class Model;
+    struct Material;
+}
 
 struct PBRPhongMaterialData
 {
@@ -27,37 +32,50 @@ class Material
 public:
     struct Data
     {
-        XMFLOAT4 baseColour = { 1,1,1,1 };
+        XMFLOAT4 baseColour = { 1.0f, 1.0f, 1.0f, 1.0f };
         BOOL hasColourTexture = FALSE;
-        float padding[11] = {};
+        float padding[11] = {}; 
     };
 
-public:
-    Material();
-    ~Material() = default;
+    // Calculate size manually: both should be 48 bytes
+    // PBRPhongMaterialData: XMFLOAT3(12) + BOOL(4) + XMFLOAT3(12) + float(4) + float(4) + float(4) + float(8) = 48
+    // Data: XMFLOAT4(16) + BOOL(4) + float[11](44) = 64
 
-    // ?? Phase 4 runtime loading
-    bool loadFromBinary(const char* path);
+    // Actually, let's make them both 64 bytes for D3D12 alignment
+    // static_assert(sizeof(Data) == sizeof(PBRPhongMaterialData), 
+    //               "Data and PBRPhongMaterialData must have same size for compatibility");
+
+public:
+    Material() = default;
+
+    bool load(const tinygltf::Material& gltfMaterial, const tinygltf::Model& model, const char* basePath);
+
+    bool loadPBRPhong(const tinygltf::Material& gltfMaterial, const tinygltf::Model& model, const char* basePath);
 
     const Data& getData() const { return m_data; }
     const PBRPhongMaterialData& getPBRPhongData() const { return m_pbrData; }
 
+    const ComPtr<ID3D12Resource>& getTexture() const { return m_texture; }
+    const char* getName() const { return m_name.c_str(); }
     bool hasTexture() const { return m_hasTexture; }
+
+    void setPBRPhongData(const PBRPhongMaterialData& data);
+
     D3D12_GPU_DESCRIPTOR_HANDLE getTextureGPUHandle() const;
     const ShaderTableDesc& getDescriptorTable() const { return m_descriptorTable; }
 
     UID GetUID() const { return uid; }
 
 private:
+    bool loadTextureFromGltf(const tinygltf::Model& model, int textureIndex, const char* basePath);
     void createNullDescriptor();
 
-private:
     Data m_data;
     PBRPhongMaterialData m_pbrData;
-
     ComPtr<ID3D12Resource> m_texture;
+    std::string m_name;
     ShaderTableDesc m_descriptorTable;
-
     bool m_hasTexture = false;
+
     UID uid;
 };
