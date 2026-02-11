@@ -1,8 +1,10 @@
+#include "Globals.h"
 #include "StaticModel.h"
 #include "MeshImporter.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
 
+#include "tiny_gltf.h"
 #include <filesystem>
 
 bool StaticModel::load(const char* fileName)

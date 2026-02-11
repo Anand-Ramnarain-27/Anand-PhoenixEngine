@@ -1,3 +1,4 @@
+#include "Globals.h"
 #include "MeshImporter.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
