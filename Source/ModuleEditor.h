@@ -109,7 +109,6 @@ private:
     void drawViewport();
     void drawPerformanceWindow();
     void drawExercises();
-    void drawEditorPanel();
 
     // Rendering
     void renderViewportToTexture(ID3D12GraphicsCommandList* cmd);

@@ -120,11 +120,10 @@ void ModuleEditor::preRender()
     if (showHierarchy)   drawHierarchy();
     if (showInspector)   drawInspector();
     if (showConsole)     drawConsole();
-    if (showViewport)    drawViewport();
     if (showPerformance) drawPerformanceWindow();
     if (showExercises)   drawExercises();
 
-    if (viewportRT && viewportSize.x > 0 && viewportSize.y > 0)
+    if (viewportRT && viewportSize.x > 4 && viewportSize.y > 4)
     {
         if (viewportSize.x != lastViewportSize.x ||
             viewportSize.y != lastViewportSize.y)
@@ -132,7 +131,6 @@ void ModuleEditor::preRender()
             pendingViewportResize = true;
             pendingViewportWidth = (UINT)viewportSize.x;
             pendingViewportHeight = (UINT)viewportSize.y;
-
             lastViewportSize = viewportSize;
         }
     }
@@ -282,121 +280,130 @@ void ModuleEditor::drawDockspace()
         firstFrame = false;
 
         ImGui::DockBuilderRemoveNode(dockID);
-        ImGui::DockBuilderAddNode(
-            dockID,
-            ImGuiDockNodeFlags_DockSpace | ImGuiDockNodeFlags_PassthruCentralNode
-        );
+        ImGui::DockBuilderAddNode(dockID, ImGuiDockNodeFlags_DockSpace | ImGuiDockNodeFlags_PassthruCentralNode);
 
         ImGui::DockBuilderSetNodeSize(dockID, ImGui::GetMainViewport()->Size);
 
-        ImGuiID dockLeft;
-        ImGuiID dockMain;
-        ImGuiID dockBottom;
+        ImGuiID left, right, bottom, center, rightTop, rightBottom;
 
-        ImGui::DockBuilderSplitNode(
-            dockID,
-            ImGuiDir_Left,
-            0.22f,
-            &dockLeft,
-            &dockMain
-        );
+        ImGui::DockBuilderSplitNode(dockID, ImGuiDir_Left, 0.2f, &left, &right);
 
-        ImGui::DockBuilderSplitNode(
-            dockMain,
-            ImGuiDir_Down,
-            0.28f,
-            &dockBottom,
-            &dockMain
-        );
+        ImGui::DockBuilderSplitNode(right, ImGuiDir_Down, 0.25f, &bottom, &right);
 
-        ImGui::DockBuilderDockWindow("Editor", dockLeft);
-        ImGui::DockBuilderDockWindow("Exercises", dockLeft);
+        ImGui::DockBuilderSplitNode(right, ImGuiDir_Right, 0.3f, &rightTop, &center);
 
-        ImGui::DockBuilderDockWindow("Viewport", dockMain);
+        ImGui::DockBuilderSplitNode(bottom, ImGuiDir_Right, 0.3f, &rightBottom, &bottom);
 
-        ImGui::DockBuilderDockWindow("Console", dockBottom);
-        ImGui::DockBuilderDockWindow("FPS / Performance", dockBottom);
+        ImGui::DockBuilderDockWindow("Hierarchy", left);
+        ImGui::DockBuilderDockWindow("Inspector", rightTop);  
+        ImGui::DockBuilderDockWindow("Viewport", center);  
+        ImGui::DockBuilderDockWindow("Console", bottom);  
+        ImGui::DockBuilderDockWindow("Performance", bottom);  
+        ImGui::DockBuilderDockWindow("Exercises", left);  
 
         ImGui::DockBuilderFinish(dockID);
     }
-
-
 
     ImGui::End();
 }
 
 void ModuleEditor::drawMenuBar()
 {
-    if (ImGui::BeginMainMenuBar())
+    if (!ImGui::BeginMainMenuBar())
+        return;
+
+    if (ImGui::BeginMenu("File"))
     {
-        if (ImGui::BeginMenu("File"))
+        if (ImGui::MenuItem("Exit"))
         {
-            if (ImGui::MenuItem("Exit"))
-            {
-                //app->quit();
-            }
-
-            ImGui::EndMenu();
+            //app->quit();
         }
 
-        if (ImGui::BeginMenu("View"))
-        {
-            ImGui::MenuItem("Show Editor", nullptr, &showEditor);
-            ImGui::MenuItem("Show FPS", nullptr, &showPerformance);
-
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Scene"))
-        {
-            bool playing = sceneManager->isPlaying();
-
-            if (ImGui::MenuItem("Play", nullptr, false, !playing))
-                sceneManager->play();
-
-            if (ImGui::MenuItem("Pause", nullptr, false, playing))
-                sceneManager->pause();
-
-            if (ImGui::MenuItem("Stop"))
-                sceneManager->stop();
-
-            ImGui::EndMenu();
-        }
-
-
-
-        if (ImGui::BeginMenu("Help"))
-        {
-            ImGui::Text("Phoenix Editor");
-            ImGui::EndMenu();
-        }
-
-        ImGui::EndMainMenuBar();
+        ImGui::EndMenu();
     }
+
+    if (ImGui::BeginMenu("View"))
+    {
+        ImGui::MenuItem("Hierarchy", nullptr, &showHierarchy);
+        ImGui::MenuItem("Inspector", nullptr, &showInspector);
+        ImGui::MenuItem("Console", nullptr, &showConsole);
+        ImGui::MenuItem("Viewport", nullptr, &showViewport);
+        ImGui::MenuItem("Performance", nullptr, &showPerformance);
+        ImGui::MenuItem("Exercises", nullptr, &showExercises);
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Scene"))
+    {
+        if (ImGui::MenuItem("Play"))  sceneManager->play();
+        if (ImGui::MenuItem("Pause")) sceneManager->pause();
+        if (ImGui::MenuItem("Stop"))  sceneManager->stop();
+        ImGui::EndMenu();
+    }
+    ImGui::EndMainMenuBar();
 }
 
-void ModuleEditor::drawEditorPanel()
+void ModuleEditor::drawHierarchy()
 {
-    ImGui::Begin("Editor");
+    ImGui::Begin("Hierarchy", &showHierarchy);
 
-    ImGui::Text("Editor Tools");
+    if (!sceneManager) { ImGui::End(); return; }
 
-    ImGui::Separator();
+    IScene* active = sceneManager->getActiveScene();
+    if (!active) { ImGui::End(); return; }
 
-    ImGui::Checkbox("Show Editor", &showEditor);
+    ModuleScene* scene = active->getModuleScene();
+    if (!scene) { ImGui::End(); return; }
 
-    ImGui::Separator();
-
-    ImGui::Text("Transform");
-    ImGui::Text("Lighting");
-    ImGui::Text("Materials");
-
-    ImGui::Separator();
-
-    ImGui::Text("Status");
-    ImGui::Text("FPS: %.1f", app->getFPS());
+    drawHierarchyNode(scene->getRoot());
 
     ImGui::End();
+}
+
+void ModuleEditor::drawHierarchyNode(GameObject* go)
+{
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+
+    if (go == selectedGameObject)
+        flags |= ImGuiTreeNodeFlags_Selected;
+
+    if (go->getChildren().empty())
+        flags |= ImGuiTreeNodeFlags_Leaf;
+
+    bool opened = ImGui::TreeNodeEx((void*)go, flags, go->getName().c_str());
+
+    if (ImGui::IsItemClicked())
+        selectedGameObject = go;
+
+    if (ImGui::BeginDragDropSource())
+    {
+        ImGui::SetDragDropPayload("GAMEOBJECT", &go, sizeof(GameObject*));
+
+        ImGui::Text("Move %s", go->getName().c_str());
+        ImGui::EndDragDropSource();
+    }
+
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload =
+            ImGui::AcceptDragDropPayload("GAMEOBJECT"))
+        {
+            GameObject* dropped = *(GameObject**)payload->Data;
+
+            if (dropped != go)
+                dropped->setParent(go);
+        }
+
+        ImGui::EndDragDropTarget();
+    }
+
+    if (opened)
+    {
+        for (auto* child : go->getChildren())
+            drawHierarchyNode(child);
+
+        ImGui::TreePop();
+    }
 }
 
 void ModuleEditor::drawExercises()
@@ -416,16 +423,9 @@ void ModuleEditor::drawExercises()
             {
                 selectedSceneIndex = i;
 
-                sceneManager->setScene(
-                    availableScenes[i].create(),
-                    app->getD3D12()->getDevice()
-                );
+                sceneManager->setScene(availableScenes[i].create(), app->getD3D12()->getDevice());
 
-                log(
-                    ("Switched to scene: " +
-                        std::string(availableScenes[i].name)).c_str(),
-                    ImVec4(0.6f, 0.8f, 1.0f, 1.0f)
-                );
+                log(("Switched to scene: " + std::string(availableScenes[i].name)).c_str(), ImVec4(0.6f, 0.8f, 1.0f, 1.0f));
             }
         }
     }
@@ -434,10 +434,7 @@ void ModuleEditor::drawExercises()
 
     if (selectedSceneIndex >= 0)
     {
-        ImGui::Text(
-            "Active: %s",
-            availableScenes[selectedSceneIndex].name
-        );
+        ImGui::Text("Active: %s", availableScenes[selectedSceneIndex].name);
     }
 
     ImGui::End();
@@ -452,125 +449,33 @@ void ModuleEditor::drawViewport()
     ImVec2 size = ImGui::GetContentRegionAvail();
 
     viewportPos = min;
-    viewportSize = size;
-
-    ImVec2 cursorPos = ImGui::GetCursorScreenPos();
+    viewportSize = size; 
 
     ImGuiID frameID = ImGui::GetID("EditorViewportFrame");
-    ImGui::BeginChildFrame(
-        frameID,
-        viewportSize,
-        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse
-    );
+    ImGui::BeginChildFrame(frameID, viewportSize, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
-    if (pendingViewportResize || !viewportRT || !viewportRT->isValid())
+    if (viewportRT && viewportRT->isValid() && !pendingViewportResize)
     {
-        ImGui::TextDisabled("Resizing viewport...");
+        ImGui::Image((ImTextureID)viewportRT->getSrvHandle().ptr, viewportSize);
     }
     else
     {
-        ImGui::Image(
-            (ImTextureID)viewportRT->getSrvHandle().ptr,
-            viewportSize
-        );
+        if (pendingViewportResize)
+            ImGui::TextDisabled("Resizing viewport to %dx%d...",
+                (int)viewportSize.x, (int)viewportSize.y);
+        else if (!viewportRT)
+            ImGui::TextDisabled("Viewport render texture not initialized");
+        else if (!viewportRT->isValid())
+            ImGui::TextDisabled("Viewport render texture invalid");
     }
 
     ImGui::EndChildFrame();
     ImGui::End();
 }
 
-void ModuleEditor::drawHierarchy()
-{
-    ImGui::Begin("Hierarchy");
-
-    if (!sceneManager)
-    {
-        ImGui::End();
-        return;
-    }
-
-    IScene* active = sceneManager->getActiveScene();
-    if (!active)
-    {
-        ImGui::End();
-        return;
-    }
-
-    ModuleScene* scene = active->getModuleScene();
-    if (!scene)
-    {
-        ImGui::End();
-        return;
-    }
-
-    drawHierarchyNode(scene->getRoot());
-
-    ImGui::End();
-}
-
-void ModuleEditor::drawHierarchyNode(GameObject* go)
-{
-    ImGuiTreeNodeFlags flags =
-        ImGuiTreeNodeFlags_OpenOnArrow |
-        ImGuiTreeNodeFlags_SpanAvailWidth;
-
-    if (go == selectedGameObject)
-        flags |= ImGuiTreeNodeFlags_Selected;
-
-    if (go->getChildren().empty())
-        flags |= ImGuiTreeNodeFlags_Leaf;
-
-    bool opened = ImGui::TreeNodeEx(
-        (void*)go,
-        flags,
-        go->getName().c_str()
-    );
-
-    // Selection
-    if (ImGui::IsItemClicked())
-        selectedGameObject = go;
-
-    // Drag source
-    if (ImGui::BeginDragDropSource())
-    {
-        ImGui::SetDragDropPayload(
-            "GAMEOBJECT",
-            &go,
-            sizeof(GameObject*)
-        );
-
-        ImGui::Text("Move %s", go->getName().c_str());
-        ImGui::EndDragDropSource();
-    }
-
-    // Drop target
-    if (ImGui::BeginDragDropTarget())
-    {
-        if (const ImGuiPayload* payload =
-            ImGui::AcceptDragDropPayload("GAMEOBJECT"))
-        {
-            GameObject* dropped =
-                *(GameObject**)payload->Data;
-
-            if (dropped != go)
-                dropped->setParent(go);
-        }
-
-        ImGui::EndDragDropTarget();
-    }
-
-    if (opened)
-    {
-        for (auto* child : go->getChildren())
-            drawHierarchyNode(child);
-
-        ImGui::TreePop();
-    }
-}
-
 void ModuleEditor::drawInspector()
 {
-    ImGui::Begin("Inspector");
+    ImGui::Begin("Inspector", &showInspector);
 
     if (!selectedGameObject)
     {
@@ -579,63 +484,33 @@ void ModuleEditor::drawInspector()
         return;
     }
 
-    // ---- Name ----
     char buffer[256];
     strcpy_s(buffer, selectedGameObject->getName().c_str());
 
     if (ImGui::InputText("Name", buffer, 256))
-    {
-        // You need to add setName() in GameObject
         selectedGameObject->setName(buffer);
-    }
 
-    ImGui::Separator();
-
-    // ---- Transform ----
     if (ComponentTransform* t = selectedGameObject->getTransform())
     {
-        if (ImGui::CollapsingHeader("Transform",
-            ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            if (ImGui::DragFloat3(
-                "Position",
-                &t->position.x,
-                0.1f))
-            {
+            if (ImGui::DragFloat3("Position", &t->position.x, 0.1f))
                 t->markDirty();
-            }
 
-            if (ImGui::DragFloat3(
-                "Scale",
-                &t->scale.x,
-                0.1f))
-            {
+            if (ImGui::DragFloat3("Scale", &t->scale.x, 0.1f))
                 t->markDirty();
-            }
 
-            Vector3 euler =
-                t->rotation.ToEuler();
+            Vector3 euler = t->rotation.ToEuler();
 
-            if (ImGui::DragFloat3(
-                "Rotation",
-                &euler.x,
-                0.1f))
+            if (ImGui::DragFloat3("Rotation", &euler.x, 0.1f))
             {
-                t->rotation =
-                    Quaternion::CreateFromYawPitchRoll(
-                        euler.y,
-                        euler.x,
-                        euler.z
-                    );
-
+                t->rotation = Quaternion::CreateFromYawPitchRoll(euler.y, euler.x, euler.z);
                 t->markDirty();
             }
         }
     }
-
     ImGui::End();
 }
-
 
 void ModuleEditor::drawConsole()
 {
@@ -709,16 +584,7 @@ void ModuleEditor::drawPerformanceWindow()
     if (maxFPS < 60.0f)
         maxFPS = 60.0f;
 
-    ImGui::PlotLines(
-        "##FPSGraph",
-        ordered,
-        FPS_HISTORY,
-        0,
-        nullptr,
-        0.0f,
-        maxFPS * 1.1f,
-        ImVec2(0, 120)
-    );
+    ImGui::PlotLines("##FPSGraph", ordered, FPS_HISTORY, 0, nullptr, 0.0f, maxFPS * 1.1f, ImVec2(0, 120));
 
     ImGui::End();
 }
@@ -745,11 +611,7 @@ void ModuleEditor::updateMemory()
         {
             DXGI_QUERY_VIDEO_MEMORY_INFO info = {};
 
-            adapter3->QueryVideoMemoryInfo(
-                0,
-                DXGI_MEMORY_SEGMENT_GROUP_LOCAL,
-                &info
-            );
+            adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info);
 
             gpuMemoryMB = info.CurrentUsage / (1024 * 1024);
         }
@@ -780,16 +642,7 @@ void ModuleEditor::drawViewportOverlay()
 
     char buf[128];
 
-    sprintf_s(buf,
-        "FPS: %.1f | CPU: %.2f ms | GPU: %.2f ms",
-        app->getFPS(),
-        app->getAvgElapsedMs(),
-        gpuFrameTimeMs
-    );
+    sprintf_s(buf, "FPS: %.1f | CPU: %.2f ms | GPU: %.2f ms", app->getFPS(), app->getAvgElapsedMs(), gpuFrameTimeMs);
 
-    draw->AddText(
-        pos,
-        IM_COL32(0, 255, 0, 255),
-        buf
-    );
+    draw->AddText(pos, IM_COL32(0, 255, 0, 255),buf);
 }
