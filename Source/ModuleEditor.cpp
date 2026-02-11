@@ -1,24 +1,18 @@
 ﻿#include "Globals.h"
 #include "ModuleEditor.h"
-
 #include "Application.h"
 #include "ModuleD3D12.h"
 #include "ModuleShaderDescriptors.h"
-#include "ModuleCamera.h"  
 #include "ModuleDSDescriptors.h"
 #include "ModuleRTDescriptors.h"
+#include "RenderTexture.h"
+#include "DebugDrawPass.h"
+#include "ImGuiPass.h"
 #include "RenderPipelineTestScene.h"
 #include "ModuleScene.h"
 #include "GameObject.h"
 #include "ComponentTransform.h"
-#include "SceneManager.h"
-#include "IScene.h"
-
-
-#include "ImGuiPass.h"
-#include <imgui.h>
-#include "backends/imgui_impl_dx12.h"
-#include "backends/imgui_impl_win32.h"
+#include "ModuleCamera.h"
 
 #include <d3dx12.h>
 ModuleEditor::ModuleEditor()
@@ -168,12 +162,12 @@ void ModuleEditor::preRender()
     if (showEditor)
     {
         drawEditorPanel();
-        drawExerciseList();
+        drawExercises();
     }
 
     drawViewport();
     drawConsole();
-    drawFPSWindow();
+	drawPerformanceWindow();
     drawViewportOverlay();
     drawHierarchy();
     drawInspector();
@@ -437,7 +431,7 @@ void ModuleEditor::drawMenuBar()
         if (ImGui::BeginMenu("View"))
         {
             ImGui::MenuItem("Show Editor", nullptr, &showEditor);
-            ImGui::MenuItem("Show FPS", nullptr, &showFPSWindow);
+            ImGui::MenuItem("Show FPS", nullptr, &showPerformance);
 
             ImGui::EndMenu();
         }
@@ -494,7 +488,7 @@ void ModuleEditor::drawEditorPanel()
     ImGui::End();
 }
 
-void ModuleEditor::drawExerciseList()
+void ModuleEditor::drawExercises()
 {
     ImGui::Begin("Exercises");
 
@@ -765,12 +759,12 @@ void ModuleEditor::drawConsole()
     ImGui::End();
 }
 
-void ModuleEditor::drawFPSWindow()
+void ModuleEditor::drawPerformanceWindow()
 {
-    if (!showFPSWindow)
+    if (!showPerformance)
         return;
 
-    ImGui::Begin("FPS / Performance", &showFPSWindow);
+    ImGui::Begin("FPS / Performance", &showPerformance);
 
     ImGui::Text("Performance");
     ImGui::Separator();

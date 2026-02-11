@@ -1,18 +1,20 @@
 #pragma once
 
 #include "Module.h"
-#include "ImGuiPass.h"
-#include "ShaderTableDesc.h"
-#include "RenderTexture.h"
-#include "DebugDrawPass.h"
 #include "SceneManager.h"
+#include "ShaderTableDesc.h"
 
 #include <memory>
-#include <imgui.h>
+#include <vector>
 #include <functional>
+#include <imgui.h>
 
-class ModuleCamera;
+class ImGuiPass;
+class RenderTexture;
+class DebugDrawPass;
 class GameObject;
+class IScene;
+class ModuleCamera;
 
 struct SceneEntry
 {
@@ -32,6 +34,42 @@ public:
     void render() override;
 
 private:
+    // Core systems
+    std::unique_ptr<ImGuiPass> imguiPass;
+    std::unique_ptr<RenderTexture> viewportRT;
+    std::unique_ptr<DebugDrawPass> debugDrawPass;
+    std::unique_ptr<SceneManager> sceneManager;
+
+    ShaderTableDesc descTable;
+
+    // Scene selection
+    std::vector<SceneEntry> availableScenes;
+    int selectedSceneIndex = -1;
+
+    // Selection
+    GameObject* selectedGameObject = nullptr;
+
+    // Window toggles
+    bool showHierarchy = true;
+    bool showInspector = true;
+    bool showConsole = true;
+    bool showViewport = true;
+    bool showPerformance = false;
+    bool showExercises = true;
+    bool showEditor = true;
+
+    // Docking
+    bool firstFrame = true;
+
+    // Viewport
+    ImVec2 viewportSize = { 0,0 };
+    ImVec2 viewportPos = { 0,0 };
+    ImVec2 lastViewportSize = { 0,0 };
+    bool pendingViewportResize = false;
+    UINT pendingViewportWidth = 0;
+    UINT pendingViewportHeight = 0;
+
+    // Console
     struct ConsoleEntry
     {
         std::string text;
@@ -40,22 +78,7 @@ private:
     std::vector<ConsoleEntry> console;
     bool autoScrollConsole = true;
 
-    std::unique_ptr<ImGuiPass> imguiPass;
-    ShaderTableDesc descTable;
-
-    bool showEditor = true;
-    bool firstFrame = true;
-
-    ImVec2 viewportSize = { 0,0 };
-    ImVec2 viewportPos = { 0,0 };
-    ImVec2 lastViewportSize = { 0, 0 };
-
-    bool pendingViewportResize = false;
-    UINT pendingViewportWidth = 0;
-    UINT pendingViewportHeight = 0;
-
-    bool showFPSWindow = false;
-
+    // FPS
     static constexpr int FPS_HISTORY = 200;
     float fpsHistory[FPS_HISTORY] = {};
     int fpsIndex = 0;
@@ -71,40 +94,29 @@ private:
     uint64_t gpuMemoryMB = 0;
     uint64_t systemMemoryMB = 0;
 
-    std::unique_ptr<RenderTexture> viewportRT;
-    std::unique_ptr<DebugDrawPass> debugDrawPass;
-
     bool showGrid = true;
     bool showAxis = true;
-
-    std::unique_ptr<SceneManager> sceneManager;
-
-    std::vector<SceneEntry> availableScenes;
-    int selectedSceneIndex = -1;
 private:
-    void drawMenuBar();
+    // Layout
     void drawDockspace();
-    void drawEditorPanel();
-    void drawExerciseList();
-    void drawViewport();
+    void drawMenuBar();
 
-    void log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
-    void drawConsole();
-
-    void updateFPS();
-    void drawFPSWindow();
-
-    void updateMemory();
-
-    void drawCameraStats();
-
-    void renderViewportToTexture(ID3D12GraphicsCommandList* cmd);
-    void drawViewportOverlay();
-
-    GameObject* selectedGameObject = nullptr;
-
+    // Windows
     void drawHierarchy();
     void drawHierarchyNode(GameObject* go);
     void drawInspector();
+    void drawConsole();
+    void drawViewport();
+    void drawPerformanceWindow();
+    void drawExercises();
+    void drawEditorPanel();
 
+    // Rendering
+    void renderViewportToTexture(ID3D12GraphicsCommandList* cmd);
+    void drawViewportOverlay();
+
+    // Helpers
+    void updateFPS();
+    void updateMemory();
+    void log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
 };
