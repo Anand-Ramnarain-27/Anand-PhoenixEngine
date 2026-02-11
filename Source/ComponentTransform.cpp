@@ -10,6 +10,12 @@ ComponentTransform::ComponentTransform(GameObject* owner)
 void ComponentTransform::markDirty()
 {
     dirty = true;
+
+    for (auto* child : owner->getChildren())
+    {
+        if (child->getTransform())
+            child->getTransform()->markDirty();
+    }
 }
 
 void ComponentTransform::rebuildLocal()

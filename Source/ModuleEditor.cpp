@@ -8,6 +8,12 @@
 #include "ModuleDSDescriptors.h"
 #include "ModuleRTDescriptors.h"
 #include "RenderPipelineTestScene.h"
+#include "ModuleScene.h"
+#include "GameObject.h"
+#include "ComponentTransform.h"
+#include "SceneManager.h"
+#include "IScene.h"
+
 
 #include "ImGuiPass.h"
 #include <imgui.h>
@@ -169,6 +175,8 @@ void ModuleEditor::preRender()
     drawConsole();
     drawFPSWindow();
     drawViewportOverlay();
+    drawHierarchy();
+    drawInspector();
 
     if (viewportRT && viewportSize.x > 0 && viewportSize.y > 0)
     {
@@ -383,7 +391,7 @@ void ModuleEditor::drawDockspace()
         ImGui::DockBuilderSplitNode(
             dockID,
             ImGuiDir_Left,
-            0.22f,      
+            0.22f,
             &dockLeft,
             &dockMain
         );
@@ -391,7 +399,7 @@ void ModuleEditor::drawDockspace()
         ImGui::DockBuilderSplitNode(
             dockMain,
             ImGuiDir_Down,
-            0.28f,        
+            0.28f,
             &dockBottom,
             &dockMain
         );
@@ -566,6 +574,163 @@ void ModuleEditor::drawViewport()
     ImGui::End();
 }
 
+void ModuleEditor::drawHierarchy()
+{
+    ImGui::Begin("Hierarchy");
+
+    if (!sceneManager)
+    {
+        ImGui::End();
+        return;
+    }
+
+    IScene* active = sceneManager->getActiveScene();
+    if (!active)
+    {
+        ImGui::End();
+        return;
+    }
+
+    ModuleScene* scene = active->getModuleScene();
+    if (!scene)
+    {
+        ImGui::End();
+        return;
+    }
+
+    drawHierarchyNode(scene->getRoot());
+
+    ImGui::End();
+}
+
+void ModuleEditor::drawHierarchyNode(GameObject* go)
+{
+    ImGuiTreeNodeFlags flags =
+        ImGuiTreeNodeFlags_OpenOnArrow |
+        ImGuiTreeNodeFlags_SpanAvailWidth;
+
+    if (go == selectedGameObject)
+        flags |= ImGuiTreeNodeFlags_Selected;
+
+    if (go->getChildren().empty())
+        flags |= ImGuiTreeNodeFlags_Leaf;
+
+    bool opened = ImGui::TreeNodeEx(
+        (void*)go,
+        flags,
+        go->getName().c_str()
+    );
+
+    // Selection
+    if (ImGui::IsItemClicked())
+        selectedGameObject = go;
+
+    // Drag source
+    if (ImGui::BeginDragDropSource())
+    {
+        ImGui::SetDragDropPayload(
+            "GAMEOBJECT",
+            &go,
+            sizeof(GameObject*)
+        );
+
+        ImGui::Text("Move %s", go->getName().c_str());
+        ImGui::EndDragDropSource();
+    }
+
+    // Drop target
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload =
+            ImGui::AcceptDragDropPayload("GAMEOBJECT"))
+        {
+            GameObject* dropped =
+                *(GameObject**)payload->Data;
+
+            if (dropped != go)
+                dropped->setParent(go);
+        }
+
+        ImGui::EndDragDropTarget();
+    }
+
+    if (opened)
+    {
+        for (auto* child : go->getChildren())
+            drawHierarchyNode(child);
+
+        ImGui::TreePop();
+    }
+}
+
+void ModuleEditor::drawInspector()
+{
+    ImGui::Begin("Inspector");
+
+    if (!selectedGameObject)
+    {
+        ImGui::TextDisabled("No GameObject selected.");
+        ImGui::End();
+        return;
+    }
+
+    // ---- Name ----
+    char buffer[256];
+    strcpy_s(buffer, selectedGameObject->getName().c_str());
+
+    if (ImGui::InputText("Name", buffer, 256))
+    {
+        // You need to add setName() in GameObject
+        selectedGameObject->setName(buffer);
+    }
+
+    ImGui::Separator();
+
+    // ---- Transform ----
+    if (ComponentTransform* t = selectedGameObject->getTransform())
+    {
+        if (ImGui::CollapsingHeader("Transform",
+            ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (ImGui::DragFloat3(
+                "Position",
+                &t->position.x,
+                0.1f))
+            {
+                t->markDirty();
+            }
+
+            if (ImGui::DragFloat3(
+                "Scale",
+                &t->scale.x,
+                0.1f))
+            {
+                t->markDirty();
+            }
+
+            Vector3 euler =
+                t->rotation.ToEuler();
+
+            if (ImGui::DragFloat3(
+                "Rotation",
+                &euler.x,
+                0.1f))
+            {
+                t->rotation =
+                    Quaternion::CreateFromYawPitchRoll(
+                        euler.y,
+                        euler.x,
+                        euler.z
+                    );
+
+                t->markDirty();
+            }
+        }
+    }
+
+    ImGui::End();
+}
+
 
 void ModuleEditor::drawConsole()
 {
@@ -723,4 +888,3 @@ void ModuleEditor::drawViewportOverlay()
         buf
     );
 }
-

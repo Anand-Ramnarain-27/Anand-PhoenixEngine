@@ -38,6 +38,7 @@ public:
 
     void onViewportResized(uint32_t width, uint32_t height);
 
+    IScene* getActiveScene() const { return activeScene.get(); }
 private:
     std::unique_ptr<IScene> activeScene;
     PlayState state = PlayState::Stopped;

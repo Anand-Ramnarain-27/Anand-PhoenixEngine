@@ -25,6 +25,7 @@ public:
     ) override;
     void shutdown() override;
 
+    ModuleScene* getModuleScene() override { return scene.get(); }
 private:
     std::unique_ptr<ModuleScene> scene;
     GameObject* parent = nullptr;

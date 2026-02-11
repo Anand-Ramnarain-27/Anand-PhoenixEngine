@@ -5,6 +5,7 @@
 
 class ModuleCamera;
 class RenderTexture;
+class ModuleScene;
 
 class IScene
 {
@@ -27,4 +28,6 @@ public:
     virtual void onViewportResized(uint32_t width, uint32_t height) {}
 
     virtual bool wantsDebugDraw() const { return true; }
+
+    virtual ModuleScene* getModuleScene() { return nullptr; }
 };

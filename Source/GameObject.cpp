@@ -2,6 +2,7 @@
 #include "GameObject.h"
 #include "Component.h"
 #include "ComponentTransform.h"
+#include <algorithm>
 
 GameObject::GameObject(const std::string& name)
     : name(name)
@@ -15,6 +16,17 @@ void GameObject::setParent(GameObject* newParent)
 {
     if (parent == newParent)
         return;
+
+    // Remove from old parent
+    if (parent)
+    {
+        auto& siblings = parent->children;
+
+        siblings.erase(
+            std::remove(siblings.begin(), siblings.end(), this),
+            siblings.end()
+        );
+    }
 
     parent = newParent;
 

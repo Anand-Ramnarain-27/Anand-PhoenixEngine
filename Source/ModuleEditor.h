@@ -11,13 +11,14 @@
 #include <imgui.h>
 #include <functional>
 
+class ModuleCamera;
+class GameObject;
+
 struct SceneEntry
 {
     const char* name;
     std::function<std::unique_ptr<IScene>()> create;
 };
-
-class ModuleCamera;
 
 class ModuleEditor : public Module
 {
@@ -99,4 +100,11 @@ private:
 
     void renderViewportToTexture(ID3D12GraphicsCommandList* cmd);
     void drawViewportOverlay();
+
+    GameObject* selectedGameObject = nullptr;
+
+    void drawHierarchy();
+    void drawHierarchyNode(GameObject* go);
+    void drawInspector();
+
 };

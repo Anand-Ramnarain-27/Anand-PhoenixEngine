@@ -26,6 +26,7 @@ public:
 
     const std::string& getName() const { return name; }
 
+    void setName(const std::string& newName) { name = newName; }
 private:
     std::string name;
     bool active = true;
