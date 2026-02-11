@@ -11,6 +11,10 @@
 #include <imgui.h>
 #include <filesystem>
 
+Model::Model()
+    : uid(GenerateUID()){
+}
+
 bool Model::load(const char* fileName, const char* basePath)
 {
     return loadMaterialsAndMeshes(fileName, basePath, false);

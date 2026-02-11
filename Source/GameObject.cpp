@@ -4,7 +4,8 @@
 #include "ComponentTransform.h"
 
 GameObject::GameObject(const std::string& name)
-    : name(name)
+    : name(name),
+    uid(GenerateUID())
 {
     transform = createComponent<ComponentTransform>();
 }
