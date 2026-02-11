@@ -7,7 +7,7 @@
 #include "ModuleShaderDescriptors.h"
 #include "ModuleRTDescriptors.h"
 #include "ModuleDSDescriptors.h"
-#include "GraphicsSamplers.h"
+#include "ModuleSamplerHeap.h"
 #include "ModuleRingBuffer.h"
 #include "ModuleResources.h"
 #include "Model.h"
@@ -139,7 +139,7 @@ void ViewportDemo::render()
 
     ModuleD3D12* d3d12 = app->getD3D12();
     ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
-    GraphicsSamplers* samplers = app->getGraphicsSamplers();
+    ModuleSamplerHeap* samplers = app->getSamplerHeap();
 
     ID3D12GraphicsCommandList* commandList = d3d12->getCommandList();
 
@@ -193,7 +193,7 @@ void ViewportDemo::renderToTexture(ID3D12GraphicsCommandList* commandList)
     ModuleD3D12* d3d12 = app->getD3D12();
     ModuleCamera* camera = app->getCamera();
     ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
-    GraphicsSamplers* samplers = app->getGraphicsSamplers();
+    ModuleSamplerHeap* samplers = app->getSamplerHeap();
     ModuleRingBuffer* ringBuffer = app->getRingBuffer();
 
     commandList->SetPipelineState(pso.Get());
@@ -220,7 +220,7 @@ void ViewportDemo::renderToTexture(ID3D12GraphicsCommandList* commandList)
 
     commandList->SetGraphicsRoot32BitConstants(0, sizeof(Matrix) / sizeof(UINT32), &mvp, 0);
     commandList->SetGraphicsRootConstantBufferView(1, ringBuffer->allocateConstantBuffer(&perFrame, sizeof(PerFrame)));
-    commandList->SetGraphicsRootDescriptorTable(4, samplers->getGPUHandle(GraphicsSamplers::LINEAR_WRAP));
+    commandList->SetGraphicsRootDescriptorTable(4, samplers->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));
 
     BEGIN_EVENT(commandList, "Model Render Pass");
 
@@ -292,7 +292,7 @@ bool ViewportDemo::createRootSignature()
     CD3DX12_DESCRIPTOR_RANGE sampRange;
 
     tableRanges.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-    sampRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, GraphicsSamplers::COUNT, 0);
+    sampRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, ModuleSamplerHeap::COUNT, 0);
 
     rootParameters[0].InitAsConstants((sizeof(Matrix) / sizeof(UINT32)), 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
     rootParameters[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_ALL);

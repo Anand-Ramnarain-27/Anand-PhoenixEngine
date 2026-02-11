@@ -10,7 +10,7 @@
 class Module;
 class ModuleD3D12;
 class ModuleResources;
-class GraphicsSamplers;
+class ModuleSamplerHeap;
 class ModuleCamera;
 class ModuleEditor;
 class ModuleShaderDescriptors;
@@ -37,7 +37,7 @@ public:
 
     ModuleD3D12* getD3D12() { return d3d12Module; }
     ModuleResources* getResources() { return resources; }
-    GraphicsSamplers* getGraphicsSamplers() { return graphicsSamplers; }
+    ModuleSamplerHeap* getSamplerHeap() { return samplerHeaps; }
 	ModuleCamera* getCamera() { return camera; }
     ModuleEditor* getEditor() { return editor; }
     ModuleShaderDescriptors* getShaderDescriptors() { return shaderDescriptors; }
@@ -70,7 +70,7 @@ private:
 
     ModuleD3D12* d3d12Module = nullptr;
     ModuleResources* resources = nullptr;
-    GraphicsSamplers* graphicsSamplers = nullptr;
+    ModuleSamplerHeap* samplerHeaps = nullptr;
     ModuleCamera* camera = nullptr;
     ModuleShaderDescriptors* shaderDescriptors = nullptr;
 	ModuleRingBuffer* ringBuffer = nullptr;

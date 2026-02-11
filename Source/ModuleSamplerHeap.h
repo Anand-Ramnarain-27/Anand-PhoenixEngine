@@ -3,7 +3,7 @@
 #include "Module.h"
 
 
-class GraphicsSamplers : public Module
+class ModuleSamplerHeap : public Module
 {
 public:
     enum Type
@@ -16,8 +16,8 @@ public:
     };
 public:
 
-    GraphicsSamplers();
-    ~GraphicsSamplers();
+    ModuleSamplerHeap();
+    ~ModuleSamplerHeap();
 
     bool init() override;
     bool cleanUp() override;

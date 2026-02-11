@@ -3,7 +3,6 @@
 #include "Application.h"
 #include "ModuleD3D12.h"
 
-// Configurable constants
 static constexpr size_t DEFAULT_CAPACITY = 10 * 1024 * 1024;
 static constexpr size_t MIN_ALLOCATION = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
 
@@ -18,7 +17,6 @@ bool ModuleRingBuffer::init()
 
     m_capacity = alignUp(DEFAULT_CAPACITY, 65536);
 
-    // Create upload heap resource
     CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
     CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(m_capacity);
 

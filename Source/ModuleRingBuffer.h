@@ -3,11 +3,6 @@
 #include "Module.h"
 #include <cstdint>
 
-// Key improvements:
-// 1. Single allocation path (simpler logic)
-// 2. Better memory utilization
-// 3. Frame fence synchronization
-// 4. Type-safe helpers with automatic alignment
 class ModuleRingBuffer : public Module
 {
 public:

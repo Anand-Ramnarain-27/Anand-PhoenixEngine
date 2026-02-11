@@ -6,7 +6,7 @@
 #include "ModuleCamera.h"
 #include "ModuleShaderDescriptors.h"
 #include "ModuleResources.h"
-#include "GraphicsSamplers.h" 
+#include "ModuleSamplerHeap.h" 
 #include "Model.h"
 #include "Mesh.h"
 #include "Material.h"
@@ -148,7 +148,7 @@ void BasicModelScene::render()
     ModuleD3D12* d3d12 = app->getD3D12();
     ModuleCamera* camera = app->getCamera();
     ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
-    GraphicsSamplers* samplers = app->getGraphicsSamplers();
+    ModuleSamplerHeap* samplers = app->getSamplerHeap();
 
     ID3D12GraphicsCommandList* commandList = d3d12->getCommandList();
 
@@ -201,7 +201,7 @@ void BasicModelScene::render()
     };
     commandList->SetDescriptorHeaps(2, descriptorHeaps);
 
-    commandList->SetGraphicsRootDescriptorTable(3, samplers->getGPUHandle(GraphicsSamplers::LINEAR_WRAP));
+    commandList->SetGraphicsRootDescriptorTable(3, samplers->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));
 
     commandList->SetGraphicsRoot32BitConstants(0, sizeof(Matrix) / sizeof(UINT32), &mvp, 0);
 
@@ -260,7 +260,7 @@ bool BasicModelScene::createRootSignature()
     CD3DX12_DESCRIPTOR_RANGE samplerRange;
 
     tableRanges.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-    samplerRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, GraphicsSamplers::COUNT, 0);
+    samplerRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, ModuleSamplerHeap::COUNT, 0);
     rootParameters[0].InitAsConstants(sizeof(Matrix) / sizeof(UINT32), 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
     rootParameters[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_PIXEL);
     rootParameters[2].InitAsDescriptorTable(1, &tableRanges, D3D12_SHADER_VISIBILITY_PIXEL);

@@ -1,19 +1,19 @@
 #include "Globals.h"
 
-#include "GraphicsSamplers.h"
+#include "ModuleSamplerHeap.h"
 #include "Application.h"
 #include "ModuleD3D12.h"
 
 
-GraphicsSamplers::GraphicsSamplers()
+ModuleSamplerHeap::ModuleSamplerHeap()
 {
 }
 
-GraphicsSamplers::~GraphicsSamplers()
+ModuleSamplerHeap::~ModuleSamplerHeap()
 {
 }
 
-bool GraphicsSamplers::init()
+bool ModuleSamplerHeap::init()
 {
     ModuleD3D12* d3d12 = app->getD3D12();
     ID3D12Device* device = d3d12->getDevice();
@@ -82,7 +82,7 @@ bool GraphicsSamplers::init()
     return true;
 }
 
-bool GraphicsSamplers::cleanUp()
+bool ModuleSamplerHeap::cleanUp()
 {
     return true;
 }
