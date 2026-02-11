@@ -3,7 +3,6 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "UID.h"
 
 class Component;
 class ComponentTransform;
@@ -27,7 +26,6 @@ public:
 
     const std::string& getName() const { return name; }
 
-    UID GetUID() const { return uid; }
 private:
     std::string name;
     bool active = true;
@@ -38,5 +36,4 @@ private:
     std::vector<std::unique_ptr<Component>> components;
 
     ComponentTransform* transform = nullptr;
-    UID uid;
 };

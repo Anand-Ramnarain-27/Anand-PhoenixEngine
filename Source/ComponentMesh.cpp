@@ -14,12 +14,7 @@ ComponentMesh::~ComponentMesh() = default;
 
 bool ComponentMesh::loadModel(const char* filePath)
 {
-    if (m_model->loadPBRPhong(filePath))
-    {
-        modelUID = m_model->GetUID();
-        return true;
-    }
-    return false;
+    return m_model->loadPBRPhong(filePath);
 }
 
 void ComponentMesh::render(ID3D12GraphicsCommandList* cmd)

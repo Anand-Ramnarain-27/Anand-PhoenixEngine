@@ -4,7 +4,6 @@
 #include "ShaderTableDesc.h"
 #include <string>
 #include <wrl/client.h>
-#include "UID.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -64,8 +63,6 @@ public:
     D3D12_GPU_DESCRIPTOR_HANDLE getTextureGPUHandle() const;
     const ShaderTableDesc& getDescriptorTable() const { return m_descriptorTable; }
 
-    UID GetUID() const { return uid; }
-
 private:
     bool loadTextureFromGltf(const tinygltf::Model& model, int textureIndex, const char* basePath);
     void createNullDescriptor();
@@ -76,6 +73,4 @@ private:
     std::string m_name;
     ShaderTableDesc m_descriptorTable;
     bool m_hasTexture = false;
-
-    UID uid;
 };

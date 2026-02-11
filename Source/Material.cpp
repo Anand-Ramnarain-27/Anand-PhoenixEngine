@@ -9,9 +9,6 @@
 #define TINYGLTF_NO_EXTERNAL_IMAGE
 #include "tiny_gltf.h"
 
-Material::Material()
-    : uid(GenerateUID()){
-}
 bool Material::load(const tinygltf::Material& gltfMaterial,
     const tinygltf::Model& model,
     const char* basePath)

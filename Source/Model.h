@@ -6,7 +6,6 @@
 #include <vector>
 #include <memory>
 #include <string>
-#include "UID.h"
 
 class Model
 {
@@ -34,8 +33,6 @@ public:
 
     void showImGuiControls();
 
-    UID GetUID() const { return uid; }
-
 private:
     bool loadMaterials(const tinygltf::Model& gltfModel, const std::string& basePath, bool usePBR = false);
     bool loadMeshes(const tinygltf::Model& gltfModel);
@@ -50,6 +47,4 @@ private:
     Vector3 m_position = Vector3::Zero;
     Vector3 m_rotation = Vector3::Zero;
     Vector3 m_scale = Vector3::One;
-
-    UID uid;
 };

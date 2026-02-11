@@ -3,7 +3,6 @@
 #include "Component.h"
 #include <memory>
 #include "ModuleD3D12.h"
-#include "UID.h"
 
 class Model;
 
@@ -21,6 +20,4 @@ public:
 
 private:
     std::unique_ptr<Model> m_model;
-
-    UID modelUID;
 };

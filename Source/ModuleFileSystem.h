@@ -21,17 +21,9 @@ public:
     const std::string& GetAssetsPath() const;
     const std::string& GetLibraryPath() const;
 
+    // Binary I/O
     bool Save(const char* path, const void* data, size_t size);
     bool Load(const char* path, std::vector<uint8_t>& outData);
-
-    // Queries
-    bool Exists(const char* path) const;
-    bool IsDirectory(const char* path) const;
-    uint64_t Size(const char* path) const;
-
-    // File operations
-    bool Delete(const char* path);
-
 
 private:
     void CreateProjectDirectories();

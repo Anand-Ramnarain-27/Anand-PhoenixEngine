@@ -37,18 +37,6 @@ void ModuleFileSystem::CreateProjectDirectories()
     CreateDir("Library/Scenes");
 }
 
-bool ModuleFileSystem::Exists(const char* path) const
-{
-    try
-    {
-        return fs::exists(path);
-    }
-    catch (...)
-    {
-        return false;
-    }
-}
-
 bool ModuleFileSystem::CreateDir(const char* path)
 {
     try
@@ -154,46 +142,3 @@ bool ModuleFileSystem::Load(
         return false;
     }
 }
-
-bool ModuleFileSystem::IsDirectory(const char* path) const
-{
-    try
-    {
-        return fs::is_directory(path);
-    }
-    catch (...)
-    {
-        return false;
-    }
-}
-
-uint64_t ModuleFileSystem::Size(const char* path) const
-{
-    try
-    {
-        if (!fs::exists(path) || fs::is_directory(path))
-            return 0;
-
-        return fs::file_size(path);
-    }
-    catch (...)
-    {
-        return 0;
-    }
-}
-
-bool ModuleFileSystem::Delete(const char* path)
-{
-    try
-    {
-        if (!fs::exists(path))
-            return false;
-
-        return fs::remove_all(path) > 0;
-    }
-    catch (...)
-    {
-        return false;
-    }
-}
-

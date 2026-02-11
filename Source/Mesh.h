@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 #include <wrl/client.h>
-#include "UID.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -53,7 +52,6 @@ public:
     static const D3D12_INPUT_ELEMENT_DESC* getInputLayout() { return InputLayout; }
     static uint32_t getInputLayoutCount() { return InputLayoutCount; }
 
-    UID GetUID() const { return uid; }
 private:
     void createBuffers();
     void cleanup();
@@ -72,6 +70,4 @@ private:
 
     ComPtr<ID3D12Resource> m_indexBuffer;
     D3D12_INDEX_BUFFER_VIEW m_indexBufferView = {};
-
-    UID uid;
 };
