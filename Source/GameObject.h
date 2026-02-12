@@ -1,6 +1,5 @@
 #pragma once
 
-#include "UUID64.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -26,17 +25,9 @@ public:
     T* createComponent(Args&&... args);
 
     const std::string& getName() const { return name; }
+
     void setName(const std::string& newName) { name = newName; }
-
-    // UUID System
-    UUID64 getUUID() const { return uuid; }
-
-    // Active state
-    bool isActive() const { return active; }
-    void setActive(bool value) { active = value; }
-
 private:
-    UUID64 uuid;                                      // Unique identifier
     std::string name;
     bool active = true;
 

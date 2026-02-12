@@ -5,7 +5,6 @@
 ModuleScene::ModuleScene()
 {
     root = std::make_unique<GameObject>("Root");
-    registerGameObject(root.get());
 }
 
 ModuleScene::~ModuleScene() = default;
@@ -21,7 +20,7 @@ GameObject* ModuleScene::createGameObject(
         parent = root.get();
 
     ptr->setParent(parent);
-    registerGameObject(ptr);
+
     objects.push_back(std::move(go));
     return ptr;
 }
@@ -29,30 +28,4 @@ GameObject* ModuleScene::createGameObject(
 void ModuleScene::update(float deltaTime)
 {
     root->update(deltaTime);
-}
-
-GameObject* ModuleScene::findGameObjectByUUID(const UUID64& uuid) const
-{
-    auto it = uuidMap.find(uuid);
-    if (it != uuidMap.end())
-        return it->second;
-
-    return nullptr;
-}
-
-void ModuleScene::clear()
-{
-    objects.clear();
-    uuidMap.clear();
-
-    root = std::make_unique<GameObject>("Root");
-    registerGameObject(root.get());
-}
-
-void ModuleScene::registerGameObject(GameObject* go)
-{
-    if (go)
-    {
-        uuidMap[go->getUUID()] = go;
-    }
 }
