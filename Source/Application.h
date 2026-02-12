@@ -18,11 +18,11 @@ class ModuleRingBuffer;
 class ModuleRTDescriptors;
 class ModuleDSDescriptors;
 
-class BasicModelScene;
-class ModuleTextureSampler;
-class LightingDemo;
-class RenderToTextureDemo;
-class ViewportDemo;
+//class BasicModelScene;
+//class ModuleTextureSampler;
+//class LightingDemo;
+//class RenderToTextureDemo;
+//class ViewportDemo;
 
 class Application
 {
@@ -46,11 +46,11 @@ public:
     ModuleDSDescriptors* getDSDescriptors() { return dsDescriptors; }
 	ModuleFileSystem* getFileSystem() { return fileSystem; }
 
-	BasicModelScene* getBasicModelScene() { return basicModelScene; }
+	/*BasicModelScene* getBasicModelScene() { return basicModelScene; }
     ModuleTextureSampler* getTextureSampler() { return textureSampler; }
 	LightingDemo* getLightingDemo() { return lightingDemo; }
 	RenderToTextureDemo* getRenderToTextureDemo() { return renderToTextureDemo; }
-	ViewportDemo* getViewportDemo() { return viewportDemo; }
+	ViewportDemo* getViewportDemo() { return viewportDemo; }*/
 
     void                        swapModule(Module* from, Module* to) { swapModules.push_back(std::make_pair(from, to)); }
     
@@ -79,11 +79,11 @@ private:
     ModuleFileSystem* fileSystem = nullptr;
 
     ModuleEditor* editor = nullptr;
-    ModuleTextureSampler* textureSampler = nullptr;
+  /*  ModuleTextureSampler* textureSampler = nullptr;
 	BasicModelScene* basicModelScene = nullptr;
 	LightingDemo* lightingDemo = nullptr;
 	RenderToTextureDemo* renderToTextureDemo = nullptr;
-	ViewportDemo* viewportDemo = nullptr;
+	ViewportDemo* viewportDemo = nullptr;*/
 
     uint64_t  lastMilis = 0;
     TickList  tickList;

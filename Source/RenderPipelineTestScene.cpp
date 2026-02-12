@@ -28,7 +28,18 @@ bool RenderPipelineTestScene::initialize(ID3D12Device*)
 
     parent->getTransform()->position = { 0, 0, 0 };
     child->getTransform()->position = { 0, 1, 0 };
+    testModel = std::make_unique<Model>();
 
+    bool ok = testModel->load("Assets/Models/duck.gltf");
+
+    if (!ok)
+    {
+        LOG("Failed to load test model!");
+    }
+    else
+    {
+        LOG("Test model loaded");
+    }
     m_time = 0.0f;
     return true;
 }
@@ -50,7 +61,7 @@ void RenderPipelineTestScene::update(float deltaTime)
 }
 
 void RenderPipelineTestScene::render(
-    ID3D12GraphicsCommandList*,
+    ID3D12GraphicsCommandList* cmd,
     const ModuleCamera&,
     uint32_t,
     uint32_t)
@@ -68,10 +79,17 @@ void RenderPipelineTestScene::render(
         0.2f,
         1.0f
     );
+
+    if (testModel)
+    {
+        testModel->draw(cmd);
+    }
 }
 
 
 
 void RenderPipelineTestScene::shutdown()
 {
+    testModel.reset();
+
 }

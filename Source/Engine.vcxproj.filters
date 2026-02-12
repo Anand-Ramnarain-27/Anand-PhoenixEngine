@@ -38,21 +38,6 @@
       <Filter>engine\graphics\scene</Filter>
     </ClCompile>
     <ClCompile Include="RenderPipelineTestScene.cpp" />
-    <ClCompile Include="BasicModelScene.cpp">
-      <Filter>exercises</Filter>
-    </ClCompile>
-    <ClCompile Include="LightingDemo.cpp">
-      <Filter>exercises</Filter>
-    </ClCompile>
-    <ClCompile Include="RenderToTextureDemo.cpp">
-      <Filter>exercises</Filter>
-    </ClCompile>
-    <ClCompile Include="ViewportDemo.cpp">
-      <Filter>exercises</Filter>
-    </ClCompile>
-    <ClCompile Include="ModuleTextureSampler.cpp">
-      <Filter>exercises</Filter>
-    </ClCompile>
     <ClCompile Include="GamePad.cpp">
       <Filter>engine\input</Filter>
     </ClCompile>
@@ -134,8 +119,6 @@
     <ClCompile Include="ModuleFileSystem.cpp">
       <Filter>engine\core</Filter>
     </ClCompile>
-    <ClCompile Include="StaticMesh.cpp" />
-    <ClCompile Include="StaticModel.cpp" />
     <ClCompile Include="MeshImporter.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -183,21 +166,6 @@
       <Filter>engine\graphics\scene</Filter>
     </ClInclude>
     <ClInclude Include="RenderPipelineTestScene.h" />
-    <ClInclude Include="BasicModelScene.h">
-      <Filter>exercises</Filter>
-    </ClInclude>
-    <ClInclude Include="LightingDemo.h">
-      <Filter>exercises</Filter>
-    </ClInclude>
-    <ClInclude Include="RenderToTextureDemo.h">
-      <Filter>exercises</Filter>
-    </ClInclude>
-    <ClInclude Include="ViewportDemo.h">
-      <Filter>exercises</Filter>
-    </ClInclude>
-    <ClInclude Include="ModuleTextureSampler.h">
-      <Filter>exercises</Filter>
-    </ClInclude>
     <ClInclude Include="GamePad.h">
       <Filter>engine\input</Filter>
     </ClInclude>
@@ -309,8 +277,6 @@
     <ClInclude Include="HandleManager.h">
       <Filter>engine\core\utils</Filter>
     </ClInclude>
-    <ClInclude Include="StaticMesh.h" />
-    <ClInclude Include="StaticModel.h" />
     <ClInclude Include="MeshImporter.h" />
   </ItemGroup>
   <ItemGroup>

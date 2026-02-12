@@ -18,7 +18,7 @@ public:
     bool CreateDir(const char* path);
 
     unsigned int Load(const char* file_path, char** buffer) const;
-    unsigned int Save(const char* file_path, const void* buffer, unsigned int size, bool append = false) const;
+    bool Save(const char* file_path, const void* buffer, unsigned int size, bool append = false) const;
 
     bool Copy(const char* source_file_path, const char* destination_file_path);
     bool Delete(const char* file_path);

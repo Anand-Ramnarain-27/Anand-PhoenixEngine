@@ -14,11 +14,11 @@
 #include "RenderTexture.h"
 #include "ModuleFileSystem.h"
 
-#include "ModuleTextureSampler.h"
-#include "BasicModelScene.h"
-#include "LightingDemo.h"
-#include "RenderToTextureDemo.h"
-#include "ViewportDemo.h"
+//#include "ModuleTextureSampler.h"
+//#include "BasicModelScene.h"
+//#include "LightingDemo.h"
+//#include "RenderToTextureDemo.h"
+//#include "ViewportDemo.h"
 
 Application::Application(int argc, wchar_t** argv, void* hWnd)
 {

@@ -90,6 +90,27 @@ unsigned int ModuleFileSystem::Load(const char* path, char** buffer) const
     return (unsigned int)size;
 }
 
+bool ModuleFileSystem::Save(const char* path, const void* buffer, unsigned int size, bool append) const
+{
+    std::ios::openmode mode = std::ios::binary;
+
+    if (append)
+        mode |= std::ios::app;
+    else
+        mode |= std::ios::trunc;
+
+    std::ofstream file(path, mode);
+
+    if (!file.is_open())
+        return false;
+
+    file.write((const char*)buffer, size);
+    file.close();
+
+    return true;
+}
+
+
 bool ModuleFileSystem::Exists(const char* path) const
 {
     return fs::exists(path);

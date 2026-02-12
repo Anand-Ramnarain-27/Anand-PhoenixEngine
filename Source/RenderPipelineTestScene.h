@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IScene.h"
+#include "Model.h"
 #include <wrl.h>
 
 class GameObject;
@@ -31,4 +32,7 @@ private:
     GameObject* parent = nullptr;
     GameObject* child = nullptr;
     float m_time = 0.0f;
+
+    std::unique_ptr<Model> testModel;
+
 };
