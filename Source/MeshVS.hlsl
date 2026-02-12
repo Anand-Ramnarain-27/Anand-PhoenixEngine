@@ -1,6 +1,11 @@
-cbuffer PerObject : register(b0)
+cbuffer CameraCB : register(b0)
 {
-    float4x4 MVP;
+    float4x4 viewProj;
+};
+
+cbuffer ObjectCB : register(b1)
+{
+    float4x4 world;
 };
 
 struct VSInput
@@ -14,14 +19,18 @@ struct VSOutput
 {
     float4 pos : SV_POSITION;
     float2 uv : TEXCOORD;
+    float3 nrm : NORMAL;
 };
 
 VSOutput main(VSInput input)
 {
-    VSOutput o;
+    VSOutput output;
 
-    o.pos = mul(float4(input.pos, 1.0f), MVP);
-    o.uv = input.uv;
+    float4 worldPos = mul(float4(input.pos, 1.0f), world);
+    output.pos = mul(worldPos, viewProj);
 
-    return o;
+    output.uv = input.uv;
+    output.nrm = input.nrm;
+
+    return output;
 }
