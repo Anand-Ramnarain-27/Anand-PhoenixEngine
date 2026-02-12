@@ -27,6 +27,8 @@ public:
     void shutdown() override;
 
     ModuleScene* getModuleScene() override { return scene.get(); }
+    ComPtr<ID3D12PipelineState> m_pipelineState;
+    ComPtr<ID3D12RootSignature> m_rootSignature;
 private:
     std::unique_ptr<ModuleScene> scene;
     GameObject* parent = nullptr;
@@ -34,5 +36,4 @@ private:
     float m_time = 0.0f;
 
     std::unique_ptr<Model> testModel;
-
 };

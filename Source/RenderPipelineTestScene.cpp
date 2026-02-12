@@ -30,7 +30,7 @@ bool RenderPipelineTestScene::initialize(ID3D12Device*)
     child->getTransform()->position = { 0, 1, 0 };
     testModel = std::make_unique<Model>();
 
-    bool ok = testModel->load("Assets/Models/duck.gltf");
+    bool ok = testModel->load("Assets/Models/Duck/duck.gltf");
 
     if (!ok)
     {
@@ -60,25 +60,13 @@ void RenderPipelineTestScene::update(float deltaTime)
     scene->update(deltaTime);
 }
 
-void RenderPipelineTestScene::render(
-    ID3D12GraphicsCommandList* cmd,
-    const ModuleCamera&,
-    uint32_t,
-    uint32_t)
+void RenderPipelineTestScene::render(ID3D12GraphicsCommandList* cmd, const ModuleCamera&, uint32_t, uint32_t)
 {
     dd::xzSquareGrid(-5.0f, 5.0f, 0.0f, 1.0f, dd::colors::LightGray);
 
-    dd::axisTriad(
-        ddConvert(parent->getTransform()->getGlobalMatrix()),
-        0.3f,
-        1.0f
-    );
+    dd::axisTriad(ddConvert(parent->getTransform()->getGlobalMatrix()), 0.3f, 1.0f);
 
-    dd::axisTriad(
-        ddConvert(child->getTransform()->getGlobalMatrix()),
-        0.2f,
-        1.0f
-    );
+    dd::axisTriad(ddConvert(child->getTransform()->getGlobalMatrix()), 0.2f, 1.0f);
 
     if (testModel)
     {
