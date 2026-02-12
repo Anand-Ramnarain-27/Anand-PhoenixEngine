@@ -38,13 +38,13 @@ public:
     ModuleD3D12* getD3D12() { return d3d12Module; }
     ModuleResources* getResources() { return resources; }
     ModuleSamplerHeap* getSamplerHeap() { return samplerHeaps; }
+    ModuleFileSystem* getFileSystem() { return fileSystem; }
 	ModuleCamera* getCamera() { return camera; }
     ModuleEditor* getEditor() { return editor; }
     ModuleShaderDescriptors* getShaderDescriptors() { return shaderDescriptors; }
 	ModuleRingBuffer* getRingBuffer() { return ringBuffer; }
     ModuleRTDescriptors* getRTDescriptors() { return rtDescriptors; }
     ModuleDSDescriptors* getDSDescriptors() { return dsDescriptors; }
-	ModuleFileSystem* getFileSystem() { return fileSystem; }
 
 	/*BasicModelScene* getBasicModelScene() { return basicModelScene; }
     ModuleTextureSampler* getTextureSampler() { return textureSampler; }
@@ -71,12 +71,12 @@ private:
     ModuleD3D12* d3d12Module = nullptr;
     ModuleResources* resources = nullptr;
     ModuleSamplerHeap* samplerHeaps = nullptr;
+    ModuleFileSystem* fileSystem = nullptr;
     ModuleCamera* camera = nullptr;
     ModuleShaderDescriptors* shaderDescriptors = nullptr;
 	ModuleRingBuffer* ringBuffer = nullptr;
     ModuleRTDescriptors* rtDescriptors = nullptr;
     ModuleDSDescriptors* dsDescriptors = nullptr;
-    ModuleFileSystem* fileSystem = nullptr;
 
     ModuleEditor* editor = nullptr;
   /*  ModuleTextureSampler* textureSampler = nullptr;

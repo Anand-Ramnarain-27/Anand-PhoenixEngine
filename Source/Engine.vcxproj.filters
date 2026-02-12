@@ -120,6 +120,7 @@
       <Filter>engine\core</Filter>
     </ClCompile>
     <ClCompile Include="MeshImporter.cpp" />
+    <ClCompile Include="MeshPipeline.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -278,6 +279,7 @@
       <Filter>engine\core\utils</Filter>
     </ClInclude>
     <ClInclude Include="MeshImporter.h" />
+    <ClInclude Include="MeshPipeline.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -378,6 +380,9 @@
     <Filter Include="engine\core\utils">
       <UniqueIdentifier>{c75a7c56-98a7-4b34-b412-2efac88d181f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{194f2fe2-6de2-4346-b851-4d6d09af2c5d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Engine.rc">
@@ -414,6 +419,12 @@
     </FxCompile>
     <FxCompile Include="ViewportDemoPS.hlsl">
       <Filter>exercises\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="MeshVS.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="MeshPS.hlsl">
+      <Filter>shaders</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

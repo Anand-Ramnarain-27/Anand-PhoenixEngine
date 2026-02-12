@@ -31,12 +31,15 @@ bool ModuleEditor::init()
     fs->Save("Library/test.txt", "Hello", 5);*/
 
     imguiPass = std::make_unique<ImGuiPass>(d3d12->getDevice(), d3d12->getHWnd(), descTable.getCPUHandle(), descTable.getGPUHandle());
-
     debugDrawPass = std::make_unique<DebugDrawPass>(d3d12->getDevice(), d3d12->getDrawCommandQueue(), false);
-
     viewportRT = std::make_unique<RenderTexture>("EditorViewport", DXGI_FORMAT_R8G8B8A8_UNORM, Vector4(0.0f, 0.0f, 0.0f, 1.0f), DXGI_FORMAT_D32_FLOAT, 1.0f);
-
     sceneManager = std::make_unique<SceneManager>();
+    meshPipeline = std::make_unique<MeshPipeline>();
+
+    if (!meshPipeline->init(d3d12->getDevice()))
+    {
+        return false;
+    }
 
     availableScenes =
     {
@@ -219,6 +222,9 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     viewportRT->beginRender(cmd);
 
     BEGIN_EVENT(cmd, "Editor Viewport Pass");
+
+    cmd->SetPipelineState(meshPipeline->getPSO());
+    cmd->SetGraphicsRootSignature(meshPipeline->getRootSig());
 
     if (sceneManager)
         sceneManager->render(cmd, *camera, width, height);

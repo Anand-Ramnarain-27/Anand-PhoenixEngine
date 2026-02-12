@@ -3,6 +3,7 @@
 #include "Module.h"
 #include "SceneManager.h"
 #include "ShaderTableDesc.h"
+#include "MeshPipeline.h"
 
 #include <memory>
 #include <vector>
@@ -93,6 +94,8 @@ private:
     // Memory
     uint64_t gpuMemoryMB = 0;
     uint64_t systemMemoryMB = 0;
+
+    std::unique_ptr<MeshPipeline> meshPipeline;
 
     bool showGrid = true;
     bool showAxis = true;
