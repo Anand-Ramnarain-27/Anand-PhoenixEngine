@@ -5,7 +5,8 @@
 #include <algorithm>
 
 GameObject::GameObject(const std::string& name)
-    : name(name)
+    : uuid(UUID64::Generate())  // Generate UUID automatically
+    , name(name)
 {
     transform = createComponent<ComponentTransform>();
 }
@@ -38,6 +39,9 @@ void GameObject::setParent(GameObject* newParent)
 
 void GameObject::update(float deltaTime)
 {
+    if (!active)
+        return;
+
     for (auto& c : components)
         c->update(deltaTime);
 
@@ -54,4 +58,5 @@ T* GameObject::createComponent(Args&&... args)
     return ptr;
 }
 
+// Explicit template instantiation
 template ComponentTransform* GameObject::createComponent<ComponentTransform>();
