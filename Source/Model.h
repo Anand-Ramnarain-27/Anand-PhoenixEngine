@@ -13,6 +13,8 @@ public:
     void draw(ID3D12GraphicsCommandList* cmdList);
 
 private:
+
+    bool importFromGLTF(const char* fileName);
     bool loadFromLibrary(const std::string& folder);
 
 private:

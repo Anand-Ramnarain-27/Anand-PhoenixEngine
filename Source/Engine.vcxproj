@@ -216,7 +216,6 @@
     <ClInclude Include="RenderTargetDesc.h" />
     <ClInclude Include="RenderTexture.h" />
     <ClInclude Include="Resource.h" />
-    <ClInclude Include="SceneImporter.h" />
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="ShaderTableDesc.h" />
     <ClInclude Include="SimpleMath.h" />
@@ -327,7 +326,6 @@
     <ClCompile Include="RenderPipelineTestScene.cpp" />
     <ClCompile Include="RenderTargetDesc.cpp" />
     <ClCompile Include="RenderTexture.cpp" />
-    <ClCompile Include="SceneImporter.cpp" />
     <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="ShaderTableDesc.cpp" />
     <ClCompile Include="SimpleMath.cpp">

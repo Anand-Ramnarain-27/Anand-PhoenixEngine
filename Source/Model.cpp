@@ -1,13 +1,11 @@
 #include "Globals.h"
 #include "Model.h"
+#include "MeshImporter.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
-#include "SceneImporter.h"
-#include "MeshImporter.h"
 
 #include "tiny_gltf.h"
 #include <filesystem>
-
 
 bool Model::load(const char* fileName)
 {
@@ -15,20 +13,55 @@ bool Model::load(const char* fileName)
 
     m_srcFile = fileName;
 
-    std::string modelName = fs::path(fileName).stem().string();
+    std::string modelName =
+        fs::path(fileName).stem().string();
 
-    std::string meshFolder =
+    std::string folder =
         app->getFileSystem()->GetLibraryPath() +
-        "Meshes/" + modelName + "/";
+        "Meshes/" + modelName;
 
-    if (!app->getFileSystem()->Exists(meshFolder.c_str()))
+    if (!app->getFileSystem()->Exists(folder.c_str()))
     {
-        auto result = SceneImporter::ImportScene(fileName);
-        if (!result.success)
+        app->getFileSystem()->CreateDir(folder.c_str());
+
+        if (!importFromGLTF(fileName))
             return false;
     }
 
-    return loadFromLibrary(meshFolder);
+    return loadFromLibrary(folder);
+}
+
+bool Model::importFromGLTF(const char* fileName)
+{
+    tinygltf::TinyGLTF loader;
+    tinygltf::Model gltfModel;
+    std::string error, warning;
+
+    if (!loader.LoadASCIIFromFile(&gltfModel, &error, &warning, fileName))
+        return false;
+
+    namespace fs = std::filesystem;
+    std::string modelName = fs::path(fileName).stem().string();
+
+    std::string folder =
+        app->getFileSystem()->GetLibraryPath() +
+        "Meshes/" + modelName;
+
+    int index = 0;
+
+    for (const auto& mesh : gltfModel.meshes)
+    {
+        for (const auto& primitive : mesh.primitives)
+        {
+            std::string out =
+                folder + "/" +
+                std::to_string(index++) + ".mesh";
+
+            MeshImporter::Import(primitive, gltfModel, out);
+        }
+    }
+
+    return true;
 }
 
 bool Model::loadFromLibrary(const std::string& folder)
