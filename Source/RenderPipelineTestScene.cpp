@@ -28,6 +28,7 @@ bool RenderPipelineTestScene::initialize(ID3D12Device*)
 
     parent->getTransform()->position = { 0, 0, 0 };
     child->getTransform()->position = { 0, 1, 0 };
+
     testModel = std::make_unique<Model>();
 
     bool ok = testModel->load("Assets/Models/Duck/duck.gltf");
@@ -38,12 +39,12 @@ bool RenderPipelineTestScene::initialize(ID3D12Device*)
     }
     else
     {
-        LOG("Test model loaded");
+        LOG("Test model loaded successfully");
     }
+
     m_time = 0.0f;
     return true;
 }
-
 
 void RenderPipelineTestScene::update(float deltaTime)
 {

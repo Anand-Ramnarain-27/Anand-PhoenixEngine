@@ -1,5 +1,6 @@
 #include "Globals.h"
 #include "Model.h"
+#include "SceneImporter.h"
 #include "MeshImporter.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
@@ -13,21 +14,22 @@ bool Model::load(const char* fileName)
 
     m_srcFile = fileName;
 
-    std::string modelName =
-        fs::path(fileName).stem().string();
-
-    std::string folder =
-        app->getFileSystem()->GetLibraryPath() +
-        "Meshes/" + modelName;
+    std::string modelName = fs::path(fileName).stem().string();
+    std::string folder = app->getFileSystem()->GetLibraryPath() + "Meshes/" + modelName;
 
     if (!app->getFileSystem()->Exists(folder.c_str()))
     {
-        app->getFileSystem()->CreateDir(folder.c_str());
-
+        LOG("Model: Scene not imported yet, importing %s", fileName);
         if (!importFromGLTF(fileName))
+        {
+            LOG("Model: Failed to import scene from %s", fileName);
             return false;
+        }
     }
-
+    else
+    {
+        LOG("Model: Scene already imported, loading from Library");
+    }
     return loadFromLibrary(folder);
 }
 
@@ -37,31 +39,23 @@ bool Model::importFromGLTF(const char* fileName)
     tinygltf::Model gltfModel;
     std::string error, warning;
 
+    LOG("Model: Loading GLTF file %s", fileName);
+
     if (!loader.LoadASCIIFromFile(&gltfModel, &error, &warning, fileName))
+    {
+        LOG("Model: Failed to load GLTF file: %s", error.c_str());
         return false;
+    }
+
+    if (!warning.empty())
+    {
+        LOG("Model: GLTF Warning: %s", warning.c_str());
+    }
 
     namespace fs = std::filesystem;
     std::string modelName = fs::path(fileName).stem().string();
 
-    std::string folder =
-        app->getFileSystem()->GetLibraryPath() +
-        "Meshes/" + modelName;
-
-    int index = 0;
-
-    for (const auto& mesh : gltfModel.meshes)
-    {
-        for (const auto& primitive : mesh.primitives)
-        {
-            std::string out =
-                folder + "/" +
-                std::to_string(index++) + ".mesh";
-
-            MeshImporter::Import(primitive, gltfModel, out);
-        }
-    }
-
-    return true;
+    return SceneImporter::ImportFromLoadedGLTF(gltfModel, modelName);
 }
 
 bool Model::loadFromLibrary(const std::string& folder)
@@ -70,25 +64,39 @@ bool Model::loadFromLibrary(const std::string& folder)
 
     for (int i = 0;; ++i)
     {
-        std::string path =
-            folder + "/" +
-            std::to_string(i) + ".mesh";
+        std::string path = folder + "/" + std::to_string(i) + ".mesh";
 
         if (!app->getFileSystem()->Exists(path.c_str()))
+        {
             break;
+        }
 
         std::unique_ptr<Mesh> mesh;
         if (MeshImporter::Load(path, mesh))
         {
             m_meshes.push_back(std::move(mesh));
+            LOG("Model: Loaded mesh %d from %s", i, path.c_str());
+        }
+        else
+        {
+            LOG("Model: Failed to load mesh from %s", path.c_str());
         }
     }
 
-    return !m_meshes.empty();
+    if (m_meshes.empty())
+    {
+        LOG("Model: No meshes loaded from %s", folder.c_str());
+        return false;
+    }
+
+    LOG("Model: Successfully loaded %d meshes", (int)m_meshes.size());
+    return true;
 }
 
 void Model::draw(ID3D12GraphicsCommandList* cmdList)
 {
     for (const auto& mesh : m_meshes)
+    {
         mesh->draw(cmdList);
+    }
 }
