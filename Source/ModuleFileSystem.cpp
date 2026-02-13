@@ -33,6 +33,7 @@ void ModuleFileSystem::CreateProjectDirectories()
     CreateDir(libraryPath.c_str());
 
     CreateDir("Library/Meshes");
+    CreateDir("Library/Materials");
     CreateDir("Library/Textures");
     CreateDir("Library/Scenes");
 }
