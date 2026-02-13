@@ -17,6 +17,7 @@ class ModuleShaderDescriptors;
 class ModuleRingBuffer;
 class ModuleRTDescriptors;
 class ModuleDSDescriptors;
+class ModuleAssets;
 
 //class BasicModelScene;
 //class ModuleTextureSampler;
@@ -45,6 +46,7 @@ public:
 	ModuleRingBuffer* getRingBuffer() { return ringBuffer; }
     ModuleRTDescriptors* getRTDescriptors() { return rtDescriptors; }
     ModuleDSDescriptors* getDSDescriptors() { return dsDescriptors; }
+	ModuleAssets* getAssets() { return assets; }
 
 	/*BasicModelScene* getBasicModelScene() { return basicModelScene; }
     ModuleTextureSampler* getTextureSampler() { return textureSampler; }
@@ -77,6 +79,7 @@ private:
 	ModuleRingBuffer* ringBuffer = nullptr;
     ModuleRTDescriptors* rtDescriptors = nullptr;
     ModuleDSDescriptors* dsDescriptors = nullptr;
+	ModuleAssets* assets = nullptr;
 
     ModuleEditor* editor = nullptr;
   /*  ModuleTextureSampler* textureSampler = nullptr;

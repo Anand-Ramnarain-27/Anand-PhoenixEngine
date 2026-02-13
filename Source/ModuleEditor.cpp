@@ -5,6 +5,7 @@
 #include "ModuleShaderDescriptors.h"
 #include "ModuleDSDescriptors.h"
 #include "ModuleRTDescriptors.h"
+#include "ModuleAssets.h"
 #include "RenderTexture.h"
 #include "DebugDrawPass.h"
 #include "ImGuiPass.h"
@@ -125,6 +126,7 @@ void ModuleEditor::preRender()
     if (showConsole)     drawConsole();
     if (showPerformance) drawPerformanceWindow();
     if (showExercises)   drawExercises();
+    if (showAssetBrowser) drawAssetBrowser();
 
     if (viewportRT && viewportSize.x > 4 && viewportSize.y > 4)
     {
@@ -306,6 +308,7 @@ void ModuleEditor::drawDockspace()
         ImGui::DockBuilderDockWindow("Console", bottom);  
         ImGui::DockBuilderDockWindow("Performance", bottom);  
         ImGui::DockBuilderDockWindow("Exercises", left);  
+        ImGui::DockBuilderDockWindow("Asset Browser", bottom);
 
         ImGui::DockBuilderFinish(dockID);
     }
@@ -344,6 +347,28 @@ void ModuleEditor::drawMenuBar()
         if (ImGui::MenuItem("Play"))  sceneManager->play();
         if (ImGui::MenuItem("Pause")) sceneManager->pause();
         if (ImGui::MenuItem("Stop"))  sceneManager->stop();
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Assets"))
+    {
+        if (ImGui::MenuItem("Import Duck Model (Test)"))
+        {
+            app->getAssets()->importAsset("Assets/Models/Duck/duck.gltf");  // Use ModuleAssets
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::MenuItem("Show Asset Browser", "Ctrl+A"))
+        {
+            showAssetBrowser = !showAssetBrowser;
+        }
+
+        ImGui::Separator();
+
+        ImGui::TextDisabled("Library Folder:");
+        ImGui::TextDisabled(app->getFileSystem()->GetLibraryPath().c_str());
+
         ImGui::EndMenu();
     }
     ImGui::EndMainMenuBar();
@@ -651,4 +676,96 @@ void ModuleEditor::drawViewportOverlay()
     sprintf_s(buf, "FPS: %.1f | CPU: %.2f ms | GPU: %.2f ms", app->getFPS(), app->getAvgElapsedMs(), gpuFrameTimeMs);
 
     draw->AddText(pos, IM_COL32(0, 255, 0, 255),buf);
+}
+
+void ModuleEditor::drawAssetBrowser()
+{
+    if (!showAssetBrowser)
+        return;
+
+    ImGui::Begin("Asset Browser", &showAssetBrowser);
+
+    ModuleAssets* assets = app->getAssets();
+
+    // === IMPORT SECTION ===
+    ImGui::SeparatorText("Import");
+
+    if (ImGui::Button("Import Duck Model (Test)", ImVec2(-1, 0)))
+    {
+        assets->importAsset("Assets/Models/Duck/duck.gltf");
+    }
+
+    ImGui::Spacing();
+
+    // Manual import path
+    static char pathBuffer[256] = "Assets/Models/";
+    ImGui::InputText("Path", pathBuffer, 256);
+    ImGui::SameLine();
+    if (ImGui::Button("Import"))
+    {
+        assets->importAsset(pathBuffer);
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    // === LIBRARY SECTION ===
+    ImGui::SeparatorText("Imported Scenes");
+
+    // Get list of imported scenes
+    auto scenes = assets->getImportedScenes();
+
+    if (scenes.empty())
+    {
+        ImGui::TextDisabled("No scenes imported yet.");
+        ImGui::TextDisabled("Use the Import button above to import a model.");
+    }
+    else
+    {
+        for (const auto& sceneInfo : scenes)
+        {
+            ImGui::PushID(sceneInfo.name.c_str());
+
+            // Show scene name with bullet
+            ImGui::BulletText("%s", sceneInfo.name.c_str());
+
+            // Show metadata
+            ImGui::Indent();
+            ImGui::TextDisabled("Meshes: %u | Materials: %u",
+                sceneInfo.meshCount, sceneInfo.materialCount);
+
+            // Load button
+            if (ImGui::Button("Load in Scene"))
+            {
+                log(("Loading scene from library: " + sceneInfo.name).c_str(),
+                    ImVec4(0.6f, 0.8f, 1.0f, 1.0f));
+
+                // TODO: Actually load the scene
+                // For now, just log it
+            }
+
+            ImGui::SameLine();
+
+            // Show folder button
+            if (ImGui::SmallButton("Show Folder"))
+            {
+                // TODO: Open folder in file explorer
+                log(("Scene folder: " + sceneInfo.path).c_str(),
+                    ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
+            }
+
+            ImGui::Unindent();
+            ImGui::Spacing();
+
+            ImGui::PopID();
+        }
+    }
+
+    ImGui::Separator();
+
+    // Show library path
+    ImGui::TextDisabled("Library: %s",
+        app->getFileSystem()->GetLibraryPath().c_str());
+
+    ImGui::End();
 }

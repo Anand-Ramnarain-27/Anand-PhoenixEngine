@@ -124,6 +124,7 @@
     <ClCompile Include="SceneImporter.cpp" />
     <ClCompile Include="TextureImporter.cpp" />
     <ClCompile Include="MaterialImporter.cpp" />
+    <ClCompile Include="ModuleAssets.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -286,6 +287,7 @@
     <ClInclude Include="SceneImporter.h" />
     <ClInclude Include="TextureImporter.h" />
     <ClInclude Include="MaterialImporter.h" />
+    <ClInclude Include="ModuleAssets.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

@@ -5,6 +5,7 @@
 #include "ModuleCamera.h"
 #include "DebugDrawPass.h"
 #include "ModuleScene.h"
+#include "Model.h"
 
 RenderPipelineTestScene::RenderPipelineTestScene() = default;
 RenderPipelineTestScene::~RenderPipelineTestScene() = default;
@@ -50,11 +51,7 @@ void RenderPipelineTestScene::update(float deltaTime)
 {
     m_time += deltaTime;
 
-    parent->getTransform()->rotation =
-        Quaternion::CreateFromAxisAngle(
-            Vector3::Up,
-            m_time
-        );
+    parent->getTransform()->rotation = Quaternion::CreateFromAxisAngle(Vector3::Up, m_time);
 
     parent->getTransform()->markDirty();
 
@@ -75,10 +72,7 @@ void RenderPipelineTestScene::render(ID3D12GraphicsCommandList* cmd, const Modul
     }
 }
 
-
-
 void RenderPipelineTestScene::shutdown()
 {
     testModel.reset();
-
 }

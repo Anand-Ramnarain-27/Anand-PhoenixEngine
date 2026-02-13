@@ -189,6 +189,7 @@
     <ClInclude Include="MeshImporter.h" />
     <ClInclude Include="MeshPipeline.h" />
     <ClInclude Include="Model.h" />
+    <ClInclude Include="ModuleAssets.h" />
     <ClInclude Include="ModuleDescriptorsBase.h" />
     <ClInclude Include="ModuleDSDescriptors.h" />
     <ClInclude Include="ModuleFileSystem.h" />
@@ -300,6 +301,7 @@
     <ClCompile Include="MeshImporter.cpp" />
     <ClCompile Include="MeshPipeline.cpp" />
     <ClCompile Include="Model.cpp" />
+    <ClCompile Include="ModuleAssets.cpp" />
     <ClCompile Include="ModuleFileSystem.cpp" />
     <ClCompile Include="ModuleRingBuffer.cpp" />
     <ClCompile Include="ModuleScene.cpp" />

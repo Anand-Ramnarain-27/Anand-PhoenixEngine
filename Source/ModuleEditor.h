@@ -58,6 +58,7 @@ private:
     bool showPerformance = false;
     bool showExercises = true;
     bool showEditor = true;
+    bool showAssetBrowser = true;
 
     // Docking
     bool firstFrame = true;
@@ -121,4 +122,7 @@ private:
     void updateFPS();
     void updateMemory();
     void log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
+
+    void drawAssetBrowser();
+    //void importAsset(const char* filePath);
 };
