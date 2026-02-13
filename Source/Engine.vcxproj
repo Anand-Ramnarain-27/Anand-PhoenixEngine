@@ -184,6 +184,7 @@
     <ClInclude Include="HandleManager.h" />
     <ClInclude Include="IScene.h" />
     <ClInclude Include="Material.h" />
+    <ClInclude Include="MaterialImporter.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="MeshImporter.h" />
     <ClInclude Include="MeshPipeline.h" />
@@ -216,10 +217,12 @@
     <ClInclude Include="RenderTargetDesc.h" />
     <ClInclude Include="RenderTexture.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="SceneImporter.h" />
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="ShaderTableDesc.h" />
     <ClInclude Include="SimpleMath.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="TextureImporter.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="3rdParty\imgui-docking\backends\imgui_impl_dx12.cpp">
@@ -292,6 +295,7 @@
     <ClCompile Include="DepthStencilDesc.cpp" />
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="Material.cpp" />
+    <ClCompile Include="MaterialImporter.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="MeshImporter.cpp" />
     <ClCompile Include="MeshPipeline.cpp" />
@@ -326,12 +330,14 @@
     <ClCompile Include="RenderPipelineTestScene.cpp" />
     <ClCompile Include="RenderTargetDesc.cpp" />
     <ClCompile Include="RenderTexture.cpp" />
+    <ClCompile Include="SceneImporter.cpp" />
     <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="ShaderTableDesc.cpp" />
     <ClCompile Include="SimpleMath.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="TextureImporter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Engine.rc" />
