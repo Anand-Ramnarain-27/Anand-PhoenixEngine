@@ -96,7 +96,24 @@ private:
     uint64_t gpuMemoryMB = 0;
     uint64_t systemMemoryMB = 0;
 
+    //Rendering
     std::unique_ptr<MeshPipeline> meshPipeline;
+
+    //Constants
+    struct CameraConstants
+    {
+        Matrix viewProj;
+    };
+
+    struct ObjectConstants
+    {
+        Matrix world;
+    };
+
+    ComPtr<ID3D12Resource> cameraConstantBuffer;
+    ComPtr<ID3D12Resource> objectConstantBuffer;
+
+    void updateCameraConstants(const Matrix& view, const Matrix& proj);
 
     bool showGrid = true;
     bool showAxis = true;

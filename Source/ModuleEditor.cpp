@@ -69,6 +69,39 @@ bool ModuleEditor::init()
 
     app->getD3D12()->getDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&gpuReadbackBuffer));
 
+    {
+        auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer((sizeof(CameraConstants) + 255) & ~255); // Align to 256
+
+        d3d12->getDevice()->CreateCommittedResource(
+            &heapProps,
+            D3D12_HEAP_FLAG_NONE,
+            &bufferDesc,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&cameraConstantBuffer)
+        );
+
+        cameraConstantBuffer->SetName(L"CameraCB");
+    }
+
+    // Object constant buffer
+    {
+        auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer((sizeof(ObjectConstants) + 255) & ~255);
+
+        d3d12->getDevice()->CreateCommittedResource(
+            &heapProps,
+            D3D12_HEAP_FLAG_NONE,
+            &bufferDesc,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&objectConstantBuffer)
+        );
+
+        objectConstantBuffer->SetName(L"ObjectCB");
+    }
+
     return true;
 }
 
@@ -228,6 +261,14 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     cmd->SetPipelineState(meshPipeline->getPSO());
     cmd->SetGraphicsRootSignature(meshPipeline->getRootSig());
 
+    // Bind camera constant (b0) - 16 x 32-bit values = 4x4 matrix
+    Matrix viewProj = (view * proj).Transpose();
+    cmd->SetGraphicsRoot32BitConstants(0, 16, &viewProj, 0);
+
+    // Bind world matrix (b1) - 16 x 32-bit values = 4x4 matrix
+    Matrix world = Matrix::Identity.Transpose();
+    cmd->SetGraphicsRoot32BitConstants(1, 16, &world, 0);
+
     if (sceneManager)
         sceneManager->render(cmd, *camera, width, height);
 
@@ -237,7 +278,6 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
 
     viewportRT->endRender(cmd);
 }
-
 
 void ModuleEditor::log(const char* text, const ImVec4& color)
 {
@@ -768,4 +808,15 @@ void ModuleEditor::drawAssetBrowser()
         app->getFileSystem()->GetLibraryPath().c_str());
 
     ImGui::End();
+}
+
+void ModuleEditor::updateCameraConstants(const Matrix& view, const Matrix& proj)
+{
+    CameraConstants constants;
+    constants.viewProj = (view * proj).Transpose(); // D3D expects row-major
+
+    void* data = nullptr;
+    cameraConstantBuffer->Map(0, nullptr, &data);
+    memcpy(data, &constants, sizeof(CameraConstants));
+    cameraConstantBuffer->Unmap(0, nullptr);
 }

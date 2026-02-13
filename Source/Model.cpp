@@ -121,8 +121,12 @@ bool Model::loadFromLibrary(const std::string& folder)
     return !m_meshes.empty();
 }
 
-void Model::draw(ID3D12GraphicsCommandList* cmdList)
+void Model::draw(ID3D12GraphicsCommandList* cmdList, const Matrix& worldMatrix)
 {
+    // Bind world matrix for this model (b1)
+    Matrix world = worldMatrix.Transpose(); // D3D expects row-major
+    cmdList->SetGraphicsRoot32BitConstants(1, 16, &world, 0);
+
     for (const auto& mesh : m_meshes)
     {
         if (mesh)
@@ -130,4 +134,10 @@ void Model::draw(ID3D12GraphicsCommandList* cmdList)
             mesh->draw(cmdList);
         }
     }
+}
+
+void Model::draw(ID3D12GraphicsCommandList* cmdList)
+{
+    // Default to identity matrix
+    draw(cmdList, Matrix::Identity);
 }

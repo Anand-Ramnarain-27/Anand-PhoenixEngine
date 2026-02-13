@@ -23,8 +23,14 @@ bool MeshPipeline::createRootSignature(ID3D12Device* device)
 
     CD3DX12_ROOT_PARAMETER params[4];
 
-    params[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-    params[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+    // CHANGE THESE TWO LINES:
+    // OLD: params[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+    // OLD: params[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+
+    // NEW: Use root constants instead (16 floats = 64 bytes for a 4x4 matrix)
+    params[0].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+    params[1].InitAsConstants(16, 1, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+
     params[2].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
     params[3].InitAsDescriptorTable(1, &texRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
@@ -47,7 +53,6 @@ bool MeshPipeline::createRootSignature(ID3D12Device* device)
 
     return SUCCEEDED(device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&rootSig)));
 }
-
 
 bool MeshPipeline::createPSO(ID3D12Device* device)
 {
