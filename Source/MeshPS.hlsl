@@ -5,7 +5,8 @@ cbuffer MaterialCB : register(b2)
     float4 baseColor;
     float metallic;
     float roughness;
-    float2 padding;
+    uint hasBaseColorTexture;
+    uint padding;
 };
 
 Texture2D baseColorTexture : register(t0);
@@ -31,13 +32,15 @@ float4 main(PSInput input) : SV_TARGET
     float3 ambient = float3(0.3f, 0.3f, 0.3f);
     float3 diffuse = float3(0.7f, 0.7f, 0.7f) * NdotL;
     
-    // Sample texture (or use white if no texture)
-    float4 albedo = float4(1.0f, 1.0f, 1.0f, 1.0f);
-    // TODO: Add texture sampling when we load textures
-    // albedo = baseColorTexture.Sample(textureSampler, input.uv);
+    // Sample texture or use base color
+    float4 albedo = baseColor;
+    if (hasBaseColorTexture)
+    {
+        albedo = baseColorTexture.Sample(textureSampler, input.uv);
+    }
     
     // Combine lighting
     float3 finalColor = albedo.rgb * (ambient + diffuse);
     
-    return float4(finalColor, 1.0f);
+    return float4(finalColor, albedo.a);
 }

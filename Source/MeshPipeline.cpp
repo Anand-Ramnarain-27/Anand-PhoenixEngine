@@ -23,19 +23,12 @@ bool MeshPipeline::createRootSignature(ID3D12Device* device)
 
     CD3DX12_ROOT_PARAMETER params[4];
 
-    // CHANGE THESE TWO LINES:
-    // OLD: params[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-    // OLD: params[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-
-    // NEW: Use root constants instead (16 floats = 64 bytes for a 4x4 matrix)
-    params[0].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-    params[1].InitAsConstants(16, 1, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-
-    params[2].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[3].InitAsDescriptorTable(1, &texRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[0].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);  // Camera
+    params[1].InitAsConstants(16, 1, 0, D3D12_SHADER_VISIBILITY_VERTEX);  // Object
+    params[2].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_PIXEL);  // Material
+    params[3].InitAsDescriptorTable(1, &texRange, D3D12_SHADER_VISIBILITY_PIXEL);  // Texture
 
     CD3DX12_STATIC_SAMPLER_DESC sampler(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR);
-
     sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
     sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
     sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -48,12 +41,15 @@ bool MeshPipeline::createRootSignature(ID3D12Device* device)
 
     if (FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error)))
     {
+        if (error)
+        {
+            OutputDebugStringA((char*)error->GetBufferPointer());
+        }
         return false;
     }
 
     return SUCCEEDED(device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&rootSig)));
 }
-
 bool MeshPipeline::createPSO(ID3D12Device* device)
 {
     auto vs = DX::ReadData(L"MeshVS.cso");

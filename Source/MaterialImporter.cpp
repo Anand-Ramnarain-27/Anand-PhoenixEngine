@@ -4,10 +4,11 @@
 #include "Material.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
+#include "ModuleResources.h"
+#include "ModuleShaderDescriptors.h"
+#include "ModuleD3D12.h" 
+#include "ShaderTableDesc.h"
 
-//#define TINYGLTF_NO_STB_IMAGE_WRITE
-//#define TINYGLTF_NO_STB_IMAGE
-//#define TINYGLTF_NO_EXTERNAL_IMAGE
 #include "tiny_gltf.h"
 
 #include <cstring>
@@ -15,34 +16,41 @@
 
 bool MaterialImporter::Import(const tinygltf::Material& gltfMaterial, const tinygltf::Model& model, const std::string& sceneName, const std::string& outputFile, int materialIndex)
 {
-    LOG("MaterialImporter: Importing material %d", materialIndex);
+    LOG("MaterialImporter: Importing material %d (%s)", materialIndex, gltfMaterial.name.c_str());
 
     ModuleFileSystem* fs = app->getFileSystem();
 
     auto tempMaterial = std::make_unique<Material>();
 
-    std::string basePath = fs->GetAssetsPath();
+    const auto& pbr = gltfMaterial.pbrMetallicRoughness;
+    Vector4 baseColor = Vector4(
+        float(pbr.baseColorFactor[0]),
+        float(pbr.baseColorFactor[1]),
+        float(pbr.baseColorFactor[2]),
+        float(pbr.baseColorFactor[3])
+    );
 
-    // Load material data using existing Material::load
-    // Note: This won't create GPU resources, just extract the data
-    // tempMaterial->load(gltfMaterial, model, basePath.c_str());
+    tempMaterial->getData().baseColor = baseColor;
+    tempMaterial->getData().metallic = float(pbr.metallicFactor);
+    tempMaterial->getData().roughness = float(pbr.roughnessFactor);
 
     MaterialHeader header;
     std::string texturePath;
 
-    const auto& pbr = gltfMaterial.pbrMetallicRoughness;
     if (pbr.baseColorTexture.index >= 0 && pbr.baseColorTexture.index < (int)model.textures.size())
     {
         const auto& texture = model.textures[pbr.baseColorTexture.index];
+
         if (texture.source >= 0 && texture.source < (int)model.images.size())
         {
             const auto& image = model.images[texture.source];
 
             if (!image.uri.empty())
             {
+                std::string basePath = fs->GetAssetsPath();
                 std::string sourceTexPath = basePath + image.uri;
-                std::string textureName = TextureImporter::GetTextureName(image.uri.c_str());
 
+                std::string textureName = TextureImporter::GetTextureName(image.uri.c_str());
                 std::string materialFolder = fs->GetLibraryPath() + "Materials/" + sceneName;
                 std::string ddsPath = materialFolder + "/" + textureName + ".dds";
 
@@ -51,15 +59,18 @@ bool MaterialImporter::Import(const tinygltf::Material& gltfMaterial, const tiny
                     if (TextureImporter::Import(sourceTexPath.c_str(), ddsPath))
                     {
                         LOG("MaterialImporter: Imported texture %s", textureName.c_str());
-                        header.hasTexture = 1;
-                        texturePath = ddsPath;
+                    }
+                    else
+                    {
+                        LOG("MaterialImporter: Failed to import texture %s", sourceTexPath.c_str());
                     }
                 }
-                else
+
+                if (fs->Exists(ddsPath.c_str()))
                 {
-                    LOG("MaterialImporter: Texture already exists: %s", ddsPath.c_str());
                     header.hasTexture = 1;
                     texturePath = ddsPath;
+                    tempMaterial->getData().hasBaseColorTexture = 1;
                 }
             }
         }
@@ -102,21 +113,29 @@ bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& 
         texturePath.resize(header.texturePathLength);
         memcpy(&texturePath[0], cursor, header.texturePathLength);
         cursor += header.texturePathLength;
-
-        LOG("MaterialImporter: Material references texture: %s", texturePath.c_str());
     }
 
     delete[] buffer;
 
     outMaterial = std::make_unique<Material>();
 
-    // load the texture and set it to the material
-    // This would integrate with your ModuleResources
-    // ComPtr<ID3D12Resource> texture;
-    // if (!texturePath.empty())
-    // {
-    //     texture = app->getResources()->createTextureFromFile(texturePath, true);
-    // }
+    if (!texturePath.empty())
+    {
+        LOG("MaterialImporter: Loading texture: %s", texturePath.c_str());
+
+        ComPtr<ID3D12Resource> texture;
+        D3D12_GPU_DESCRIPTOR_HANDLE srvHandle;
+
+        if (TextureImporter::Load(texturePath, texture, srvHandle))
+        {
+            outMaterial->setBaseColorTexture(texture, srvHandle);
+            LOG("MaterialImporter: Texture loaded successfully");
+        }
+        else
+        {
+            LOG("MaterialImporter: Failed to load texture");
+        }
+    }
 
     LOG("MaterialImporter: Successfully loaded material from %s", file.c_str());
     return true;

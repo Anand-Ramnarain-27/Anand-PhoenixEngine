@@ -5,6 +5,7 @@
 #include "ModuleD3D12.h"
 #include "SceneImporter.h"
 #include "MeshImporter.h"
+#include "MaterialImporter.h"
 #include "Mesh.h"
 #include "Material.h"
 
@@ -67,12 +68,14 @@ bool Model::loadFromLibrary(const std::string& folder)
 
     ModuleFileSystem* fs = app->getFileSystem();
 
+    // Check if the scene folder exists
     if (!fs->Exists(folder.c_str()))
     {
         LOG("Model: Scene folder does not exist: %s", folder.c_str());
         return false;
     }
 
+    // Load scene metadata
     std::string metaPath = folder + "/scene.meta";
 
     char* buffer = nullptr;
@@ -89,16 +92,21 @@ bool Model::loadFromLibrary(const std::string& folder)
     memcpy(&header, buffer, sizeof(SceneImporter::SceneHeader));
     delete[] buffer;
 
+    // Validate header
     if (header.magic != 0x53434E45 || header.version != 1)
     {
         LOG("Model: Invalid scene metadata file");
         return false;
     }
 
-    LOG("Model: Loading scene with %d meshes", header.meshCount);
+    LOG("Model: Loading scene with %d meshes, %d materials",
+        header.meshCount, header.materialCount);
 
+    // Clear any existing data
     m_meshes.clear();
+    m_materials.clear();
 
+    // Load each mesh
     for (uint32_t i = 0; i < header.meshCount; ++i)
     {
         std::string meshFile = folder + "/" + std::to_string(i) + ".mesh";
@@ -116,7 +124,36 @@ bool Model::loadFromLibrary(const std::string& folder)
         }
     }
 
-    LOG("Model: Successfully loaded %d meshes from library", (int)m_meshes.size());
+    // Load each material
+    std::string materialFolder = fs->GetLibraryPath() + "Materials/" +
+        std::filesystem::path(folder).filename().string();
+
+    for (uint32_t i = 0; i < header.materialCount; ++i)
+    {
+        std::string materialFile = materialFolder + "/" + std::to_string(i) + ".mat";
+
+        std::unique_ptr<Material> material;
+        if (MaterialImporter::Load(materialFile, material))
+        {
+            m_materials.push_back(std::move(material));
+            LOG("  Loaded material %d", i);
+        }
+        else
+        {
+            LOG("  Failed to load material file: %s", materialFile.c_str());
+            // Create default material
+            m_materials.push_back(std::make_unique<Material>());
+        }
+    }
+
+    // If no materials were loaded, create defaults for each mesh
+    while (m_materials.size() < m_meshes.size())
+    {
+        m_materials.push_back(std::make_unique<Material>());
+    }
+
+    LOG("Model: Successfully loaded %d meshes and %d materials from library",
+        (int)m_meshes.size(), (int)m_materials.size());
 
     return !m_meshes.empty();
 }

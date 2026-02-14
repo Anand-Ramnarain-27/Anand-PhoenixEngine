@@ -2,6 +2,10 @@
 #include "TextureImporter.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
+#include "ModuleResources.h"
+#include "ModuleShaderDescriptors.h"
+#include "ModuleD3D12.h"
+#include "ShaderTableDesc.h"
 
 #include <DirectXTex.h>
 #include <filesystem>
@@ -33,7 +37,7 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
     {
         hr = LoadFromHDRFile(wSourcePath.c_str(), nullptr, image);
     }
-    else // PNG, JPG, BMP, etc.
+    else 
     {
         hr = LoadFromWICFile(wSourcePath.c_str(), WIC_FLAGS_NONE, nullptr, image);
     }
@@ -47,7 +51,8 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
     ScratchImage mipChain;
     if (image.GetMetadata().mipLevels == 1)
     {
-        hr = GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), TEX_FILTER_DEFAULT, 0, mipChain);
+        hr = GenerateMipMaps(image.GetImages(), image.GetImageCount(),
+            image.GetMetadata(), TEX_FILTER_DEFAULT, 0, mipChain);
 
         if (FAILED(hr))
         {
@@ -60,17 +65,16 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
         mipChain = std::move(image);
     }
 
-    // Compress to BC format for better GPU performance
-    // For now, we'll save as-is
     ScratchImage compressed;
     const TexMetadata& metadata = mipChain.GetMetadata();
+
     if (!IsCompressed(metadata.format))
     {
-        DXGI_FORMAT compressedFormat = DXGI_FORMAT_BC1_UNORM; 
+        DXGI_FORMAT compressedFormat = DXGI_FORMAT_BC1_UNORM;
 
         if (HasAlpha(metadata.format))
         {
-            compressedFormat = DXGI_FORMAT_BC3_UNORM; 
+            compressedFormat = DXGI_FORMAT_BC3_UNORM;
         }
 
         hr = Compress(mipChain.GetImages(), mipChain.GetImageCount(), metadata, compressedFormat, TEX_COMPRESS_DEFAULT, 1.0f, compressed);
@@ -102,16 +106,14 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
     }
 
     LOG("TextureImporter: Successfully imported texture to %s", outputPath.c_str());
-    LOG("  Resolution: %dx%d, Mips: %d, Format: %d", (int)finalMeta.width, (int)finalMeta.height, (int)finalMeta.mipLevels, (int)finalMeta.format);
+    LOG("  Resolution: %dx%d, Mips: %d, Format: %d",
+        (int)finalMeta.width, (int)finalMeta.height, (int)finalMeta.mipLevels, (int)finalMeta.format);
 
     return true;
 }
 
-bool TextureImporter::Load(const std::string& file, ComPtr<ID3D12Resource>& outTexture)
+bool TextureImporter::Load(const std::string& file, ComPtr<ID3D12Resource>& outTexture, D3D12_GPU_DESCRIPTOR_HANDLE& outSRV)
 {
-    // This would integrate with your ModuleResources to load the DDS file
-    // For now, this is a placeholder showing the structure
-
     LOG("TextureImporter: Loading texture from %s", file.c_str());
 
     std::string metaPath = file + ".meta";
@@ -119,19 +121,41 @@ bool TextureImporter::Load(const std::string& file, ComPtr<ID3D12Resource>& outT
     char* buffer = nullptr;
     uint32_t fileSize = app->getFileSystem()->Load(metaPath.c_str(), &buffer);
 
-    if (buffer && fileSize >= sizeof(TextureHeader))
+    if (!buffer || fileSize < sizeof(TextureHeader))
     {
-        TextureHeader header;
-        memcpy(&header, buffer, sizeof(TextureHeader));
-        delete[] buffer;
-
-        LOG("  Texture info: %dx%d, %d mips, format %d",
-            header.width, header.height, header.mipLevels, header.format);
+        if (buffer) delete[] buffer;
+        LOG("TextureImporter: Failed to load metadata");
+        return false;
     }
 
-    // The actual DDS loading would be done through DirectXTex and D3D12
-    // This integrates with your existing ModuleResources::createTextureFromFile
+    TextureHeader header;
+    memcpy(&header, buffer, sizeof(TextureHeader));
+    delete[] buffer;
 
+    if (header.magic != 0x54455854 || header.version != 1)
+    {
+        LOG("TextureImporter: Invalid texture metadata");
+        return false;
+    }
+
+    LOG("  Texture info: %dx%d, %d mips, format %d", header.width, header.height, header.mipLevels, header.format);
+
+    outTexture = app->getResources()->createTextureFromFile(file, true);
+
+    if (!outTexture)
+    {
+        LOG("TextureImporter: Failed to create texture resource");
+        return false;
+    }
+
+    ModuleShaderDescriptors* descriptors = app->getShaderDescriptors();
+    ShaderTableDesc tableDesc = descriptors->allocTable();
+
+    tableDesc.createTexture2DSRV(outTexture.Get(), 0, (DXGI_FORMAT)header.format, header.mipLevels);
+
+    outSRV = tableDesc.getGPUHandle(0); 
+
+    LOG("TextureImporter: Texture loaded successfully");
     return true;
 }
 

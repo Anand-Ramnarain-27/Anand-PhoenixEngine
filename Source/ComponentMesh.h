@@ -2,6 +2,7 @@
 
 #include "Component.h"
 #include <memory>
+#include <vector>
 #include "ModuleD3D12.h"
 
 class Model;
@@ -20,4 +21,5 @@ public:
 
 private:
     std::unique_ptr<Model> m_model;
+    std::vector<ComPtr<ID3D12Resource>> m_materialBuffers;
 };

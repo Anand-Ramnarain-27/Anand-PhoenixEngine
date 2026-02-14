@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 
+class Material;
 class Model
 {
 public:
@@ -19,6 +20,7 @@ public:
     const Matrix& getModelMatrix() const { return m_modelMatrix; }
     const std::string& getSrcFile() const { return m_srcFile; }
     const std::vector<std::unique_ptr<Mesh>>& getMeshes() const { return m_meshes; }
+    const std::vector<std::unique_ptr<Material>>& getMaterials() const { return m_materials; }
 
 private:
     bool importFromGLTF(const char* fileName);
@@ -27,6 +29,6 @@ private:
 private:
     std::string m_srcFile;
     std::vector<std::unique_ptr<Mesh>> m_meshes;
-
+    std::vector<std::unique_ptr<Material>> m_materials;
     Matrix m_modelMatrix = Matrix::Identity;
 };
