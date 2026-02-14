@@ -1,3 +1,5 @@
+// MeshVS.hlsl
+
 cbuffer CameraCB : register(b0)
 {
     float4x4 viewProj;
@@ -25,12 +27,16 @@ struct VSOutput
 VSOutput main(VSInput input)
 {
     VSOutput output;
-
+    
+    // Transform position
     float4 worldPos = mul(float4(input.pos, 1.0f), world);
     output.pos = mul(worldPos, viewProj);
-
+    
+    // Transform normal (use world matrix, ignore translation)
+    output.nrm = mul(input.nrm, (float3x3) world);
+    
+    // Pass through UV
     output.uv = input.uv;
-    output.nrm = input.nrm;
-
+    
     return output;
 }

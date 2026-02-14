@@ -2,6 +2,7 @@
 #include "GameObject.h"
 #include "Component.h"
 #include "ComponentTransform.h"
+#include "ComponentMesh.h"
 #include <algorithm>
 
 GameObject::GameObject(const std::string& name)
@@ -17,7 +18,6 @@ void GameObject::setParent(GameObject* newParent)
     if (parent == newParent)
         return;
 
-    // Remove from old parent
     if (parent)
     {
         auto& siblings = parent->children;
@@ -45,6 +45,15 @@ void GameObject::update(float deltaTime)
         child->update(deltaTime);
 }
 
+void GameObject::render(ID3D12GraphicsCommandList* cmd)
+{
+    for (auto& c : components)
+        c->render(cmd);
+
+    for (auto* child : children)
+        child->render(cmd);
+}
+
 template<typename T, typename... Args>
 T* GameObject::createComponent(Args&&... args)
 {
@@ -55,3 +64,4 @@ T* GameObject::createComponent(Args&&... args)
 }
 
 template ComponentTransform* GameObject::createComponent<ComponentTransform>();
+template ComponentMesh* GameObject::createComponent<ComponentMesh>();

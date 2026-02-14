@@ -2,6 +2,7 @@
 #include "RenderPipelineTestScene.h"
 #include "GameObject.h"
 #include "ComponentTransform.h"
+#include "ComponentMesh.h"
 #include "ModuleCamera.h"
 #include "DebugDrawPass.h"
 #include "ModuleScene.h"
@@ -30,17 +31,20 @@ bool RenderPipelineTestScene::initialize(ID3D12Device*)
     parent->getTransform()->position = { 0, 0, 0 };
     child->getTransform()->position = { 0, 1, 0 };
 
-    testModel = std::make_unique<Model>();
+    // CREATE A DUCK GAME OBJECT
+    GameObject* duckObject = scene->createGameObject("Duck", parent);
+    duckObject->getTransform()->position = { 0, 0, 0 };
+    duckObject->getTransform()->scale = { 0.01f, 0.01f, 0.01f };  // Scale it down
 
-    bool ok = testModel->load("Assets/Models/Duck/duck.gltf");
-
-    if (!ok)
+    // ADD MESH COMPONENT
+    ComponentMesh* meshComp = duckObject->createComponent<ComponentMesh>();
+    if (!meshComp->loadModel("Assets/Models/Duck/duck.gltf"))
     {
-        LOG("Failed to load test model!");
+        LOG("Failed to load duck model!");
     }
     else
     {
-        LOG("Test model loaded successfully");
+        LOG("Duck model loaded successfully");
     }
 
     m_time = 0.0f;
@@ -63,16 +67,13 @@ void RenderPipelineTestScene::render(ID3D12GraphicsCommandList* cmd, const Modul
     dd::xzSquareGrid(-5.0f, 5.0f, 0.0f, 1.0f, dd::colors::LightGray);
 
     dd::axisTriad(ddConvert(parent->getTransform()->getGlobalMatrix()), 0.3f, 1.0f);
-
     dd::axisTriad(ddConvert(child->getTransform()->getGlobalMatrix()), 0.2f, 1.0f);
 
-    if (testModel)
-    {
-        testModel->draw(cmd);
-    }
+    // RENDER THE SCENE HIERARCHY
+    scene->getRoot()->render(cmd);
 }
 
 void RenderPipelineTestScene::shutdown()
 {
-    testModel.reset();
+    scene.reset();
 }

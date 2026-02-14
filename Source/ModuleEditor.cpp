@@ -261,11 +261,9 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     cmd->SetPipelineState(meshPipeline->getPSO());
     cmd->SetGraphicsRootSignature(meshPipeline->getRootSig());
 
-    // Bind camera constant (b0) - 16 x 32-bit values = 4x4 matrix
     Matrix viewProj = (view * proj).Transpose();
     cmd->SetGraphicsRoot32BitConstants(0, 16, &viewProj, 0);
 
-    // Bind world matrix (b1) - 16 x 32-bit values = 4x4 matrix
     Matrix world = Matrix::Identity.Transpose();
     cmd->SetGraphicsRoot32BitConstants(1, 16, &world, 0);
 

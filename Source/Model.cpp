@@ -123,9 +123,8 @@ bool Model::loadFromLibrary(const std::string& folder)
 
 void Model::draw(ID3D12GraphicsCommandList* cmdList, const Matrix& worldMatrix)
 {
-    // Bind world matrix for this model (b1)
-    Matrix world = worldMatrix.Transpose(); // D3D expects row-major
-    cmdList->SetGraphicsRoot32BitConstants(1, 16, &world, 0);
+    Matrix finalWorld = (m_modelMatrix * worldMatrix).Transpose();
+    cmdList->SetGraphicsRoot32BitConstants(1, 16, &finalWorld, 0);
 
     for (const auto& mesh : m_meshes)
     {
@@ -138,6 +137,5 @@ void Model::draw(ID3D12GraphicsCommandList* cmdList, const Matrix& worldMatrix)
 
 void Model::draw(ID3D12GraphicsCommandList* cmdList)
 {
-    // Default to identity matrix
     draw(cmdList, Matrix::Identity);
 }

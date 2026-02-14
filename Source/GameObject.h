@@ -14,6 +14,7 @@ public:
     ~GameObject();
 
     void update(float deltaTime);
+    void render(ID3D12GraphicsCommandList* cmd);
 
     void setParent(GameObject* newParent);
     GameObject* getParent() const { return parent; }
@@ -25,7 +26,6 @@ public:
     T* createComponent(Args&&... args);
 
     const std::string& getName() const { return name; }
-
     void setName(const std::string& newName) { name = newName; }
 private:
     std::string name;
