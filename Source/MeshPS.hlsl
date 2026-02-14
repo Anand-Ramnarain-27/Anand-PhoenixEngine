@@ -1,5 +1,3 @@
-// MeshPS.hlsl
-
 cbuffer MaterialCB : register(b2)
 {
     float4 baseColor;
@@ -21,25 +19,20 @@ struct PSInput
 
 float4 main(PSInput input) : SV_TARGET
 {
-    // Normalize the normal
     float3 N = normalize(input.nrm);
     
-    // Simple directional light
     float3 lightDir = normalize(float3(0.5f, -1.0f, 0.5f));
     float NdotL = max(dot(N, -lightDir), 0.0f);
     
-    // Ambient + diffuse lighting
     float3 ambient = float3(0.3f, 0.3f, 0.3f);
     float3 diffuse = float3(0.7f, 0.7f, 0.7f) * NdotL;
     
-    // Sample texture or use base color
     float4 albedo = baseColor;
     if (hasBaseColorTexture)
     {
-        albedo = baseColorTexture.Sample(textureSampler, input.uv);
+        albedo = baseColorTexture.Sample(textureSampler, input.uv); 
     }
     
-    // Combine lighting
     float3 finalColor = albedo.rgb * (ambient + diffuse);
     
     return float4(finalColor, albedo.a);

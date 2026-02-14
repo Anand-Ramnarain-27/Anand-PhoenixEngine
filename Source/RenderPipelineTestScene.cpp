@@ -6,7 +6,6 @@
 #include "ModuleCamera.h"
 #include "DebugDrawPass.h"
 #include "ModuleScene.h"
-#include "Model.h"
 
 RenderPipelineTestScene::RenderPipelineTestScene() = default;
 RenderPipelineTestScene::~RenderPipelineTestScene() = default;
@@ -18,7 +17,7 @@ const char* RenderPipelineTestScene::getName() const
 
 const char* RenderPipelineTestScene::getDescription() const
 {
-    return "Minimal scene to validate scene lifecycle and viewport rendering.";
+    return "Scene with multiple models to test asset pipeline.";
 }
 
 bool RenderPipelineTestScene::initialize(ID3D12Device*)
@@ -31,16 +30,29 @@ bool RenderPipelineTestScene::initialize(ID3D12Device*)
     parent->getTransform()->position = { 0, 0, 0 };
     child->getTransform()->position = { 0, 1, 0 };
 
-    // CREATE A DUCK GAME OBJECT
-    GameObject* duckObject = scene->createGameObject("Duck", parent);
-    duckObject->getTransform()->position = { 0, 0, 0 };
-    duckObject->getTransform()->scale = { 0.01f, 0.01f, 0.01f };  // Scale it down
+    duckObject = scene->createGameObject("Duck", parent);
+    duckObject->getTransform()->position = { -2, 0, 0 };
+    duckObject->getTransform()->scale = { 0.01f, 0.01f, 0.01f };
 
-    // ADD MESH COMPONENT
-    ComponentMesh* meshComp = duckObject->createComponent<ComponentMesh>();
-    if (!meshComp->loadModel("Assets/Models/Duck/duck.gltf"))
+    ComponentMesh* duckMesh = duckObject->createComponent<ComponentMesh>();
+    if (!duckMesh->loadModel("Assets/Models/Duck/duck.gltf"))
     {
         LOG("Failed to load duck model!");
+    }
+    else
+    {
+        LOG("Duck model loaded successfully");
+    }
+
+    secondModel = scene->createGameObject("Duck", parent);
+    secondModel->getTransform()->position = { 2, 0, 0 };
+    secondModel->getTransform()->scale = { 0.01f, 0.01f, 0.01f };
+
+    ComponentMesh* houseMesh = secondModel->createComponent<ComponentMesh>();
+    if (!houseMesh->loadModel("Assets/Models/Duck/duck.gltf"))
+    {
+        LOG("Failed to load Duck model - file might not exist");
+        LOG("That's okay, just using duck for now");
     }
     else
     {
@@ -55,7 +67,7 @@ void RenderPipelineTestScene::update(float deltaTime)
 {
     m_time += deltaTime;
 
-    parent->getTransform()->rotation = Quaternion::CreateFromAxisAngle(Vector3::Up, m_time);
+    parent->getTransform()->rotation = Quaternion::CreateFromAxisAngle(Vector3::Up, m_time * 0.5f);
 
     parent->getTransform()->markDirty();
 
@@ -69,7 +81,16 @@ void RenderPipelineTestScene::render(ID3D12GraphicsCommandList* cmd, const Modul
     dd::axisTriad(ddConvert(parent->getTransform()->getGlobalMatrix()), 0.3f, 1.0f);
     dd::axisTriad(ddConvert(child->getTransform()->getGlobalMatrix()), 0.2f, 1.0f);
 
-    // RENDER THE SCENE HIERARCHY
+    if (duckObject)
+    {
+        dd::axisTriad(ddConvert(duckObject->getTransform()->getGlobalMatrix()), 0.1f, 1.0f);
+    }
+
+    if (secondModel)
+    {
+        dd::axisTriad(ddConvert(secondModel->getTransform()->getGlobalMatrix()), 0.1f, 1.0f);
+    }
+
     scene->getRoot()->render(cmd);
 }
 

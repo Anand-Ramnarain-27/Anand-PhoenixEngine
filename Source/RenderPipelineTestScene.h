@@ -27,6 +27,8 @@ private:
 
     GameObject* parent = nullptr;
     GameObject* child = nullptr;
+    GameObject* duckObject = nullptr; 
+    GameObject* secondModel = nullptr;
 
     float m_time = 0.0f;
 

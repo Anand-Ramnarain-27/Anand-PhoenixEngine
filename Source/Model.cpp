@@ -21,19 +21,6 @@ bool Model::load(const char* fileName)
     std::string modelName = fs::path(fileName).stem().string();
     std::string folder = app->getFileSystem()->GetLibraryPath() + "Meshes/" + modelName;
 
-    // TEMPORARY: Force re-import by deleting existing library
-    if (app->getFileSystem()->Exists(folder.c_str()))
-    {
-        LOG("Model: FORCE RE-IMPORT - Deleting existing library folder");
-        app->getFileSystem()->Delete(folder.c_str());
-
-        std::string materialFolder = app->getFileSystem()->GetLibraryPath() + "Materials/" + modelName;
-        if (app->getFileSystem()->Exists(materialFolder.c_str()))
-        {
-            app->getFileSystem()->Delete(materialFolder.c_str());
-        }
-    }
-
     if (!app->getFileSystem()->Exists(folder.c_str()))
     {
         LOG("Model: Scene not imported yet, importing %s", fileName);
