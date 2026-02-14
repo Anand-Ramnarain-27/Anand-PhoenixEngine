@@ -23,7 +23,7 @@ public:
     };
 
 public:
-    static bool Import(const tinygltf::Material& gltfMaterial, const tinygltf::Model& model, const std::string& sceneName, const std::string& outputFile, int materialIndex);
+    static bool Import(const tinygltf::Material& gltfMaterial, const tinygltf::Model& model, const std::string& sceneName, const std::string& outputFile, int materialIndex, const std::string& basePath);
 
     static bool Load(const std::string& file, std::unique_ptr<Material>& outMaterial);
 private:

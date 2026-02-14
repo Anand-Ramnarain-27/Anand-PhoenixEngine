@@ -14,7 +14,7 @@
 #include <cstring>
 #include <filesystem>
 
-bool MaterialImporter::Import(const tinygltf::Material& gltfMaterial, const tinygltf::Model& model, const std::string& sceneName, const std::string& outputFile, int materialIndex)
+bool MaterialImporter::Import(const tinygltf::Material& gltfMaterial, const tinygltf::Model& model, const std::string& sceneName, const std::string& outputFile, int materialIndex, const std::string& basePath)
 {
     LOG("MaterialImporter: Importing material %d (%s)", materialIndex, gltfMaterial.name.c_str());
 
@@ -47,8 +47,9 @@ bool MaterialImporter::Import(const tinygltf::Material& gltfMaterial, const tiny
 
             if (!image.uri.empty())
             {
-                std::string basePath = fs->GetAssetsPath();
                 std::string sourceTexPath = basePath + image.uri;
+
+                LOG("MaterialImporter: Texture source path: %s", sourceTexPath.c_str());
 
                 std::string textureName = TextureImporter::GetTextureName(image.uri.c_str());
                 std::string materialFolder = fs->GetLibraryPath() + "Materials/" + sceneName;
@@ -59,18 +60,21 @@ bool MaterialImporter::Import(const tinygltf::Material& gltfMaterial, const tiny
                     if (TextureImporter::Import(sourceTexPath.c_str(), ddsPath))
                     {
                         LOG("MaterialImporter: Imported texture %s", textureName.c_str());
+                        header.hasTexture = 1;
+                        texturePath = ddsPath;
+                        tempMaterial->getData().hasBaseColorTexture = 1;
                     }
                     else
                     {
                         LOG("MaterialImporter: Failed to import texture %s", sourceTexPath.c_str());
                     }
                 }
-
-                if (fs->Exists(ddsPath.c_str()))
+                else
                 {
                     header.hasTexture = 1;
                     texturePath = ddsPath;
                     tempMaterial->getData().hasBaseColorTexture = 1;
+                    LOG("MaterialImporter: Texture already exists: %s", ddsPath.c_str());
                 }
             }
         }

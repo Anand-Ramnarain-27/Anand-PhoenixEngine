@@ -1,6 +1,7 @@
 #include "Globals.h"
 #include "SceneImporter.h"
 #include "MeshImporter.h"
+#include "MaterialImporter.h" 
 #include "Model.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
@@ -43,19 +44,21 @@ bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const
     LOG("SceneImporter: Imported %d meshes", meshIndex);
 
     std::string materialFolder = fs->GetLibraryPath() + "Materials/" + sceneName;
+    std::string basePath = "Assets/Models/" + sceneName + "/"; 
 
     int materialIndex = 0;
     for (const auto& material : gltfModel.materials)
     {
-        std::string materialFile = materialFolder + "/" +
-            std::to_string(materialIndex) + ".mat";
+        std::string materialFile = materialFolder + "/" + std::to_string(materialIndex) + ".mat";
 
-        // Note: MaterialImporter::Import needs to be implemented
-        // if (!MaterialImporter::Import(material, gltfModel, sceneName, 
-        //                              materialFile, materialIndex))
-        // {
-        //     LOG("SceneImporter: Failed to import material %d", materialIndex);
-        // }
+        if (!MaterialImporter::Import(material, gltfModel, sceneName, materialFile, materialIndex, basePath)) 
+        {
+            LOG("SceneImporter: Failed to import material %d", materialIndex);
+        }
+        else
+        {
+            LOG("SceneImporter: Successfully imported material %d", materialIndex);
+        }
 
         materialIndex++;
     }
