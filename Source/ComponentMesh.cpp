@@ -7,6 +7,12 @@
 #include "Application.h"
 #include "ModuleResources.h"
 
+#include "3rdParty/rapidjson/document.h"
+#include "3rdParty/rapidjson/writer.h"
+#include "3rdParty/rapidjson/stringbuffer.h"
+
+using namespace rapidjson;
+
 ComponentMesh::ComponentMesh(GameObject* owner)
     : Component(owner)
 {
@@ -22,6 +28,9 @@ bool ComponentMesh::loadModel(const char* filePath)
     {
         return false;
     }
+
+    // Store the file path for serialization
+    m_modelFilePath = filePath;
 
     // Create constant buffers for materials
     ModuleResources* resources = app->getResources();
@@ -91,5 +100,44 @@ void ComponentMesh::render(ID3D12GraphicsCommandList* cmd)
         }
 
         mesh->draw(cmd);
+    }
+}
+
+void ComponentMesh::onSave(std::string& outJson) const
+{
+    Document doc;
+    doc.SetObject();
+    Document::AllocatorType& allocator = doc.GetAllocator();
+
+    doc.AddMember("HasModel", (m_model != nullptr), allocator);
+
+    if (m_model && !m_modelFilePath.empty()) {
+        Value pathVal;
+        pathVal.SetString(m_modelFilePath.c_str(), allocator);
+        doc.AddMember("ModelPath", pathVal, allocator);
+    }
+
+    // Convert to string
+    StringBuffer buffer;
+    Writer<StringBuffer> writer(buffer);
+    doc.Accept(writer);
+
+    outJson = buffer.GetString();
+}
+
+void ComponentMesh::onLoad(const std::string& jsonStr)
+{
+    Document doc;
+    doc.Parse(jsonStr.c_str());
+
+    if (doc.HasParseError()) {
+        LOG("ComponentMesh: JSON parse error");
+        return;
+    }
+
+    if (doc["HasModel"].GetBool() && doc.HasMember("ModelPath")) {
+        std::string modelPath = doc["ModelPath"].GetString();
+        LOG("ComponentMesh: Loading model from: %s", modelPath.c_str());
+        loadModel(modelPath.c_str());
     }
 }

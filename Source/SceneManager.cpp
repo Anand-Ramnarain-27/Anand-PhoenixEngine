@@ -1,6 +1,8 @@
 #include "Globals.h"
 #include "SceneManager.h"
 #include "IScene.h"
+#include "ModuleScene.h"
+#include "SceneSerializer.h"
 
 SceneManager::~SceneManager()
 {
@@ -29,6 +31,7 @@ void SceneManager::clearScene()
     }
 
     state = PlayState::Stopped;
+    hasSerializedState = false;
 }
 
 void SceneManager::play()
@@ -37,15 +40,38 @@ void SceneManager::play()
         return;
 
     if (state == PlayState::Stopped)
+    {
+        // Serialize current scene state before playing (as per lecture requirements)
+        ModuleScene* moduleScene = activeScene->getModuleScene();
+        if (moduleScene)
+        {
+            LOG("SceneManager: Serializing scene state before play");
+            hasSerializedState = SceneSerializer::SaveTempScene(moduleScene);
+
+            if (!hasSerializedState)
+            {
+                LOG("SceneManager: Warning - Failed to serialize scene state!");
+            }
+            else
+            {
+                LOG("SceneManager: Scene state saved successfully");
+            }
+        }
+
         activeScene->reset();
+    }
 
     state = PlayState::Playing;
+    LOG("SceneManager: Playing");
 }
 
 void SceneManager::pause()
 {
     if (state == PlayState::Playing)
+    {
         state = PlayState::Paused;
+        LOG("SceneManager: Paused");
+    }
 }
 
 void SceneManager::stop()
@@ -53,11 +79,47 @@ void SceneManager::stop()
     if (!activeScene)
         return;
 
-    activeScene->onExit();
-    activeScene->reset();
-    activeScene->onEnter();
+    LOG("SceneManager: Stopping");
+
+    // Restore serialized state (as per lecture requirements)
+    if (hasSerializedState)
+    {
+        LOG("SceneManager: Restoring scene state from serialization");
+
+        ModuleScene* moduleScene = activeScene->getModuleScene();
+        if (moduleScene)
+        {
+            // Clear current scene state
+            activeScene->onExit();
+
+            // Reload from serialized state
+            if (SceneSerializer::LoadTempScene(moduleScene))
+            {
+                LOG("SceneManager: Scene state restored successfully");
+            }
+            else
+            {
+                LOG("SceneManager: Error - Failed to restore scene state!");
+                // Fallback to reset
+                activeScene->reset();
+            }
+
+            activeScene->onEnter();
+        }
+
+        hasSerializedState = false;
+    }
+    else
+    {
+        // No serialized state, just reset
+        LOG("SceneManager: No serialized state, performing reset");
+        activeScene->onExit();
+        activeScene->reset();
+        activeScene->onEnter();
+    }
 
     state = PlayState::Stopped;
+    LOG("SceneManager: Stopped");
 }
 
 void SceneManager::update(float deltaTime)
@@ -80,4 +142,42 @@ void SceneManager::onViewportResized(uint32_t width, uint32_t height)
 {
     if (activeScene)
         activeScene->onViewportResized(width, height);
+}
+
+bool SceneManager::saveCurrentScene(const std::string& filePath)
+{
+    if (!activeScene)
+    {
+        LOG("SceneManager: No active scene to save");
+        return false;
+    }
+
+    ModuleScene* moduleScene = activeScene->getModuleScene();
+    if (!moduleScene)
+    {
+        LOG("SceneManager: Active scene does not have a ModuleScene");
+        return false;
+    }
+
+    LOG("SceneManager: Saving scene to %s", filePath.c_str());
+    return SceneSerializer::SaveScene(moduleScene, filePath);
+}
+
+bool SceneManager::loadScene(const std::string& filePath)
+{
+    if (!activeScene)
+    {
+        LOG("SceneManager: No active scene to load into");
+        return false;
+    }
+
+    ModuleScene* moduleScene = activeScene->getModuleScene();
+    if (!moduleScene)
+    {
+        LOG("SceneManager: Active scene does not have a ModuleScene");
+        return false;
+    }
+
+    LOG("SceneManager: Loading scene from %s", filePath.c_str());
+    return SceneSerializer::LoadScene(filePath, moduleScene);
 }

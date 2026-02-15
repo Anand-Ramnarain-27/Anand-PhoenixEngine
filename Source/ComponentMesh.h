@@ -3,6 +3,7 @@
 #include "Component.h"
 #include <memory>
 #include <vector>
+#include <string>
 #include "ModuleD3D12.h"
 
 class Model;
@@ -19,7 +20,13 @@ public:
 
     Model* getModel() const { return m_model.get(); }
 
+    // Serialization
+    void onSave(std::string& outJson) const override;
+    void onLoad(const std::string& json) override;
+    Type getType() const override { return Type::Mesh; }
+
 private:
     std::unique_ptr<Model> m_model;
     std::vector<ComPtr<ID3D12Resource>> m_materialBuffers;
+    std::string m_modelFilePath;  // Store path for serialization
 };

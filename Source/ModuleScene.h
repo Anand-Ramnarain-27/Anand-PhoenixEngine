@@ -21,8 +21,10 @@ public:
 
     void update(float deltaTime);
 
+    // For serialization: clear all objects except root
+    void clear();
+
 private:
     std::unique_ptr<GameObject> root;
-
     std::vector<std::unique_ptr<GameObject>> objects;
 };
