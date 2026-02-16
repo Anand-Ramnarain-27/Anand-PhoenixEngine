@@ -408,42 +408,27 @@ void ModuleEditor::drawMenuBar()
         ImGui::Separator();
         if (ImGui::MenuItem("Save Scene", "Ctrl+S"))
         {
-            m_saveDialog.open(
-                FileDialog::Type::Save,
-                "Save Scene",
-                "Library/Scenes"
-            );
-        }
-        if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S"))
-        {
-            // Save with timestamp for now
-            // TODO: Add file picker dialog
             if (sceneManager && sceneManager->getActiveScene())
             {
-                char filename[256];
-                time_t now = time(nullptr);
-                tm timeinfo;
-                localtime_s(&timeinfo, &now);
-                strftime(filename, sizeof(filename), "Library/Scenes/scene_%Y%m%d_%H%M%S.json", &timeinfo);
-
-                if (sceneManager->saveCurrentScene(filename))
+                // Quick save to default location
+                std::string path = "Library/Scenes/current_scene.json";
+                if (sceneManager->saveCurrentScene(path))
                 {
-                    log("✓ Scene saved to %s" /*+ filename */, ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
-                }
-                else
-                {
-                    log("✗ Failed to save scene!", ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+                    log(("✓ Scene saved to " + path).c_str(),
+                        ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
                 }
             }
         }
-        ImGui::Separator();
-        if (ImGui::MenuItem("Load Scene", "Ctrl+O"))
+        if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S"))
         {
-            m_loadDialog.open(
-                FileDialog::Type::Open,
-                "Load Scene",
-                "Library/Scenes"
-            );
+            m_saveDialog.setExtensionFilter(".json");
+            m_saveDialog.open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
+        }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Load Scene...", "Ctrl+O"))
+        {
+            m_loadDialog.setExtensionFilter(".json");
+            m_loadDialog.open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
         }
 
         ImGui::Separator();
