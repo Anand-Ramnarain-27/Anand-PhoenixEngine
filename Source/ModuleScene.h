@@ -24,6 +24,8 @@ public:
     // For serialization: clear all objects except root
     void clear();
 
+    GameObject* findGameObjectByName(const std::string& name);
+
 private:
     std::unique_ptr<GameObject> root;
     std::vector<std::unique_ptr<GameObject>> objects;

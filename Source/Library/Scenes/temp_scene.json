@@ -1,0 +1,227 @@
+{
+  "Scene": {
+    "Version": 1,
+    "GameObjects": [
+      {
+        "UID": 292924683,
+        "ParentUID": 938296203,
+        "Name": "Parent",
+        "Active": true,
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "Components": []
+      },
+      {
+        "UID": 219319336,
+        "ParentUID": 292924683,
+        "Name": "Child",
+        "Active": true,
+        "Transform": {
+          "position": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "Components": []
+      },
+      {
+        "UID": 960549451,
+        "ParentUID": 292924683,
+        "Name": "Duck",
+        "Active": true,
+        "Transform": {
+          "position": [
+            -2.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            0.009999999776482582,
+            0.009999999776482582,
+            0.009999999776482582
+          ]
+        },
+        "Components": [
+          {
+            "Type": 1,
+            "Data": "{\"HasModel\":true,\"ModelPath\":\"Assets/Models/Duck/duck.gltf\"}"
+          }
+        ]
+      },
+      {
+        "UID": 2268370638,
+        "ParentUID": 292924683,
+        "Name": "Duck2",
+        "Active": true,
+        "Transform": {
+          "position": [
+            2.799999952316284,
+            1.100000023841858,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            0.009999999776482582,
+            0.009999999776482582,
+            0.009999999776482582
+          ]
+        },
+        "Components": [
+          {
+            "Type": 1,
+            "Data": "{\"HasModel\":true,\"ModelPath\":\"Assets/Models/Duck/duck.gltf\"}"
+          }
+        ]
+      },
+      {
+        "UID": 292924683,
+        "ParentUID": 938296203,
+        "Name": "Parent",
+        "Active": true,
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "Components": []
+      },
+      {
+        "UID": 219319336,
+        "ParentUID": 292924683,
+        "Name": "Child",
+        "Active": true,
+        "Transform": {
+          "position": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "Components": []
+      },
+      {
+        "UID": 960549451,
+        "ParentUID": 292924683,
+        "Name": "Duck",
+        "Active": true,
+        "Transform": {
+          "position": [
+            -2.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            0.009999999776482582,
+            0.009999999776482582,
+            0.009999999776482582
+          ]
+        },
+        "Components": [
+          {
+            "Type": 1,
+            "Data": "{\"HasModel\":true,\"ModelPath\":\"Assets/Models/Duck/duck.gltf\"}"
+          }
+        ]
+      },
+      {
+        "UID": 2268370638,
+        "ParentUID": 292924683,
+        "Name": "Duck2",
+        "Active": true,
+        "Transform": {
+          "position": [
+            2.799999952316284,
+            1.100000023841858,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            0.009999999776482582,
+            0.009999999776482582,
+            0.009999999776482582
+          ]
+        },
+        "Components": [
+          {
+            "Type": 1,
+            "Data": "{\"HasModel\":true,\"ModelPath\":\"Assets/Models/Duck/duck.gltf\"}"
+          }
+        ]
+      }
+    ]
+  }
+}

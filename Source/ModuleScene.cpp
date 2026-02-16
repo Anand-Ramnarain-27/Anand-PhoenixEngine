@@ -39,3 +39,23 @@ void ModuleScene::clear()
     // You may need to add a clearChildren() method to GameObject
     LOG("ModuleScene: Cleared all objects");
 }
+
+GameObject* ModuleScene::findGameObjectByName(const std::string& name)
+{
+    std::function<GameObject* (GameObject*)> search = [&](GameObject* go) -> GameObject*
+        {
+            if (go->getName() == name)
+                return go;
+
+            for (auto* child : go->getChildren())
+            {
+                GameObject* found = search(child);
+                if (found)
+                    return found;
+            }
+
+            return nullptr;
+        };
+
+    return search(root.get());
+}

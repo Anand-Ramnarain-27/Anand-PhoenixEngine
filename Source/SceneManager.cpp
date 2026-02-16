@@ -1,5 +1,7 @@
 #include "Globals.h"
 #include "SceneManager.h"
+#include "Application.h"
+#include "ModuleD3D12.h"
 #include "IScene.h"
 #include "ModuleScene.h"
 #include "SceneSerializer.h"
@@ -177,6 +179,8 @@ bool SceneManager::loadScene(const std::string& filePath)
         LOG("SceneManager: Active scene does not have a ModuleScene");
         return false;
     }
+
+    app->getD3D12()->flush();
 
     LOG("SceneManager: Loading scene from %s", filePath.c_str());
     return SceneSerializer::LoadScene(filePath, moduleScene);

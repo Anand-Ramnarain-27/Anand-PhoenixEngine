@@ -25,10 +25,10 @@ public:
 private:
     std::unique_ptr<ModuleScene> scene;
 
-    GameObject* parent = nullptr;
+    /*GameObject* parent = nullptr;
     GameObject* child = nullptr;
     GameObject* duckObject = nullptr; 
-    GameObject* secondModel = nullptr;
+    GameObject* secondModel = nullptr;*/
 
     float m_time = 0.0f;
 
