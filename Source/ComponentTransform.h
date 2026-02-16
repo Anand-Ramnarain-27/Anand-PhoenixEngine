@@ -18,11 +18,6 @@ public:
 
     void markDirty();
 
-    // Serialization - implemented inline for transform (always serialized with GameObject)
-    void onSave(std::string& outJson) const override;
-    void onLoad(const std::string& json) override;
-    Type getType() const override { return Type::Transform; }
-
 private:
     void rebuildLocal();
     void rebuildGlobal();

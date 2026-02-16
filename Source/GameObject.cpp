@@ -4,24 +4,14 @@
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
 #include <algorithm>
-#include <random>
 
 GameObject::GameObject(const std::string& name)
     : name(name)
-    , uid(generateUID())
 {
     transform = createComponent<ComponentTransform>();
 }
 
 GameObject::~GameObject() = default;
-
-uint32_t GameObject::generateUID()
-{
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
-    static std::uniform_int_distribution<uint32_t> dis;
-    return dis(gen);
-}
 
 void GameObject::setParent(GameObject* newParent)
 {

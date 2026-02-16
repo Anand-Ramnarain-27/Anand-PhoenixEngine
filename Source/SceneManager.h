@@ -5,7 +5,6 @@
 
 class IScene;
 class ModuleCamera;
-class ModuleScene;
 
 class SceneManager
 {
@@ -16,14 +15,12 @@ public:
         Playing,
         Paused
     };
-
     SceneManager() = default;
     ~SceneManager();
 
     void setScene(std::unique_ptr<IScene> scene, ID3D12Device* device);
     void clearScene();
 
-    // Play/Pause/Stop with serialization support
     void play();
     void pause();
     void stop();
@@ -42,13 +39,7 @@ public:
     void onViewportResized(uint32_t width, uint32_t height);
 
     IScene* getActiveScene() const { return activeScene.get(); }
-
-    // Scene serialization
-    bool saveCurrentScene(const std::string& filePath);
-    bool loadScene(const std::string& filePath);
-
 private:
     std::unique_ptr<IScene> activeScene;
     PlayState state = PlayState::Stopped;
-    bool hasSerializedState = false;
 };
