@@ -73,26 +73,32 @@ void ComponentTransform::onSave(std::string& outJson) const
     Document::AllocatorType& allocator = doc.GetAllocator();
 
     // Position
-    Value posArray(kArrayType);
-    posArray.PushBack(position.x, allocator);
-    posArray.PushBack(position.y, allocator);
-    posArray.PushBack(position.z, allocator);
-    doc.AddMember("position", posArray, allocator);
+    {
+        Value posArray(kArrayType);
+        posArray.PushBack(position.x, allocator);
+        posArray.PushBack(position.y, allocator);
+        posArray.PushBack(position.z, allocator);
+        doc.AddMember("position", posArray, allocator);
+    }
 
     // Rotation
-    Value rotArray(kArrayType);
-    rotArray.PushBack(rotation.x, allocator);
-    rotArray.PushBack(rotation.y, allocator);
-    rotArray.PushBack(rotation.z, allocator);
-    rotArray.PushBack(rotation.w, allocator);
-    doc.AddMember("rotation", rotArray, allocator);
+    {
+        Value rotArray(kArrayType);
+        rotArray.PushBack(rotation.x, allocator);
+        rotArray.PushBack(rotation.y, allocator);
+        rotArray.PushBack(rotation.z, allocator);
+        rotArray.PushBack(rotation.w, allocator);
+        doc.AddMember("rotation", rotArray, allocator);
+    }
 
     // Scale
-    Value scaleArray(kArrayType);
-    scaleArray.PushBack(scale.x, allocator);
-    scaleArray.PushBack(scale.y, allocator);
-    scaleArray.PushBack(scale.z, allocator);
-    doc.AddMember("scale", scaleArray, allocator);
+    {
+        Value scaleArray(kArrayType);
+        scaleArray.PushBack(scale.x, allocator);
+        scaleArray.PushBack(scale.y, allocator);
+        scaleArray.PushBack(scale.z, allocator);
+        doc.AddMember("scale", scaleArray, allocator);
+    }
 
     // Convert to string
     StringBuffer buffer;

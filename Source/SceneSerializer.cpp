@@ -27,133 +27,126 @@ bool SceneSerializer::SaveScene(const ModuleScene* scene, const std::string& fil
 
     LOG("SceneSerializer: Saving scene to %s", filePath.c_str());
 
-    // Create JSON document
-    Document doc;
-    doc.SetObject();
-    Document::AllocatorType& allocator = doc.GetAllocator();
+    try {
+        // Create JSON document
+        Document doc;
+        doc.SetObject();
+        Document::AllocatorType& allocator = doc.GetAllocator();
 
-    // Create Scene object
-    Value sceneObj(kObjectType);
-    sceneObj.AddMember("Version", 1, allocator);
+        // Create Scene object
+        Value sceneObj(kObjectType);
+        sceneObj.AddMember("Version", 1, allocator);
 
-    // Create GameObjects array
-    Value gameObjectsArray(kArrayType);
+        // Create GameObjects array
+        Value gameObjectsArray(kArrayType);
 
-    // Recursive serialization function
-    std::function<void(GameObject*, Value&)> serializeGO =
-        [&](GameObject* go, Value& arr)
-        {
-            // Skip root itself
-            if (go == scene->getRoot())
-                return;
+        // Recursive serialization function
+        std::function<void(GameObject*, Value&)> serializeGO =
+            [&](GameObject* go, Value& arr)
+            {
+                // Skip root itself
+                if (go == scene->getRoot())
+                    return;
 
-            Value goNode(kObjectType);
+                Value goNode(kObjectType);
 
-            // Basic properties
-            goNode.AddMember("UID", go->getUID(), allocator);
-            goNode.AddMember("ParentUID",
-                go->getParent() ? go->getParent()->getUID() : 0,
-                allocator);
+                // Basic properties
+                goNode.AddMember("UID", go->getUID(), allocator);
+                goNode.AddMember("ParentUID",
+                    go->getParent() ? go->getParent()->getUID() : 0,
+                    allocator);
 
-            Value nameVal;
-            nameVal.SetString(go->getName().c_str(), allocator);
-            goNode.AddMember("Name", nameVal, allocator);
+                Value nameVal;
+                nameVal.SetString(go->getName().c_str(), go->getName().length(), allocator);
+                goNode.AddMember("Name", nameVal, allocator);
 
-            goNode.AddMember("Active", go->isActive(), allocator);
+                goNode.AddMember("Active", go->isActive(), allocator);
 
-            // Serialize Transform
-            auto* transform = go->getTransform();
-            Value transformObj(kObjectType);
+                // Serialize Transform
+                auto* transform = go->getTransform();
+                Value transformObj(kObjectType);
 
-            // Position
-            Value posArray(kArrayType);
-            posArray.PushBack(transform->position.x, allocator);
-            posArray.PushBack(transform->position.y, allocator);
-            posArray.PushBack(transform->position.z, allocator);
-            transformObj.AddMember("position", posArray, allocator);
+                // Position
+                {
+                    Value posArray(kArrayType);
+                    posArray.PushBack(Value(transform->position.x), allocator);
+                    posArray.PushBack(Value(transform->position.y), allocator);
+                    posArray.PushBack(Value(transform->position.z), allocator);
+                    transformObj.AddMember("position", posArray, allocator);
+                }
 
-            // Rotation
-            Value rotArray(kArrayType);
-            rotArray.PushBack(transform->rotation.x, allocator);
-            rotArray.PushBack(transform->rotation.y, allocator);
-            rotArray.PushBack(transform->rotation.z, allocator);
-            rotArray.PushBack(transform->rotation.w, allocator);
-            transformObj.AddMember("rotation", rotArray, allocator);
+                // Rotation
+                {
+                    Value rotArray(kArrayType);
+                    rotArray.PushBack(Value(transform->rotation.x), allocator);
+                    rotArray.PushBack(Value(transform->rotation.y), allocator);
+                    rotArray.PushBack(Value(transform->rotation.z), allocator);
+                    rotArray.PushBack(Value(transform->rotation.w), allocator);
+                    transformObj.AddMember("rotation", rotArray, allocator);
+                }
 
-            // Scale
-            Value scaleArray(kArrayType);
-            scaleArray.PushBack(transform->scale.x, allocator);
-            scaleArray.PushBack(transform->scale.y, allocator);
-            scaleArray.PushBack(transform->scale.z, allocator);
-            transformObj.AddMember("scale", scaleArray, allocator);
+                // Scale
+                {
+                    Value scaleArray(kArrayType);
+                    scaleArray.PushBack(Value(transform->scale.x), allocator);
+                    scaleArray.PushBack(Value(transform->scale.y), allocator);
+                    scaleArray.PushBack(Value(transform->scale.z), allocator);
+                    transformObj.AddMember("scale", scaleArray, allocator);
+                }
 
-            goNode.AddMember("Transform", transformObj, allocator);
+                goNode.AddMember("Transform", transformObj, allocator);
 
-            // Serialize Components (placeholder for now)
-            Value componentsArray(kArrayType);
+                // Serialize Components
+                Value componentsArray(kArrayType);
+                goNode.AddMember("Components", componentsArray, allocator);
 
-            // TODO: Add component serialization when you implement Component::onSave()
-            // Example structure for future ComponentMesh:
-            /*
-            if (auto* mesh = go->getComponent<ComponentMesh>()) {
-                Value compObj(kObjectType);
-                compObj.AddMember("Type", (int)Component::Type::Mesh, allocator);
+                arr.PushBack(goNode, allocator);
 
-                Value typeNameVal;
-                typeNameVal.SetString("Mesh", allocator);
-                compObj.AddMember("TypeName", typeNameVal, allocator);
+                // Recurse children
+                for (auto* child : go->getChildren()) {
+                    serializeGO(child, arr);
+                }
+            };
 
-                // Get component data
-                std::string compData;
-                mesh->onSave(compData);
+        // Start from root's children
+        for (auto* child : scene->getRoot()->getChildren()) {
+            serializeGO(child, gameObjectsArray);
+        }
 
-                // Parse component data as JSON
-                Document compDoc;
-                compDoc.Parse(compData.c_str());
+        // Store count before moving
+        uint32_t objectCount = gameObjectsArray.Size();
 
-                Value compDataVal(compDoc, allocator);
-                compObj.AddMember("Data", compDataVal, allocator);
+        sceneObj.AddMember("GameObjects", gameObjectsArray, allocator);
+        doc.AddMember("Scene", sceneObj, allocator);
 
-                componentsArray.PushBack(compObj, allocator);
-            }
-            */
+        // Write to file with pretty formatting
+        FILE* fp = fopen(filePath.c_str(), "wb");
+        if (!fp) {
+            LOG("SceneSerializer: Failed to open file for writing: %s", filePath.c_str());
+            return false;
+        }
 
-            goNode.AddMember("Components", componentsArray, allocator);
+        char writeBuffer[65536];
+        FileWriteStream os(fp, writeBuffer, sizeof(writeBuffer));
 
-            arr.PushBack(goNode, allocator);
+        PrettyWriter<FileWriteStream> writer(os);
+        writer.SetIndent(' ', 2);
+        doc.Accept(writer);
 
-            // Recurse children
-            for (auto* child : go->getChildren()) {
-                serializeGO(child, arr);
-            }
-        };
+        fclose(fp);
 
-    // Start from root's children
-    for (auto* child : scene->getRoot()->getChildren()) {
-        serializeGO(child, gameObjectsArray);
+        LOG("SceneSerializer: Scene saved successfully (%d objects)", objectCount);
+        return true;
+
     }
-
-    sceneObj.AddMember("GameObjects", gameObjectsArray, allocator);
-    doc.AddMember("Scene", sceneObj, allocator);
-
-    // Write to file with pretty formatting
-    FILE* fp = fopen(filePath.c_str(), "wb");
-    if (!fp) {
-        LOG("SceneSerializer: Failed to open file for writing: %s", filePath.c_str());
+    catch (const std::exception& e) {
+        LOG("SceneSerializer: EXCEPTION during save: %s", e.what());
         return false;
     }
-
-    char writeBuffer[65536];
-    FileWriteStream os(fp, writeBuffer, sizeof(writeBuffer));
-
-    PrettyWriter<FileWriteStream> writer(os);
-    writer.SetIndent(' ', 2);  // 2-space indentation
-    doc.Accept(writer);
-
-    fclose(fp);
-
-    LOG("SceneSerializer: Scene saved successfully (%d objects)", gameObjectsArray.Size());
-    return true;
+    catch (...) {
+        LOG("SceneSerializer: UNKNOWN EXCEPTION during save");
+        return false;
+    }
 }
 
 bool SceneSerializer::LoadScene(const std::string& filePath, ModuleScene* scene)
@@ -266,35 +259,12 @@ bool SceneSerializer::LoadScene(const std::string& filePath, ModuleScene* scene)
 
         transform->markDirty();
 
-        // Load Components (placeholder for now)
+        // Load Components
         const Value& componentsArray = goNode["Components"];
         for (SizeType j = 0; j < componentsArray.Size(); j++) {
             const Value& compNode = componentsArray[j];
 
             // TODO: Add component loading when you implement Component::onLoad()
-            /*
-            int typeInt = compNode["Type"].GetInt();
-            Component::Type type = (Component::Type)typeInt;
-
-            switch (type) {
-                case Component::Type::Mesh: {
-                    ComponentMesh* mesh = go->createComponent<ComponentMesh>();
-
-                    // Convert Data object back to JSON string
-                    StringBuffer buffer;
-                    Writer<StringBuffer> writer(buffer);
-                    compNode["Data"].Accept(writer);
-                    std::string compData = buffer.GetString();
-
-                    mesh->onLoad(compData);
-                    break;
-                }
-
-                default:
-                    LOG("SceneSerializer: Unknown component type %d", typeInt);
-                    break;
-            }
-            */
         }
     }
 
@@ -322,14 +292,10 @@ bool SceneSerializer::LoadTempScene(ModuleScene* scene)
 
 std::string SceneSerializer::SerializeGameObject(const GameObject* go)
 {
-    // Helper function if you need to serialize individual GameObjects
-    // Not used in current implementation but available for future use
     return "";
 }
 
 GameObject* SceneSerializer::DeserializeGameObject(const std::string& json, ModuleScene* scene)
 {
-    // Helper function if you need to deserialize individual GameObjects
-    // Not used in current implementation but available for future use
     return nullptr;
 }
