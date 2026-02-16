@@ -73,5 +73,30 @@ T* GameObject::createComponent(Args&&... args)
     return ptr;
 }
 
+// ? NEW METHOD: Add pre-created component (for deserialization)
+void GameObject::addComponent(std::unique_ptr<Component> component)
+{
+    if (component)
+    {
+        components.push_back(std::move(component));
+    }
+}
+
+template<typename T>
+T* GameObject::getComponent() const
+{
+    for (auto& comp : components)
+    {
+        T* casted = dynamic_cast<T*>(comp.get());
+        if (casted)
+            return casted;
+    }
+    return nullptr;
+}
+
+// Explicit template instantiations
 template ComponentTransform* GameObject::createComponent<ComponentTransform>();
 template ComponentMesh* GameObject::createComponent<ComponentMesh>();
+
+template ComponentTransform* GameObject::getComponent<ComponentTransform>() const;
+template ComponentMesh* GameObject::getComponent<ComponentMesh>() const;

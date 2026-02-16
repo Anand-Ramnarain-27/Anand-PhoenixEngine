@@ -2,8 +2,10 @@
 #include "SceneSerializer.h"
 #include "ModuleScene.h"
 #include "GameObject.h"
+#include "Component.h"
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
+#include "ComponentFactory.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
 
@@ -62,7 +64,7 @@ bool SceneSerializer::SaveScene(const ModuleScene* scene, const std::string& fil
 
                 goNode.AddMember("Active", go->isActive(), allocator);
 
-                // Serialize Transform
+                // Serialize Transform - stored inline with GameObject
                 auto* transform = go->getTransform();
                 Value transformObj(kObjectType);
 
@@ -96,8 +98,32 @@ bool SceneSerializer::SaveScene(const ModuleScene* scene, const std::string& fil
 
                 goNode.AddMember("Transform", transformObj, allocator);
 
-                // Serialize Components
+                // ? FIXED: Serialize Components (excluding Transform which is always present)
                 Value componentsArray(kArrayType);
+
+                for (const auto& comp : go->getComponents())
+                {
+                    // Skip Transform - already serialized above
+                    if (comp->getType() == Component::Type::Transform)
+                        continue;
+
+                    Value compObj(kObjectType);
+
+                    // Store component type
+                    compObj.AddMember("Type", (int)comp->getType(), allocator);
+
+                    // Call component's onSave method
+                    std::string compData;
+                    comp->onSave(compData);
+
+                    // Store serialized data
+                    Value dataVal;
+                    dataVal.SetString(compData.c_str(), compData.length(), allocator);
+                    compObj.AddMember("Data", dataVal, allocator);
+
+                    componentsArray.PushBack(compObj, allocator);
+                }
+
                 goNode.AddMember("Components", componentsArray, allocator);
 
                 arr.PushBack(goNode, allocator);
@@ -191,7 +217,10 @@ bool SceneSerializer::LoadScene(const std::string& filePath, ModuleScene* scene)
 
     const Value& gameObjectsArray = doc["Scene"]["GameObjects"];
 
-    // PHASE 1: Create all GameObjects (without linking)
+    // Clear existing scene (except root)
+    scene->clear();
+
+    // PHASE 1: Create all GameObjects (without linking or loading components)
     std::unordered_map<uint32_t, GameObject*> uidMap;
 
     for (SizeType i = 0; i < gameObjectsArray.Size(); i++) {
@@ -200,7 +229,7 @@ bool SceneSerializer::LoadScene(const std::string& filePath, ModuleScene* scene)
         std::string name = goNode["Name"].GetString();
         bool active = goNode["Active"].GetBool();
 
-        // Create GameObject
+        // Create GameObject (this auto-creates Transform component)
         GameObject* go = scene->createGameObject(name);
         go->setActive(active);
 
@@ -259,12 +288,35 @@ bool SceneSerializer::LoadScene(const std::string& filePath, ModuleScene* scene)
 
         transform->markDirty();
 
-        // Load Components
+        // ? FIXED: Load Components using addComponent method
         const Value& componentsArray = goNode["Components"];
         for (SizeType j = 0; j < componentsArray.Size(); j++) {
             const Value& compNode = componentsArray[j];
 
-            // TODO: Add component loading when you implement Component::onLoad()
+            // Get component type
+            Component::Type type = (Component::Type)compNode["Type"].GetInt();
+
+            // Get serialized data
+            std::string compData = compNode["Data"].GetString();
+
+            // Create component using factory
+            auto component = ComponentFactory::CreateComponent(type, go);
+
+            if (component)
+            {
+                // Load component data BEFORE adding to GameObject
+                component->onLoad(compData);
+
+                // ? Add component to GameObject
+                go->addComponent(std::move(component));
+
+                LOG("SceneSerializer: Loaded component type %d for GameObject %s",
+                    (int)type, go->getName().c_str());
+            }
+            else
+            {
+                LOG("SceneSerializer: Failed to create component type %d", (int)type);
+            }
         }
     }
 
@@ -292,10 +344,12 @@ bool SceneSerializer::LoadTempScene(ModuleScene* scene)
 
 std::string SceneSerializer::SerializeGameObject(const GameObject* go)
 {
+    // Not used - kept for potential future use
     return "";
 }
 
 GameObject* SceneSerializer::DeserializeGameObject(const std::string& json, ModuleScene* scene)
 {
+    // Not used - kept for potential future use
     return nullptr;
 }
