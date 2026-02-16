@@ -145,6 +145,6 @@ private:
     void updateMemory();
     void log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
 
+    //Assets
     void drawAssetBrowser();
-    //void importAsset(const char* filePath);
 };

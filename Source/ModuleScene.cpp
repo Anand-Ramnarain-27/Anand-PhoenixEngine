@@ -9,9 +9,7 @@ ModuleScene::ModuleScene()
 
 ModuleScene::~ModuleScene() = default;
 
-GameObject* ModuleScene::createGameObject(
-    const std::string& name,
-    GameObject* parent)
+GameObject* ModuleScene::createGameObject(const std::string& name, GameObject* parent)
 {
     auto go = std::make_unique<GameObject>(name);
     GameObject* ptr = go.get();
@@ -32,11 +30,7 @@ void ModuleScene::update(float deltaTime)
 
 void ModuleScene::clear()
 {
-    // Clear all objects but keep root
     objects.clear();
-
-    // Note: This will leave dangling pointers in root's children vector
-    // You may need to add a clearChildren() method to GameObject
     LOG("ModuleScene: Cleared all objects");
 }
 

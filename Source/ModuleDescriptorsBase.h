@@ -67,11 +67,7 @@ public:
 
         UINT arrayIndex = index; 
 
-        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            cpuStart,
-            arrayIndex, 
-            descriptorSize
-        );
+        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(cpuStart, arrayIndex, descriptorSize);
 
         createViewInternal(resource, pDesc, cpuHandle);
 
@@ -92,11 +88,7 @@ public:
         if (handle == 0) return { 0 };
 
         UINT index = handles.indexFromHandle(handle);
-        return CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            cpuStart,
-            index,  
-            descriptorSize
-        );
+        return CD3DX12_CPU_DESCRIPTOR_HANDLE(cpuStart, index, descriptorSize);
     }
 
     bool isValid(UINT handle) const {

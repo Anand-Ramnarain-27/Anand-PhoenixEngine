@@ -13,7 +13,7 @@ public:
 
     void draw(ID3D12GraphicsCommandList* cmdList, const Matrix& worldMatrix);
 
-    // Keep the old one for backward compatibility
+	//This is the old one, keeping just in case, but it should be removed eventually
     void draw(ID3D12GraphicsCommandList* cmdList);
 
     void setModelMatrix(const Matrix& matrix) { m_modelMatrix = matrix; }

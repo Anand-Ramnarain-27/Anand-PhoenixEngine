@@ -18,7 +18,6 @@ void FileDialog::open(Type type, const std::string& title, const std::string& de
     m_fileName.clear();
     m_selectedIndex = -1;
 
-    // Set initial path
     if (!defaultPath.empty() && fs::exists(defaultPath))
     {
         m_currentPath = fs::absolute(defaultPath).string();
@@ -41,11 +40,9 @@ bool FileDialog::draw()
     ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
     if (ImGui::Begin(m_title.c_str(), &m_isOpen, ImGuiWindowFlags_NoCollapse))
     {
-        // Current path display and navigation
         ImGui::Text("Location: %s", m_currentPath.c_str());
         ImGui::Separator();
 
-        // Parent directory button
         if (ImGui::Button(".."))
         {
             fs::path parentPath = fs::path(m_currentPath).parent_path();
@@ -65,14 +62,12 @@ bool FileDialog::draw()
 
         ImGui::Separator();
 
-        // File/Directory list
         ImGui::BeginChild("FileList", ImVec2(0, -70), true);
 
         for (int i = 0; i < m_entries.size(); ++i)
         {
             const FileEntry& entry = m_entries[i];
 
-            // Display icon based on type
             const char* icon = entry.isDirectory ? "[DIR]" : "[FILE]";
             std::string label = std::string(icon) + " " + entry.name;
 
@@ -83,7 +78,6 @@ bool FileDialog::draw()
 
                 if (entry.isDirectory)
                 {
-                    // Double-click to enter directory
                     if (ImGui::IsMouseDoubleClicked(0))
                     {
                         m_currentPath = (fs::path(m_currentPath) / entry.name).string();
@@ -93,10 +87,8 @@ bool FileDialog::draw()
                 }
                 else
                 {
-                    // File selected
                     m_fileName = entry.name;
 
-                    // Double-click to confirm file
                     if (ImGui::IsMouseDoubleClicked(0))
                     {
                         m_selectedPath = (fs::path(m_currentPath) / entry.name).string();
@@ -109,7 +101,6 @@ bool FileDialog::draw()
 
         ImGui::EndChild();
 
-        // File name input (for save dialog)
         ImGui::Separator();
         ImGui::Text("File name:");
         ImGui::SameLine();
@@ -123,7 +114,6 @@ bool FileDialog::draw()
             m_fileName = fileNameBuffer;
         }
 
-        // Buttons
         ImGui::Separator();
 
         bool canConfirm = !m_fileName.empty();
@@ -134,7 +124,6 @@ bool FileDialog::draw()
             {
                 std::string fullPath = (fs::path(m_currentPath) / m_fileName).string();
 
-                // Add extension if not present
                 if (!m_extensionFilter.empty() &&
                     !fullPath.ends_with(m_extensionFilter))
                 {
@@ -146,7 +135,7 @@ bool FileDialog::draw()
                 m_isOpen = false;
             }
         }
-        else // Type::Open
+        else
         {
             if (ImGui::Button("Open") && canConfirm)
             {
@@ -183,7 +172,6 @@ void FileDialog::refreshDirectory()
         {
             std::string filename = entry.path().filename().string();
 
-            // Skip hidden files (starting with .)
             if (filename[0] == '.')
                 continue;
 
@@ -191,7 +179,6 @@ void FileDialog::refreshDirectory()
             fileEntry.name = filename;
             fileEntry.isDirectory = entry.is_directory();
 
-            // Filter files by extension if needed
             if (!fileEntry.isDirectory && !m_extensionFilter.empty())
             {
                 if (!matchesFilter(filename))
@@ -201,13 +188,12 @@ void FileDialog::refreshDirectory()
             m_entries.push_back(fileEntry);
         }
 
-        // Sort: directories first, then files, both alphabetically
         std::sort(m_entries.begin(), m_entries.end(),
             [](const FileEntry& a, const FileEntry& b)
             {
                 if (a.isDirectory != b.isDirectory)
-                    return a.isDirectory; // Directories first
-                return a.name < b.name;  // Alphabetically
+                    return a.isDirectory;
+                return a.name < b.name; 
             });
     }
     catch (const fs::filesystem_error& e)
@@ -221,7 +207,6 @@ bool FileDialog::matchesFilter(const std::string& filename) const
     if (m_extensionFilter.empty())
         return true;
 
-    // Check if filename ends with the extension
     if (filename.length() >= m_extensionFilter.length())
     {
         return filename.compare(

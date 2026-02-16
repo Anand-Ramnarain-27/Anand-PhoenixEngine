@@ -4,8 +4,6 @@
 #include "ModuleFileSystem.h"
 #include "SceneImporter.h"
 
-// Only include the header, not the implementation
-// (Implementation is already in MeshImporter.cpp or MaterialImporter.cpp)
 #include "tiny_gltf.h"
 
 #include <filesystem>
@@ -34,7 +32,6 @@ void ModuleAssets::ensureLibraryDirectories()
 {
     ModuleFileSystem* fs = app->getFileSystem();
 
-    // Create library subdirectories if they don't exist
     fs->CreateDir("Library");
     fs->CreateDir("Library/Meshes");
     fs->CreateDir("Library/Materials");
@@ -50,23 +47,19 @@ void ModuleAssets::importAsset(const char* filePath)
 
     ModuleFileSystem* fs = app->getFileSystem();
 
-    // Check if file exists
     if (!fs->Exists(filePath))
     {
         LOG("ModuleAssets: ERROR - File does not exist: %s", filePath);
         return;
     }
 
-    // Determine file type from extension
     std::filesystem::path path(filePath);
     std::string extension = path.extension().string();
 
-    // Convert to lowercase for comparison
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
 
     if (extension == ".gltf" || extension == ".glb")
     {
-        // Load GLTF file
         tinygltf::Model gltfModel;
         tinygltf::TinyGLTF loader;
         std::string err, warn;
@@ -81,20 +74,17 @@ void ModuleAssets::importAsset(const char* filePath)
             success = loader.LoadBinaryFromFile(&gltfModel, &err, &warn, filePath);
         }
 
-        // Log warnings
         if (!warn.empty())
         {
             LOG("ModuleAssets: GLTF Warning: %s", warn.c_str());
         }
 
-        // Check for errors
         if (!success)
         {
             LOG("ModuleAssets: ERROR - Failed to load GLTF: %s", err.c_str());
             return;
         }
 
-        // Extract scene name from file path
         std::string sceneName = path.stem().string();
 
         LOG("ModuleAssets: Importing scene: %s", sceneName.c_str());
@@ -102,7 +92,6 @@ void ModuleAssets::importAsset(const char* filePath)
         LOG("ModuleAssets:   Materials: %d", (int)gltfModel.materials.size());
         LOG("ModuleAssets:   Textures: %d", (int)gltfModel.textures.size());
 
-        // Import to custom format using SceneImporter
         if (SceneImporter::ImportFromLoadedGLTF(gltfModel, sceneName))
         {
             LOG("ModuleAssets: SUCCESS - Imported: %s", sceneName.c_str());
@@ -116,7 +105,7 @@ void ModuleAssets::importAsset(const char* filePath)
     else if (extension == ".fbx")
     {
         LOG("ModuleAssets: FBX import not yet supported");
-        // TODO: Add FBX support later if needed
+        // TODO: Add FBX support later
     }
     else
     {
@@ -133,7 +122,7 @@ std::vector<ModuleAssets::SceneInfo> ModuleAssets::getImportedScenes() const
 
     if (!fs->Exists(meshesPath.c_str()))
     {
-        return scenes; // Empty list
+        return scenes;
     }
 
     try
@@ -151,7 +140,6 @@ std::vector<ModuleAssets::SceneInfo> ModuleAssets::getImportedScenes() const
                 info.meshCount = 0;
                 info.materialCount = 0;
 
-                // Try to load metadata
                 if (fs->Exists(metaPath.c_str()))
                 {
                     char* buffer = nullptr;

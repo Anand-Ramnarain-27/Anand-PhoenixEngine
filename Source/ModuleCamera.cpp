@@ -170,7 +170,6 @@ void ModuleCamera::focusOnTarget(const Vector3& target)
 
 Vector3 ModuleCamera::getForward() const
 {
-
     return Vector3::Transform(-Vector3::UnitZ, rotation);
 }
 

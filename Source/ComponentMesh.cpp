@@ -22,14 +22,6 @@ ComponentMesh::~ComponentMesh() = default;
 
 bool ComponentMesh::loadModel(const char* filePath)
 {
-    // OLD WAY (delete these lines):
-    // m_model = std::make_unique<Model>();
-    // if (!m_model->load(filePath))
-    // {
-    //     return false;
-    // }
-
-    // NEW WAY (use cache):
     ResourceCache* cache = app->getResourceCache();
     m_model = cache->getOrLoadModel(filePath);
 
@@ -39,10 +31,8 @@ bool ComponentMesh::loadModel(const char* filePath)
         return false;
     }
 
-    // Store the file path for serialization
     m_modelFilePath = filePath;
 
-    // Create constant buffers for materials (rest stays the same)
     ModuleResources* resources = app->getResources();
     const auto& materials = m_model->getMaterials();
 
@@ -55,11 +45,7 @@ bool ComponentMesh::loadModel(const char* filePath)
         UINT bufferSize = sizeof(Material::Data);
         UINT alignedSize = (bufferSize + 255) & ~255;
 
-        ComPtr<ID3D12Resource> buffer = resources->createDefaultBuffer(
-            &materialData,
-            alignedSize,
-            "MaterialCB"
-        );
+        ComPtr<ID3D12Resource> buffer = resources->createDefaultBuffer(&materialData, alignedSize, "MaterialCB");
 
         m_materialBuffers.push_back(buffer);
     }
@@ -72,17 +58,13 @@ void ComponentMesh::render(ID3D12GraphicsCommandList* cmd)
     if (!m_model)
         return;
 
-    // Get the world transform from the owning GameObject
     Matrix worldMatrix = owner->getTransform()->getGlobalMatrix();
 
-    // Apply model-specific transform
     worldMatrix = m_model->getModelMatrix() * worldMatrix;
 
-    // Bind world matrix
     Matrix world = worldMatrix.Transpose();
     cmd->SetGraphicsRoot32BitConstants(1, 16, &world, 0);
 
-    // Draw each mesh with its material
     const auto& meshes = m_model->getMeshes();
     const auto& materials = m_model->getMaterials();
 
@@ -95,20 +77,16 @@ void ComponentMesh::render(ID3D12GraphicsCommandList* cmd)
         {
             const auto& material = materials[materialIndex];
 
-            // Bind material constant buffer
             if (materialIndex < (int)m_materialBuffers.size())
             {
-                cmd->SetGraphicsRootConstantBufferView(2,
-                    m_materialBuffers[materialIndex]->GetGPUVirtualAddress());
+                cmd->SetGraphicsRootConstantBufferView(2, m_materialBuffers[materialIndex]->GetGPUVirtualAddress());
             }
 
-            // Bind texture if available
             if (material->hasTexture())
             {
                 cmd->SetGraphicsRootDescriptorTable(3, material->getTextureGPUHandle());
             }
         }
-
         mesh->draw(cmd);
     }
 }
@@ -127,7 +105,6 @@ void ComponentMesh::onSave(std::string& outJson) const
         doc.AddMember("ModelPath", pathVal, allocator);
     }
 
-    // Convert to string
     StringBuffer buffer;
     Writer<StringBuffer> writer(buffer);
     doc.Accept(writer);

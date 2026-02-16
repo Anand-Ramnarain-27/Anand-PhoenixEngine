@@ -9,7 +9,6 @@ using Microsoft::WRL::ComPtr;
 class Mesh
 {
 public:
-
     struct Vertex
     {
         Vector3 position;
@@ -29,9 +28,7 @@ public:
 
     void draw(ID3D12GraphicsCommandList* cmdList) const;
 
-    void setData(const std::vector<Vertex>& vertices,
-        const std::vector<uint32_t>& indices,
-        int materialIndex);
+    void setData(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, int materialIndex);
 
     uint32_t getVertexCount() const { return (uint32_t)m_vertices.size(); }
     uint32_t getIndexCount() const { return (uint32_t)m_indices.size(); }

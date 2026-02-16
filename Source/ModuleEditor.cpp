@@ -28,6 +28,7 @@ bool ModuleEditor::init()
 
     descTable = descriptors->allocTable();
 
+	//This is just a test to see if the filesystem module works, can remove it later
     /*auto fs = app->getFileSystem();
 
     fs->Save("Library/test.txt", "Hello", 5);*/
@@ -402,7 +403,6 @@ void ModuleEditor::drawMenuBar()
     {
         if (ImGui::MenuItem("New Scene", "Ctrl+N"))
         {
-            // TODO: Clear current scene
             log("New Scene - Not implemented yet", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
         }
         ImGui::Separator();
@@ -410,7 +410,6 @@ void ModuleEditor::drawMenuBar()
         {
             if (sceneManager && sceneManager->getActiveScene())
             {
-                // Quick save to default location
                 std::string path = "Library/Scenes/current_scene.json";
                 if (sceneManager->saveCurrentScene(path))
                 {
@@ -848,19 +847,14 @@ void ModuleEditor::drawAssetBrowser()
 
                     if (ImGui::Button("Load in Scene"))
                     {
-                        log(("Loading scene from library: " + sceneInfo.name).c_str(),
-                            ImVec4(0.6f, 0.8f, 1.0f, 1.0f));
-
-                        // TODO: Actually load the scene
-                        // For now, just log it
+                        log(("Loading scene from library: " + sceneInfo.name).c_str(), ImVec4(0.6f, 0.8f, 1.0f, 1.0f));
                     }
 
                     ImGui::SameLine();
 
                     if (ImGui::SmallButton("Show Folder"))
                     {
-                        log(("Scene folder: " + sceneInfo.path).c_str(),
-                            ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
+                        log(("Scene folder: " + sceneInfo.path).c_str(), ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
                     }
 
                     ImGui::Unindent();
@@ -872,8 +866,7 @@ void ModuleEditor::drawAssetBrowser()
 
             ImGui::Separator();
 
-            ImGui::TextDisabled("Library: %s",
-                app->getFileSystem()->GetLibraryPath().c_str());
+            ImGui::TextDisabled("Library: %s", app->getFileSystem()->GetLibraryPath().c_str());
 
             ImGui::EndTabItem();
         }
@@ -915,13 +908,11 @@ void ModuleEditor::drawAssetBrowser()
                                     {
                                         if (sceneManager->loadScene(fullPath))
                                         {
-                                            log(("✓ Loaded scene: " + filename).c_str(),
-                                                ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+                                            log(("✓ Loaded scene: " + filename).c_str(), ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
                                         }
                                         else
                                         {
-                                            log(("✗ Failed to load scene: " + filename).c_str(),
-                                                ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+                                            log(("✗ Failed to load scene: " + filename).c_str(), ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
                                         }
                                     }
                                 }
@@ -938,8 +929,7 @@ void ModuleEditor::drawAssetBrowser()
                                     {
                                         if (sceneManager->loadScene(fullPath))
                                         {
-                                            log(("✓ Loaded scene: " + filename).c_str(),
-                                                ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+                                            log(("✓ Loaded scene: " + filename).c_str(), ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
                                         }
                                     }
                                 }
@@ -947,13 +937,11 @@ void ModuleEditor::drawAssetBrowser()
                                 if (ImGui::MenuItem("Delete"))
                                 {
                                     fs::remove(entry.path());
-                                    log(("Deleted scene: " + filename).c_str(),
-                                        ImVec4(1.0f, 0.8f, 0.4f, 1.0f));
+                                    log(("Deleted scene: " + filename).c_str(), ImVec4(1.0f, 0.8f, 0.4f, 1.0f));
                                 }
 
                                 if (ImGui::MenuItem("Rename"))
                                 {
-                                    // TODO: Show rename dialog
                                     log("Rename not implemented yet", ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
                                 }
 
@@ -961,9 +949,7 @@ void ModuleEditor::drawAssetBrowser()
 
                                 if (ImGui::MenuItem("Show in Explorer"))
                                 {
-                                    // TODO: Open folder in file explorer
-                                    log(("Scene path: " + fullPath).c_str(),
-                                        ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
+                                    log(("Scene path: " + fullPath).c_str(), ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
                                 }
 
                                 ImGui::EndPopup();
@@ -1004,13 +990,11 @@ void ModuleEditor::drawAssetBrowser()
                     std::string path = "Library/Scenes/current_scene.json";
                     if (sceneManager->saveCurrentScene(path))
                     {
-                        log(("✓ Scene saved to " + path).c_str(),
-                            ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+                        log(("✓ Scene saved to " + path).c_str(), ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
                     }
                     else
                     {
-                        log("✗ Failed to save scene",
-                            ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+                        log("✗ Failed to save scene", ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
                     }
                 }
             }
@@ -1027,8 +1011,7 @@ void ModuleEditor::drawAssetBrowser()
 
                     if (sceneManager->saveCurrentScene(filename))
                     {
-                        log(("✓ Scene saved to " + std::string(filename)).c_str(),
-                            ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+                        log(("✓ Scene saved to " + std::string(filename)).c_str(), ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
                     }
                 }
             }

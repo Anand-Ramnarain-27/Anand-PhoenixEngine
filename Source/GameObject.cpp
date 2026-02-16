@@ -32,11 +32,7 @@ void GameObject::setParent(GameObject* newParent)
     if (parent)
     {
         auto& siblings = parent->children;
-
-        siblings.erase(
-            std::remove(siblings.begin(), siblings.end(), this),
-            siblings.end()
-        );
+        siblings.erase(std::remove(siblings.begin(), siblings.end(), this), siblings.end());
     }
 
     parent = newParent;
@@ -74,7 +70,6 @@ T* GameObject::createComponent(Args&&... args)
     return ptr;
 }
 
-// ? NEW METHOD: Add pre-created component (for deserialization)
 void GameObject::addComponent(std::unique_ptr<Component> component)
 {
     if (component)
@@ -95,7 +90,6 @@ T* GameObject::getComponent() const
     return nullptr;
 }
 
-// Explicit template instantiations
 template ComponentTransform* GameObject::createComponent<ComponentTransform>();
 template ComponentMesh* GameObject::createComponent<ComponentMesh>();
 template ComponentCamera* GameObject::createComponent<ComponentCamera>();

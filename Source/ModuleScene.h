@@ -14,14 +14,9 @@ public:
 
     GameObject* getRoot() const { return root.get(); }
 
-    GameObject* createGameObject(
-        const std::string& name,
-        GameObject* parent = nullptr
-    );
+    GameObject* createGameObject(const std::string& name, GameObject* parent = nullptr);
 
     void update(float deltaTime);
-
-    // For serialization: clear all objects except root
     void clear();
 
     GameObject* findGameObjectByName(const std::string& name);

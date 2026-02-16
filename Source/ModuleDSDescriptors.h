@@ -17,10 +17,6 @@ public:
 protected:
     void createViewInternal(ID3D12Resource* resource, const void* pDesc, D3D12_CPU_DESCRIPTOR_HANDLE destHandle) override
     {
-        app->getD3D12()->getDevice()->CreateDepthStencilView(
-            resource,
-            static_cast<const D3D12_DEPTH_STENCIL_VIEW_DESC*>(pDesc),
-            destHandle
-        );
+        app->getD3D12()->getDevice()->CreateDepthStencilView(resource, static_cast<const D3D12_DEPTH_STENCIL_VIEW_DESC*>(pDesc), destHandle);
     }
 };

@@ -24,9 +24,7 @@ void RenderTexture::resize(UINT width, UINT height)
     ModuleRTDescriptors* rtDescriptors = app->getRTDescriptors();
 
     resources->deferRelease(m_textures.texture);
-    m_textures.texture = resources->createRenderTarget(m_format,
-        static_cast<size_t>(m_width), static_cast<size_t>(m_height),
-        m_msaa ? 4 : 1, m_clearColor, m_name);
+    m_textures.texture = resources->createRenderTarget(m_format, static_cast<size_t>(m_width), static_cast<size_t>(m_height), m_msaa ? 4 : 1, m_clearColor, m_name);
 
     if (m_autoResolveMSAA && m_msaa) {
         resources->deferRelease(m_textures.resolved);
@@ -139,11 +137,7 @@ void RenderTexture::endRender(ID3D12GraphicsCommandList* cmdList)
         resolveMSAA(cmdList);
     }
     else {
-        CD3DX12_RESOURCE_BARRIER toSRV = CD3DX12_RESOURCE_BARRIER::Transition(
-            m_textures.texture.Get(),
-            D3D12_RESOURCE_STATE_RENDER_TARGET,
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-        );
+        CD3DX12_RESOURCE_BARRIER toSRV = CD3DX12_RESOURCE_BARRIER::Transition(m_textures.texture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         cmdList->ResourceBarrier(1, &toSRV);
     }
 }
@@ -160,37 +154,17 @@ void RenderTexture::resolveMSAA(ID3D12GraphicsCommandList* cmdList)
 {
     if (!m_textures.resolved) return;
 
-    CD3DX12_RESOURCE_BARRIER toResolveSrc = CD3DX12_RESOURCE_BARRIER::Transition(
-        m_textures.texture.Get(),
-        D3D12_RESOURCE_STATE_RENDER_TARGET,
-        D3D12_RESOURCE_STATE_RESOLVE_SOURCE
-    );
+    CD3DX12_RESOURCE_BARRIER toResolveSrc = CD3DX12_RESOURCE_BARRIER::Transition(m_textures.texture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
     cmdList->ResourceBarrier(1, &toResolveSrc);
 
-    CD3DX12_RESOURCE_BARRIER toResolveDst = CD3DX12_RESOURCE_BARRIER::Transition(
-        m_textures.resolved.Get(),
-        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-        D3D12_RESOURCE_STATE_RESOLVE_DEST
-    );
+    CD3DX12_RESOURCE_BARRIER toResolveDst = CD3DX12_RESOURCE_BARRIER::Transition(m_textures.resolved.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RESOLVE_DEST);
     cmdList->ResourceBarrier(1, &toResolveDst);
 
-    cmdList->ResolveSubresource(
-        m_textures.resolved.Get(), 0,
-        m_textures.texture.Get(), 0,
-        m_format
-    );
+    cmdList->ResolveSubresource(m_textures.resolved.Get(), 0, m_textures.texture.Get(), 0, m_format);
 
-    CD3DX12_RESOURCE_BARRIER backToRTV = CD3DX12_RESOURCE_BARRIER::Transition(
-        m_textures.texture.Get(),
-        D3D12_RESOURCE_STATE_RESOLVE_SOURCE,
-        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-    );
+    CD3DX12_RESOURCE_BARRIER backToRTV = CD3DX12_RESOURCE_BARRIER::Transition(m_textures.texture.Get(), D3D12_RESOURCE_STATE_RESOLVE_SOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     cmdList->ResourceBarrier(1, &backToRTV);
 
-    CD3DX12_RESOURCE_BARRIER backToSRV = CD3DX12_RESOURCE_BARRIER::Transition(
-        m_textures.resolved.Get(),
-        D3D12_RESOURCE_STATE_RESOLVE_DEST,
-        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-    );
+    CD3DX12_RESOURCE_BARRIER backToSRV = CD3DX12_RESOURCE_BARRIER::Transition(m_textures.resolved.Get(), D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     cmdList->ResourceBarrier(1, &backToSRV);
 }

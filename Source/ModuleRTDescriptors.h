@@ -3,10 +3,7 @@
 #include "ModuleDescriptorsBase.h"
 #include "RenderTargetDesc.h"
 
-class ModuleRTDescriptors : public ModuleDescriptorsBase<
-    D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-    256,
-    RenderTargetDesc>
+class ModuleRTDescriptors : public ModuleDescriptorsBase<D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 256, RenderTargetDesc>
 {
 public:
     RenderTargetDesc create(ID3D12Resource* resource)
@@ -30,10 +27,6 @@ public:
 protected:
     void createViewInternal(ID3D12Resource* resource, const void* pDesc, D3D12_CPU_DESCRIPTOR_HANDLE destHandle) override
     {
-        app->getD3D12()->getDevice()->CreateRenderTargetView(
-            resource,
-            static_cast<const D3D12_RENDER_TARGET_VIEW_DESC*>(pDesc),
-            destHandle
-        );
+        app->getD3D12()->getDevice()->CreateRenderTargetView(resource, static_cast<const D3D12_RENDER_TARGET_VIEW_DESC*>(pDesc), destHandle);
     }
 };

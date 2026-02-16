@@ -51,8 +51,7 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
     ScratchImage mipChain;
     if (image.GetMetadata().mipLevels == 1)
     {
-        hr = GenerateMipMaps(image.GetImages(), image.GetImageCount(),
-            image.GetMetadata(), TEX_FILTER_DEFAULT, 0, mipChain);
+        hr = GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), TEX_FILTER_DEFAULT, 0, mipChain);
 
         if (FAILED(hr))
         {
@@ -106,8 +105,7 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
     }
 
     LOG("TextureImporter: Successfully imported texture to %s", outputPath.c_str());
-    LOG("  Resolution: %dx%d, Mips: %d, Format: %d",
-        (int)finalMeta.width, (int)finalMeta.height, (int)finalMeta.mipLevels, (int)finalMeta.format);
+    LOG("  Resolution: %dx%d, Mips: %d, Format: %d", (int)finalMeta.width, (int)finalMeta.height, (int)finalMeta.mipLevels, (int)finalMeta.format);
 
     return true;
 }

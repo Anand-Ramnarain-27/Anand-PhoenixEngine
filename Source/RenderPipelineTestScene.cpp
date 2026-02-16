@@ -69,7 +69,6 @@ bool RenderPipelineTestScene::initialize(ID3D12Device*)
 {
     scene = std::make_unique<ModuleScene>();
 
-    // Create initial scene
     GameObject* parent = scene->createGameObject("Parent");
     GameObject* child = scene->createGameObject("Child", parent);
     parent->getTransform()->position = { 0, 0, 0 };
@@ -95,8 +94,7 @@ void RenderPipelineTestScene::update(float deltaTime)
 {
     m_time += deltaTime;
 
-    // ? NEW: Find parent by name each frame (or cache root and iterate children)
-    // Option A: Find by name
+    // Find by name
     GameObject* parent = scene->findGameObjectByName("Parent");
     if (parent)
     {
@@ -108,26 +106,20 @@ void RenderPipelineTestScene::update(float deltaTime)
     scene->update(deltaTime);
 }
 
-void RenderPipelineTestScene::render(ID3D12GraphicsCommandList* cmd,
-    const ModuleCamera&, uint32_t, uint32_t)
+void RenderPipelineTestScene::render(ID3D12GraphicsCommandList* cmd, const ModuleCamera&, uint32_t, uint32_t)
 {
-    // Draw grid
     dd::xzSquareGrid(-5.0f, 5.0f, 0.0f, 1.0f, dd::colors::LightGray);
 
-    // ? NEW: Iterate through scene hierarchy instead of using stored pointers
     std::function<void(GameObject*)> drawAxisForObject = [&](GameObject* go)
         {
-            // Draw axis for this object
             dd::axisTriad(ddConvert(go->getTransform()->getGlobalMatrix()), 0.2f, 1.0f);
 
-            // Recurse children
             for (auto* child : go->getChildren())
             {
                 drawAxisForObject(child);
             }
         };
 
-    // Draw axes for all objects in scene
     if (scene && scene->getRoot())
     {
         for (auto* child : scene->getRoot()->getChildren())
@@ -136,7 +128,6 @@ void RenderPipelineTestScene::render(ID3D12GraphicsCommandList* cmd,
         }
     }
 
-    // Render all objects
     if (scene && scene->getRoot())
     {
         scene->getRoot()->render(cmd);

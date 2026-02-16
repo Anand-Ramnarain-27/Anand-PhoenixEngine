@@ -124,12 +124,7 @@ void ModuleD3D12::resize()
     m_commandList->Reset(m_commandAllocators[m_currentBackBufferIdx].Get(), nullptr);
     m_commandList->Close();
 
-    hr = m_swapChain->ResizeBuffers(
-        FRAMES_IN_FLIGHT,
-        m_windowWidth,
-        m_windowHeight,
-        swapChainDesc.BufferDesc.Format,
-        swapChainDesc.Flags);
+    hr = m_swapChain->ResizeBuffers(FRAMES_IN_FLIGHT, m_windowWidth, m_windowHeight, swapChainDesc.BufferDesc.Format, swapChainDesc.Flags);
 
     if (FAILED(hr))
     {

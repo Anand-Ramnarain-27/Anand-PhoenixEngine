@@ -100,7 +100,6 @@ void ComponentTransform::onSave(std::string& outJson) const
         doc.AddMember("scale", scaleArray, allocator);
     }
 
-    // Convert to string
     StringBuffer buffer;
     Writer<StringBuffer> writer(buffer);
     doc.Accept(writer);
@@ -118,7 +117,6 @@ void ComponentTransform::onLoad(const std::string& jsonStr)
         return;
     }
 
-    // Load position
     if (doc.HasMember("position")) {
         const Value& pos = doc["position"];
         position = Vector3(
@@ -128,7 +126,6 @@ void ComponentTransform::onLoad(const std::string& jsonStr)
         );
     }
 
-    // Load rotation
     if (doc.HasMember("rotation")) {
         const Value& rot = doc["rotation"];
         rotation = Quaternion(
@@ -139,7 +136,6 @@ void ComponentTransform::onLoad(const std::string& jsonStr)
         );
     }
 
-    // Load scale
     if (doc.HasMember("scale")) {
         const Value& scl = doc["scale"];
         scale = Vector3(

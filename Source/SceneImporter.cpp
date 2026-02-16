@@ -6,9 +6,6 @@
 #include "Application.h"
 #include "ModuleFileSystem.h"
 
-//#define TINYGLTF_NO_STB_IMAGE_WRITE
-//#define TINYGLTF_NO_STB_IMAGE  
-//#define TINYGLTF_NO_EXTERNAL_IMAGE
 #include "tiny_gltf.h"
 
 #include <filesystem>
@@ -96,8 +93,6 @@ bool SceneImporter::LoadScene(const std::string& sceneName, std::unique_ptr<Mode
     LOG("SceneImporter: Loading scene %s with %d meshes",
         sceneName.c_str(), header.meshCount);
 
-    // This would be used by Model::loadFromLibrary internally
-    // For now, we just verify the scene can be loaded
     return true;
 }
 

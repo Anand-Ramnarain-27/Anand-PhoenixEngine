@@ -27,6 +27,5 @@ public:
 
     virtual bool wantsDebugDraw() const { return true; }
 
-    // Required for scene serialization
     virtual ModuleScene* getModuleScene() { return nullptr; }
 };

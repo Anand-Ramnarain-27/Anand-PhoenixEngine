@@ -10,9 +10,7 @@ const D3D12_INPUT_ELEMENT_DESC Mesh::InputLayout[3] =
     { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 };
 
-void Mesh::setData(const std::vector<Vertex>& vertices,
-    const std::vector<uint32_t>& indices,
-    int materialIndex)
+void Mesh::setData(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, int materialIndex)
 {
     m_vertices = vertices;
     m_indices = indices;
@@ -27,11 +25,7 @@ void Mesh::createBuffers()
     if (!resources || m_vertices.empty())
         return;
 
-    m_vertexBuffer = resources->createDefaultBuffer(
-        m_vertices.data(),
-        m_vertices.size() * sizeof(Vertex),
-        "MeshVB"
-    );
+    m_vertexBuffer = resources->createDefaultBuffer(m_vertices.data(), m_vertices.size() * sizeof(Vertex), "MeshVB");
 
     if (m_vertexBuffer)
     {
@@ -42,11 +36,7 @@ void Mesh::createBuffers()
 
     if (!m_indices.empty())
     {
-        m_indexBuffer = resources->createDefaultBuffer(
-            m_indices.data(),
-            m_indices.size() * sizeof(uint32_t),
-            "MeshIB"
-        );
+        m_indexBuffer = resources->createDefaultBuffer(m_indices.data(), m_indices.size() * sizeof(uint32_t), "MeshIB");
 
         if (m_indexBuffer)
         {

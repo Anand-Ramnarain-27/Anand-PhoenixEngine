@@ -13,7 +13,6 @@
 
 using namespace rapidjson;
 
-// Define default FOV (45 degrees in radians)
 static constexpr float DEFAULT_FOV = 0.785398163f; // XM_PIDIV4 or 45 degrees
 
 ComponentCamera::ComponentCamera(GameObject* owner)
@@ -38,11 +37,10 @@ void ComponentCamera::onEditor()
     {
         ImGui::Checkbox("Main Camera", &m_isMainCamera);
 
-        // Convert FOV to degrees for easier editing
-        float fovDegrees = m_fov * 57.2957795f; // Radians to degrees
+        float fovDegrees = m_fov * 57.2957795f; 
         if (ImGui::SliderFloat("FOV", &fovDegrees, 30.0f, 120.0f))
         {
-            m_fov = fovDegrees * 0.0174532925f; // Degrees to radians
+            m_fov = fovDegrees * 0.0174532925f;
         }
 
         ImGui::DragFloat("Near Plane", &m_nearPlane, 0.01f, 0.01f, 10.0f);
@@ -52,7 +50,6 @@ void ComponentCamera::onEditor()
 
         ImGui::Separator();
 
-        // Display current camera position/rotation from transform
         auto* transform = owner->getTransform();
         if (transform)
         {
@@ -70,13 +67,11 @@ void ComponentCamera::onSave(std::string& outJson) const
     doc.SetObject();
     Document::AllocatorType& allocator = doc.GetAllocator();
 
-    // Save camera settings
     doc.AddMember("FOV", m_fov, allocator);
     doc.AddMember("NearPlane", m_nearPlane, allocator);
     doc.AddMember("FarPlane", m_farPlane, allocator);
     doc.AddMember("IsMainCamera", m_isMainCamera, allocator);
 
-    // Save background color
     Value bgColorArray(kArrayType);
     bgColorArray.PushBack(m_backgroundColor.x, allocator);
     bgColorArray.PushBack(m_backgroundColor.y, allocator);
@@ -84,7 +79,6 @@ void ComponentCamera::onSave(std::string& outJson) const
     bgColorArray.PushBack(m_backgroundColor.w, allocator);
     doc.AddMember("BackgroundColor", bgColorArray, allocator);
 
-    // Convert to string
     StringBuffer buffer;
     Writer<StringBuffer> writer(buffer);
     doc.Accept(writer);
@@ -103,7 +97,6 @@ void ComponentCamera::onLoad(const std::string& jsonStr)
         return;
     }
 
-    // Load camera settings
     if (doc.HasMember("FOV"))
         m_fov = doc["FOV"].GetFloat();
 
@@ -116,7 +109,6 @@ void ComponentCamera::onLoad(const std::string& jsonStr)
     if (doc.HasMember("IsMainCamera"))
         m_isMainCamera = doc["IsMainCamera"].GetBool();
 
-    // Load background color
     if (doc.HasMember("BackgroundColor"))
     {
         const Value& bgColor = doc["BackgroundColor"];
@@ -124,8 +116,7 @@ void ComponentCamera::onLoad(const std::string& jsonStr)
             bgColor[0].GetFloat(),
             bgColor[1].GetFloat(),
             bgColor[2].GetFloat(),
-            bgColor[3].GetFloat()
-        );
+            bgColor[3].GetFloat());
     }
 
     LOG("ComponentCamera: Loaded camera settings (FOV: %.2f degrees, Main: %d)",
@@ -138,19 +129,12 @@ Matrix ComponentCamera::getViewMatrix() const
     if (!transform)
         return Matrix::Identity;
 
-    // Build view matrix from transform
     Matrix worldMatrix = transform->getGlobalMatrix();
 
-    // Camera view is the inverse of the world transform
     return worldMatrix.Invert();
 }
 
 Matrix ComponentCamera::getProjectionMatrix(float aspectRatio) const
 {
-    return Matrix::CreatePerspectiveFieldOfView(
-        m_fov,
-        aspectRatio,
-        m_nearPlane,
-        m_farPlane
-    );
+    return Matrix::CreatePerspectiveFieldOfView(m_fov, aspectRatio, m_nearPlane, m_farPlane);
 }

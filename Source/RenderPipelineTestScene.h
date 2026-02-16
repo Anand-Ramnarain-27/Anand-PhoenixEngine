@@ -31,6 +31,4 @@ private:
     GameObject* secondModel = nullptr;*/
 
     float m_time = 0.0f;
-
-    // REMOVE THIS: std::unique_ptr<Model> testModel;
 };

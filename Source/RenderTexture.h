@@ -86,8 +86,5 @@ private:
     void updateCachedHandles() const;
 
     void resolveMSAA(ID3D12GraphicsCommandList* cmdList);
-    void transition(ID3D12GraphicsCommandList* cmdList,
-        D3D12_RESOURCE_STATES before,
-        D3D12_RESOURCE_STATES after,
-        ID3D12Resource* resource = nullptr);
+    void transition(ID3D12GraphicsCommandList* cmdList, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after, ID3D12Resource* resource = nullptr);
 };

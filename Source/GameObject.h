@@ -22,27 +22,21 @@ public:
 
     ComponentTransform* getTransform() const { return transform; }
 
-    // Create component (used during scene construction)
     template<typename T, typename... Args>
     T* createComponent(Args&&... args);
 
-    // Add pre-created component (used during deserialization)
     void addComponent(std::unique_ptr<Component> component);
 
-    // Component access for serialization
     const std::vector<std::unique_ptr<Component>>& getComponents() const { return components; }
 
-    // Get component by type
     template<typename T>
     T* getComponent() const;
 
-    // Clear all children references (for scene clearing)
     void clearChildren() { children.clear(); }
 
     const std::string& getName() const { return name; }
     void setName(const std::string& newName) { name = newName; }
 
-    // Serialization support
     uint32_t getUID() const { return uid; }
     bool isActive() const { return active; }
     void setActive(bool value) { active = value; }
