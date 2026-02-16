@@ -103,6 +103,9 @@ bool ModuleEditor::init()
         objectConstantBuffer->SetName(L"ObjectCB");
     }
 
+    m_saveDialog.setExtensionFilter(".json");
+    m_loadDialog.setExtensionFilter(".json");
+
     return true;
 }
 
@@ -370,22 +373,11 @@ void ModuleEditor::drawMenuBar()
         ImGui::Separator();
         if (ImGui::MenuItem("Save Scene", "Ctrl+S"))
         {
-            if (sceneManager && sceneManager->getActiveScene())
-            {
-                std::string scenePath = "Library/Scenes/current_scene.json";
-                if (sceneManager->saveCurrentScene(scenePath))
-                {
-                    log("✓ Scene saved to %s"/* + scenePath.c_str()*/, ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
-                }
-                else
-                {
-                    log("✗ Failed to save scene!", ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
-                }
-            }
-            else
-            {
-                log("No active scene to save", ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
-            }
+            m_saveDialog.open(
+                FileDialog::Type::Save,
+                "Save Scene",
+                "Library/Scenes"
+            );
         }
         if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S"))
         {
@@ -410,23 +402,15 @@ void ModuleEditor::drawMenuBar()
             }
         }
         ImGui::Separator();
-        if (ImGui::MenuItem("Load Scene...", "Ctrl+O"))
+        if (ImGui::MenuItem("Load Scene", "Ctrl+O"))
         {
-            // Load default for now
-            // TODO: Add file picker dialog
-            if (sceneManager && sceneManager->getActiveScene())
-            {
-                std::string scenePath = "Library/Scenes/current_scene.json";
-                if (sceneManager->loadScene(scenePath))
-                {
-                    log("✓ Scene loaded from %s" /*+ scenePath.c_str()*/, ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
-                }
-                else
-                {
-                    log("✗ Failed to load scene (file may not exist)", ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
-                }
-            }
+            m_loadDialog.open(
+                FileDialog::Type::Open,
+                "Load Scene",
+                "Library/Scenes"
+            );
         }
+
         ImGui::Separator();
         if (ImGui::MenuItem("Quit", "Alt+F4"))
         {

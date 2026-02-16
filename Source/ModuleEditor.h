@@ -4,6 +4,7 @@
 #include "SceneManager.h"
 #include "ShaderTableDesc.h"
 #include "MeshPipeline.h"
+#include "FileDialog.h"
 
 #include <memory>
 #include <vector>
@@ -117,6 +118,10 @@ private:
 
     bool showGrid = true;
     bool showAxis = true;
+
+	//Saving/Loading
+    FileDialog m_saveDialog;
+    FileDialog m_loadDialog;
 private:
     // Layout
     void drawDockspace();
