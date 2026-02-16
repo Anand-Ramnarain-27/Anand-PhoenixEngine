@@ -27,7 +27,14 @@ public:
 
     const std::string& getName() const { return name; }
     void setName(const std::string& newName) { name = newName; }
+
+    // Serialization support
+    uint32_t getUID() const { return uid; }
+    bool isActive() const { return active; }
+    void setActive(bool value) { active = value; }
+
 private:
+    uint32_t uid;
     std::string name;
     bool active = true;
 
@@ -37,4 +44,6 @@ private:
     std::vector<std::unique_ptr<Component>> components;
 
     ComponentTransform* transform = nullptr;
+
+    static uint32_t generateUID();
 };

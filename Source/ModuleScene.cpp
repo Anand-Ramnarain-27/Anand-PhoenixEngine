@@ -20,12 +20,22 @@ GameObject* ModuleScene::createGameObject(
         parent = root.get();
 
     ptr->setParent(parent);
-
     objects.push_back(std::move(go));
+
     return ptr;
 }
 
 void ModuleScene::update(float deltaTime)
 {
     root->update(deltaTime);
+}
+
+void ModuleScene::clear()
+{
+    // Clear all objects but keep root
+    objects.clear();
+
+    // Note: This will leave dangling pointers in root's children vector
+    // You may need to add a clearChildren() method to GameObject
+    LOG("ModuleScene: Cleared all objects");
 }
