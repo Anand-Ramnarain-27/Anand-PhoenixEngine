@@ -16,6 +16,7 @@
 #include "ModuleCamera.h"
 
 #include <d3dx12.h>
+#include <filesystem>
 
 ModuleEditor::ModuleEditor() {}
 ModuleEditor::~ModuleEditor() {}
@@ -361,11 +362,76 @@ void ModuleEditor::drawMenuBar()
 
     if (ImGui::BeginMenu("File"))
     {
-        if (ImGui::MenuItem("Exit"))
+        if (ImGui::MenuItem("New Scene", "Ctrl+N"))
         {
-            //app->quit();
+            // TODO: Clear current scene
+            log("New Scene - Not implemented yet", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
         }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Save Scene", "Ctrl+S"))
+        {
+            if (sceneManager && sceneManager->getActiveScene())
+            {
+                std::string scenePath = "Library/Scenes/current_scene.json";
+                if (sceneManager->saveCurrentScene(scenePath))
+                {
+                    log("✓ Scene saved to %s"/* + scenePath.c_str()*/, ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+                }
+                else
+                {
+                    log("✗ Failed to save scene!", ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+                }
+            }
+            else
+            {
+                log("No active scene to save", ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+            }
+        }
+        if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S"))
+        {
+            // Save with timestamp for now
+            // TODO: Add file picker dialog
+            if (sceneManager && sceneManager->getActiveScene())
+            {
+                char filename[256];
+                time_t now = time(nullptr);
+                tm timeinfo;
+                localtime_s(&timeinfo, &now);
+                strftime(filename, sizeof(filename), "Library/Scenes/scene_%Y%m%d_%H%M%S.json", &timeinfo);
 
+                if (sceneManager->saveCurrentScene(filename))
+                {
+                    log("✓ Scene saved to %s" /*+ filename */, ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+                }
+                else
+                {
+                    log("✗ Failed to save scene!", ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+                }
+            }
+        }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Load Scene...", "Ctrl+O"))
+        {
+            // Load default for now
+            // TODO: Add file picker dialog
+            if (sceneManager && sceneManager->getActiveScene())
+            {
+                std::string scenePath = "Library/Scenes/current_scene.json";
+                if (sceneManager->loadScene(scenePath))
+                {
+                    log("✓ Scene loaded from %s" /*+ scenePath.c_str()*/, ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+                }
+                else
+                {
+                    log("✗ Failed to load scene (file may not exist)", ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+                }
+            }
+        }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Quit", "Alt+F4"))
+        {
+            // Signal app to quit
+        }
         ImGui::EndMenu();
     }
 
@@ -377,6 +443,12 @@ void ModuleEditor::drawMenuBar()
         ImGui::MenuItem("Viewport", nullptr, &showViewport);
         ImGui::MenuItem("Performance", nullptr, &showPerformance);
         ImGui::MenuItem("Exercises", nullptr, &showExercises);
+
+        ImGui::Separator();
+
+        if (ImGui::MenuItem("Show Grid", nullptr, &showGrid)) {}
+        if (ImGui::MenuItem("Show Axis", nullptr, &showAxis)) {}
+
         ImGui::EndMenu();
     }
 
@@ -392,7 +464,7 @@ void ModuleEditor::drawMenuBar()
     {
         if (ImGui::MenuItem("Import Duck Model (Test)"))
         {
-            app->getAssets()->importAsset("Assets/Models/Duck/duck.gltf");  // Use ModuleAssets
+            app->getAssets()->importAsset("Assets/Models/Duck/duck.gltf");  
         }
 
         ImGui::Separator();
@@ -725,85 +797,249 @@ void ModuleEditor::drawAssetBrowser()
 
     ModuleAssets* assets = app->getAssets();
 
-    // === IMPORT SECTION ===
-    ImGui::SeparatorText("Import");
-
-    if (ImGui::Button("Import Duck Model (Test)", ImVec2(-1, 0)))
+    if (ImGui::BeginTabBar("AssetBrowserTabs"))
     {
-        assets->importAsset("Assets/Models/Duck/duck.gltf");
-    }
-
-    ImGui::Spacing();
-
-    // Manual import path
-    static char pathBuffer[256] = "Assets/Models/";
-    ImGui::InputText("Path", pathBuffer, 256);
-    ImGui::SameLine();
-    if (ImGui::Button("Import"))
-    {
-        assets->importAsset(pathBuffer);
-    }
-
-    ImGui::Spacing();
-    ImGui::Separator();
-
-    // === LIBRARY SECTION ===
-    ImGui::SeparatorText("Imported Scenes");
-
-    // Get list of imported scenes
-    auto scenes = assets->getImportedScenes();
-
-    if (scenes.empty())
-    {
-        ImGui::TextDisabled("No scenes imported yet.");
-        ImGui::TextDisabled("Use the Import button above to import a model.");
-    }
-    else
-    {
-        for (const auto& sceneInfo : scenes)
+        if (ImGui::BeginTabItem("Models"))
         {
-            ImGui::PushID(sceneInfo.name.c_str());
+            ImGui::SeparatorText("Import");
 
-            // Show scene name with bullet
-            ImGui::BulletText("%s", sceneInfo.name.c_str());
-
-            // Show metadata
-            ImGui::Indent();
-            ImGui::TextDisabled("Meshes: %u | Materials: %u",
-                sceneInfo.meshCount, sceneInfo.materialCount);
-
-            // Load button
-            if (ImGui::Button("Load in Scene"))
+            if (ImGui::Button("Import Duck Model (Test)", ImVec2(-1, 0)))
             {
-                log(("Loading scene from library: " + sceneInfo.name).c_str(),
-                    ImVec4(0.6f, 0.8f, 1.0f, 1.0f));
-
-                // TODO: Actually load the scene
-                // For now, just log it
+                assets->importAsset("Assets/Models/Duck/duck.gltf");
             }
 
-            ImGui::SameLine();
-
-            // Show folder button
-            if (ImGui::SmallButton("Show Folder"))
-            {
-                // TODO: Open folder in file explorer
-                log(("Scene folder: " + sceneInfo.path).c_str(),
-                    ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
-            }
-
-            ImGui::Unindent();
             ImGui::Spacing();
 
-            ImGui::PopID();
+            static char pathBuffer[256] = "Assets/Models/";
+            ImGui::InputText("Path", pathBuffer, 256);
+            ImGui::SameLine();
+            if (ImGui::Button("Import"))
+            {
+                assets->importAsset(pathBuffer);
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+
+            ImGui::SeparatorText("Imported Scenes");
+
+            auto scenes = assets->getImportedScenes();
+
+            if (scenes.empty())
+            {
+                ImGui::TextDisabled("No scenes imported yet.");
+                ImGui::TextDisabled("Use the Import button above to import a model.");
+            }
+            else
+            {
+                for (const auto& sceneInfo : scenes)
+                {
+                    ImGui::PushID(sceneInfo.name.c_str());
+
+                    ImGui::BulletText("%s", sceneInfo.name.c_str());
+
+                    ImGui::Indent();
+                    ImGui::TextDisabled("Meshes: %u | Materials: %u",
+                        sceneInfo.meshCount, sceneInfo.materialCount);
+
+                    if (ImGui::Button("Load in Scene"))
+                    {
+                        log(("Loading scene from library: " + sceneInfo.name).c_str(),
+                            ImVec4(0.6f, 0.8f, 1.0f, 1.0f));
+
+                        // TODO: Actually load the scene
+                        // For now, just log it
+                    }
+
+                    ImGui::SameLine();
+
+                    if (ImGui::SmallButton("Show Folder"))
+                    {
+                        log(("Scene folder: " + sceneInfo.path).c_str(),
+                            ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
+                    }
+
+                    ImGui::Unindent();
+                    ImGui::Spacing();
+
+                    ImGui::PopID();
+                }
+            }
+
+            ImGui::Separator();
+
+            ImGui::TextDisabled("Library: %s",
+                app->getFileSystem()->GetLibraryPath().c_str());
+
+            ImGui::EndTabItem();
         }
+
+        if (ImGui::BeginTabItem("Scenes"))
+        {
+            ImGui::SeparatorText("Saved Scenes");
+
+            std::string scenesPath = app->getFileSystem()->GetLibraryPath() + "Scenes/";
+
+            if (app->getFileSystem()->Exists(scenesPath.c_str()))
+            {
+                bool foundScenes = false;
+
+                try
+                {
+                    namespace fs = std::filesystem;
+
+                    for (const auto& entry : fs::directory_iterator(scenesPath))
+                    {
+                        if (entry.is_regular_file() && entry.path().extension() == ".json")
+                        {
+                            foundScenes = true;
+
+                            std::string filename = entry.path().filename().string();
+                            std::string fullPath = entry.path().string();
+
+                            ImGui::PushID(filename.c_str());
+
+                            ImGui::Text("📄");
+                            ImGui::SameLine();
+
+                            bool isSelected = false;
+                            if (ImGui::Selectable(filename.c_str(), &isSelected, ImGuiSelectableFlags_AllowDoubleClick))
+                            {
+                                if (ImGui::IsMouseDoubleClicked(0))
+                                {
+                                    if (sceneManager && sceneManager->getActiveScene())
+                                    {
+                                        if (sceneManager->loadScene(fullPath))
+                                        {
+                                            log(("✓ Loaded scene: " + filename).c_str(),
+                                                ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+                                        }
+                                        else
+                                        {
+                                            log(("✗ Failed to load scene: " + filename).c_str(),
+                                                ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (ImGui::BeginPopupContextItem())
+                            {
+                                ImGui::Text("Scene: %s", filename.c_str());
+                                ImGui::Separator();
+
+                                if (ImGui::MenuItem("Load"))
+                                {
+                                    if (sceneManager && sceneManager->getActiveScene())
+                                    {
+                                        if (sceneManager->loadScene(fullPath))
+                                        {
+                                            log(("✓ Loaded scene: " + filename).c_str(),
+                                                ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+                                        }
+                                    }
+                                }
+
+                                if (ImGui::MenuItem("Delete"))
+                                {
+                                    fs::remove(entry.path());
+                                    log(("Deleted scene: " + filename).c_str(),
+                                        ImVec4(1.0f, 0.8f, 0.4f, 1.0f));
+                                }
+
+                                if (ImGui::MenuItem("Rename"))
+                                {
+                                    // TODO: Show rename dialog
+                                    log("Rename not implemented yet", ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
+                                }
+
+                                ImGui::Separator();
+
+                                if (ImGui::MenuItem("Show in Explorer"))
+                                {
+                                    // TODO: Open folder in file explorer
+                                    log(("Scene path: " + fullPath).c_str(),
+                                        ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
+                                }
+
+                                ImGui::EndPopup();
+                            }
+
+                            ImGui::PopID();
+                        }
+                    }
+
+                    if (!foundScenes)
+                    {
+                        ImGui::TextDisabled("No scenes found");
+                        ImGui::TextDisabled("Save a scene using File > Save Scene");
+                    }
+                }
+                catch (const std::exception& e)
+                {
+                    ImGui::TextColored(ImVec4(1, 0, 0, 1), "Error reading scenes:");
+                    ImGui::TextColored(ImVec4(1, 0, 0, 1), "%s", e.what());
+                }
+            }
+            else
+            {
+                ImGui::TextDisabled("Scenes folder not found");
+                ImGui::TextDisabled("It will be created when you save a scene");
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            ImGui::SeparatorText("Quick Actions");
+
+            if (ImGui::Button("💾 Quick Save Current Scene", ImVec2(-1, 0)))
+            {
+                if (sceneManager && sceneManager->getActiveScene())
+                {
+                    std::string path = "Library/Scenes/current_scene.json";
+                    if (sceneManager->saveCurrentScene(path))
+                    {
+                        log(("✓ Scene saved to " + path).c_str(),
+                            ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+                    }
+                    else
+                    {
+                        log("✗ Failed to save scene",
+                            ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+                    }
+                }
+            }
+
+            if (ImGui::Button("🆕 Save Scene with Timestamp", ImVec2(-1, 0)))
+            {
+                if (sceneManager && sceneManager->getActiveScene())
+                {
+                    char filename[256];
+                    time_t now = time(nullptr);
+                    tm timeinfo;
+                    localtime_s(&timeinfo, &now);
+                    strftime(filename, sizeof(filename), "Library/Scenes/scene_%Y%m%d_%H%M%S.json", &timeinfo);
+
+                    if (sceneManager->saveCurrentScene(filename))
+                    {
+                        log(("✓ Scene saved to " + std::string(filename)).c_str(),
+                            ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+                    }
+                }
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+
+            ImGui::TextDisabled("Scenes Folder:");
+            ImGui::TextDisabled("%s", scenesPath.c_str());
+
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
     }
-
-    ImGui::Separator();
-
-    // Show library path
-    ImGui::TextDisabled("Library: %s",
-        app->getFileSystem()->GetLibraryPath().c_str());
 
     ImGui::End();
 }
@@ -811,7 +1047,7 @@ void ModuleEditor::drawAssetBrowser()
 void ModuleEditor::updateCameraConstants(const Matrix& view, const Matrix& proj)
 {
     CameraConstants constants;
-    constants.viewProj = (view * proj).Transpose(); // D3D expects row-major
+    constants.viewProj = (view * proj).Transpose();
 
     void* data = nullptr;
     cameraConstantBuffer->Map(0, nullptr, &data);
