@@ -26,7 +26,7 @@ public:
     Type getType() const override { return Type::Mesh; }
 
 private:
-    std::unique_ptr<Model> m_model;
+    std::shared_ptr<Model> m_model;
     std::vector<ComPtr<ID3D12Resource>> m_materialBuffers;
     std::string m_modelFilePath;  // Store path for serialization
 };

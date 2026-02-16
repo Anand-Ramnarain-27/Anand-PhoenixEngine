@@ -22,17 +22,27 @@ ComponentMesh::~ComponentMesh() = default;
 
 bool ComponentMesh::loadModel(const char* filePath)
 {
-    m_model = std::make_unique<Model>();
+    // OLD WAY (delete these lines):
+    // m_model = std::make_unique<Model>();
+    // if (!m_model->load(filePath))
+    // {
+    //     return false;
+    // }
 
-    if (!m_model->load(filePath))
+    // NEW WAY (use cache):
+    ResourceCache* cache = app->getResourceCache();
+    m_model = cache->getOrLoadModel(filePath);
+
+    if (!m_model)
     {
+        LOG("Failed to load model: %s", filePath);
         return false;
     }
 
     // Store the file path for serialization
     m_modelFilePath = filePath;
 
-    // Create constant buffers for materials
+    // Create constant buffers for materials (rest stays the same)
     ModuleResources* resources = app->getResources();
     const auto& materials = m_model->getMaterials();
 
@@ -43,7 +53,7 @@ bool ComponentMesh::loadModel(const char* filePath)
         const auto& materialData = material->getData();
 
         UINT bufferSize = sizeof(Material::Data);
-        UINT alignedSize = (bufferSize + 255) & ~255;  // Align to 256 bytes
+        UINT alignedSize = (bufferSize + 255) & ~255;
 
         ComPtr<ID3D12Resource> buffer = resources->createDefaultBuffer(
             &materialData,

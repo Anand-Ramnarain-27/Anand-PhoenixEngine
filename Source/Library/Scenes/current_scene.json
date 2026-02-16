@@ -1,0 +1,117 @@
+{
+  "Scene": {
+    "Version": 1,
+    "GameObjects": [
+      {
+        "UID": 2627301745,
+        "ParentUID": 3050814674,
+        "Name": "Parent",
+        "Active": true,
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "Components": []
+      },
+      {
+        "UID": 345407417,
+        "ParentUID": 2627301745,
+        "Name": "Child",
+        "Active": true,
+        "Transform": {
+          "position": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "Components": []
+      },
+      {
+        "UID": 3908852401,
+        "ParentUID": 2627301745,
+        "Name": "Duck",
+        "Active": true,
+        "Transform": {
+          "position": [
+            -3.9000000953674316,
+            0.0,
+            4.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            0.009999999776482582,
+            0.009999999776482582,
+            0.009999999776482582
+          ]
+        },
+        "Components": [
+          {
+            "Type": 1,
+            "Data": "{\"HasModel\":true,\"ModelPath\":\"Assets/Models/Duck/duck.gltf\"}"
+          }
+        ]
+      },
+      {
+        "UID": 3015803086,
+        "ParentUID": 2627301745,
+        "Name": "Duck",
+        "Active": true,
+        "Transform": {
+          "position": [
+            2.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            0.009999999776482582,
+            0.009999999776482582,
+            0.009999999776482582
+          ]
+        },
+        "Components": [
+          {
+            "Type": 1,
+            "Data": "{\"HasModel\":true,\"ModelPath\":\"Assets/Models/Duck/duck.gltf\"}"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -2,6 +2,7 @@
 
 #include "Globals.h"
 #include "ModuleFileSystem.h"
+#include "ResourceCache.h"
 
 #include <array>
 #include <vector>
@@ -47,6 +48,7 @@ public:
     ModuleRTDescriptors* getRTDescriptors() { return rtDescriptors; }
     ModuleDSDescriptors* getDSDescriptors() { return dsDescriptors; }
 	ModuleAssets* getAssets() { return assets; }
+    ResourceCache* getResourceCache() { return &m_resourceCache; }
 
 	/*BasicModelScene* getBasicModelScene() { return basicModelScene; }
     ModuleTextureSampler* getTextureSampler() { return textureSampler; }
@@ -80,6 +82,7 @@ private:
     ModuleRTDescriptors* rtDescriptors = nullptr;
     ModuleDSDescriptors* dsDescriptors = nullptr;
 	ModuleAssets* assets = nullptr;
+    ResourceCache m_resourceCache;
 
     ModuleEditor* editor = nullptr;
   /*  ModuleTextureSampler* textureSampler = nullptr;

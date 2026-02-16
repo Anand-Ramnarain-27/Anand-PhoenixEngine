@@ -3,6 +3,7 @@
 #include "Component.h"
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
+#include "ComponentCamera.h"
 #include <algorithm>
 #include <random>
 
@@ -97,6 +98,8 @@ T* GameObject::getComponent() const
 // Explicit template instantiations
 template ComponentTransform* GameObject::createComponent<ComponentTransform>();
 template ComponentMesh* GameObject::createComponent<ComponentMesh>();
+template ComponentCamera* GameObject::createComponent<ComponentCamera>();
 
 template ComponentTransform* GameObject::getComponent<ComponentTransform>() const;
 template ComponentMesh* GameObject::getComponent<ComponentMesh>() const;
+template ComponentCamera* GameObject::getComponent<ComponentCamera>() const;

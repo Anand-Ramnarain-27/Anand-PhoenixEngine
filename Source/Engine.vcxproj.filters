@@ -126,6 +126,14 @@
     <ClCompile Include="MaterialImporter.cpp" />
     <ClCompile Include="ModuleAssets.cpp" />
     <ClCompile Include="SceneSerializer.cpp" />
+    <ClCompile Include="ComponentCamera.cpp">
+      <Filter>engine\scene\components</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentFactory.cpp">
+      <Filter>engine\scene\components</Filter>
+    </ClCompile>
+    <ClCompile Include="FileDialog.cpp" />
+    <ClCompile Include="ResourceCache.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -290,6 +298,14 @@
     <ClInclude Include="MaterialImporter.h" />
     <ClInclude Include="ModuleAssets.h" />
     <ClInclude Include="SceneSerializer.h" />
+    <ClInclude Include="ComponentCamera.h">
+      <Filter>engine\scene\components</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentFactory.h">
+      <Filter>engine\scene\components</Filter>
+    </ClInclude>
+    <ClInclude Include="FileDialog.h" />
+    <ClInclude Include="ResourceCache.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
