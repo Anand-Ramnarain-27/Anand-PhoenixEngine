@@ -165,6 +165,42 @@ void ModuleEditor::preRender()
     if (showExercises)   drawExercises();
     if (showAssetBrowser) drawAssetBrowser();
 
+    if (m_saveDialog.draw())
+    {
+        std::string path = m_saveDialog.getSelectedPath();
+        //LOG("Saving scene to: %s", path.c_str());
+
+        if (sceneManager && sceneManager->getActiveScene())
+        {
+            if (sceneManager->saveCurrentScene(path))
+            {
+                log("✅ Scene saved successfully!", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+            }
+            else
+            {
+                log("❌ Failed to save scene!", ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+            }
+        }
+    }
+
+    if (m_loadDialog.draw())
+    {
+        std::string path = m_loadDialog.getSelectedPath();
+        //LOG("Loading scene from: %s", path.c_str());
+
+        if (sceneManager && sceneManager->getActiveScene())
+        {
+            if (sceneManager->loadScene(path))
+            {
+                log("✅ Scene loaded successfully!", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+            }
+            else
+            {
+                log("❌ Failed to load scene!", ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+            }
+        }
+    }
+
     if (viewportRT && viewportSize.x > 4 && viewportSize.y > 4)
     {
         if (viewportSize.x != lastViewportSize.x ||
@@ -242,44 +278,6 @@ void ModuleEditor::render()
         gpuTimerReady = true;
         gpuReadbackBuffer->Unmap(0, nullptr);
     }
-
-    if (m_saveDialog.draw())
-    {
-        std::string path = m_saveDialog.getSelectedPath();
-
-        IScene* activeScene = sceneManager->getActiveScene();
-        if (activeScene && activeScene->getModuleScene())
-        {
-            if (sceneManager->saveCurrentScene(path))
-            {
-                log("✅ Scene saved successfully!", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
-            }
-            else
-            {
-                log("❌ Failed to save scene!", ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
-            }
-        }
-    }
-
-    // Handle load dialog
-    if (m_loadDialog.draw())
-    {
-        std::string path = m_loadDialog.getSelectedPath();
-
-        IScene* activeScene = sceneManager->getActiveScene();
-        if (activeScene && activeScene->getModuleScene())
-        {
-            if (sceneManager->loadScene(path))
-            {
-                log("✅ Scene loaded successfully!", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
-            }
-            else
-            {
-                log("❌ Failed to load scene!", ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
-            }
-        }
-    }
-
 }
 
 void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
