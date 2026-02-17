@@ -45,7 +45,20 @@ bool ComponentMesh::loadModel(const char* filePath)
         UINT bufferSize = sizeof(Material::Data);
         UINT alignedSize = (bufferSize + 255) & ~255;
 
-        ComPtr<ID3D12Resource> buffer = resources->createDefaultBuffer(&materialData, alignedSize, "MaterialCB");
+        ComPtr<ID3D12Resource> buffer;
+        auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer((sizeof(Material::Data) + 255) & ~255);
+
+        app->getD3D12()->getDevice()->CreateCommittedResource(
+            &heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc,
+            D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+            IID_PPV_ARGS(&buffer));
+
+        void* mapped = nullptr;
+        buffer->Map(0, nullptr, &mapped);
+        memcpy(mapped, &materialData, sizeof(Material::Data));
+        buffer->Unmap(0, nullptr);
+        buffer->SetName(L"MaterialCB");
 
         m_materialBuffers.push_back(buffer);
     }
@@ -79,12 +92,12 @@ void ComponentMesh::render(ID3D12GraphicsCommandList* cmd)
 
             if (materialIndex < (int)m_materialBuffers.size())
             {
-                cmd->SetGraphicsRootConstantBufferView(2, m_materialBuffers[materialIndex]->GetGPUVirtualAddress());
+                cmd->SetGraphicsRootConstantBufferView(3, m_materialBuffers[materialIndex]->GetGPUVirtualAddress());
             }
 
             if (material->hasTexture())
             {
-                cmd->SetGraphicsRootDescriptorTable(3, material->getTextureGPUHandle());
+                cmd->SetGraphicsRootDescriptorTable(4, material->getTextureGPUHandle());
             }
         }
         mesh->draw(cmd);

@@ -85,6 +85,7 @@ private:
     struct ObjectConstants { Matrix world; };
     ComPtr<ID3D12Resource> cameraConstantBuffer;
     ComPtr<ID3D12Resource> objectConstantBuffer;
+    ComPtr<ID3D12Resource> lightConstantBuffer;
 
     FileDialog m_saveDialog;
     FileDialog m_loadDialog;

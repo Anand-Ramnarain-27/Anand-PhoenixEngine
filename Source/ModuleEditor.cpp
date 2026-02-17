@@ -71,6 +71,17 @@ bool ModuleEditor::init()
         objectConstantBuffer->SetName(L"ObjectCB");
     }
 
+    {
+        auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        auto bd = CD3DX12_RESOURCE_DESC::Buffer(
+            (sizeof(MeshPipeline::LightCB) + 255) & ~255);
+        d3d12->getDevice()->CreateCommittedResource(
+            &hp, D3D12_HEAP_FLAG_NONE, &bd,
+            D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+            IID_PPV_ARGS(&lightConstantBuffer));
+        lightConstantBuffer->SetName(L"LightCB");
+    }
+
     m_saveDialog.setExtensionFilter(".json");
     m_loadDialog.setExtensionFilter(".json");
 
@@ -250,6 +261,61 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     cmd->SetPipelineState(meshPipeline->getPSO());
     cmd->SetGraphicsRootSignature(meshPipeline->getRootSig());
 
+    const EditorSceneSettings& s = sceneManager->getSettings();
+    MeshPipeline::LightCB lightData = {};
+
+    // Ambient
+    lightData.ambientColor = s.ambient.color;
+    lightData.ambientIntensity = s.ambient.intensity;
+    lightData.viewPos = camera->getPos();
+
+    // Directional lights — only include enabled ones
+    lightData.numDirLights = 0;
+    for (int i = 0; i < 2; ++i)
+    {
+        if (s.directionalLight[i].enabled)
+        {
+            auto& d = lightData.dirLights[lightData.numDirLights++];
+            d.direction = s.directionalLight[i].direction;
+            d.color = s.directionalLight[i].color;
+            d.intensity = s.directionalLight[i].intensity;
+        }
+    }
+
+    // Point light
+    lightData.numPointLights = s.pointLight.enabled ? 1 : 0;
+    if (s.pointLight.enabled)
+    {
+        lightData.pointLight.position = s.pointLight.position;
+        lightData.pointLight.color = s.pointLight.color;
+        lightData.pointLight.intensity = s.pointLight.intensity;
+        lightData.pointLight.sqRadius = s.pointLight.radius * s.pointLight.radius;
+    }
+
+    // Spot light — convert degrees to cosines for the shader
+    lightData.numSpotLights = s.spotLight.enabled ? 1 : 0;
+    if (s.spotLight.enabled)
+    {
+        lightData.spotLight.position = s.spotLight.position;
+        lightData.spotLight.direction = s.spotLight.direction;
+        lightData.spotLight.color = s.spotLight.color;
+        lightData.spotLight.intensity = s.spotLight.intensity;
+        lightData.spotLight.sqRadius = s.spotLight.radius * s.spotLight.radius;
+        // Editor stores degrees; HLSL needs cosines
+        lightData.spotLight.innerCos = cosf(s.spotLight.innerAngle * 0.0174532925f);
+        lightData.spotLight.outerCos = cosf(s.spotLight.outerAngle * 0.0174532925f);
+    }
+
+    // Upload to GPU
+    void* mapped = nullptr;
+    lightConstantBuffer->Map(0, nullptr, &mapped);
+    memcpy(mapped, &lightData, sizeof(lightData));
+    lightConstantBuffer->Unmap(0, nullptr);
+
+    // Bind at root param slot 2 — matches MeshPipeline root signature
+    cmd->SetGraphicsRootConstantBufferView(
+        2, lightConstantBuffer->GetGPUVirtualAddress());
+
     Matrix vp = (view * proj).Transpose();
     cmd->SetGraphicsRoot32BitConstants(0, 16, &vp, 0);
 
@@ -259,7 +325,6 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     if (sceneManager)
         sceneManager->render(cmd, *camera, width, height);
 
-    const EditorSceneSettings& s = sceneManager->getSettings();
     if (s.showGrid)
         dd::xzSquareGrid(-100.0f, 100.0f, 0.0f, 1.0f, dd::colors::Gray);
     if (s.showAxis)
@@ -1183,19 +1248,28 @@ void ModuleEditor::drawSceneSettings()
             ImGui::SliderFloat("Intensity", &s.ambient.intensity, 0, 2);
             ImGui::TreePop();
         }
-        if (ImGui::TreeNode("Directional Light"))
+
+        for (int i = 0; i < 2; ++i)
         {
-            ImGui::Checkbox("Enabled", &s.directionalLight.enabled);
-            if (s.directionalLight.enabled)
+            ImGui::PushID(i);
+            char label[32];
+            sprintf_s(label, "Directional Light %d", i + 1);
+            if (ImGui::TreeNode(label))
             {
-                ImGui::DragFloat3("Direction", &s.directionalLight.direction.x, 0.01f);
-                if (ImGui::IsItemDeactivatedAfterEdit())
-                    s.directionalLight.direction.Normalize();
-                ImGui::ColorEdit3("Color", &s.directionalLight.color.x);
-                ImGui::SliderFloat("Intensity", &s.directionalLight.intensity, 0, 5);
+                ImGui::Checkbox("Enabled", &s.directionalLight[i].enabled);
+                if (s.directionalLight[i].enabled)
+                {
+                    ImGui::DragFloat3("Direction", &s.directionalLight[i].direction.x, 0.01f);
+                    if (ImGui::IsItemDeactivatedAfterEdit())
+                        s.directionalLight[i].direction.Normalize();
+                    ImGui::ColorEdit3("Color", &s.directionalLight[i].color.x);
+                    ImGui::SliderFloat("Intensity", &s.directionalLight[i].intensity, 0, 5);
+                }
+                ImGui::TreePop();
             }
-            ImGui::TreePop();
+            ImGui::PopID();
         }
+
         if (ImGui::TreeNode("Point Light"))
         {
             ImGui::Checkbox("Enabled", &s.pointLight.enabled);

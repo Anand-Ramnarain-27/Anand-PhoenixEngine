@@ -21,32 +21,34 @@ bool MeshPipeline::createRootSignature(ID3D12Device* device)
     CD3DX12_DESCRIPTOR_RANGE texRange;
     texRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 
-    CD3DX12_ROOT_PARAMETER params[4];
+    CD3DX12_ROOT_PARAMETER params[5];
+    params[0].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+    params[1].InitAsConstants(16, 1, 0, D3D12_SHADER_VISIBILITY_VERTEX);  
+    params[2].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_ALL); 
+    params[3].InitAsConstantBufferView(3, 0, D3D12_SHADER_VISIBILITY_PIXEL); 
+    params[4].InitAsDescriptorTable(1, &texRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
-    params[0].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX); 
-    params[1].InitAsConstants(16, 1, 0, D3D12_SHADER_VISIBILITY_VERTEX); 
-    params[2].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_PIXEL); 
-    params[3].InitAsDescriptorTable(1, &texRange, D3D12_SHADER_VISIBILITY_PIXEL);
-
-    CD3DX12_STATIC_SAMPLER_DESC sampler(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP);
+    CD3DX12_STATIC_SAMPLER_DESC sampler(0,
+        D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP);
 
     CD3DX12_ROOT_SIGNATURE_DESC desc;
     desc.Init(_countof(params), params, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-    ComPtr<ID3DBlob> blob;
-    ComPtr<ID3DBlob> error;
-
-    if (FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error)))
+    ComPtr<ID3DBlob> blob, error;
+    if (FAILED(D3D12SerializeRootSignature(&desc,
+        D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error)))
     {
-        if (error)
-        {
-            OutputDebugStringA((char*)error->GetBufferPointer());
-        }
+        if (error) OutputDebugStringA((char*)error->GetBufferPointer());
         return false;
     }
-
-    return SUCCEEDED(device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&rootSig)));
+    return SUCCEEDED(device->CreateRootSignature(0,
+        blob->GetBufferPointer(), blob->GetBufferSize(),
+        IID_PPV_ARGS(&rootSig)));
 }
+
 
 bool MeshPipeline::createPSO(ID3D12Device* device)
 {

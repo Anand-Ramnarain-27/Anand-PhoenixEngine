@@ -3,9 +3,9 @@
     "Version": 1,
     "GameObjects": [
       {
-        "UID": 1636301092,
-        "ParentUID": 3555101237,
-        "Name": "Poes",
+        "UID": 2494614596,
+        "ParentUID": 100310398,
+        "Name": "duck",
         "Active": true,
         "Transform": {
           "position": [

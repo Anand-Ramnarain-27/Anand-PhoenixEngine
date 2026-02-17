@@ -24,7 +24,7 @@ struct EditorSceneSettings
         Vector3 color = Vector3(1.0f, 1.0f, 1.0f);
         float intensity = 1.0f;
         bool enabled = true;
-    } directionalLight;
+    } directionalLight[2];
 
     struct PointLight
     {
