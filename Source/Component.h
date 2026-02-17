@@ -26,14 +26,9 @@ public:
         Transform = 0,
         Mesh = 1,
         Camera = 2,
-        DirectionalLight = 3,
-        PointLight = 4,
-        SpotLight = 5,
     };
 
     virtual Type getType() const = 0;
-
-    GameObject* getOwner() const { return owner; }
 
 protected:
     GameObject* owner = nullptr;
