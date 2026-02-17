@@ -45,10 +45,6 @@ private:
 
     ShaderTableDesc descTable;
 
-    // Scene selection
-    std::vector<SceneEntry> availableScenes;
-    int selectedSceneIndex = -1;
-
     // Selection
     GameObject* selectedGameObject = nullptr;
 
@@ -58,7 +54,6 @@ private:
     bool showConsole = true;
     bool showViewport = true;
     bool showPerformance = false;
-    bool showExercises = true;
     bool showEditor = true;
     bool showAssetBrowser = true;
 
@@ -138,7 +133,6 @@ private:
     void drawConsole();
     void drawViewport();
     void drawPerformanceWindow();
-    void drawExercises();
 
     // Rendering
     void renderViewportToTexture(ID3D12GraphicsCommandList* cmd);

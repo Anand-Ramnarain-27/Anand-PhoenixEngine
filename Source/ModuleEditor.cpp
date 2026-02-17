@@ -46,21 +46,9 @@ bool ModuleEditor::init()
         return false;
     }
 
-    availableScenes =
-    {
-        {
-            "Empty Scene",
-            []() { return std::make_unique<EmptyScene>(); }
-        },
-        {
-            "Render Pipeline Test", 
-            []() { return std::make_unique<RenderPipelineTestScene>(); }
-        }
-    };
-    selectedSceneIndex = 0;  
-    sceneManager->setScene(availableScenes[0].create(), app->getD3D12()->getDevice());
+    sceneManager->setScene(std::make_unique<EmptyScene>(), d3d12->getDevice());
+    log("[Editor] Empty scene created", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
 
-    log("[Editor] Active scene: Empty Scene", ImVec4(0.6f, 0.8f, 1.0f, 1.0f));
     log("[Editor] ModuleEditor initialized", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
 
     D3D12_QUERY_HEAP_DESC qDesc = {};
@@ -167,7 +155,6 @@ void ModuleEditor::preRender()
     if (showInspector)   drawInspector();
     if (showConsole)     drawConsole();
     if (showPerformance) drawPerformanceWindow();
-    if (showExercises)   drawExercises();
     if (showAssetBrowser) drawAssetBrowser();
 
     if (m_saveDialog.draw())
@@ -259,19 +246,9 @@ void ModuleEditor::render()
             {
                 app->getD3D12()->flush();
 
-                IScene* activeScene = sceneManager->getActiveScene();
+                sceneManager->setScene(std::make_unique<EmptyScene>(), app->getD3D12()->getDevice());
 
-                activeScene->reset();
-
-                ModuleScene* moduleScene = sceneManager->getActiveScene()->getModuleScene();
-                if (moduleScene)
-                {
-                    moduleScene->clear();
-
-                    activeScene->initialize(app->getD3D12()->getDevice());
-
-                    log("✓ New scene created", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
-                }
+                log("✓ New empty scene created", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
             }
 
             ImGui::CloseCurrentPopup();
@@ -493,7 +470,6 @@ void ModuleEditor::drawMenuBar()
         ImGui::MenuItem("Console", nullptr, &showConsole);
         ImGui::MenuItem("Viewport", nullptr, &showViewport);
         ImGui::MenuItem("Performance", nullptr, &showPerformance);
-        ImGui::MenuItem("Exercises", nullptr, &showExercises);
 
         ImGui::Separator();
 
@@ -508,6 +484,17 @@ void ModuleEditor::drawMenuBar()
         if (ImGui::MenuItem("Play"))  sceneManager->play();
         if (ImGui::MenuItem("Pause")) sceneManager->pause();
         if (ImGui::MenuItem("Stop"))  sceneManager->stop();
+        
+        ImGui::Separator();
+
+        // Temporary menu item to load test scene
+        if (ImGui::MenuItem("Load Test Scene (Temp)"))
+        {
+            app->getD3D12()->flush();
+            sceneManager->setScene(std::make_unique<RenderPipelineTestScene>(), app->getD3D12()->getDevice());
+            log("✓ Loaded RenderPipelineTestScene", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+        }
+
         ImGui::EndMenu();
     }
 
@@ -597,41 +584,6 @@ void ModuleEditor::drawHierarchyNode(GameObject* go)
         ImGui::TreePop();
     }
 }
-
-void ModuleEditor::drawExercises()
-{
-    ImGui::Begin("Exercises");
-
-    ImGui::Text("Available Scenes");
-    ImGui::Separator();
-
-    for (int i = 0; i < (int)availableScenes.size(); ++i)
-    {
-        bool selected = (i == selectedSceneIndex);
-
-        if (ImGui::Selectable(availableScenes[i].name, selected))
-        {
-            if (i != selectedSceneIndex)
-            {
-                selectedSceneIndex = i;
-
-                sceneManager->setScene(availableScenes[i].create(), app->getD3D12()->getDevice());
-
-                log(("Switched to scene: " + std::string(availableScenes[i].name)).c_str(), ImVec4(0.6f, 0.8f, 1.0f, 1.0f));
-            }
-        }
-    }
-
-    ImGui::Separator();
-
-    if (selectedSceneIndex >= 0)
-    {
-        ImGui::Text("Active: %s", availableScenes[selectedSceneIndex].name);
-    }
-
-    ImGui::End();
-}
-
 
 void ModuleEditor::drawViewport()
 {
