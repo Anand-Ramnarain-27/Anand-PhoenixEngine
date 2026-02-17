@@ -105,6 +105,7 @@ void ModuleEditor::preRender()
     }
 
     imguiPass->startFrame();
+    ImGuizmo::BeginFrame();
 
     if (sceneManager)
         sceneManager->update(app->getElapsedMilis() * 0.001f);
@@ -429,35 +430,42 @@ void ModuleEditor::drawMenuBar()
 
 void ModuleEditor::drawGizmoToolbar()
 {
+    if (!ImGui::GetIO().WantTextInput)
+    {
+        if (ImGui::IsKeyPressed(ImGuiKey_T)) gizmoOperation = ImGuizmo::TRANSLATE;
+        if (ImGui::IsKeyPressed(ImGuiKey_R)) gizmoOperation = ImGuizmo::ROTATE;
+        if (ImGui::IsKeyPressed(ImGuiKey_S)) gizmoOperation = ImGuizmo::SCALE;
+        if (ImGui::IsKeyPressed(ImGuiKey_G)) gizmoMode = (gizmoMode == ImGuizmo::LOCAL)
+            ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
+    }
+
     ImGuiWindow* win = ImGui::FindWindowByName("Viewport");
     if (!win) return;
 
     ImVec2 pos = { win->Pos.x + 8, win->Pos.y + 28 };
     ImGui::SetNextWindowPos(pos, ImGuiCond_Always);
-    ImGui::SetNextWindowSize({ 0, 0 });
     ImGui::SetNextWindowBgAlpha(0.7f);
 
-    ImGuiWindowFlags overlayFlags =
-        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
-        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
-        ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing;
+    ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoBringToFrontOnFocus |
+        ImGuiWindowFlags_NoFocusOnAppearing;
 
-    ImGui::SetNextWindowPos(pos, ImGuiCond_Always);
-    if (!ImGui::Begin("##GizmoToolbar",
-        nullptr,
-        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize |
-        ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing))
+    if (!ImGui::Begin("##GizmoToolbar", nullptr, flags))
     {
         ImGui::End(); return;
     }
 
-    auto gizmoBtn = [&](const char* label, ImGuizmo::OPERATION op) {
-        bool active = (gizmoOperation == op);
-        if (active) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.26f, 0.59f, 0.98f, 1));
-        if (ImGui::Button(label, ImVec2(40, 22))) gizmoOperation = op;
-        if (active) ImGui::PopStyleColor();
-        ImGui::SameLine(0, 2);
+    auto gizmoBtn = [&](const char* label, ImGuizmo::OPERATION op)
+        {
+            bool active = (gizmoOperation == op);
+            if (active) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.26f, 0.59f, 0.98f, 1));
+            if (ImGui::Button(label, ImVec2(40, 22))) gizmoOperation = op;
+            if (active) ImGui::PopStyleColor();
+            ImGui::SameLine(0, 2);
         };
 
     gizmoBtn("T", ImGuizmo::TRANSLATE);
@@ -471,6 +479,17 @@ void ModuleEditor::drawGizmoToolbar()
 
     ImGui::SameLine(0, 8);
     ImGui::Checkbox("Snap", &useSnap);
+
+    if (useSnap)
+    {
+        ImGui::SameLine(0, 4);
+        if (gizmoOperation == ImGuizmo::TRANSLATE)
+            ImGui::TextDisabled("%.2f", snapTranslate[0]);
+        else if (gizmoOperation == ImGuizmo::ROTATE)
+            ImGui::TextDisabled("%.0f°", snapRotate);
+        else
+            ImGui::TextDisabled("%.2f", snapScale);
+    }
 
     ImGui::End();
 }
@@ -857,65 +876,60 @@ void ModuleEditor::drawGizmo()
     if (!t) return;
 
     ModuleCamera* camera = app->getCamera();
-    const UINT width = UINT(viewportSize.x);
-    const UINT height = UINT(viewportSize.y);
-    if (width == 0 || height == 0) return;
+    if (!camera) return;
+
+    const float w = viewportSize.x;
+    const float h = viewportSize.y;
+    if (w <= 0.0f || h <= 0.0f) return;
 
     const Matrix& view = camera->getView();
-    Matrix proj = ModuleCamera::getPerspectiveProj(float(width) / float(height));
-
-    Matrix viewT = view.Transpose();
-    Matrix projT = proj.Transpose();
-    Matrix world = t->getGlobalMatrix().Transpose();
+    Matrix proj = ModuleCamera::getPerspectiveProj(w / h);
+    Matrix world = t->getGlobalMatrix();
 
     ImGuizmo::SetOrthographic(false);
     ImGuizmo::SetDrawlist();
-    ImGuizmo::SetRect(viewportPos.x, viewportPos.y,
-        viewportSize.x, viewportSize.y);
+    ImGuizmo::SetRect(viewportPos.x, viewportPos.y, w, h);
 
     float* snapPtr = nullptr;
-    float  snapVals[3] = {};
+    float  snapVals[3] = { 0.f, 0.f, 0.f };
     if (useSnap)
     {
-        if (gizmoOperation == ImGuizmo::TRANSLATE)
-        {
-            snapVals[0] = snapTranslate[0];
-            snapVals[1] = snapTranslate[1];
-            snapVals[2] = snapTranslate[2];
-            snapPtr = snapVals;
-        }
-        else if (gizmoOperation == ImGuizmo::ROTATE)
-        {
-            snapVals[0] = snapRotate;
-            snapPtr = snapVals;
-        }
-        else
-        {
-            snapVals[0] = snapScale;
-            snapPtr = snapVals;
-        }
+        if (gizmoOperation == ImGuizmo::TRANSLATE) { snapVals[0] = snapTranslate[0]; snapVals[1] = snapTranslate[1]; snapVals[2] = snapTranslate[2]; }
+        else if (gizmoOperation == ImGuizmo::ROTATE) { snapVals[0] = snapRotate; }
+        else { snapVals[0] = snapScale; }
+        snapPtr = snapVals;
     }
 
-    if (ImGuizmo::Manipulate(
-        (float*)&viewT, (float*)&projT,
-        gizmoOperation, gizmoMode,
-        (float*)&world, nullptr, snapPtr))
-    {
-        Matrix worldLocal = world.Transpose();
+    bool manipulated = ImGuizmo::Manipulate(
+        reinterpret_cast<const float*>(&view),
+        reinterpret_cast<const float*>(&proj),
+        gizmoOperation,
+        gizmoMode,
+        reinterpret_cast<float*>(&world),
+        nullptr,
+        snapPtr);
 
-        if (GameObject* parent = selectedGameObject->getParent())
+    if (manipulated)
+    {
+        Matrix localWorld = world;
+        if (GameObject* par = selectedGameObject->getParent())
         {
-            Matrix parentGlobal = parent->getTransform()->getGlobalMatrix();
-            worldLocal = worldLocal * parentGlobal.Invert();
+            Matrix parentWorld = par->getTransform()->getGlobalMatrix();
+            localWorld = world * parentWorld.Invert();
         }
 
-        Vector3    pos;
-        Quaternion rot;
-        Vector3    scl;
-        worldLocal.Decompose(scl, rot, pos);
-        t->position = pos;
-        t->rotation = rot;
-        t->scale = scl;
+        float translation[3], eulerDeg[3], scale[3];
+        ImGuizmo::DecomposeMatrixToComponents(
+            reinterpret_cast<const float*>(&localWorld),
+            translation, eulerDeg, scale);
+
+        t->position = Vector3(translation[0], translation[1], translation[2]);
+        t->scale = Vector3(scale[0], scale[1], scale[2]);
+        t->rotation = Quaternion::CreateFromYawPitchRoll(
+            eulerDeg[1] * 0.0174532925f,
+            eulerDeg[0] * 0.0174532925f,
+            eulerDeg[2] * 0.0174532925f);
+
         t->markDirty();
     }
 }
@@ -923,27 +937,29 @@ void ModuleEditor::drawGizmo()
 void ModuleEditor::drawViewport()
 {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    ImGui::Begin("Viewport", &showViewport,
+    bool open = ImGui::Begin("Viewport", &showViewport,
         ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-    ImGui::PopStyleVar();
 
-    viewportPos = ImGui::GetCursorScreenPos();
-    viewportSize = ImGui::GetContentRegionAvail();
-
-    if (viewportRT && viewportRT->isValid() && !pendingViewportResize)
+    if (open)
     {
-        ImGui::Image((ImTextureID)viewportRT->getSrvHandle().ptr, viewportSize);
+        viewportSize = ImGui::GetContentRegionAvail();
 
-        // Draw gizmo on top of the image
-        ImGuizmo::BeginFrame();
-        drawGizmo();
-    }
-    else
-    {
-        ImGui::TextDisabled("Viewport not ready...");
+        if (viewportRT && viewportRT->isValid() && !pendingViewportResize)
+        {
+            ImGui::Image((ImTextureID)viewportRT->getSrvHandle().ptr, viewportSize);
+
+            viewportPos = ImGui::GetItemRectMin();
+
+            drawGizmo();
+        }
+        else
+        {
+            ImGui::TextDisabled("Viewport not ready...");
+        }
     }
 
     ImGui::End();
+    ImGui::PopStyleVar();
 }
 
 void ModuleEditor::drawViewportOverlay()
