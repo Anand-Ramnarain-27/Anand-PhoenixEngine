@@ -122,6 +122,9 @@ private:
 	//Saving/Loading
     FileDialog m_saveDialog;
     FileDialog m_loadDialog;
+
+	//New scene confirmation
+    bool showNewSceneConfirmation = false;
 private:
     // Layout
     void drawDockspace();

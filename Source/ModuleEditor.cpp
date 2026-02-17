@@ -232,6 +232,57 @@ void ModuleEditor::render()
     };
     cmd->SetDescriptorHeaps(1, heaps);
 
+    if (showNewSceneConfirmation)
+    {
+        ImGui::OpenPopup("New Scene?");
+        showNewSceneConfirmation = false;
+    }
+
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+    if (ImGui::BeginPopupModal("New Scene?", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::Text("Create a new scene?");
+        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.4f, 1.0f), "Unsaved changes will be lost!");
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        if (ImGui::Button("Create New Scene", ImVec2(150, 0)))
+        {
+            if (sceneManager && sceneManager->getActiveScene())
+            {
+                app->getD3D12()->flush();
+
+                IScene* activeScene = sceneManager->getActiveScene();
+
+                activeScene->reset();
+
+                ModuleScene* moduleScene = sceneManager->getActiveScene()->getModuleScene();
+                if (moduleScene)
+                {
+                    moduleScene->clear();
+
+                    activeScene->initialize(app->getD3D12()->getDevice());
+
+                    log("✓ New scene created", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+                }
+            }
+
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Cancel", ImVec2(150, 0)))
+        {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+
     if (viewportRT && viewportRT->isValid())
     {
         renderViewportToTexture(cmd);
@@ -403,20 +454,13 @@ void ModuleEditor::drawMenuBar()
     {
         if (ImGui::MenuItem("New Scene", "Ctrl+N"))
         {
+            showNewSceneConfirmation = true;
             log("New Scene - Not implemented yet", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
         }
         ImGui::Separator();
         if (ImGui::MenuItem("Save Scene", "Ctrl+S"))
         {
-            if (sceneManager && sceneManager->getActiveScene())
-            {
-                std::string path = "Library/Scenes/current_scene.json";
-                if (sceneManager->saveCurrentScene(path))
-                {
-                    log(("✓ Scene saved to " + path).c_str(),
-                        ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
-                }
-            }
+            m_saveDialog.open(FileDialog::Type::Save, "Save Scene", "Library/Scenes");
         }
         if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S"))
         {
