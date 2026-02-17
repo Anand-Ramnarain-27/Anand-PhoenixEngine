@@ -264,12 +264,10 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     const EditorSceneSettings& s = sceneManager->getSettings();
     MeshPipeline::LightCB lightData = {};
 
-    // Ambient
     lightData.ambientColor = s.ambient.color;
     lightData.ambientIntensity = s.ambient.intensity;
     lightData.viewPos = camera->getPos();
 
-    // Directional lights — only include enabled ones
     lightData.numDirLights = 0;
     for (int i = 0; i < 2; ++i)
     {
@@ -282,7 +280,6 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
         }
     }
 
-    // Point light
     lightData.numPointLights = s.pointLight.enabled ? 1 : 0;
     if (s.pointLight.enabled)
     {
@@ -292,7 +289,6 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
         lightData.pointLight.sqRadius = s.pointLight.radius * s.pointLight.radius;
     }
 
-    // Spot light — convert degrees to cosines for the shader
     lightData.numSpotLights = s.spotLight.enabled ? 1 : 0;
     if (s.spotLight.enabled)
     {
@@ -301,18 +297,16 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
         lightData.spotLight.color = s.spotLight.color;
         lightData.spotLight.intensity = s.spotLight.intensity;
         lightData.spotLight.sqRadius = s.spotLight.radius * s.spotLight.radius;
-        // Editor stores degrees; HLSL needs cosines
+
         lightData.spotLight.innerCos = cosf(s.spotLight.innerAngle * 0.0174532925f);
         lightData.spotLight.outerCos = cosf(s.spotLight.outerAngle * 0.0174532925f);
     }
 
-    // Upload to GPU
     void* mapped = nullptr;
     lightConstantBuffer->Map(0, nullptr, &mapped);
     memcpy(mapped, &lightData, sizeof(lightData));
     lightConstantBuffer->Unmap(0, nullptr);
 
-    // Bind at root param slot 2 — matches MeshPipeline root signature
     cmd->SetGraphicsRootConstantBufferView(
         2, lightConstantBuffer->GetGPUVirtualAddress());
 
