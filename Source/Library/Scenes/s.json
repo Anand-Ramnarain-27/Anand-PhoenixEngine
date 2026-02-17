@@ -1,0 +1,217 @@
+{
+  "Scene": {
+    "Version": 1,
+    "GameObjects": [
+      {
+        "UID": 2286928718,
+        "ParentUID": 3821779128,
+        "Name": "Parent",
+        "Active": true,
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "Components": []
+      },
+      {
+        "UID": 2188794829,
+        "ParentUID": 2286928718,
+        "Name": "Child",
+        "Active": true,
+        "Transform": {
+          "position": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "Components": []
+      },
+      {
+        "UID": 4074776609,
+        "ParentUID": 2286928718,
+        "Name": "Duck",
+        "Active": true,
+        "Transform": {
+          "position": [
+            -2.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            0.009999999776482582,
+            0.009999999776482582,
+            0.009999999776482582
+          ]
+        },
+        "Components": [
+          {
+            "Type": 1,
+            "Data": "{\"HasModel\":true,\"ModelPath\":\"Assets/Models/Duck/duck.gltf\"}"
+          }
+        ]
+      },
+      {
+        "UID": 103704446,
+        "ParentUID": 2286928718,
+        "Name": "Duck2",
+        "Active": true,
+        "Transform": {
+          "position": [
+            2.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            0.009999999776482582,
+            0.009999999776482582,
+            0.009999999776482582
+          ]
+        },
+        "Components": [
+          {
+            "Type": 1,
+            "Data": "{\"HasModel\":true,\"ModelPath\":\"Assets/Models/Duck/duck.gltf\"}"
+          }
+        ]
+      },
+      {
+        "UID": 3954699373,
+        "ParentUID": 3821779128,
+        "Name": "Child",
+        "Active": true,
+        "Transform": {
+          "position": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "Components": []
+      },
+      {
+        "UID": 3150903634,
+        "ParentUID": 3821779128,
+        "Name": "Child",
+        "Active": true,
+        "Transform": {
+          "position": [
+            -3.9000000953674316,
+            1.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "Components": []
+      },
+      {
+        "UID": 1302096174,
+        "ParentUID": 3821779128,
+        "Name": "Duck2",
+        "Active": true,
+        "Transform": {
+          "position": [
+            4.900000095367432,
+            -0.800000011920929,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            0.009999999776482582,
+            0.009999999776482582,
+            0.009999999776482582
+          ]
+        },
+        "Components": []
+      },
+      {
+        "UID": 2109037211,
+        "ParentUID": 3821779128,
+        "Name": "Duck2",
+        "Active": true,
+        "Transform": {
+          "position": [
+            2.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            0.009999999776482582,
+            0.009999999776482582,
+            0.009999999776482582
+          ]
+        },
+        "Components": []
+      }
+    ]
+  }
+}

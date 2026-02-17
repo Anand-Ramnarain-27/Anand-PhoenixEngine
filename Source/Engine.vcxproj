@@ -216,6 +216,7 @@
     <ClInclude Include="ModuleInput.h" />
     <ClInclude Include="Mouse.h" />
     <ClInclude Include="PlatformHelpers.h" />
+    <ClInclude Include="PrefabManager.h" />
     <ClInclude Include="ReadData.h" />
     <ClInclude Include="RenderPipelineTestScene.h" />
     <ClInclude Include="RenderTargetDesc.h" />
@@ -337,6 +338,7 @@
     <ClCompile Include="Keyboard.cpp" />
     <ClCompile Include="ModuleInput.cpp" />
     <ClCompile Include="Mouse.cpp" />
+    <ClCompile Include="PrefabManager.cpp" />
     <ClCompile Include="RenderPipelineTestScene.cpp" />
     <ClCompile Include="RenderTargetDesc.cpp" />
     <ClCompile Include="RenderTexture.cpp" />

@@ -134,6 +134,7 @@
     </ClCompile>
     <ClCompile Include="FileDialog.cpp" />
     <ClCompile Include="ResourceCache.cpp" />
+    <ClCompile Include="PrefabManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -306,6 +307,7 @@
     </ClInclude>
     <ClInclude Include="FileDialog.h" />
     <ClInclude Include="ResourceCache.h" />
+    <ClInclude Include="PrefabManager.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

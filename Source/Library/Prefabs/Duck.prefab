@@ -1,0 +1,27 @@
+{
+  "PrefabName": "Duck",
+  "Version": 1,
+  "GameObject": {
+    "Name": "Child",
+    "Active": true,
+    "Transform": {
+      "position": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "Components": []
+  }
+}

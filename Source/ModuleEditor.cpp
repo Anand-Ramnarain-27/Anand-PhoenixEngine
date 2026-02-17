@@ -14,6 +14,7 @@
 #include "GameObject.h"
 #include "ComponentTransform.h"
 #include "ModuleCamera.h"
+#include "PrefabManager.h"
 
 #include <d3dx12.h>
 #include <filesystem>
@@ -697,6 +698,27 @@ void ModuleEditor::drawInspector()
             }
         }
     }
+
+    ImGui::Separator();
+    ImGui::SeparatorText("Prefab");
+
+    static char prefabNameBuf[256] = "";
+    ImGui::InputText("##PrefabName", prefabNameBuf, sizeof(prefabNameBuf));
+    ImGui::SameLine();
+
+    if (ImGui::Button("Create Prefab"))
+    {
+        if (strlen(prefabNameBuf) > 0)
+        {
+            if (PrefabManager::createPrefab(selectedGameObject, prefabNameBuf))
+            {
+                log(("✓ Created prefab: " + std::string(prefabNameBuf)).c_str(),
+                    ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+                prefabNameBuf[0] = '\0'; // Clear input
+            }
+        }
+    } 
+
     ImGui::End();
 }
 
@@ -1065,6 +1087,54 @@ void ModuleEditor::drawAssetBrowser()
 
             ImGui::TextDisabled("Scenes Folder:");
             ImGui::TextDisabled("%s", scenesPath.c_str());
+
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Prefabs"))
+        {
+            ImGui::SeparatorText("Saved Prefabs");
+
+            auto prefabs = PrefabManager::listPrefabs();
+
+            if (prefabs.empty())
+            {
+                ImGui::TextDisabled("No prefabs found");
+                ImGui::TextDisabled("Create a prefab from the Inspector");
+            }
+            else
+            {
+                for (const auto& prefabName : prefabs)
+                {
+                    ImGui::PushID(prefabName.c_str());
+
+                    ImGui::Text("🎁"); 
+                    ImGui::SameLine();
+
+                    if (ImGui::Selectable(prefabName.c_str()))
+                    {
+                        if (sceneManager && sceneManager->getActiveScene())
+                        {
+                            ModuleScene* scene = sceneManager->getActiveScene()->getModuleScene();
+                            GameObject* instance = PrefabManager::instantiatePrefab(prefabName, scene);
+
+                            if (instance)
+                            {
+                                log(("✓ Instantiated prefab: " + prefabName).c_str(),
+                                    ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+                            }
+                        }
+                    }
+
+                    ImGui::PopID();
+                }
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+
+            ImGui::TextDisabled("Prefabs Folder:");
+            ImGui::TextDisabled("Library/Prefabs/");
 
             ImGui::EndTabItem();
         }

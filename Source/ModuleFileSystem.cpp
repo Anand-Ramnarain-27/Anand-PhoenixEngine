@@ -36,6 +36,7 @@ void ModuleFileSystem::CreateProjectDirectories()
     CreateDir("Library/Materials");
     CreateDir("Library/Textures");
     CreateDir("Library/Scenes");
+    CreateDir("Library/Prefabs");
 }
 
 bool ModuleFileSystem::CreateDir(const char* path)
