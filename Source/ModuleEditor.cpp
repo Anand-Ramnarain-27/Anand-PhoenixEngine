@@ -672,46 +672,8 @@ void ModuleEditor::hierarchyBlankContextMenu()
     {
         if (ImGui::MenuItem("Create Empty GameObject"))
             createEmptyGameObject();
-
         if (ImGui::MenuItem("Create Empty Child") && selectedGameObject)
             createEmptyGameObject("Empty", selectedGameObject);
-
-        ImGui::Separator();
-
-        if (ImGui::BeginMenu("Create Light"))
-        {
-            if (ImGui::MenuItem("Directional Light"))
-            {
-                GameObject* lightObj = createEmptyGameObject("Directional Light");
-                auto light = ComponentFactory::CreateComponent(
-                    Component::Type::DirectionalLight,
-                    lightObj
-                );
-                lightObj->addComponent(std::move(light));
-            }
-
-            if (ImGui::MenuItem("Point Light"))
-            {
-                GameObject* lightObj = createEmptyGameObject("Point Light");
-                auto light = ComponentFactory::CreateComponent(
-                    Component::Type::PointLight,
-                    lightObj
-                );
-                lightObj->addComponent(std::move(light));
-            }
-
-            if (ImGui::MenuItem("Spot Light"))
-            {
-                GameObject* lightObj = createEmptyGameObject("Spot Light");
-                auto light = ComponentFactory::CreateComponent(
-                    Component::Type::SpotLight,
-                    lightObj
-                );
-                lightObj->addComponent(std::move(light));
-            }
-
-            ImGui::EndMenu();
-        }
         ImGui::EndPopup();
     }
 }
@@ -783,17 +745,9 @@ void ModuleEditor::drawInspector()
         ImGui::PushID((int)comp->getType());
 
         bool headerOpen = true;  
-        const char* label = [&]() -> const char* {
-            switch (comp->getType())
-            {
-            case Component::Type::Camera:           return "Camera";
-            case Component::Type::Mesh:             return "Mesh";
-            case Component::Type::DirectionalLight: return "Directional Light";
-            case Component::Type::PointLight:       return "Point Light";
-            case Component::Type::SpotLight:        return "Spot Light";
-            default:                                return "Component";
-            }
-            }();
+        const char* label = (comp->getType() == Component::Type::Camera) ? "Camera"
+            : (comp->getType() == Component::Type::Mesh) ? "Mesh"
+            : "Component";
 
         ImGuiTreeNodeFlags hFlags = ImGuiTreeNodeFlags_DefaultOpen
             | ImGuiTreeNodeFlags_AllowItemOverlap
@@ -845,46 +799,23 @@ void ModuleEditor::drawInspector()
     {
         bool hasCamera = selectedGameObject->getComponent<ComponentCamera>() != nullptr;
         bool hasMesh = selectedGameObject->getComponent<ComponentMesh>() != nullptr;
-        bool hasDirLight = selectedGameObject->getComponent<ComponentDirectionalLight>() != nullptr;
-        bool hasPointLight = selectedGameObject->getComponent<ComponentPointLight>() != nullptr;
-        bool hasSpotLight = selectedGameObject->getComponent<ComponentSpotLight>() != nullptr;
 
         if (ImGui::MenuItem("Camera", nullptr, false, !hasCamera))
         {
             selectedGameObject->addComponent(
-                ComponentFactory::CreateComponent(Component::Type::Camera, selectedGameObject));
-            ImGui::CloseCurrentPopup();
+                ComponentFactory::CreateComponent(Component::Type::Camera,
+                    selectedGameObject));
+
+            ImGui::CloseCurrentPopup(); 
         }
 
         if (ImGui::MenuItem("Mesh", nullptr, false, !hasMesh))
         {
             selectedGameObject->addComponent(
-                ComponentFactory::CreateComponent(Component::Type::Mesh, selectedGameObject));
-            ImGui::CloseCurrentPopup();
-        }
+                ComponentFactory::CreateComponent(Component::Type::Mesh,
+                    selectedGameObject));
 
-        ImGui::Separator();
-        ImGui::TextDisabled("Lights");
-
-        if (ImGui::MenuItem("Directional Light", nullptr, false, !hasDirLight))
-        {
-            selectedGameObject->addComponent(
-                ComponentFactory::CreateComponent(Component::Type::DirectionalLight, selectedGameObject));
-            ImGui::CloseCurrentPopup();
-        }
-
-        if (ImGui::MenuItem("Point Light", nullptr, false, !hasPointLight))
-        {
-            selectedGameObject->addComponent(
-                ComponentFactory::CreateComponent(Component::Type::PointLight, selectedGameObject));
-            ImGui::CloseCurrentPopup();
-        }
-
-        if (ImGui::MenuItem("Spot Light", nullptr, false, !hasSpotLight))
-        {
-            selectedGameObject->addComponent(
-                ComponentFactory::CreateComponent(Component::Type::SpotLight, selectedGameObject));
-            ImGui::CloseCurrentPopup();
+            ImGui::CloseCurrentPopup();  
         }
 
         ImGui::EndPopup();

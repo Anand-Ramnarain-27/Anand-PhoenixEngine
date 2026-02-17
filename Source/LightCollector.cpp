@@ -13,21 +13,26 @@ void LightCollector::CollectLights(
     const EditorSceneSettings& settings,
     MeshPipeline::LightCB& outLightData)
 {
+    // Clear light data
     memset(&outLightData, 0, sizeof(MeshPipeline::LightCB));
 
+    // Set ambient light from scene settings
     outLightData.ambientColor = settings.ambient.color;
     outLightData.ambientIntensity = settings.ambient.intensity;
 
+    // Collect all light components from the scene
     std::vector<ComponentDirectionalLight*> dirLights;
-    std::vector<ComponentPointLight*>       pointLights;
-    std::vector<ComponentSpotLight*>        spotLights;
+    std::vector<ComponentPointLight*> pointLights;
+    std::vector<ComponentSpotLight*> spotLights;
 
     if (root)
+    {
         CollectLightsRecursive(root, dirLights, pointLights, spotLights);
+    }
 
-    // --- Directional lights ---
+    // Process directional lights (max 2)
     outLightData.numDirLights = 0;
-    for (size_t i = 0; i < dirLights.size() && i < MeshPipeline::MAX_DIR_LIGHTS; ++i)
+    for (size_t i = 0; i < dirLights.size() && i < 2; ++i)
     {
         ComponentDirectionalLight* light = dirLights[i];
         if (!light->isEnabled())
@@ -42,53 +47,54 @@ void LightCollector::CollectLights(
         outLightData.numDirLights++;
     }
 
-    // --- Point lights ---
+    // Process point lights (max 1 for now, can be extended)
     outLightData.numPointLights = 0;
-    for (size_t i = 0; i < pointLights.size() && i < MeshPipeline::MAX_POINT_LIGHTS; ++i)
+    if (!pointLights.empty())
     {
-        ComponentPointLight* light = pointLights[i];
-        if (!light->isEnabled())
-            continue;
+        ComponentPointLight* light = pointLights[0];
+        if (light->isEnabled())
+        {
+            auto* transform = light->getOwner()->getTransform();
+            if (transform)
+            {
+                MeshPipeline::GPUPointLight& gpuLight = outLightData.pointLight;
+                gpuLight.position = transform->position;
+                gpuLight.color = light->getColor();
+                gpuLight.intensity = light->getIntensity();
+                gpuLight.sqRadius = light->getRadius() * light->getRadius();
 
-        auto* transform = light->getOwner()->getTransform();
-        if (!transform)
-            continue;
-
-        MeshPipeline::GPUPointLight& gpuLight = outLightData.pointLights[outLightData.numPointLights];
-        gpuLight.position = transform->position;
-        gpuLight.color = light->getColor();
-        gpuLight.intensity = light->getIntensity();
-        gpuLight.sqRadius = light->getRadius() * light->getRadius();
-
-        outLightData.numPointLights++;
+                outLightData.numPointLights = 1;
+            }
+        }
     }
 
-    // --- Spot lights ---
+    // Process spot lights (max 1 for now, can be extended)
     outLightData.numSpotLights = 0;
-    for (size_t i = 0; i < spotLights.size() && i < MeshPipeline::MAX_SPOT_LIGHTS; ++i)
+    if (!spotLights.empty())
     {
-        ComponentSpotLight* light = spotLights[i];
-        if (!light->isEnabled())
-            continue;
+        ComponentSpotLight* light = spotLights[0];
+        if (light->isEnabled())
+        {
+            auto* transform = light->getOwner()->getTransform();
+            if (transform)
+            {
+                MeshPipeline::GPUSpotLight& gpuLight = outLightData.spotLight;
+                gpuLight.position = transform->position;
+                gpuLight.direction = light->getDirection();
+                gpuLight.direction.Normalize();
+                gpuLight.color = light->getColor();
+                gpuLight.intensity = light->getIntensity();
+                gpuLight.sqRadius = light->getRadius() * light->getRadius();
 
-        auto* transform = light->getOwner()->getTransform();
-        if (!transform)
-            continue;
+                // Convert angles from degrees to cosine values
+                float innerRad = light->getInnerAngle() * 0.0174532925f; // deg to rad
+                float outerRad = light->getOuterAngle() * 0.0174532925f;
+                gpuLight.innerCos = cosf(innerRad);
+                gpuLight.outerCos = cosf(outerRad);
 
-        MeshPipeline::GPUSpotLight& gpuLight = outLightData.spotLights[outLightData.numSpotLights];
-        gpuLight.position = transform->position;
-        gpuLight.direction = light->getDirection();
-        gpuLight.direction.Normalize();
-        gpuLight.color = light->getColor();
-        gpuLight.intensity = light->getIntensity();
-        gpuLight.sqRadius = light->getRadius() * light->getRadius();
-
-        float innerRad = light->getInnerAngle() * 0.0174532925f;
-        float outerRad = light->getOuterAngle() * 0.0174532925f;
-        gpuLight.innerCos = cosf(innerRad);
-        gpuLight.outerCos = cosf(outerRad);
-
-        outLightData.numSpotLights++;
+                outLightData.numSpotLights = 1;
+            }
+        }
     }
 }
 
@@ -101,24 +107,32 @@ void LightCollector::CollectLightsRecursive(
     if (!obj)
         return;
 
-    for (const auto& comp : obj->getComponents())
+    // Check all components on this GameObject
+    const auto& components = obj->getComponents();
+    for (const auto& comp : components)
     {
         switch (comp->getType())
         {
         case Component::Type::DirectionalLight:
             dirLights.push_back(static_cast<ComponentDirectionalLight*>(comp.get()));
             break;
+
         case Component::Type::PointLight:
             pointLights.push_back(static_cast<ComponentPointLight*>(comp.get()));
             break;
+
         case Component::Type::SpotLight:
             spotLights.push_back(static_cast<ComponentSpotLight*>(comp.get()));
             break;
+
         default:
             break;
         }
     }
 
+    // Recursively check children
     for (GameObject* child : obj->getChildren())
+    {
         CollectLightsRecursive(child, dirLights, pointLights, spotLights);
+    }
 }
