@@ -5,6 +5,7 @@ struct DirectionalLight
     float3 color;
     float pad;
 };
+
 struct PointLight
 {
     float3 position;
@@ -12,6 +13,7 @@ struct PointLight
     float3 color;
     float intensity;
 };
+
 struct SpotLight
 {
     float3 position;
@@ -24,6 +26,10 @@ struct SpotLight
     float3 pad;
 };
 
+#define MAX_DIR_LIGHTS   4
+#define MAX_POINT_LIGHTS 8
+#define MAX_SPOT_LIGHTS  8
+
 cbuffer LightCB : register(b2)
 {
     float3 ambientColor;
@@ -34,9 +40,9 @@ cbuffer LightCB : register(b2)
     uint numPointLights;
     uint numSpotLights;
     uint pad1;
-    DirectionalLight dirLights[2];
-    PointLight pointLight;
-    SpotLight spotLight;
+    DirectionalLight dirLights[MAX_DIR_LIGHTS];
+    PointLight pointLights[MAX_POINT_LIGHTS];
+    SpotLight spotLights[MAX_SPOT_LIGHTS];
 };
 
 cbuffer MaterialCB : register(b3)
@@ -78,30 +84,33 @@ float4 main(PSInput input) : SV_TARGET
 
     float3 result = ambientColor * ambientIntensity * albedo.rgb;
 
+    // --- Directional lights ---
     for (uint i = 0; i < numDirLights; ++i)
     {
         float3 L = normalize(-dirLights[i].direction);
         result += blinnPhong(N, L, V, dirLights[i].color, dirLights[i].intensity) * albedo.rgb;
     }
 
-    if (numPointLights > 0)
+    // --- Point lights ---
+    for (uint j = 0; j < numPointLights; ++j)
     {
-        float3 toLight = pointLight.position - input.worldPos;
+        float3 toLight = pointLights[j].position - input.worldPos;
         float distSq = dot(toLight, toLight);
-        float atten = max(0.0f, 1.0f - distSq / pointLight.sqRadius);
+        float atten = max(0.0f, 1.0f - distSq / pointLights[j].sqRadius);
         float3 L = normalize(toLight);
-        result += blinnPhong(N, L, V, pointLight.color, pointLight.intensity) * atten * albedo.rgb;
+        result += blinnPhong(N, L, V, pointLights[j].color, pointLights[j].intensity) * atten * albedo.rgb;
     }
 
-    if (numSpotLights > 0)
+    // --- Spot lights ---
+    for (uint k = 0; k < numSpotLights; ++k)
     {
-        float3 toLight = spotLight.position - input.worldPos;
+        float3 toLight = spotLights[k].position - input.worldPos;
         float distSq = dot(toLight, toLight);
-        float atten = max(0.0f, 1.0f - distSq / spotLight.sqRadius);
+        float atten = max(0.0f, 1.0f - distSq / spotLights[k].sqRadius);
         float3 L = normalize(toLight);
-        float cosAngle = dot(-L, normalize(spotLight.direction));
-        float cone = smoothstep(spotLight.outerCos, spotLight.innerCos, cosAngle);
-        result += blinnPhong(N, L, V, spotLight.color, spotLight.intensity) * atten * cone * albedo.rgb;
+        float cosAngle = dot(-L, normalize(spotLights[k].direction));
+        float cone = smoothstep(spotLights[k].outerCos, spotLights[k].innerCos, cosAngle);
+        result += blinnPhong(N, L, V, spotLights[k].color, spotLights[k].intensity) * atten * cone * albedo.rgb;
     }
 
     return float4(result, albedo.a);
