@@ -4,8 +4,10 @@
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
 #include "ComponentCamera.h"
+
 #include <algorithm>
 #include <random>
+
 
 GameObject::GameObject(const std::string& name)
     : name(name)
@@ -24,6 +26,7 @@ uint32_t GameObject::generateUID()
     return dis(gen);
 }
 
+
 void GameObject::setParent(GameObject* newParent)
 {
     if (parent == newParent)
@@ -32,7 +35,8 @@ void GameObject::setParent(GameObject* newParent)
     if (parent)
     {
         auto& siblings = parent->children;
-        siblings.erase(std::remove(siblings.begin(), siblings.end(), this), siblings.end());
+        siblings.erase(std::remove(siblings.begin(), siblings.end(), this),
+            siblings.end());
     }
 
     parent = newParent;
@@ -43,8 +47,11 @@ void GameObject::setParent(GameObject* newParent)
     transform->markDirty();
 }
 
+
 void GameObject::update(float deltaTime)
 {
+    if (!active) return;
+
     for (auto& c : components)
         c->update(deltaTime);
 
@@ -54,6 +61,8 @@ void GameObject::update(float deltaTime)
 
 void GameObject::render(ID3D12GraphicsCommandList* cmd)
 {
+    if (!active) return;
+
     for (auto& c : components)
         c->render(cmd);
 
@@ -73,21 +82,52 @@ T* GameObject::createComponent(Args&&... args)
 void GameObject::addComponent(std::unique_ptr<Component> component)
 {
     if (component)
-    {
         components.push_back(std::move(component));
-    }
 }
 
 template<typename T>
 T* GameObject::getComponent() const
 {
-    for (auto& comp : components)
+    for (const auto& comp : components)
     {
         T* casted = dynamic_cast<T*>(comp.get());
-        if (casted)
-            return casted;
+        if (casted) return casted;
     }
     return nullptr;
+}
+
+template<typename T>
+bool GameObject::removeComponent()
+{
+    for (auto it = components.begin(); it != components.end(); ++it)
+    {
+        T* casted = dynamic_cast<T*>(it->get());
+        if (casted && (*it)->getType() != Component::Type::Transform)
+        {
+            components.erase(it);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool GameObject::removeComponentByType(Component::Type type)
+{
+    if (type == Component::Type::Transform)
+    {
+        LOG("GameObject: Cannot remove Transform component.");
+        return false;
+    }
+
+    for (auto it = components.begin(); it != components.end(); ++it)
+    {
+        if ((*it)->getType() == type)
+        {
+            components.erase(it);
+            return true;
+        }
+    }
+    return false;
 }
 
 template ComponentTransform* GameObject::createComponent<ComponentTransform>();
@@ -95,5 +135,8 @@ template ComponentMesh* GameObject::createComponent<ComponentMesh>();
 template ComponentCamera* GameObject::createComponent<ComponentCamera>();
 
 template ComponentTransform* GameObject::getComponent<ComponentTransform>() const;
-template ComponentMesh* GameObject::getComponent<ComponentMesh>() const;
-template ComponentCamera* GameObject::getComponent<ComponentCamera>() const;
+template ComponentMesh* GameObject::getComponent<ComponentMesh>()      const;
+template ComponentCamera* GameObject::getComponent<ComponentCamera>()    const;
+
+template bool GameObject::removeComponent<ComponentMesh>();
+template bool GameObject::removeComponent<ComponentCamera>();

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+struct ID3D12GraphicsCommandList;
 
 class GameObject;
 

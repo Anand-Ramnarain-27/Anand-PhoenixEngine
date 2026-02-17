@@ -5,24 +5,18 @@
 #include "ShaderTableDesc.h"
 #include "MeshPipeline.h"
 #include "FileDialog.h"
-
+#include "EditorSceneSettings.h"
 #include <memory>
 #include <vector>
-#include <functional>
 #include <imgui.h>
+#include <ImGuizmo.h>
 
 class ImGuiPass;
 class RenderTexture;
 class DebugDrawPass;
 class GameObject;
-class IScene;
-class ModuleCamera;
-
-struct SceneEntry
-{
-    const char* name;
-    std::function<std::unique_ptr<IScene>()> create;
-};
+class ComponentCamera;
+class ComponentMesh;
 
 class ModuleEditor : public Module
 {
@@ -36,113 +30,101 @@ public:
     void render() override;
 
     SceneManager* getSceneManager() const { return sceneManager.get(); }
+    void log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
+
 private:
-    // Core systems
-    std::unique_ptr<ImGuiPass> imguiPass;
+    std::unique_ptr<ImGuiPass>     imguiPass;
     std::unique_ptr<RenderTexture> viewportRT;
     std::unique_ptr<DebugDrawPass> debugDrawPass;
-    std::unique_ptr<SceneManager> sceneManager;
+    std::unique_ptr<SceneManager>  sceneManager;
+    std::unique_ptr<MeshPipeline>  meshPipeline;
+    ShaderTableDesc                descTable;
 
-    ShaderTableDesc descTable;
-
-    // Selection
     GameObject* selectedGameObject = nullptr;
+    ImGuizmo::OPERATION   gizmoOperation = ImGuizmo::TRANSLATE;
+    ImGuizmo::MODE        gizmoMode = ImGuizmo::LOCAL;
+    bool                  useSnap = false;
+    float                 snapTranslate[3] = { 0.25f, 0.25f, 0.25f };
+    float                 snapRotate = 15.0f;
+    float                 snapScale = 0.1f;
 
-    // Window toggles
     bool showHierarchy = true;
     bool showInspector = true;
     bool showConsole = true;
     bool showViewport = true;
     bool showPerformance = false;
-    bool showEditor = true;
     bool showAssetBrowser = true;
+    bool showSceneSettings = true;
 
-    // Docking
     bool firstFrame = true;
 
-    // Viewport
-    ImVec2 viewportSize = { 0,0 };
-    ImVec2 viewportPos = { 0,0 };
-    ImVec2 lastViewportSize = { 0,0 };
-    bool pendingViewportResize = false;
-    UINT pendingViewportWidth = 0;
-    UINT pendingViewportHeight = 0;
+    ImVec2 viewportSize = { 0, 0 };
+    ImVec2 viewportPos = { 0, 0 };
+    ImVec2 lastViewportSize = { 0, 0 };
+    bool   pendingViewportResize = false;
+    UINT   pendingViewportWidth = 0;
+    UINT   pendingViewportHeight = 0;
 
-    // Console
-    struct ConsoleEntry
-    {
-        std::string text;
-        ImVec4 color;
-    };
+    struct ConsoleEntry { std::string text; ImVec4 color; };
     std::vector<ConsoleEntry> console;
     bool autoScrollConsole = true;
 
-    // FPS
     static constexpr int FPS_HISTORY = 200;
     float fpsHistory[FPS_HISTORY] = {};
-    int fpsIndex = 0;
+    int   fpsIndex = 0;
 
-    // GPU Timing
     ComPtr<ID3D12QueryHeap> gpuQueryHeap;
-    ComPtr<ID3D12Resource> gpuReadbackBuffer;
-
+    ComPtr<ID3D12Resource>  gpuReadbackBuffer;
     double gpuFrameTimeMs = 0.0;
-    bool gpuTimerReady = false;
+    bool   gpuTimerReady = false;
 
-    // Memory
     uint64_t gpuMemoryMB = 0;
     uint64_t systemMemoryMB = 0;
 
-    //Rendering
-    std::unique_ptr<MeshPipeline> meshPipeline;
-
-    //Constants
-    struct CameraConstants
-    {
-        Matrix viewProj;
-    };
-
-    struct ObjectConstants
-    {
-        Matrix world;
-    };
-
+    struct CameraConstants { Matrix viewProj; };
+    struct ObjectConstants { Matrix world; };
     ComPtr<ID3D12Resource> cameraConstantBuffer;
     ComPtr<ID3D12Resource> objectConstantBuffer;
 
-    void updateCameraConstants(const Matrix& view, const Matrix& proj);
-
-    bool showGrid = true;
-    bool showAxis = true;
-
-	//Saving/Loading
     FileDialog m_saveDialog;
     FileDialog m_loadDialog;
-
-	//New scene confirmation
     bool showNewSceneConfirmation = false;
-private:
-    // Layout
+
+    bool        renamingObject = false;
+    char        renameBuffer[256] = {};
+    GameObject* renamingTarget = nullptr;
+
     void drawDockspace();
     void drawMenuBar();
+    void drawGizmoToolbar();
 
-    // Windows
     void drawHierarchy();
     void drawHierarchyNode(GameObject* go);
     void drawInspector();
     void drawConsole();
     void drawViewport();
-    void drawPerformanceWindow();
-
-    // Rendering
-    void renderViewportToTexture(ID3D12GraphicsCommandList* cmd);
     void drawViewportOverlay();
+    void drawPerformanceWindow();
+    void drawAssetBrowser();
+    void drawSceneSettings();
 
-    // Helpers
+    void drawGizmo();
+
+    void hierarchyItemContextMenu(GameObject* go);
+    void hierarchyBlankContextMenu();
+
+    void drawComponentCamera(ComponentCamera* cam);
+    void drawComponentMesh(ComponentMesh* mesh);
+
+    void renderViewportToTexture(ID3D12GraphicsCommandList* cmd);
+    void updateCameraConstants(const Matrix& view, const Matrix& proj);
+
     void updateFPS();
     void updateMemory();
-    void log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
 
-    //Assets
-    void drawAssetBrowser();
+    void        deleteGameObject(GameObject* go);
+    GameObject* createEmptyGameObject(const char* name = "Empty",
+        GameObject* parent = nullptr);
+
+    static bool isChildOf(const GameObject* root, const GameObject* needle);
 };

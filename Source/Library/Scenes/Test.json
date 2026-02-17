@@ -1,0 +1,37 @@
+{
+  "Scene": {
+    "Version": 1,
+    "GameObjects": [
+      {
+        "UID": 1636301092,
+        "ParentUID": 3555101237,
+        "Name": "Poes",
+        "Active": true,
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            0.009999999776482582,
+            0.009999999776482582,
+            0.009999999776482582
+          ]
+        },
+        "Components": [
+          {
+            "Type": 1,
+            "Data": "{\"HasModel\":true,\"ModelPath\":\"Assets/Models/Duck/duck.gltf\"}"
+          }
+        ]
+      }
+    ]
+  }
+}

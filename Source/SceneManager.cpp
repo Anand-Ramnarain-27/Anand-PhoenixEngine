@@ -43,7 +43,6 @@ void SceneManager::play()
 
     if (state == PlayState::Stopped)
     {
-        // Serialize current scene state before playing (as per lecture requirements)
         ModuleScene* moduleScene = activeScene->getModuleScene();
         if (moduleScene)
         {
@@ -83,7 +82,6 @@ void SceneManager::stop()
 
     LOG("SceneManager: Stopping");
 
-    // Restore serialized state (as per lecture requirements)
     if (hasSerializedState)
     {
         LOG("SceneManager: Restoring scene state from serialization");
@@ -91,10 +89,8 @@ void SceneManager::stop()
         ModuleScene* moduleScene = activeScene->getModuleScene();
         if (moduleScene)
         {
-            // Clear current scene state
             activeScene->onExit();
 
-            // Reload from serialized state
             if (SceneSerializer::LoadTempScene(moduleScene))
             {
                 LOG("SceneManager: Scene state restored successfully");
@@ -102,7 +98,6 @@ void SceneManager::stop()
             else
             {
                 LOG("SceneManager: Error - Failed to restore scene state!");
-                // Fallback to reset
                 activeScene->reset();
             }
 
@@ -113,7 +108,6 @@ void SceneManager::stop()
     }
     else
     {
-        // No serialized state, just reset
         LOG("SceneManager: No serialized state, performing reset");
         activeScene->onExit();
         activeScene->reset();

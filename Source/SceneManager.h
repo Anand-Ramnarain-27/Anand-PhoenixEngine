@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include "EditorSceneSettings.h"
 #include <d3d12.h>
 
 class IScene;
@@ -32,7 +33,6 @@ public:
 
     void update(float deltaTime);
     void render(ID3D12GraphicsCommandList* cmd, const ModuleCamera& camera, uint32_t width, uint32_t height);
-
     void onViewportResized(uint32_t width, uint32_t height);
 
     IScene* getActiveScene() const { return activeScene.get(); }
@@ -40,8 +40,13 @@ public:
     bool saveCurrentScene(const std::string& filePath);
     bool loadScene(const std::string& filePath);
 
+    EditorSceneSettings& getSettings() { return settings; }
+    const EditorSceneSettings& getSettings() const { return settings; }
+
 private:
     std::unique_ptr<IScene> activeScene;
     PlayState state = PlayState::Stopped;
     bool hasSerializedState = false;
+
+    EditorSceneSettings settings;
 };

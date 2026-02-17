@@ -1,36 +1,32 @@
 #include "Globals.h"
-#include "MathUtils.h"
-#include <algorithm>
-
 #include "ModuleCamera.h"
-
 #include "Application.h"
+#include "MathUtils.h"
 
 #include "Mouse.h"
 #include "Keyboard.h"
 #include "GamePad.h"
 
-#define FAR_PLANE 200.0f
-#define NEAR_PLANE 0.1f
+#include <algorithm>
 
-namespace
-{
-    constexpr float getRotationSpeed() { return 25.0f; }
-    constexpr float getTranslationSpeed() { return 2.5f; }
-}
+static constexpr float FAR_PLANE = 500.0f;
+static constexpr float NEAR_PLANE = 0.1f;
+
+static constexpr float ROTATION_SPEED_DEG = 25.0f;  
+static constexpr float ORBIT_SENSITIVITY = 0.005f;  
+static constexpr float PAN_SPEED = 0.45f; 
+static constexpr float ZOOM_SPEED = 1.0f;
 
 bool ModuleCamera::init()
 {
-    position = Vector3(0.0f, 0.0f, 10.0f);
-    rotation = Quaternion::CreateFromAxisAngle(Vector3(0.0f, 1.0f, 0.0f), XMConvertToRadians(0.0f));
+    params.polar = 0.0f;
+    params.azimuthal = 0.0f;
+    params.translation = Vector3(0.0f, 2.0f, 10.0f);
 
-    Quaternion invRot;
-    rotation.Inverse(invRot);
+    position = params.translation;
+    rotation = Quaternion::Identity;
 
-    view = Matrix::CreateFromQuaternion(invRot);
-    view.Translation(-position);
-
-    view = Matrix::CreateLookAt(Vector3(0.0f, 0.0f, 10.0f), Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 1.0f, 0.0f));
+    focusOnTarget(Vector3::Zero);   
 
     return true;
 }
@@ -38,134 +34,140 @@ bool ModuleCamera::init()
 void ModuleCamera::update()
 {
     Mouse& mouse = Mouse::Get();
-    const Mouse::State& mouseState = mouse.GetState();
+    Keyboard& keyboard = Keyboard::Get();
+    GamePad& pad = GamePad::Get();
 
-    if (enabled)
+    const Mouse::State& ms = mouse.GetState();
+    const Keyboard::State& ks = keyboard.GetState();
+    GamePad::State         gps = pad.GetState(0);
+
+    const float dt = app->getElapsedMilis() * 0.001f;
+
+    speedMultiplier = (ks.LeftShift || ks.RightShift) ? speedBoostMultiplier : 1.0f;
+
+    const bool isAltDown = ks.LeftAlt || ks.RightAlt;
+    const bool isOrbiting = isAltDown && ms.leftButton;
+    const bool isFlyMode = ms.rightButton && !isOrbiting;
+
+    Vector2 mouseDelta = Vector2(
+        float(dragPosX - ms.x),
+        float(dragPosY - ms.y));
+
+    const int wheelDelta = ms.scrollWheelValue - previousWheelValue;
+    previousWheelValue = ms.scrollWheelValue;
+
+    Vector3 translateLocal = Vector3::Zero;
+    Vector2 rotateDelta = Vector2::Zero;  
+
+    if (isFlyMode || isOrbiting)
     {
-        Keyboard& keyboard = Keyboard::Get();
-        GamePad& pad = GamePad::Get();
-
-        const Keyboard::State& keyState = keyboard.GetState();
-        GamePad::State padState = pad.GetState(0);
-
-        float elapsedSec = app->getElapsedMilis() * 0.001f;
-
-        speedMultiplier = 1.0f;
-        if (keyState.LeftShift || keyState.RightShift)
-        {
-            speedMultiplier = speedBoostMultiplier;
-        }
-
-        Vector3 translate = Vector3::Zero;
-        Vector2 rotate = Vector2::Zero;
-
-        bool isAltPressed = keyState.LeftAlt || keyState.RightAlt;
-        bool isOrbiting = isAltPressed && mouseState.leftButton;
-
-        if (padState.IsConnected())
-        {
-            rotate.x = -padState.thumbSticks.rightX * elapsedSec * speedMultiplier;
-            rotate.y = -padState.thumbSticks.rightY * elapsedSec * speedMultiplier;
-
-            translate.x = padState.thumbSticks.leftX * elapsedSec * speedMultiplier;
-            translate.z = -padState.thumbSticks.leftY * elapsedSec * speedMultiplier;
-
-            if (padState.IsLeftTriggerPressed())
-            {
-                translate.y = 0.25f * elapsedSec * speedMultiplier;
-            }
-            else if (padState.IsRightTriggerPressed())
-            {
-                translate.y -= 0.25f * elapsedSec * speedMultiplier;
-            }
-        }
-
-        if (mouseState.rightButton || isOrbiting)
-        {
-            rotate.x = float(dragPosX - mouseState.x) * 0.005f * speedMultiplier;
-            rotate.y = float(dragPosY - mouseState.y) * 0.005f * speedMultiplier;
-        }
-
-        int wheelDelta = mouseState.scrollWheelValue - previousWheelValue;
-        if (wheelDelta != 0)
-        {
-            translate.z += float(wheelDelta) * zoomSpeed * elapsedSec * speedMultiplier;
-        }
-
-        previousWheelValue = mouseState.scrollWheelValue;
-
-        if (keyState.F && !prevFKeyState)
-        {
-            focusOnTarget(Vector3::Zero);
-        }
-        prevFKeyState = keyState.F;
-
-        float moveSpeed = 0.45f * elapsedSec * speedMultiplier;
-        if (keyState.W) translate.z -= moveSpeed;
-        if (keyState.S) translate.z += moveSpeed;
-        if (keyState.A) translate.x -= moveSpeed;
-        if (keyState.D) translate.x += moveSpeed;
-        if (keyState.Q) translate.y += moveSpeed;
-        if (keyState.E) translate.y -= moveSpeed;
-
-        if (isOrbiting)
-        {
-            params.polar += XMConvertToRadians(getRotationSpeed() * rotate.x);
-            params.azimuthal += XMConvertToRadians(getRotationSpeed() * rotate.y);
-
-            params.azimuthal = std::clamp(params.azimuthal, -XM_PIDIV2 + 0.01f, XM_PIDIV2 - 0.01f);
-
-            float radius = 5.0f; 
-            position.x = radius * sin(params.polar) * cos(params.azimuthal);
-            position.y = radius * sin(params.azimuthal);
-            position.z = radius * cos(params.polar) * cos(params.azimuthal);
-
-            position += Vector3::Zero;
-
-            params.translation = position;
-
-            view = Matrix::CreateLookAt(position, Vector3::Zero, Vector3::UnitY);
-            rotation = Quaternion::CreateFromRotationMatrix(view.Invert());
-        }
-
-        Vector3 localDir = Vector3::Transform(translate, rotation);
-        params.translation += localDir * getTranslationSpeed();
-        params.polar += XMConvertToRadians(getRotationSpeed() * rotate.x);
-        params.azimuthal += XMConvertToRadians(getRotationSpeed() * rotate.y);
-
-        Quaternion rotation_polar = Quaternion::CreateFromAxisAngle(Vector3(0.0f, 1.0f, 0.0f), params.polar);
-        Quaternion rotation_azimuthal = Quaternion::CreateFromAxisAngle(Vector3(1.0f, 0.0f, 0.0f), params.azimuthal);
-        rotation = rotation_azimuthal * rotation_polar;
-        position = params.translation;
-
-        Quaternion invRot;
-        rotation.Inverse(invRot);
-
-        view = Matrix::CreateFromQuaternion(invRot);
-        view.Translation(Vector3::Transform(-position, invRot));
-
+        rotateDelta.x = mouseDelta.x * ORBIT_SENSITIVITY * speedMultiplier;
+        rotateDelta.y = mouseDelta.y * ORBIT_SENSITIVITY * speedMultiplier;
     }
 
-    dragPosX = mouseState.x;
-    dragPosY = mouseState.y;
+    if (gps.IsConnected())
+    {
+        rotateDelta.x += -gps.thumbSticks.rightX * dt * speedMultiplier;
+        rotateDelta.y += -gps.thumbSticks.rightY * dt * speedMultiplier;
+        translateLocal.x += gps.thumbSticks.leftX * dt * speedMultiplier;
+        translateLocal.z += -gps.thumbSticks.leftY * dt * speedMultiplier;
+        if (gps.IsLeftTriggerPressed())  translateLocal.y += 0.25f * dt * speedMultiplier;
+        if (gps.IsRightTriggerPressed()) translateLocal.y -= 0.25f * dt * speedMultiplier;
+    }
+
+    if (wheelDelta != 0)
+        translateLocal.z -= float(wheelDelta) * ZOOM_SPEED * dt * speedMultiplier;
+
+    if (isFlyMode)
+    {
+        const float mv = PAN_SPEED * dt * speedMultiplier;
+        if (ks.W) translateLocal.z -= mv;
+        if (ks.S) translateLocal.z += mv;
+        if (ks.A) translateLocal.x -= mv;
+        if (ks.D) translateLocal.x += mv;
+        if (ks.Q) translateLocal.y += mv;
+        if (ks.E) translateLocal.y -= mv;
+    }
+
+    if (ks.F && !prevFKeyState)
+        focusOnTarget(Vector3::Zero);
+    prevFKeyState = ks.F;
+
+    if (isOrbiting)
+        updateOrbitMode(rotateDelta);
+    else
+        updateFlyMode(dt, translateLocal, rotateDelta);
+
+    dragPosX = ms.x;
+    dragPosY = ms.y;
 }
 
-Matrix ModuleCamera::getPerspectiveProj(float aspect, float fov)
+void ModuleCamera::updateFlyMode(float, const Vector3& translateLocal, const Vector2& rotateDelta)
 {
-    return Matrix::CreatePerspectiveFieldOfView(fov, aspect, NEAR_PLANE, FAR_PLANE);
+    params.polar += rotateDelta.x;
+    params.azimuthal += rotateDelta.y;
+
+    params.azimuthal = std::clamp(params.azimuthal, -XM_PIDIV2 + 0.01f, XM_PIDIV2 - 0.01f);
+
+    const Quaternion rotPolar = Quaternion::CreateFromAxisAngle(Vector3::UnitY, params.polar);
+    const Quaternion rotAzimuthal = Quaternion::CreateFromAxisAngle(Vector3::UnitX, params.azimuthal);
+    rotation = rotAzimuthal * rotPolar;
+
+    const Vector3 worldDir = Vector3::Transform(translateLocal, rotation);
+    params.translation += worldDir;
+    position = params.translation;
+
+    rebuildViewMatrix();
+}
+
+void ModuleCamera::updateOrbitMode(const Vector2& rotateDelta)
+{
+    params.polar += rotateDelta.x;
+    params.azimuthal += rotateDelta.y;
+    params.azimuthal = std::clamp(params.azimuthal, -XM_PIDIV2 + 0.01f, XM_PIDIV2 - 0.01f);
+
+    const float radius = (position - Vector3::Zero).Length();
+    const float safeR = (radius < 0.5f) ? 5.0f : radius;
+
+    position.x = safeR * sinf(params.polar) * cosf(params.azimuthal);
+    position.y = safeR * sinf(params.azimuthal);
+    position.z = safeR * cosf(params.polar) * cosf(params.azimuthal);
+
+    params.translation = position;
+
+    view = Matrix::CreateLookAt(position, Vector3::Zero, Vector3::UnitY);
+    rotation = Quaternion::CreateFromRotationMatrix(Matrix(view).Invert());
+}
+
+void ModuleCamera::rebuildViewMatrix()
+{
+    Quaternion invRot;
+    rotation.Inverse(invRot);
+
+    view = Matrix::CreateFromQuaternion(invRot);
+    view.Translation(Vector3::Transform(-position, invRot));
 }
 
 void ModuleCamera::focusOnTarget(const Vector3& target)
 {
     Vector3 dir = position - target;
-    if (dir.Length() < 0.001f) dir = Vector3(0, 0, 5.0f);
+    if (dir.LengthSquared() < 1e-6f)
+        dir = Vector3(0.0f, 0.0f, 5.0f);
     dir.Normalize();
 
     params.translation = target + dir * 5.0f;
     position = params.translation;
 
     view = Matrix::CreateLookAt(position, target, Vector3::UnitY);
-    rotation = Quaternion::CreateFromRotationMatrix(view.Invert());
+    rotation = Quaternion::CreateFromRotationMatrix(Matrix(view).Invert());
+
+    params.polar = atan2f(dir.x, dir.z);
+    params.azimuthal = asinf(std::clamp(-dir.y, -1.0f, 1.0f));
+}
+
+Matrix ModuleCamera::getPerspectiveProj(float aspect, float fov)
+{
+    return Matrix::CreatePerspectiveFieldOfView(fov, aspect, NEAR_PLANE, FAR_PLANE);
 }
 
 Vector3 ModuleCamera::getForward() const
@@ -182,4 +184,3 @@ Vector3 ModuleCamera::getUp() const
 {
     return Vector3::Transform(Vector3::UnitY, rotation);
 }
-

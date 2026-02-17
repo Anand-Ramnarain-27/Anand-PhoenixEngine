@@ -181,6 +181,7 @@
     <ClInclude Include="debug_draw.hpp" />
     <ClInclude Include="DepthStencilDesc.h" />
     <ClInclude Include="DescriptorBase.h" />
+    <ClInclude Include="EditorSceneSettings.h" />
     <ClInclude Include="FileDialog.h" />
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="gltf_utils.h" />

@@ -348,6 +348,7 @@
     <ClInclude Include="FileDialog.h">
       <Filter>engine\resources</Filter>
     </ClInclude>
+    <ClInclude Include="EditorSceneSettings.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

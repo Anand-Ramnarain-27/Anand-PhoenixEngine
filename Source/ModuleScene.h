@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <functional>
 
 class GameObject;
 
@@ -16,12 +17,14 @@ public:
 
     GameObject* createGameObject(const std::string& name, GameObject* parent = nullptr);
 
+    void destroyGameObject(GameObject* go);
+
     void update(float deltaTime);
     void clear();
 
     GameObject* findGameObjectByName(const std::string& name);
 
 private:
-    std::unique_ptr<GameObject> root;
+    std::unique_ptr<GameObject>              root;
     std::vector<std::unique_ptr<GameObject>> objects;
 };
