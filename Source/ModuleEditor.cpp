@@ -14,6 +14,10 @@
 #include "GameObject.h"
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
+#include "LightCollector.h"
+#include "ComponentDirectionalLight.h"
+#include "ComponentPointLight.h"
+#include "ComponentSpotLight.h"
 #include "ComponentCamera.h"
 #include "ComponentFactory.h"
 #include "ModuleCamera.h"
@@ -263,52 +267,6 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
 
     const EditorSceneSettings& s = sceneManager->getSettings();
     MeshPipeline::LightCB lightData = {};
-
-    lightData.ambientColor = s.ambient.color;
-    lightData.ambientIntensity = s.ambient.intensity;
-    lightData.viewPos = camera->getPos();
-
-    lightData.numDirLights = 0;
-    for (int i = 0; i < 2; ++i)
-    {
-        if (s.directionalLight[i].enabled)
-        {
-            auto& d = lightData.dirLights[lightData.numDirLights++];
-            d.direction = s.directionalLight[i].direction;
-            d.color = s.directionalLight[i].color;
-            d.intensity = s.directionalLight[i].intensity;
-        }
-    }
-
-    lightData.numPointLights = s.pointLight.enabled ? 1 : 0;
-    if (s.pointLight.enabled)
-    {
-        lightData.pointLight.position = s.pointLight.position;
-        lightData.pointLight.color = s.pointLight.color;
-        lightData.pointLight.intensity = s.pointLight.intensity;
-        lightData.pointLight.sqRadius = s.pointLight.radius * s.pointLight.radius;
-    }
-
-    lightData.numSpotLights = s.spotLight.enabled ? 1 : 0;
-    if (s.spotLight.enabled)
-    {
-        lightData.spotLight.position = s.spotLight.position;
-        lightData.spotLight.direction = s.spotLight.direction;
-        lightData.spotLight.color = s.spotLight.color;
-        lightData.spotLight.intensity = s.spotLight.intensity;
-        lightData.spotLight.sqRadius = s.spotLight.radius * s.spotLight.radius;
-
-        lightData.spotLight.innerCos = cosf(s.spotLight.innerAngle * 0.0174532925f);
-        lightData.spotLight.outerCos = cosf(s.spotLight.outerAngle * 0.0174532925f);
-    }
-
-    void* mapped = nullptr;
-    lightConstantBuffer->Map(0, nullptr, &mapped);
-    memcpy(mapped, &lightData, sizeof(lightData));
-    lightConstantBuffer->Unmap(0, nullptr);
-
-    cmd->SetGraphicsRootConstantBufferView(
-        2, lightConstantBuffer->GetGPUVirtualAddress());
 
     Matrix vp = (view * proj).Transpose();
     cmd->SetGraphicsRoot32BitConstants(0, 16, &vp, 0);
@@ -1240,58 +1198,6 @@ void ModuleEditor::drawSceneSettings()
         {
             ImGui::ColorEdit3("Color", &s.ambient.color.x);
             ImGui::SliderFloat("Intensity", &s.ambient.intensity, 0, 2);
-            ImGui::TreePop();
-        }
-
-        for (int i = 0; i < 2; ++i)
-        {
-            ImGui::PushID(i);
-            char label[32];
-            sprintf_s(label, "Directional Light %d", i + 1);
-            if (ImGui::TreeNode(label))
-            {
-                ImGui::Checkbox("Enabled", &s.directionalLight[i].enabled);
-                if (s.directionalLight[i].enabled)
-                {
-                    ImGui::DragFloat3("Direction", &s.directionalLight[i].direction.x, 0.01f);
-                    if (ImGui::IsItemDeactivatedAfterEdit())
-                        s.directionalLight[i].direction.Normalize();
-                    ImGui::ColorEdit3("Color", &s.directionalLight[i].color.x);
-                    ImGui::SliderFloat("Intensity", &s.directionalLight[i].intensity, 0, 5);
-                }
-                ImGui::TreePop();
-            }
-            ImGui::PopID();
-        }
-
-        if (ImGui::TreeNode("Point Light"))
-        {
-            ImGui::Checkbox("Enabled", &s.pointLight.enabled);
-            if (s.pointLight.enabled)
-            {
-                ImGui::DragFloat3("Position", &s.pointLight.position.x, 0.1f);
-                ImGui::ColorEdit3("Color", &s.pointLight.color.x);
-                ImGui::SliderFloat("Intensity", &s.pointLight.intensity, 0, 10);
-                ImGui::SliderFloat("Radius", &s.pointLight.radius, 0.1f, 50);
-            }
-            ImGui::TreePop();
-        }
-        if (ImGui::TreeNode("Spot Light"))
-        {
-            ImGui::Checkbox("Enabled", &s.spotLight.enabled);
-            if (s.spotLight.enabled)
-            {
-                ImGui::DragFloat3("Position", &s.spotLight.position.x, 0.1f);
-                ImGui::DragFloat3("Direction", &s.spotLight.direction.x, 0.01f);
-                if (ImGui::IsItemDeactivatedAfterEdit())
-                    s.spotLight.direction.Normalize();
-                ImGui::ColorEdit3("Color", &s.spotLight.color.x);
-                ImGui::SliderFloat("Intensity", &s.spotLight.intensity, 0, 10);
-                ImGui::SliderFloat("Inner Angle", &s.spotLight.innerAngle, 0, 89);
-                ImGui::SliderFloat("Outer Angle", &s.spotLight.outerAngle,
-                    s.spotLight.innerAngle, 90);
-                ImGui::SliderFloat("Radius", &s.spotLight.radius, 0.1f, 50);
-            }
             ImGui::TreePop();
         }
     }
