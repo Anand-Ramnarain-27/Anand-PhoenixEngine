@@ -10,6 +10,7 @@
 #include "DebugDrawPass.h"
 #include "ImGuiPass.h"
 #include "RenderPipelineTestScene.h"
+#include "EmptyScene.h"
 #include "ModuleScene.h"
 #include "GameObject.h"
 #include "ComponentTransform.h"
@@ -48,16 +49,18 @@ bool ModuleEditor::init()
     availableScenes =
     {
         {
-            "Render Pipeline Test",
+            "Empty Scene",
+            []() { return std::make_unique<EmptyScene>(); }
+        },
+        {
+            "Render Pipeline Test", 
             []() { return std::make_unique<RenderPipelineTestScene>(); }
         }
-        // Later:
-        // { "Lighting Demo", [](){ return std::make_unique<LightingScene>(); } },
     };
-    selectedSceneIndex = 0;
+    selectedSceneIndex = 0;  
     sceneManager->setScene(availableScenes[0].create(), app->getD3D12()->getDevice());
 
-    log("[Editor] Active scene: RenderPipelineTestScene", ImVec4(0.6f, 0.8f, 1.0f, 1.0f));
+    log("[Editor] Active scene: Empty Scene", ImVec4(0.6f, 0.8f, 1.0f, 1.0f));
     log("[Editor] ModuleEditor initialized", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
 
     D3D12_QUERY_HEAP_DESC qDesc = {};
