@@ -35,6 +35,7 @@ public:
     void preRender() override;
     void render() override;
 
+    SceneManager* getSceneManager() const { return sceneManager.get(); }
 private:
     // Core systems
     std::unique_ptr<ImGuiPass> imguiPass;

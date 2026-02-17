@@ -5,6 +5,9 @@
 
 #include "Application.h"
 #include "ModuleD3D12.h"
+#include "ModuleEditor.h"
+#include "SceneManager.h"
+#include "ModuleAssets.h"
 
 #include <shellapi.h>
 
@@ -126,6 +129,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
       return FALSE;
    }
 
+   DragAcceptFiles(hWnd, TRUE);
+
    app = new Application(__argc, __wargv, hWnd);
 
    if(!app->init())
@@ -219,6 +224,69 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             app->getD3D12()->resize();
         }
         break;
+    case WM_DROPFILES:
+    {
+        HDROP hDrop = (HDROP)wParam;
+
+        UINT fileCount = DragQueryFile(hDrop, 0xFFFFFFFF, nullptr, 0);
+
+        for (UINT i = 0; i < fileCount; i++)
+        {
+            WCHAR wideFilePath[MAX_PATH];
+            DragQueryFileW(hDrop, i, wideFilePath, MAX_PATH);
+
+            char narrowPath[MAX_PATH];
+            WideCharToMultiByte(CP_UTF8, 0, wideFilePath, -1, narrowPath, MAX_PATH, nullptr, nullptr);
+
+            std::string filePath(narrowPath);
+            size_t dotPos = filePath.find_last_of('.');
+            if (dotPos == std::string::npos)
+                continue; 
+
+            std::string extension = filePath.substr(dotPos);
+
+            for (char& c : extension)
+                c = (char)tolower(c);
+
+            if (extension == ".gltf" || extension == ".glb" || extension == ".fbx")
+            {
+                if (app && app->getAssets())
+                {
+                    app->getAssets()->importAsset(narrowPath);
+                    LOG("? Imported model: %s", narrowPath);
+                }
+            }
+            else if (extension == ".json")
+            {
+                if (app && app->getEditor())
+                {
+                    auto* sceneManager = app->getEditor()->getSceneManager();
+                    if (sceneManager && sceneManager->getActiveScene())
+                    {
+                        if (sceneManager->loadScene(narrowPath))
+                        {
+                            LOG("? Loaded scene: %s", narrowPath);
+                        }
+                        else
+                        {
+                            LOG("? Failed to load scene: %s", narrowPath);
+                        }
+                    }
+                }
+            }
+            else if (extension == ".png" || extension == ".jpg" || extension == ".jpeg" || extension == ".dds")
+            {
+                LOG("Texture import not yet supported: %s", narrowPath);
+            }
+            else
+            {
+                LOG("Unsupported file type: %s", extension.c_str());
+            }
+        }
+
+        DragFinish(hDrop);
+        return 0;
+    }
     case WM_SYSKEYDOWN:
         if (wParam == VK_RETURN && (lParam & 0x60000000) == 0x20000000)
         {
