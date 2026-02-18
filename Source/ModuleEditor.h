@@ -17,6 +17,9 @@ class DebugDrawPass;
 class GameObject;
 class ComponentCamera;
 class ComponentMesh;
+class ComponentDirectionalLight;
+class ComponentPointLight;
+class ComponentSpotLight;
 
 class ModuleEditor : public Module
 {
@@ -33,20 +36,20 @@ public:
     void log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
 
 private:
-    std::unique_ptr<ImGuiPass>     imguiPass;
+    std::unique_ptr<ImGuiPass> imguiPass;
     std::unique_ptr<RenderTexture> viewportRT;
     std::unique_ptr<DebugDrawPass> debugDrawPass;
-    std::unique_ptr<SceneManager>  sceneManager;
-    std::unique_ptr<MeshPipeline>  meshPipeline;
-    ShaderTableDesc                descTable;
+    std::unique_ptr<SceneManager> sceneManager;
+    std::unique_ptr<MeshPipeline> meshPipeline;
+    ShaderTableDesc descTable;
 
     GameObject* selectedGameObject = nullptr;
-    ImGuizmo::OPERATION   gizmoOperation = ImGuizmo::TRANSLATE;
-    ImGuizmo::MODE        gizmoMode = ImGuizmo::LOCAL;
-    bool                  useSnap = false;
-    float                 snapTranslate[3] = { 0.25f, 0.25f, 0.25f };
-    float                 snapRotate = 15.0f;
-    float                 snapScale = 0.1f;
+    ImGuizmo::OPERATION gizmoOperation = ImGuizmo::TRANSLATE;
+    ImGuizmo::MODE gizmoMode = ImGuizmo::LOCAL;
+    bool useSnap = false;
+    float snapTranslate[3] = { 0.25f, 0.25f, 0.25f };
+    float snapRotate = 15.0f;
+    float snapScale = 0.1f;
 
     bool showHierarchy = true;
     bool showInspector = true;
@@ -61,9 +64,9 @@ private:
     ImVec2 viewportSize = { 0, 0 };
     ImVec2 viewportPos = { 0, 0 };
     ImVec2 lastViewportSize = { 0, 0 };
-    bool   pendingViewportResize = false;
-    UINT   pendingViewportWidth = 0;
-    UINT   pendingViewportHeight = 0;
+    bool pendingViewportResize = false;
+    UINT pendingViewportWidth = 0;
+    UINT pendingViewportHeight = 0;
 
     struct ConsoleEntry { std::string text; ImVec4 color; };
     std::vector<ConsoleEntry> console;
@@ -71,12 +74,12 @@ private:
 
     static constexpr int FPS_HISTORY = 200;
     float fpsHistory[FPS_HISTORY] = {};
-    int   fpsIndex = 0;
+    int fpsIndex = 0;
 
     ComPtr<ID3D12QueryHeap> gpuQueryHeap;
-    ComPtr<ID3D12Resource>  gpuReadbackBuffer;
+    ComPtr<ID3D12Resource> gpuReadbackBuffer;
     double gpuFrameTimeMs = 0.0;
-    bool   gpuTimerReady = false;
+    bool gpuTimerReady = false;
 
     uint64_t gpuMemoryMB = 0;
     uint64_t systemMemoryMB = 0;
@@ -91,8 +94,8 @@ private:
     FileDialog m_loadDialog;
     bool showNewSceneConfirmation = false;
 
-    bool        renamingObject = false;
-    char        renameBuffer[256] = {};
+    bool renamingObject = false;
+    char renameBuffer[256] = {};
     GameObject* renamingTarget = nullptr;
 
     void drawDockspace();
@@ -123,7 +126,7 @@ private:
     void updateFPS();
     void updateMemory();
 
-    void        deleteGameObject(GameObject* go);
+    void deleteGameObject(GameObject* go);
     GameObject* createEmptyGameObject(const char* name = "Empty",
         GameObject* parent = nullptr);
 

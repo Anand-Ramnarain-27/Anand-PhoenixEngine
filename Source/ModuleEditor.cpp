@@ -2,20 +2,28 @@
 #include "ModuleEditor.h"
 #include "Application.h"
 #include "ModuleD3D12.h"
+
 #include "ModuleShaderDescriptors.h"
 #include "ModuleDSDescriptors.h"
 #include "ModuleRTDescriptors.h"
+
 #include "ModuleAssets.h"
 #include "RenderTexture.h"
 #include "DebugDrawPass.h"
 #include "ImGuiPass.h"
+
 #include "EmptyScene.h"
 #include "ModuleScene.h"
 #include "GameObject.h"
+
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
 #include "ComponentCamera.h"
+#include "ComponentDirectionalLight.h"
+#include "ComponentPointLight.h"
+#include "ComponentSpotLight.h"
 #include "ComponentFactory.h"
+
 #include "ModuleCamera.h"
 #include "PrefabManager.h"
 
@@ -268,38 +276,59 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     lightData.ambientIntensity = s.ambient.intensity;
     lightData.viewPos = camera->getPos();
 
-    lightData.numDirLights = 0;
-    for (int i = 0; i < 2; ++i)
+    IScene* activeScene = sceneManager->getActiveScene();
+    ModuleScene* moduleScene = activeScene ? activeScene->getModuleScene() : nullptr;
+    if (moduleScene)
     {
-        if (s.directionalLight[i].enabled)
-        {
-            auto& d = lightData.dirLights[lightData.numDirLights++];
-            d.direction = s.directionalLight[i].direction;
-            d.color = s.directionalLight[i].color;
-            d.intensity = s.directionalLight[i].intensity;
-        }
-    }
+        std::function<void(GameObject*)> gatherLights = [&](GameObject* node)
+            {
+                if (!node || !node->isActive()) return;
 
-    lightData.numPointLights = s.pointLight.enabled ? 1 : 0;
-    if (s.pointLight.enabled)
-    {
-        lightData.pointLight.position = s.pointLight.position;
-        lightData.pointLight.color = s.pointLight.color;
-        lightData.pointLight.intensity = s.pointLight.intensity;
-        lightData.pointLight.sqRadius = s.pointLight.radius * s.pointLight.radius;
-    }
+                if (auto* dl = node->getComponent<ComponentDirectionalLight>())
+                {
+                    if (dl->enabled && lightData.numDirLights < 2)
+                    {
+                        auto& gpu = lightData.dirLights[lightData.numDirLights++];
+                        gpu.direction = dl->direction;
+                        gpu.color = dl->color;
+                        gpu.intensity = dl->intensity;
+                    }
+                }
 
-    lightData.numSpotLights = s.spotLight.enabled ? 1 : 0;
-    if (s.spotLight.enabled)
-    {
-        lightData.spotLight.position = s.spotLight.position;
-        lightData.spotLight.direction = s.spotLight.direction;
-        lightData.spotLight.color = s.spotLight.color;
-        lightData.spotLight.intensity = s.spotLight.intensity;
-        lightData.spotLight.sqRadius = s.spotLight.radius * s.spotLight.radius;
+                if (auto* pl = node->getComponent<ComponentPointLight>())
+                {
+                    if (pl->enabled && lightData.numPointLights == 0)
+                    {
+                        lightData.numPointLights = 1;
+                        auto& gpu = lightData.pointLight;
+                        gpu.position = node->getTransform()->getGlobalMatrix().Translation();
+                        gpu.color = pl->color;
+                        gpu.intensity = pl->intensity;
+                        gpu.sqRadius = pl->radius * pl->radius;
+                    }
+                }
 
-        lightData.spotLight.innerCos = cosf(s.spotLight.innerAngle * 0.0174532925f);
-        lightData.spotLight.outerCos = cosf(s.spotLight.outerAngle * 0.0174532925f);
+                if (auto* sl = node->getComponent<ComponentSpotLight>())
+                {
+                    if (sl->enabled && lightData.numSpotLights == 0)
+                    {
+                        lightData.numSpotLights = 1;
+                        auto& gpu = lightData.spotLight;
+                        gpu.position = node->getTransform()->getGlobalMatrix().Translation();
+                        gpu.direction = sl->direction;
+                        gpu.color = sl->color;
+                        gpu.intensity = sl->intensity;
+                        gpu.sqRadius = sl->radius * sl->radius;
+                        gpu.innerCos = cosf(sl->innerAngle * 0.0174532925f);
+                        gpu.outerCos = cosf(sl->outerAngle * 0.0174532925f);
+                    }
+                }
+
+                for (auto* child : node->getChildren())
+                    gatherLights(child);
+            };
+
+        gatherLights(moduleScene->getRoot());
     }
 
     void* mapped = nullptr;
@@ -307,8 +336,7 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     memcpy(mapped, &lightData, sizeof(lightData));
     lightConstantBuffer->Unmap(0, nullptr);
 
-    cmd->SetGraphicsRootConstantBufferView(
-        2, lightConstantBuffer->GetGPUVirtualAddress());
+    cmd->SetGraphicsRootConstantBufferView(2, lightConstantBuffer->GetGPUVirtualAddress());
 
     Matrix vp = (view * proj).Transpose();
     cmd->SetGraphicsRoot32BitConstants(0, 16, &vp, 0);
@@ -676,19 +704,34 @@ void ModuleEditor::hierarchyItemContextMenu(GameObject* go)
 
     ImGui::Separator();
 
-    if(ImGui::BeginMenu("Add Component"))
+    if (ImGui::BeginMenu("Add Component"))
     {
         if (ImGui::MenuItem("Camera") && !go->getComponent<ComponentCamera>())
         {
-            go->addComponent(
-                ComponentFactory::CreateComponent(Component::Type::Camera, go));
+            go->addComponent(ComponentFactory::CreateComponent(Component::Type::Camera, go));
+            ImGui::CloseCurrentPopup();
+        }
+        if (ImGui::MenuItem("Mesh") && !go->getComponent<ComponentMesh>())
+        {
+            go->addComponent(ComponentFactory::CreateComponent(Component::Type::Mesh, go));
             ImGui::CloseCurrentPopup();
         }
 
-        if (ImGui::MenuItem("Mesh") && !go->getComponent<ComponentMesh>())
+        ImGui::Separator();
+
+        if (ImGui::MenuItem("Directional Light") && !go->getComponent<ComponentDirectionalLight>())
         {
-            go->addComponent(
-                ComponentFactory::CreateComponent(Component::Type::Mesh, go));
+            go->addComponent(ComponentFactory::CreateComponent(Component::Type::DirectionalLight, go));
+            ImGui::CloseCurrentPopup();
+        }
+        if (ImGui::MenuItem("Point Light") && !go->getComponent<ComponentPointLight>())
+        {
+            go->addComponent(ComponentFactory::CreateComponent(Component::Type::PointLight, go));
+            ImGui::CloseCurrentPopup();
+        }
+        if (ImGui::MenuItem("Spot Light") && !go->getComponent<ComponentSpotLight>())
+        {
+            go->addComponent(ComponentFactory::CreateComponent(Component::Type::SpotLight, go));
             ImGui::CloseCurrentPopup();
         }
 
@@ -787,8 +830,12 @@ void ModuleEditor::drawInspector()
         ImGui::PushID((int)comp->getType());
 
         bool headerOpen = true;  
-        const char* label = (comp->getType() == Component::Type::Camera) ? "Camera"
+        const char* label =
+            (comp->getType() == Component::Type::Camera) ? "Camera"
             : (comp->getType() == Component::Type::Mesh) ? "Mesh"
+            : (comp->getType() == Component::Type::DirectionalLight) ? "Directional Light"
+            : (comp->getType() == Component::Type::PointLight) ? "Point Light"
+            : (comp->getType() == Component::Type::SpotLight) ? "Spot Light"
             : "Component";
 
         ImGuiTreeNodeFlags hFlags = ImGuiTreeNodeFlags_DefaultOpen
@@ -841,23 +888,37 @@ void ModuleEditor::drawInspector()
     {
         bool hasCamera = selectedGameObject->getComponent<ComponentCamera>() != nullptr;
         bool hasMesh = selectedGameObject->getComponent<ComponentMesh>() != nullptr;
+        bool hasDirLight = selectedGameObject->getComponent<ComponentDirectionalLight>() != nullptr;
+        bool hasPtLight = selectedGameObject->getComponent<ComponentPointLight>() != nullptr;
+        bool hasSpLight = selectedGameObject->getComponent<ComponentSpotLight>() != nullptr;
 
         if (ImGui::MenuItem("Camera", nullptr, false, !hasCamera))
         {
-            selectedGameObject->addComponent(
-                ComponentFactory::CreateComponent(Component::Type::Camera,
-                    selectedGameObject));
-
-            ImGui::CloseCurrentPopup(); 
+            selectedGameObject->addComponent(ComponentFactory::CreateComponent(Component::Type::Camera, selectedGameObject));
+            ImGui::CloseCurrentPopup();
         }
-
         if (ImGui::MenuItem("Mesh", nullptr, false, !hasMesh))
         {
-            selectedGameObject->addComponent(
-                ComponentFactory::CreateComponent(Component::Type::Mesh,
-                    selectedGameObject));
+            selectedGameObject->addComponent(ComponentFactory::CreateComponent(Component::Type::Mesh, selectedGameObject));
+            ImGui::CloseCurrentPopup();
+        }
 
-            ImGui::CloseCurrentPopup();  
+        ImGui::Separator();
+
+        if (ImGui::MenuItem("Directional Light", nullptr, false, !hasDirLight))
+        {
+            selectedGameObject->addComponent(ComponentFactory::CreateComponent(Component::Type::DirectionalLight, selectedGameObject));
+            ImGui::CloseCurrentPopup();
+        }
+        if (ImGui::MenuItem("Point Light", nullptr, false, !hasPtLight))
+        {
+            selectedGameObject->addComponent(ComponentFactory::CreateComponent(Component::Type::PointLight, selectedGameObject));
+            ImGui::CloseCurrentPopup();
+        }
+        if (ImGui::MenuItem("Spot Light", nullptr, false, !hasSpLight))
+        {
+            selectedGameObject->addComponent(ComponentFactory::CreateComponent(Component::Type::SpotLight, selectedGameObject));
+            ImGui::CloseCurrentPopup();
         }
 
         ImGui::EndPopup();
@@ -1242,58 +1303,7 @@ void ModuleEditor::drawSceneSettings()
             ImGui::SliderFloat("Intensity", &s.ambient.intensity, 0, 2);
             ImGui::TreePop();
         }
-
-        for (int i = 0; i < 2; ++i)
-        {
-            ImGui::PushID(i);
-            char label[32];
-            sprintf_s(label, "Directional Light %d", i + 1);
-            if (ImGui::TreeNode(label))
-            {
-                ImGui::Checkbox("Enabled", &s.directionalLight[i].enabled);
-                if (s.directionalLight[i].enabled)
-                {
-                    ImGui::DragFloat3("Direction", &s.directionalLight[i].direction.x, 0.01f);
-                    if (ImGui::IsItemDeactivatedAfterEdit())
-                        s.directionalLight[i].direction.Normalize();
-                    ImGui::ColorEdit3("Color", &s.directionalLight[i].color.x);
-                    ImGui::SliderFloat("Intensity", &s.directionalLight[i].intensity, 0, 5);
-                }
-                ImGui::TreePop();
-            }
-            ImGui::PopID();
-        }
-
-        if (ImGui::TreeNode("Point Light"))
-        {
-            ImGui::Checkbox("Enabled", &s.pointLight.enabled);
-            if (s.pointLight.enabled)
-            {
-                ImGui::DragFloat3("Position", &s.pointLight.position.x, 0.1f);
-                ImGui::ColorEdit3("Color", &s.pointLight.color.x);
-                ImGui::SliderFloat("Intensity", &s.pointLight.intensity, 0, 10);
-                ImGui::SliderFloat("Radius", &s.pointLight.radius, 0.1f, 50);
-            }
-            ImGui::TreePop();
-        }
-        if (ImGui::TreeNode("Spot Light"))
-        {
-            ImGui::Checkbox("Enabled", &s.spotLight.enabled);
-            if (s.spotLight.enabled)
-            {
-                ImGui::DragFloat3("Position", &s.spotLight.position.x, 0.1f);
-                ImGui::DragFloat3("Direction", &s.spotLight.direction.x, 0.01f);
-                if (ImGui::IsItemDeactivatedAfterEdit())
-                    s.spotLight.direction.Normalize();
-                ImGui::ColorEdit3("Color", &s.spotLight.color.x);
-                ImGui::SliderFloat("Intensity", &s.spotLight.intensity, 0, 10);
-                ImGui::SliderFloat("Inner Angle", &s.spotLight.innerAngle, 0, 89);
-                ImGui::SliderFloat("Outer Angle", &s.spotLight.outerAngle,
-                    s.spotLight.innerAngle, 90);
-                ImGui::SliderFloat("Radius", &s.spotLight.radius, 0.1f, 50);
-            }
-            ImGui::TreePop();
-        }
+        ImGui::TextDisabled("Add light components to GameObjects via Inspector.");
     }
 
     ImGui::End();

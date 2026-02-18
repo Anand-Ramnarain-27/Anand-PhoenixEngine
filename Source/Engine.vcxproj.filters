@@ -155,6 +155,15 @@
     <ClCompile Include="FileDialog.cpp">
       <Filter>engine\resources</Filter>
     </ClCompile>
+    <ClCompile Include="ComponentDirectionalLight.cpp">
+      <Filter>engine\scene\components</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentPointLight.cpp">
+      <Filter>engine\scene\components</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentSpotLight.cpp">
+      <Filter>engine\scene\components</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -348,7 +357,18 @@
     <ClInclude Include="FileDialog.h">
       <Filter>engine\resources</Filter>
     </ClInclude>
-    <ClInclude Include="EditorSceneSettings.h" />
+    <ClInclude Include="ComponentDirectionalLight.h">
+      <Filter>engine\scene\components</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentPointLight.h">
+      <Filter>engine\scene\components</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentSpotLight.h">
+      <Filter>engine\scene\components</Filter>
+    </ClInclude>
+    <ClInclude Include="EditorSceneSettings.h">
+      <Filter>engine\scene</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
