@@ -1,6 +1,7 @@
 #include "Globals.h"
 #include "ComponentPointLight.h"
 #include <imgui.h>
+
 #include "3rdParty/rapidjson/document.h"
 #include "3rdParty/rapidjson/writer.h"
 #include "3rdParty/rapidjson/stringbuffer.h"

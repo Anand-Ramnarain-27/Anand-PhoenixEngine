@@ -1,4 +1,5 @@
 #pragma once
+
 #include "Component.h"
 #include "ModuleD3D12.h"
 
@@ -8,9 +9,9 @@ public:
     explicit ComponentDirectionalLight(GameObject* owner);
     ~ComponentDirectionalLight() override = default;
 
-    void onEditor() override;
+    void onEditor()                         override;
     void onSave(std::string& outJson) const override;
-    void onLoad(const std::string& json) override;
+    void onLoad(const std::string& json)    override;
     Type getType() const override { return Type::DirectionalLight; }
 
     Vector3 direction = Vector3(-0.5f, -1.0f, -0.5f);

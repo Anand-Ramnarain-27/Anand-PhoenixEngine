@@ -6,10 +6,10 @@
 #include "Material.h"
 #include "Application.h"
 #include "ModuleResources.h"
-
 #include "3rdParty/rapidjson/document.h"
 #include "3rdParty/rapidjson/writer.h"
 #include "3rdParty/rapidjson/stringbuffer.h"
+#include <d3dx12.h>
 
 using namespace rapidjson;
 
@@ -18,64 +18,53 @@ ComponentMesh::ComponentMesh(GameObject* owner)
 {
 }
 
-ComponentMesh::~ComponentMesh() = default;
+static ComPtr<ID3D12Resource> makeMaterialBuffer(const Material::Data& data)
+{
+    auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+    auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer((sizeof(Material::Data) + 255) & ~255);
+
+    ComPtr<ID3D12Resource> buffer;
+    app->getD3D12()->getDevice()->CreateCommittedResource(
+        &heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buffer));
+
+    void* mapped = nullptr;
+    buffer->Map(0, nullptr, &mapped);
+    memcpy(mapped, &data, sizeof(Material::Data));
+    buffer->Unmap(0, nullptr);
+    buffer->SetName(L"MaterialCB");
+    return buffer;
+}
+
+void ComponentMesh::rebuildMaterialBuffers()
+{
+    if (!m_model) return;
+    m_materialBuffers.clear();
+    for (const auto& mat : m_model->getMaterials())
+        m_materialBuffers.push_back(makeMaterialBuffer(mat->getData()));
+}
 
 bool ComponentMesh::loadModel(const char* filePath)
 {
-    ResourceCache* cache = app->getResourceCache();
-    m_model = cache->getOrLoadModel(filePath);
-
-    if (!m_model)
-    {
-        LOG("Failed to load model: %s", filePath);
-        return false;
-    }
-
+    m_model = app->getResourceCache()->getOrLoadModel(filePath);
+    if (!m_model) { LOG("ComponentMesh: Failed to load model: %s", filePath); return false; }
     m_modelFilePath = filePath;
-
-    ModuleResources* resources = app->getResources();
-    const auto& materials = m_model->getMaterials();
-
-    m_materialBuffers.clear();
-
-    for (const auto& material : materials)
-    {
-        const auto& materialData = material->getData();
-
-        UINT bufferSize = sizeof(Material::Data);
-        UINT alignedSize = (bufferSize + 255) & ~255;
-
-        ComPtr<ID3D12Resource> buffer;
-        auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-        auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer((sizeof(Material::Data) + 255) & ~255);
-
-        app->getD3D12()->getDevice()->CreateCommittedResource(
-            &heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
-            IID_PPV_ARGS(&buffer));
-
-        void* mapped = nullptr;
-        buffer->Map(0, nullptr, &mapped);
-        memcpy(mapped, &materialData, sizeof(Material::Data));
-        buffer->Unmap(0, nullptr);
-        buffer->SetName(L"MaterialCB");
-
-        m_materialBuffers.push_back(buffer);
-    }
-
+    rebuildMaterialBuffers();
     return true;
+}
+
+void ComponentMesh::setModel(std::unique_ptr<Model> model)
+{
+    m_model = std::shared_ptr<Model>(std::move(model));
+    m_modelFilePath.clear();
+    rebuildMaterialBuffers();
 }
 
 void ComponentMesh::render(ID3D12GraphicsCommandList* cmd)
 {
-    if (!m_model)
-        return;
+    if (!m_model) return;
 
-    Matrix worldMatrix = owner->getTransform()->getGlobalMatrix();
-
-    worldMatrix = m_model->getModelMatrix() * worldMatrix;
-
-    Matrix world = worldMatrix.Transpose();
+    Matrix world = (m_model->getModelMatrix() * owner->getTransform()->getGlobalMatrix()).Transpose();
     cmd->SetGraphicsRoot32BitConstants(1, 16, &world, 0);
 
     const auto& meshes = m_model->getMeshes();
@@ -83,99 +72,35 @@ void ComponentMesh::render(ID3D12GraphicsCommandList* cmd)
 
     for (size_t i = 0; i < meshes.size(); ++i)
     {
-        const auto& mesh = meshes[i];
-        int materialIndex = mesh->getMaterialIndex();
-
-        if (materialIndex >= 0 && materialIndex < (int)materials.size())
+        int mi = meshes[i]->getMaterialIndex();
+        if (mi >= 0 && mi < (int)materials.size())
         {
-            const auto& material = materials[materialIndex];
-
-            if (materialIndex < (int)m_materialBuffers.size())
-            {
-                cmd->SetGraphicsRootConstantBufferView(3, m_materialBuffers[materialIndex]->GetGPUVirtualAddress());
-            }
-
-            if (material->hasTexture())
-            {
-                cmd->SetGraphicsRootDescriptorTable(4, material->getTextureGPUHandle());
-            }
+            if (mi < (int)m_materialBuffers.size())
+                cmd->SetGraphicsRootConstantBufferView(3, m_materialBuffers[mi]->GetGPUVirtualAddress());
+            if (materials[mi]->hasTexture())
+                cmd->SetGraphicsRootDescriptorTable(4, materials[mi]->getTextureGPUHandle());
         }
-        mesh->draw(cmd);
+        meshes[i]->draw(cmd);
     }
 }
 
 void ComponentMesh::onSave(std::string& outJson) const
 {
-    Document doc;
-    doc.SetObject();
-    Document::AllocatorType& allocator = doc.GetAllocator();
-
-    doc.AddMember("HasModel", (m_model != nullptr), allocator);
-
-    if (m_model && !m_modelFilePath.empty()) {
-        Value pathVal;
-        pathVal.SetString(m_modelFilePath.c_str(), allocator);
-        doc.AddMember("ModelPath", pathVal, allocator);
+    Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
+    doc.AddMember("HasModel", m_model != nullptr, a);
+    if (m_model && !m_modelFilePath.empty())
+    {
+        Value path; path.SetString(m_modelFilePath.c_str(), a);
+        doc.AddMember("ModelPath", path, a);
     }
-
-    StringBuffer buffer;
-    Writer<StringBuffer> writer(buffer);
-    doc.Accept(writer);
-
-    outJson = buffer.GetString();
+    StringBuffer buf; Writer<StringBuffer> w(buf); doc.Accept(w);
+    outJson = buf.GetString();
 }
 
 void ComponentMesh::onLoad(const std::string& jsonStr)
 {
-    Document doc;
-    doc.Parse(jsonStr.c_str());
-
-    if (doc.HasParseError()) {
-        LOG("ComponentMesh: JSON parse error");
-        return;
-    }
-
-    if (doc["HasModel"].GetBool() && doc.HasMember("ModelPath")) {
-        std::string modelPath = doc["ModelPath"].GetString();
-        LOG("ComponentMesh: Loading model from: %s", modelPath.c_str());
-        loadModel(modelPath.c_str());
-    }
-}
-
-void ComponentMesh::rebuildMaterialBuffers()
-{
-    if (!m_model) return;
-
-    const auto& materials = m_model->getMaterials();
-    m_materialBuffers.clear();
-
-    for (const auto& material : materials)
-    {
-        const auto& materialData = material->getData();
-
-        auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-        auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer(
-            (sizeof(Material::Data) + 255) & ~255);
-
-        ComPtr<ID3D12Resource> buffer;
-        app->getD3D12()->getDevice()->CreateCommittedResource(
-            &heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
-            IID_PPV_ARGS(&buffer));
-
-        void* mapped = nullptr;
-        buffer->Map(0, nullptr, &mapped);
-        memcpy(mapped, &materialData, sizeof(Material::Data));
-        buffer->Unmap(0, nullptr);
-        buffer->SetName(L"MaterialCB");
-
-        m_materialBuffers.push_back(buffer);
-    }
-}
-
-void ComponentMesh::setModel(std::unique_ptr<Model> model)
-{
-    m_model = std::shared_ptr<Model>(std::move(model));
-    m_modelFilePath = "";
-    rebuildMaterialBuffers();
+    Document doc; doc.Parse(jsonStr.c_str());
+    if (doc.HasParseError()) { LOG("ComponentMesh: JSON parse error"); return; }
+    if (doc.HasMember("HasModel") && doc["HasModel"].GetBool() && doc.HasMember("ModelPath"))
+        loadModel(doc["ModelPath"].GetString());
 }

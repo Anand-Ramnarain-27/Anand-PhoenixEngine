@@ -1,4 +1,5 @@
 #pragma once
+
 #include "Component.h"
 #include "ModuleD3D12.h"
 
@@ -8,9 +9,9 @@ public:
     explicit ComponentPointLight(GameObject* owner);
     ~ComponentPointLight() override = default;
 
-    void onEditor() override;
+    void onEditor()                         override;
     void onSave(std::string& outJson) const override;
-    void onLoad(const std::string& json) override;
+    void onLoad(const std::string& json)    override;
     Type getType() const override { return Type::PointLight; }
 
     Vector3 color = Vector3(1.f, 1.f, 1.f);

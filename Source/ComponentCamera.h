@@ -9,35 +9,31 @@ public:
     explicit ComponentCamera(GameObject* owner);
     ~ComponentCamera() override = default;
 
-    void update(float deltaTime) override;
-    void onEditor() override;
-
+    void update(float)   override {}
+    void onEditor()      override;
     void onSave(std::string& outJson) const override;
-    void onLoad(const std::string& json) override;
+    void onLoad(const std::string& json)    override;
     Type getType() const override { return Type::Camera; }
 
-    float getFOV() const { return m_fov; }
-    void setFOV(float fov) { m_fov = fov; }
-
+    float getFOV()       const { return m_fov; }
     float getNearPlane() const { return m_nearPlane; }
-    void setNearPlane(float nearPlane) { m_nearPlane = nearPlane; }
+    float getFarPlane()  const { return m_farPlane; }
+    bool  isMainCamera() const { return m_isMainCamera; }
+    const Vector4& getBackgroundColor() const { return m_backgroundColor; }
 
-    float getFarPlane() const { return m_farPlane; }
-    void setFarPlane(float farPlane) { m_farPlane = farPlane; }
+    void setFOV(float v) { m_fov = v; }
+    void setNearPlane(float v) { m_nearPlane = v; }
+    void setFarPlane(float v) { m_farPlane = v; }
+    void setMainCamera(bool v) { m_isMainCamera = v; }
+    void setBackgroundColor(const Vector4& v) { m_backgroundColor = v; }
 
-    bool isMainCamera() const { return m_isMainCamera; }
-    void setMainCamera(bool main) { m_isMainCamera = main; }
-
-    Matrix getViewMatrix() const;
+    Matrix getViewMatrix()                      const;
     Matrix getProjectionMatrix(float aspectRatio) const;
 
-    const Vector4& getBackgroundColor() const { return m_backgroundColor; }
-    void setBackgroundColor(const Vector4& color) { m_backgroundColor = color; }
-
 private:
-    float m_fov;          
-    float m_nearPlane;
-    float m_farPlane;
-    bool m_isMainCamera;
-    Vector4 m_backgroundColor;
+    float   m_fov = 0.785398163f;
+    float   m_nearPlane = 0.1f;
+    float   m_farPlane = 200.0f;
+    bool    m_isMainCamera = false;
+    Vector4 m_backgroundColor = { 0.2f, 0.3f, 0.4f, 1.0f };
 };
