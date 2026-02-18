@@ -1,4 +1,8 @@
 #pragma once
+
+#include "Module.h"
+#include "ModuleSamplerHeap.h"
+
 #include <d3d12.h>
 #include <wrl.h>
 
@@ -55,6 +59,8 @@ public:
     ID3D12PipelineState* getPSO() const { return pso.Get(); }
     ID3D12RootSignature* getRootSig() const { return rootSig.Get(); }
 
+    void setSamplerType(ModuleSamplerHeap::Type type) { m_samplerType = type; }
+    ModuleSamplerHeap::Type getSamplerType() const { return m_samplerType; }
 private:
     bool createRootSignature(ID3D12Device* device);
     bool createPSO(ID3D12Device* device);
@@ -62,4 +68,6 @@ private:
 private:
     ComPtr<ID3D12RootSignature> rootSig;
     ComPtr<ID3D12PipelineState> pso;
+
+    ModuleSamplerHeap::Type m_samplerType = ModuleSamplerHeap::LINEAR_WRAP;
 };

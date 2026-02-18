@@ -45,11 +45,11 @@ cbuffer MaterialCB : register(b3)
     float metallic;
     float roughness;
     uint hasBaseColorTexture;
-    uint padding;
+    uint samplerIndex;
 };
 
 Texture2D baseColorTexture : register(t0);
-SamplerState textureSampler : register(s0);
+SamplerState textureSampler[4] : register(s0);
 
 struct PSInput
 {
@@ -74,7 +74,7 @@ float4 main(PSInput input) : SV_TARGET
 
     float4 albedo = baseColor;
     if (hasBaseColorTexture)
-        albedo = baseColorTexture.Sample(textureSampler, input.uv);
+        albedo = baseColorTexture.Sample(textureSampler[samplerIndex], input.uv);
 
     float3 result = ambientColor * ambientIntensity * albedo.rgb;
 

@@ -60,6 +60,7 @@ private:
     bool showSceneSettings = true;
 
     bool firstFrame = true;
+    int m_samplerType = 0;
 
     ImVec2 viewportSize = { 0, 0 };
     ImVec2 viewportPos = { 0, 0 };
@@ -92,6 +93,8 @@ private:
 
     FileDialog m_saveDialog;
     FileDialog m_loadDialog;
+    FileDialog m_texBrowseDialog;
+    FileDialog m_modelBrowseDialog;
     bool showNewSceneConfirmation = false;
 
     bool renamingObject = false;

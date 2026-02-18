@@ -15,7 +15,7 @@ public:
         float metallic = 0.0f;
         float roughness = 0.5f;
         uint32_t hasBaseColorTexture = 0;
-        uint32_t padding = 0;
+        uint32_t samplerIndex = 0;
     };
 
 public:

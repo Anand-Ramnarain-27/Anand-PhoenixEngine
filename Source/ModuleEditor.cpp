@@ -1,5 +1,6 @@
 ﻿#include "Globals.h"
 #include "ModuleEditor.h"
+#include "ModuleSamplerHeap.h"
 #include "Application.h"
 #include "ModuleD3D12.h"
 
@@ -7,6 +8,8 @@
 #include "ModuleDSDescriptors.h"
 #include "ModuleRTDescriptors.h"
 
+#include "Model.h"
+#include "Material.h"
 #include "ModuleAssets.h"
 #include "RenderTexture.h"
 #include "DebugDrawPass.h"
@@ -26,6 +29,7 @@
 
 #include "ModuleCamera.h"
 #include "PrefabManager.h"
+#include "TextureImporter.h"
 
 #include <d3dx12.h>
 #include <filesystem>
@@ -187,8 +191,8 @@ void ModuleEditor::render()
     cmd->Reset(d3d12->getCommandAllocator(), nullptr);
     cmd->EndQuery(gpuQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
 
-    ID3D12DescriptorHeap* heaps[] = { descriptors->getHeap() };
-    cmd->SetDescriptorHeaps(1, heaps);
+    ID3D12DescriptorHeap* heaps[] = { descriptors->getHeap(), app->getSamplerHeap()->getHeap() };
+    cmd->SetDescriptorHeaps(2, heaps);
 
     if (showNewSceneConfirmation)
     {
@@ -268,6 +272,8 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
 
     cmd->SetPipelineState(meshPipeline->getPSO());
     cmd->SetGraphicsRootSignature(meshPipeline->getRootSig());
+
+    cmd->SetGraphicsRootDescriptorTable(5, app->getSamplerHeap()->getGPUHandle(ModuleSamplerHeap::Type(m_samplerType)));
 
     const EditorSceneSettings& s = sceneManager->getSettings();
     MeshPipeline::LightCB lightData = {};
@@ -1150,121 +1156,429 @@ void ModuleEditor::drawAssetBrowser()
 {
     ImGui::Begin("Asset Browser", &showAssetBrowser);
 
-    if (!ImGui::BeginTabBar("##ABTabs")) { ImGui::End(); return; }
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
+    ImGui::BeginChild("##ABToolbar", ImVec2(0, 32), false, ImGuiWindowFlags_NoScrollbar);
 
-    if (ImGui::BeginTabItem("Models"))
+    ImGui::SetCursorPosY(6);
+    ImGui::SetCursorPosX(6);
+
+    static int abFilter = 0; 
+    const char* filters[] = { "All", "Models", "Textures", "Scenes", "Prefabs" };
+    for (int i = 0; i < 5; i++)
     {
-        ImGui::SeparatorText("Import");
-        static char importBuf[256] = "Assets/Models/";
-        ImGui::SetNextItemWidth(-80);
-        ImGui::InputText("##imp", importBuf, sizeof(importBuf));
-        ImGui::SameLine();
-        if (ImGui::Button("Import"))
-        {
-            app->getAssets()->importAsset(importBuf);
-            log(("Imported: " + std::string(importBuf)).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
-        }
-
-        ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
-        ImGui::SeparatorText("Add to Scene");
-
-        static char addBuf[256] = "Assets/Models/Duck/duck.gltf";
-        ImGui::SetNextItemWidth(-1);
-        ImGui::InputText("##addmodel", addBuf, sizeof(addBuf));
-        if (ImGui::Button("Add to Scene", ImVec2(-1, 0)))
-        {
-            IScene* active = sceneManager ? sceneManager->getActiveScene() : nullptr;
-            ModuleScene* scene = active ? active->getModuleScene() : nullptr;
-            if (scene)
-            {
-                std::string path(addBuf);
-                std::string name = std::filesystem::path(path).stem().string();
-                GameObject* go = scene->createGameObject(name);
-                ComponentMesh* m = go->createComponent<ComponentMesh>();
-                if (m->loadModel(addBuf))
-                    log(("Added " + name).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
-                else
-                    log(("Failed: " + std::string(addBuf)).c_str(), ImVec4(1, 0.4f, 0.4f, 1));
-            }
-        }
-        ImGui::EndTabItem();
+        bool active = (abFilter == i);
+        if (active) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.26f, 0.59f, 0.98f, 1.0f));
+        else        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.22f, 0.22f, 0.22f, 1.0f));
+        if (ImGui::Button(filters[i], ImVec2(60, 20))) abFilter = i;
+        ImGui::PopStyleColor();
+        ImGui::SameLine(0, 2);
     }
 
-    if (ImGui::BeginTabItem("Scenes"))
+    ImGui::EndChild();
+    ImGui::PopStyleColor();
+
+    ImGui::Separator();
+
+    float panelWidth = 180.0f;
+    float contentWidth = ImGui::GetContentRegionAvail().x - panelWidth - 6.0f;
+    float actionBarHeight = 20.0f;
+    float panelHeight = ImGui::GetContentRegionAvail().y - actionBarHeight - 8.0f;
+
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.13f, 0.13f, 0.13f, 1.0f));
+    ImGui::BeginChild("##ABLeft", ImVec2(panelWidth, panelHeight), false);
+
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+    ImGui::SetCursorPosX(8); ImGui::Text("IMPORT");
+    ImGui::PopStyleColor();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    static char importModelBuf[256] = "Assets/Models/";
+    ImGui::SetNextItemWidth(panelWidth - 16);
+    ImGui::SetCursorPosX(8);
+    ImGui::InputText("##impModel", importModelBuf, sizeof(importModelBuf));
+
+    ImGui::SetCursorPosX(8);
+    if (ImGui::Button("Browse##model", ImVec2((panelWidth - 20) * 0.5f, 0)))
+        m_modelBrowseDialog.open(FileDialog::Type::Open, "Select Model", "Assets/Models");
+    ImGui::SameLine(0, 4);
+    if (ImGui::Button("Import##model", ImVec2((panelWidth - 20) * 0.5f, 0)))
     {
-        std::string scenesPath = app->getFileSystem()->GetLibraryPath() + "Scenes/";
-        ImGui::SeparatorText("Saved Scenes");
-
-        try
+        if (strlen(importModelBuf) > 0)
         {
-            bool found = false;
-            auto files = app->getFileSystem()->GetFilesInDirectory(scenesPath.c_str(), ".json");
-            for (const auto& fpath : files)
+            app->getAssets()->importAsset(importModelBuf);
+            log(("Imported model: " + std::string(importModelBuf)).c_str(),
+                ImVec4(0.6f, 1, 0.6f, 1));
+        }
+    }
+
+    if (m_modelBrowseDialog.draw())
+        strncpy_s(importModelBuf, m_modelBrowseDialog.getSelectedPath().c_str(),
+            sizeof(importModelBuf) - 1);
+
+    if (abFilter == 0 || abFilter == 2)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
+        ImGui::SetCursorPosX(8); ImGui::Text("Texture (.png/.dds)");
+        ImGui::PopStyleColor();
+
+        static char importTexBuf[256] = "Assets/Textures/";
+        ImGui::SetNextItemWidth(panelWidth - 16);
+        ImGui::SetCursorPosX(8);
+        ImGui::InputText("##impTex", importTexBuf, sizeof(importTexBuf));
+
+        ImGui::SetCursorPosX(8);
+        if (ImGui::Button("Browse##tex", ImVec2((panelWidth - 20) * 0.5f, 0)))
+            m_texBrowseDialog.open(FileDialog::Type::Open, "Select Texture", "Assets/Textures");
+        ImGui::SameLine(0, 4);
+        if (ImGui::Button("Import##tex", ImVec2((panelWidth - 20) * 0.5f, 0)))
+        {
+            if (strlen(importTexBuf) > 0)
             {
-                std::string fname = std::filesystem::path(fpath).filename().string();
-                found = true;
-                ImGui::PushID(fname.c_str());
+                std::string name = TextureImporter::GetTextureName(importTexBuf);
+                std::string outDir = app->getFileSystem()->GetLibraryPath() + "Textures/";
+                std::string outPath = outDir + name + ".dds";
+                app->getFileSystem()->CreateDir(outDir.c_str());
 
-                bool sel = false;
-                if (ImGui::Selectable(fname.c_str(), &sel,ImGuiSelectableFlags_AllowDoubleClick))
-                {
-                    if (ImGui::IsMouseDoubleClicked(0)
-                        && sceneManager && sceneManager->getActiveScene())
-                    {
-                        if (sceneManager->loadScene(fpath))
-                            log(("Loaded: " + fname).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
-                    }
-                }if (ImGui::BeginPopupContextItem())
-                    {
-                    if (ImGui::MenuItem("Load") && sceneManager && sceneManager->getActiveScene())
-                        sceneManager->loadScene(fpath);
-                    if (ImGui::MenuItem("Delete")) { app->getFileSystem()->Delete(fpath.c_str()); }
-                    ImGui::EndPopup();
-                }
-                ImGui::PopID();
+                if (TextureImporter::Import(importTexBuf, outPath))
+                    log(("Texture imported: " + name).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
+                else
+                    log(("Failed: " + std::string(importTexBuf)).c_str(), ImVec4(1, 0.4f, 0.4f, 1));
             }
-            if (!found) ImGui::TextDisabled("No scenes saved yet.");
-        }
-        catch (const std::exception& ex)
-        {
-            ImGui::TextColored(ImVec4(1, 0, 0, 1), "%s", ex.what());
         }
 
-        ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
-        if (ImGui::Button("Quick Save", ImVec2(-1, 0)))
+        if (m_texBrowseDialog.draw())
+            strncpy_s(importTexBuf, m_texBrowseDialog.getSelectedPath().c_str(), sizeof(importTexBuf) - 1);
+
+        ImGui::Spacing();
+    }
+
+    if (abFilter == 0 || abFilter == 3)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
+        ImGui::SetCursorPosX(8); ImGui::Text("Scene");
+        ImGui::PopStyleColor();
+
+        ImGui::SetCursorPosX(8);
+        if (ImGui::Button("Quick Save Scene", ImVec2(panelWidth - 16, 0)))
         {
             std::string p = "Library/Scenes/current_scene.json";
             if (sceneManager && sceneManager->saveCurrentScene(p))
-                log(("Saved to " + p).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
+                log(("Saved: " + p).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
         }
-        ImGui::EndTabItem();
+        ImGui::SetCursorPosX(8);
+        if (ImGui::Button("Save As...", ImVec2(panelWidth - 16, 0)))
+            m_saveDialog.open(FileDialog::Type::Save, "Save Scene", "Library/Scenes");
+        ImGui::SetCursorPosX(8);
+        if (ImGui::Button("Load Scene...", ImVec2(panelWidth - 16, 0)))
+            m_loadDialog.open(FileDialog::Type::Open, "Load Scene", "Library/Scenes");
+        ImGui::Spacing();
     }
 
-    if (ImGui::BeginTabItem("Prefabs"))
+    ImGui::EndChild();
+    ImGui::PopStyleColor();
+
+    ImGui::SameLine(0, 6);
+
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.11f, 0.11f, 0.11f, 1.0f));
+    ImGui::BeginChild("##ABRight", ImVec2(contentWidth, panelHeight), false);
+
+    ImGui::Spacing();
+    static char searchBuf[128] = "";
+    ImGui::SetNextItemWidth(-1);
+    ImGui::InputTextWithHint("##absearch", "Search...", searchBuf, sizeof(searchBuf));
+    ImGui::Separator();
+
+    std::string search(searchBuf);
+    std::transform(search.begin(), search.end(), search.begin(), ::tolower);
+
+    static int selectedAsset = -1;
+    static std::string selectedAssetPath = "";
+    static std::string selectedAssetType = "";
+    int assetIdx = 0;
+
+    auto drawAssetRow = [&](const std::string& path, const std::string& icon,
+        const std::string& type, const std::string& extra = "") -> bool
+        {
+            std::string fname = std::filesystem::path(path).filename().string();
+            std::string fnameLower = fname;
+            std::transform(fnameLower.begin(), fnameLower.end(), fnameLower.begin(), ::tolower);
+
+            if (!search.empty() && fnameLower.find(search) == std::string::npos)
+            {
+                ++assetIdx;
+                return false;
+            }
+
+            bool selected = (selectedAsset == assetIdx);
+            ImGui::PushID(assetIdx);
+
+            ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.26f, 0.59f, 0.98f, 0.4f));
+            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.26f, 0.59f, 0.98f, 0.25f));
+
+            bool clicked = ImGui::Selectable("##row", selected,
+                ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick,
+                ImVec2(0, 20));
+
+            if (clicked)
+            {
+                selectedAsset = assetIdx;
+                selectedAssetPath = path;
+                selectedAssetType = type;
+            }
+
+            ImGui::PopStyleColor(2);
+
+            ImGui::SameLine(8);
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.85f, 1.0f, 1.0f));
+            ImGui::Text("%s", icon.c_str());
+            ImGui::PopStyleColor();
+            ImGui::SameLine(36);
+            ImGui::Text("%s", fname.c_str());
+            if (!extra.empty())
+            {
+                ImGui::SameLine();
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.45f, 0.45f, 0.45f, 1.0f));
+                ImGui::Text("  %s", extra.c_str());
+                ImGui::PopStyleColor();
+            }
+
+            ImGui::PopID();
+            ++assetIdx;
+            return clicked;
+        };
+
+    if (abFilter == 0 || abFilter == 1)
     {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+        ImGui::Text("  MODELS"); ImGui::PopStyleColor();
+        ImGui::Separator();
+
+        std::string modPath = app->getFileSystem()->GetLibraryPath() + "Meshes/";
+        bool anyModel = false;
+
+        try
+        {
+            for (const auto& entry : std::filesystem::directory_iterator(modPath))
+            {
+                if (!entry.is_directory()) continue;
+                std::string sceneName = entry.path().filename().string();
+                drawAssetRow(entry.path().string(), "[M]", "model", sceneName);
+                anyModel = true;
+            }
+        }
+        catch (...) {}
+
+        if (!anyModel)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
+            ImGui::Text("    No models imported yet.");
+            ImGui::PopStyleColor();
+        }
+        ImGui::Spacing();
+    }
+
+    if (abFilter == 0 || abFilter == 2)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+        ImGui::Text("  TEXTURES"); ImGui::PopStyleColor();
+        ImGui::Separator();
+
+        std::string texPath = app->getFileSystem()->GetLibraryPath() + "Textures/";
+        auto texFiles = app->getFileSystem()->GetFilesInDirectory(texPath.c_str(), ".dds");
+
+        if (texFiles.empty())
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
+            ImGui::Text("    No textures imported yet.");
+            ImGui::PopStyleColor();
+        }
+        else
+        {
+            for (const auto& f : texFiles)
+                drawAssetRow(f, "[T]", "texture");
+        }
+        ImGui::Spacing();
+    }
+
+    if (abFilter == 0 || abFilter == 3)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+        ImGui::Text("  SCENES"); ImGui::PopStyleColor();
+        ImGui::Separator();
+
+        std::string scenePath = app->getFileSystem()->GetLibraryPath() + "Scenes/";
+        auto sceneFiles = app->getFileSystem()->GetFilesInDirectory(scenePath.c_str(), ".json");
+
+        if (sceneFiles.empty())
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
+            ImGui::Text("    No scenes saved yet.");
+            ImGui::PopStyleColor();
+        }
+        else
+        {
+            for (const auto& f : sceneFiles)
+            {
+                bool dbl = drawAssetRow(f, "[S]", "scene");
+                if (dbl && ImGui::IsMouseDoubleClicked(0) && sceneManager)
+                {
+                    if (sceneManager->loadScene(f))
+                        log(("Loaded scene: " + f).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
+                }
+
+                if (ImGui::BeginPopupContextItem(("##sc" + f).c_str()))
+                {
+                    if (ImGui::MenuItem("Load") && sceneManager)
+                        sceneManager->loadScene(f);
+                    if (ImGui::MenuItem("Delete"))
+                        app->getFileSystem()->Delete(f.c_str());
+                    ImGui::EndPopup();
+                }
+            }
+        }
+        ImGui::Spacing();
+    }
+
+    if (abFilter == 0 || abFilter == 4)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+        ImGui::Text("  PREFABS"); ImGui::PopStyleColor();
+        ImGui::Separator();
+
         auto prefabs = PrefabManager::listPrefabs();
         if (prefabs.empty())
         {
-            ImGui::TextDisabled("No prefabs yet. Create from the Inspector.");
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
+            ImGui::Text("    No prefabs yet.");
+            ImGui::PopStyleColor();
         }
         else
         {
             for (const auto& name : prefabs)
-            {
-                ImGui::PushID(name.c_str());
-                if (ImGui::Selectable(name.c_str()))
-                {
-                    IScene* active = sceneManager ? sceneManager->getActiveScene() : nullptr;
-                    ModuleScene* scene = active ? active->getModuleScene() : nullptr;
-                    if (scene) PrefabManager::instantiatePrefab(name, scene);
-                }
-                ImGui::PopID();
-            }
+                drawAssetRow(name, "[P]", "prefab");
         }
-        ImGui::EndTabItem();
+        ImGui::Spacing();
     }
 
-    ImGui::EndTabBar();
+    ImGui::EndChild();
+    ImGui::PopStyleColor();
+
+    ImGui::Separator();
+
+    bool hasSelection = !selectedAssetPath.empty();
+
+    if (hasSelection)
+    {
+        std::string fname = std::filesystem::path(selectedAssetPath).filename().string();
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.85f, 1.0f, 1.0f));
+        ImGui::Text("Selected: %s", fname.c_str());
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+    }
+    else
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
+        ImGui::Text("No asset selected");
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+    }
+
+    float btnX = ImGui::GetContentRegionAvail().x;
+
+    if (!hasSelection) ImGui::BeginDisabled();
+
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + btnX - 220);
+
+    if (ImGui::Button("Add to Scene", ImVec2(110, 0)) && hasSelection)
+    {
+        IScene* active = sceneManager ? sceneManager->getActiveScene() : nullptr;
+        ModuleScene* scene = active ? active->getModuleScene() : nullptr;
+
+        if (scene)
+        {
+            if (selectedAssetType == "model")
+            {
+                std::string sceneName = std::filesystem::path(selectedAssetPath).filename().string();
+                std::string gltfPath = "Assets/Models/" + sceneName + "/" + sceneName + ".gltf";
+
+                GameObject* go = scene->createGameObject(sceneName);
+                ComponentMesh* m = go->createComponent<ComponentMesh>();
+
+                if (m->loadModel(gltfPath.c_str()))
+                    log(("Added model: " + sceneName).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
+                else
+                    log(("Failed to load model: " + gltfPath).c_str(), ImVec4(1, 0.4f, 0.4f, 1));
+
+                selectedGameObject = go;
+            }
+            else if (selectedAssetType == "texture")
+            {
+                ComPtr<ID3D12Resource> texture;
+                D3D12_GPU_DESCRIPTOR_HANDLE srv;
+
+                if (!TextureImporter::Load(selectedAssetPath, texture, srv))
+                {
+                    log("Failed to load texture from disk.", ImVec4(1, 0.4f, 0.4f, 1));
+                }
+                else
+                {
+                    if (selectedGameObject)
+                    {
+                        ComponentMesh* existingMesh = selectedGameObject->getComponent<ComponentMesh>();
+                        if (existingMesh && existingMesh->getModel())
+                        {
+                            for (auto& mat : existingMesh->getModel()->getMaterials())
+                                mat->setBaseColorTexture(texture, srv);
+
+                            existingMesh->rebuildMaterialBuffers();
+
+                            log(("Applied texture to: " + selectedGameObject->getName()).c_str(),
+                                ImVec4(0.6f, 1, 0.6f, 1));
+                        }
+                        else
+                        {
+                            log("Selected GameObject has no loaded mesh. Load a model first.",
+                                ImVec4(1, 0.7f, 0.3f, 1));
+                        }
+                    }
+                    else
+                    {
+                        log("Select a GameObject with a Mesh in the Hierarchy, then click Add to Scene.",
+                            ImVec4(1, 0.7f, 0.3f, 1));
+                    }
+                }
+            }
+            else if (selectedAssetType == "scene")
+            {
+                if (sceneManager->loadScene(selectedAssetPath))
+                    log(("Loaded scene: " + selectedAssetPath).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
+            }
+            else if (selectedAssetType == "prefab")
+            {
+                PrefabManager::instantiatePrefab(
+                    std::filesystem::path(selectedAssetPath).stem().string(), scene);
+                log(("Instantiated prefab: " + selectedAssetPath).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
+            }
+        }
+    }
+
+    ImGui::SameLine(0, 4);
+
+    if (ImGui::Button("Delete", ImVec2(100, 0)) && hasSelection)
+    {
+        if (selectedAssetType == "scene" || selectedAssetType == "texture")
+        {
+            app->getFileSystem()->Delete(selectedAssetPath.c_str());
+            log(("Deleted: " + selectedAssetPath).c_str(), ImVec4(1, 0.6f, 0.4f, 1));
+            selectedAsset = -1;
+            selectedAssetPath = "";
+            selectedAssetType = "";
+        }
+    }
+
+    if (!hasSelection) ImGui::EndDisabled();
+
     ImGui::End();
 }
 
@@ -1283,6 +1597,10 @@ void ModuleEditor::drawSceneSettings()
     {
         ImGui::Checkbox("Show Grid", &s.showGrid);
         ImGui::Checkbox("Show Axis", &s.showAxis);
+        ImGui::Separator();
+        ImGui::Text("Texture Sampler");
+        ImGui::Combo("##sampler", &m_samplerType,
+            "Linear/Wrap\0Point/Wrap\0Linear/Clamp\0Point/Clamp\0");
     }
 
     if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen))

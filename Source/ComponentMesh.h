@@ -24,6 +24,7 @@ public:
     void onLoad(const std::string& json) override;
     Type getType() const override { return Type::Mesh; }
 
+    void rebuildMaterialBuffers();
 private:
     std::shared_ptr<Model> m_model;
     std::vector<ComPtr<ID3D12Resource>> m_materialBuffers;

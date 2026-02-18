@@ -141,3 +141,34 @@ void ComponentMesh::onLoad(const std::string& jsonStr)
         loadModel(modelPath.c_str());
     }
 }
+
+void ComponentMesh::rebuildMaterialBuffers()
+{
+    if (!m_model) return;
+
+    const auto& materials = m_model->getMaterials();
+    m_materialBuffers.clear();
+
+    for (const auto& material : materials)
+    {
+        const auto& materialData = material->getData();
+
+        auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer(
+            (sizeof(Material::Data) + 255) & ~255);
+
+        ComPtr<ID3D12Resource> buffer;
+        app->getD3D12()->getDevice()->CreateCommittedResource(
+            &heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc,
+            D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+            IID_PPV_ARGS(&buffer));
+
+        void* mapped = nullptr;
+        buffer->Map(0, nullptr, &mapped);
+        memcpy(mapped, &materialData, sizeof(Material::Data));
+        buffer->Unmap(0, nullptr);
+        buffer->SetName(L"MaterialCB");
+
+        m_materialBuffers.push_back(buffer);
+    }
+}
