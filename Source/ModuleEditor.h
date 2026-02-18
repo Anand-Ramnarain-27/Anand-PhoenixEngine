@@ -131,4 +131,6 @@ private:
         GameObject* parent = nullptr);
 
     static bool isChildOf(const GameObject* root, const GameObject* needle);
+
+    void debugDrawLights(ModuleScene* scene, float lightSize);
 };

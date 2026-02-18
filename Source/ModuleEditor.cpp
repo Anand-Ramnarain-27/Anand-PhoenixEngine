@@ -355,6 +355,9 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
         dd::axisTriad(id.m[0], 0.0f, 2.0f, 2.0f);
     }
 
+    if (s.debugDrawLights && moduleScene)
+        debugDrawLights(moduleScene, s.debugLightSize);
+
     debugDrawPass->record(cmd, width, height, view, proj);
     END_EVENT(cmd);
     viewportRT->endRender(cmd);
@@ -1398,4 +1401,104 @@ bool ModuleEditor::isChildOf(const GameObject* root, const GameObject* needle)
     for (const GameObject* child : root->getChildren())
         if (isChildOf(child, needle)) return true;
     return false;
+}
+
+void ModuleEditor::debugDrawLights(ModuleScene* scene, float lightSize)
+{
+    if (!scene) return;
+
+    // Helper to convert Vector3 to const float* for debug draw
+    auto v = [](const Vector3& vec) -> const float* { return &vec.x; };
+
+    std::function<void(GameObject*)> visit = [&](GameObject* node)
+        {
+            if (!node || !node->isActive()) return;
+
+            if (auto* dl = node->getComponent<ComponentDirectionalLight>())
+            {
+                if (dl->enabled)
+                {
+                    Vector3 pos = node->getTransform()->getGlobalMatrix().Translation();
+                    Vector3 dir = dl->direction;
+                    dir.Normalize();
+                    Vector3 end = pos + dir * lightSize * 2.0f;
+
+                    dd::line(v(pos), v(end), dd::colors::Yellow);
+
+                    float hs = lightSize * 0.2f;
+                    dd::line(v(pos + Vector3(-hs, 0, 0)), v(pos + Vector3(hs, 0, 0)), dd::colors::Yellow);
+                    dd::line(v(pos + Vector3(0, -hs, 0)), v(pos + Vector3(0, hs, 0)), dd::colors::Yellow);
+                    dd::line(v(pos + Vector3(0, 0, -hs)), v(pos + Vector3(0, 0, hs)), dd::colors::Yellow);
+                }
+            }
+
+            if (auto* pl = node->getComponent<ComponentPointLight>())
+            {
+                if (pl->enabled)
+                {
+                    Vector3 pos = node->getTransform()->getGlobalMatrix().Translation();
+
+                    dd::sphere(v(pos), dd::colors::Cyan, pl->radius);
+
+                    float hs = lightSize * 0.2f;
+                    dd::line(v(pos + Vector3(-hs, 0, 0)), v(pos + Vector3(hs, 0, 0)), dd::colors::Cyan);
+                    dd::line(v(pos + Vector3(0, -hs, 0)), v(pos + Vector3(0, hs, 0)), dd::colors::Cyan);
+                    dd::line(v(pos + Vector3(0, 0, -hs)), v(pos + Vector3(0, 0, hs)), dd::colors::Cyan);
+                }
+            }
+
+            if (auto* sl = node->getComponent<ComponentSpotLight>())
+            {
+                if (sl->enabled)
+                {
+                    Vector3 pos = node->getTransform()->getGlobalMatrix().Translation();
+                    Vector3 dir = sl->direction;
+                    dir.Normalize();
+
+                    float outerRad = tanf(sl->outerAngle * 0.0174532925f) * sl->radius;
+                    float innerRad = tanf(sl->innerAngle * 0.0174532925f) * sl->radius;
+                    Vector3 tip = pos + dir * sl->radius;
+
+                    Vector3 up = (fabsf(dir.y) < 0.99f) ? Vector3(0, 1, 0) : Vector3(1, 0, 0);
+                    Vector3 right = dir.Cross(up); right.Normalize();
+                    up = right.Cross(dir); up.Normalize();
+
+                    const int segs = 8;
+                    for (int i = 0; i < segs; ++i)
+                    {
+                        float a0 = (float)i / segs * 6.28318530f;
+                        float a1 = (float)(i + 1) / segs * 6.28318530f;
+
+                        Vector3 p0 = tip + (right * cosf(a0) + up * sinf(a0)) * outerRad;
+                        Vector3 p1 = tip + (right * cosf(a1) + up * sinf(a1)) * outerRad;
+
+                        dd::line(v(pos), v(p0), dd::colors::Orange);
+                        dd::line(v(p0), v(p1), dd::colors::Orange);
+                    }
+
+                    for (int i = 0; i < segs; ++i)
+                    {
+                        float a0 = (float)i / segs * 6.28318530f;
+                        float a1 = (float)(i + 1) / segs * 6.28318530f;
+
+                        Vector3 p0 = tip + (right * cosf(a0) + up * sinf(a0)) * innerRad;
+                        Vector3 p1 = tip + (right * cosf(a1) + up * sinf(a1)) * innerRad;
+
+                        dd::line(v(p0), v(p1), dd::colors::Yellow);
+                    }
+
+                    dd::line(v(pos), v(tip), dd::colors::Orange);
+
+                    float hs = lightSize * 0.2f;
+                    dd::line(v(pos + Vector3(-hs, 0, 0)), v(pos + Vector3(hs, 0, 0)), dd::colors::Orange);
+                    dd::line(v(pos + Vector3(0, -hs, 0)), v(pos + Vector3(0, hs, 0)), dd::colors::Orange);
+                    dd::line(v(pos + Vector3(0, 0, -hs)), v(pos + Vector3(0, 0, hs)), dd::colors::Orange);
+                }
+            }
+
+            for (auto* child : node->getChildren())
+                visit(child);
+        };
+
+    visit(scene->getRoot());
 }
