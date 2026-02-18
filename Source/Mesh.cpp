@@ -15,18 +15,15 @@ void Mesh::setData(const std::vector<Vertex>& vertices, const std::vector<uint32
     m_vertices = vertices;
     m_indices = indices;
     m_materialIndex = materialIndex;
-
     createBuffers();
 }
 
 void Mesh::createBuffers()
 {
     ModuleResources* resources = app->getResources();
-    if (!resources || m_vertices.empty())
-        return;
+    if (!resources || m_vertices.empty()) return;
 
     m_vertexBuffer = resources->createDefaultBuffer(m_vertices.data(), m_vertices.size() * sizeof(Vertex), "MeshVB");
-
     if (m_vertexBuffer)
     {
         m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
@@ -34,23 +31,20 @@ void Mesh::createBuffers()
         m_vertexBufferView.SizeInBytes = (UINT)(m_vertices.size() * sizeof(Vertex));
     }
 
-    if (!m_indices.empty())
-    {
-        m_indexBuffer = resources->createDefaultBuffer(m_indices.data(), m_indices.size() * sizeof(uint32_t), "MeshIB");
+    if (m_indices.empty()) return;
 
-        if (m_indexBuffer)
-        {
-            m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();
-            m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;
-            m_indexBufferView.SizeInBytes = (UINT)(m_indices.size() * sizeof(uint32_t));
-        }
+    m_indexBuffer = resources->createDefaultBuffer(m_indices.data(), m_indices.size() * sizeof(uint32_t), "MeshIB");
+    if (m_indexBuffer)
+    {
+        m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();
+        m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+        m_indexBufferView.SizeInBytes = (UINT)(m_indices.size() * sizeof(uint32_t));
     }
 }
 
 void Mesh::draw(ID3D12GraphicsCommandList* cmdList) const
 {
-    if (!m_vertexBuffer)
-        return;
+    if (!m_vertexBuffer) return;
 
     cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     cmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
