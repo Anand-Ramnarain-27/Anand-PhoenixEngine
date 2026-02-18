@@ -27,6 +27,7 @@
 #include "ComponentSpotLight.h"
 #include "ComponentFactory.h"
 
+#include "PrimitiveFactory.h"
 #include "ModuleCamera.h"
 #include "PrefabManager.h"
 #include "TextureImporter.h"
@@ -1514,38 +1515,67 @@ void ModuleEditor::drawAssetBrowser()
             }
             else if (selectedAssetType == "texture")
             {
-                ComPtr<ID3D12Resource> texture;
-                D3D12_GPU_DESCRIPTOR_HANDLE srv;
+                IScene* active = sceneManager ? sceneManager->getActiveScene() : nullptr;
+                ModuleScene* scene = active ? active->getModuleScene() : nullptr;
 
-                if (!TextureImporter::Load(selectedAssetPath, texture, srv))
+                if (!scene)
                 {
-                    log("Failed to load texture from disk.", ImVec4(1, 0.4f, 0.4f, 1));
+                    log("No active scene.", ImVec4(1, 0.4f, 0.4f, 1));
                 }
                 else
                 {
-                    if (selectedGameObject)
+                    if (m_pendingTexturePath != selectedAssetPath)
                     {
-                        ComponentMesh* existingMesh = selectedGameObject->getComponent<ComponentMesh>();
-                        if (existingMesh && existingMesh->getModel())
+                        m_pendingTexture.Reset();
+                        if (TextureImporter::Load(selectedAssetPath,
+                            m_pendingTexture, m_pendingTextureSRV))
                         {
-                            for (auto& mat : existingMesh->getModel()->getMaterials())
-                                mat->setBaseColorTexture(texture, srv);
-
-                            existingMesh->rebuildMaterialBuffers();
-
-                            log(("Applied texture to: " + selectedGameObject->getName()).c_str(),
-                                ImVec4(0.6f, 1, 0.6f, 1));
+                            m_pendingTexturePath = selectedAssetPath;
                         }
                         else
                         {
-                            log("Selected GameObject has no loaded mesh. Load a model first.",
-                                ImVec4(1, 0.7f, 0.3f, 1));
+                            log("Failed to load texture.", ImVec4(1, 0.4f, 0.4f, 1));
+                            m_pendingTexturePath.clear();
                         }
                     }
-                    else
+
+                    if (m_pendingTexture)
                     {
-                        log("Select a GameObject with a Mesh in the Hierarchy, then click Add to Scene.",
-                            ImVec4(1, 0.7f, 0.3f, 1));
+                        std::string texName =
+                            std::filesystem::path(selectedAssetPath).stem().string();
+
+                        if (selectedGameObject)
+                        {
+                            ComponentMesh* existingMesh =
+                                selectedGameObject->getComponent<ComponentMesh>();
+
+                            if (existingMesh && existingMesh->getModel())
+                            {
+                                for (auto& mat : existingMesh->getModel()->getMaterials())
+                                    mat->setBaseColorTexture(m_pendingTexture, m_pendingTextureSRV);
+                                existingMesh->rebuildMaterialBuffers();
+                                log(("Applied texture to: " + selectedGameObject->getName()).c_str(),
+                                    ImVec4(0.6f, 1, 0.6f, 1));
+                            }
+                            else
+                            {
+                                if (!existingMesh)
+                                    existingMesh = selectedGameObject->createComponent<ComponentMesh>();
+
+                                existingMesh->setModel(PrimitiveFactory::createTexturedQuad(
+                                    m_pendingTexture, m_pendingTextureSRV));
+                                existingMesh->rebuildMaterialBuffers();
+                                log(("Created quad on: " + selectedGameObject->getName()).c_str(),
+                                    ImVec4(0.6f, 1, 0.6f, 1));
+                            }
+                        }
+                        else
+                        {
+                            selectedGameObject = PrimitiveFactory::createTexturedQuadObject(
+                                scene, texName, m_pendingTexture, m_pendingTextureSRV);
+                            log(("Added image to scene: " + texName).c_str(),
+                                ImVec4(0.6f, 1, 0.6f, 1));
+                        }
                     }
                 }
             }

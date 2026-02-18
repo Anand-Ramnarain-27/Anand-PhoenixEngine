@@ -164,6 +164,7 @@
     <ClCompile Include="ComponentSpotLight.cpp">
       <Filter>engine\scene\components</Filter>
     </ClCompile>
+    <ClCompile Include="PrimitiveFactory.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -369,6 +370,7 @@
     <ClInclude Include="EditorSceneSettings.h">
       <Filter>engine\scene</Filter>
     </ClInclude>
+    <ClInclude Include="PrimitiveFactory.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

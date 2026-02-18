@@ -172,3 +172,10 @@ void ComponentMesh::rebuildMaterialBuffers()
         m_materialBuffers.push_back(buffer);
     }
 }
+
+void ComponentMesh::setModel(std::unique_ptr<Model> model)
+{
+    m_model = std::shared_ptr<Model>(std::move(model));
+    m_modelFilePath = "";
+    rebuildMaterialBuffers();
+}

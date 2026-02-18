@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Component.h"
+#include "Material.h" 
+#include "Model.h"
 #include <memory>
 #include <vector>
 #include <string>
@@ -25,6 +27,7 @@ public:
     Type getType() const override { return Type::Mesh; }
 
     void rebuildMaterialBuffers();
+    void setModel(std::unique_ptr<Model> model);
 private:
     std::shared_ptr<Model> m_model;
     std::vector<ComPtr<ID3D12Resource>> m_materialBuffers;

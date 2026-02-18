@@ -91,6 +91,10 @@ private:
     ComPtr<ID3D12Resource> objectConstantBuffer;
     ComPtr<ID3D12Resource> lightConstantBuffer;
 
+    ComPtr<ID3D12Resource> m_pendingTexture;
+    D3D12_GPU_DESCRIPTOR_HANDLE m_pendingTextureSRV = {};
+    std::string m_pendingTexturePath;
+
     FileDialog m_saveDialog;
     FileDialog m_loadDialog;
     FileDialog m_texBrowseDialog;
