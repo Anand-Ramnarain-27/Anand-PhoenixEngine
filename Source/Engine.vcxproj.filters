@@ -164,7 +164,9 @@
     <ClCompile Include="ComponentSpotLight.cpp">
       <Filter>engine\scene\components</Filter>
     </ClCompile>
-    <ClCompile Include="PrimitiveFactory.cpp" />
+    <ClCompile Include="PrimitiveFactory.cpp">
+      <Filter>engine\scene\primitives</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -370,7 +372,9 @@
     <ClInclude Include="EditorSceneSettings.h">
       <Filter>engine\scene</Filter>
     </ClInclude>
-    <ClInclude Include="PrimitiveFactory.h" />
+    <ClInclude Include="PrimitiveFactory.h">
+      <Filter>engine\scene\primitives</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -488,6 +492,9 @@
     </Filter>
     <Filter Include="engine\graphics\pipelines">
       <UniqueIdentifier>{fe89f5bf-e90d-4a2b-a9f7-49d627cde80e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\scene\primitives">
+      <UniqueIdentifier>{bb64cc50-9643-4435-9ef0-678aab9d9034}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
