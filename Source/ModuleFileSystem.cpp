@@ -148,4 +148,18 @@ bool ModuleFileSystem::Copy(const char* source, const char* destination)
     }
 }
 
+std::vector<std::string> ModuleFileSystem::GetFilesInDirectory(const char* path, const char* ext) const
+{
+    std::vector<std::string> results;
+    if (!fs::exists(path)) return results;
+
+    for (const auto& entry : fs::directory_iterator(path))
+    {
+        if (!entry.is_regular_file()) continue;
+        if (ext && entry.path().extension() != ext) continue;
+        results.push_back(entry.path().string());
+    }
+    return results;
+}
+
 

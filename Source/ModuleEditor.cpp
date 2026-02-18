@@ -1197,39 +1197,31 @@ void ModuleEditor::drawAssetBrowser()
 
         try
         {
-            namespace fs = std::filesystem;
             bool found = false;
-            if (fs::exists(scenesPath))
+            auto files = app->getFileSystem()->GetFilesInDirectory(scenesPath.c_str(), ".json");
+            for (const auto& fpath : files)
             {
-                for (const auto& e : fs::directory_iterator(scenesPath))
+                std::string fname = std::filesystem::path(fpath).filename().string();
+                found = true;
+                ImGui::PushID(fname.c_str());
+
+                bool sel = false;
+                if (ImGui::Selectable(fname.c_str(), &sel,ImGuiSelectableFlags_AllowDoubleClick))
                 {
-                    if (!e.is_regular_file() || e.path().extension() != ".json") continue;
-                    found = true;
-
-                    std::string fname = e.path().filename().string();
-                    std::string fpath = e.path().string();
-                    ImGui::PushID(fname.c_str());
-
-                    bool sel = false;
-                    if (ImGui::Selectable(fname.c_str(), &sel,
-                        ImGuiSelectableFlags_AllowDoubleClick))
+                    if (ImGui::IsMouseDoubleClicked(0)
+                        && sceneManager && sceneManager->getActiveScene())
                     {
-                        if (ImGui::IsMouseDoubleClicked(0)
-                            && sceneManager && sceneManager->getActiveScene())
-                        {
-                            if (sceneManager->loadScene(fpath))
-                                log(("Loaded: " + fname).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
-                        }
+                        if (sceneManager->loadScene(fpath))
+                            log(("Loaded: " + fname).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
                     }
-                    if (ImGui::BeginPopupContextItem())
+                }if (ImGui::BeginPopupContextItem())
                     {
-                        if (ImGui::MenuItem("Load") && sceneManager && sceneManager->getActiveScene())
-                            sceneManager->loadScene(fpath);
-                        if (ImGui::MenuItem("Delete")) { fs::remove(e.path()); }
-                        ImGui::EndPopup();
-                    }
-                    ImGui::PopID();
+                    if (ImGui::MenuItem("Load") && sceneManager && sceneManager->getActiveScene())
+                        sceneManager->loadScene(fpath);
+                    if (ImGui::MenuItem("Delete")) { app->getFileSystem()->Delete(fpath.c_str()); }
+                    ImGui::EndPopup();
                 }
+                ImGui::PopID();
             }
             if (!found) ImGui::TextDisabled("No scenes saved yet.");
         }

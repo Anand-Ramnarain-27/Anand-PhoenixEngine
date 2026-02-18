@@ -22,13 +22,12 @@ public:
 
     bool Copy(const char* source_file_path, const char* destination_file_path);
     bool Delete(const char* file_path);
-    bool CreateDirectory(const char* directory_path);
     bool Exists(const char* file_path) const;
     bool IsDirectory(const char* directory_path) const;
 
-
     const std::string& GetAssetsPath() const;
     const std::string& GetLibraryPath() const;
+    std::vector<std::string> GetFilesInDirectory(const char* path, const char* extension = nullptr) const;
 private:
     void CreateProjectDirectories();
 

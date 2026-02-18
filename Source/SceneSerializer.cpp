@@ -126,20 +126,12 @@ bool SceneSerializer::SaveScene(const ModuleScene* scene, const std::string& fil
         sceneObj.AddMember("GameObjects", gameObjectsArray, allocator);
         doc.AddMember("Scene", sceneObj, allocator);
 
-        FILE* fp = fopen(filePath.c_str(), "wb");
-        if (!fp) {
-            LOG("SceneSerializer: Failed to open file for writing: %s", filePath.c_str());
-            return false;
-        }
-
-        char writeBuffer[65536];
-        FileWriteStream os(fp, writeBuffer, sizeof(writeBuffer));
-
-        PrettyWriter<FileWriteStream> writer(os);
-        writer.SetIndent(' ', 2);
+        StringBuffer sb;
+        PrettyWriter<StringBuffer> writer(sb);
         doc.Accept(writer);
 
-        fclose(fp);
+        return app->getFileSystem()->Save(
+            filePath.c_str(), sb.GetString(), (unsigned int)sb.GetSize());
 
         LOG("SceneSerializer: Scene saved successfully (%d objects)", objectCount);
         return true;
@@ -169,20 +161,13 @@ bool SceneSerializer::LoadScene(const std::string& filePath, ModuleScene* scene)
         return false;
     }
 
-    // Read file
-    FILE* fp = fopen(filePath.c_str(), "rb");
-    if (!fp) {
-        LOG("SceneSerializer: Failed to open file for reading: %s", filePath.c_str());
-        return false;
-    }
+    char* buffer = nullptr;
+    unsigned int size = app->getFileSystem()->Load(filePath.c_str(), &buffer);
+    if (!buffer || size == 0) return false;
 
-    char readBuffer[65536];
-    FileReadStream is(fp, readBuffer, sizeof(readBuffer));
-
-    // Parse JSON
     Document doc;
-    doc.ParseStream(is);
-    fclose(fp);
+    doc.Parse(buffer, size);
+    delete[] buffer;
 
     if (doc.HasParseError()) {
         LOG("SceneSerializer: JSON parse error at offset %u: %d",
