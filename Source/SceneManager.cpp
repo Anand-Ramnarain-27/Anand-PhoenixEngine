@@ -42,7 +42,6 @@ void SceneManager::play()
         ModuleScene* moduleScene = activeScene->getModuleScene();
         if (moduleScene)
             hasSerializedState = SceneSerializer::SaveTempScene(moduleScene);
-        activeScene->reset();
     }
 
     state = PlayState::Playing;
@@ -52,19 +51,23 @@ void SceneManager::pause()
 {
     if (state == PlayState::Playing)
         state = PlayState::Paused;
+    else if (state == PlayState::Paused)
+        state = PlayState::Playing;
 }
 
 void SceneManager::stop()
 {
-    if (!activeScene) return;
+    if (!activeScene || state == PlayState::Stopped) return;
 
     ModuleScene* moduleScene = activeScene->getModuleScene();
-    activeScene->onExit();
 
     if (hasSerializedState && moduleScene)
     {
         if (!SceneSerializer::LoadTempScene(moduleScene))
+        {
+            LOG("SceneManager: Failed to restore temp scene, falling back to reset()");
             activeScene->reset();
+        }
         hasSerializedState = false;
     }
     else
@@ -72,7 +75,6 @@ void SceneManager::stop()
         activeScene->reset();
     }
 
-    activeScene->onEnter();
     state = PlayState::Stopped;
 }
 

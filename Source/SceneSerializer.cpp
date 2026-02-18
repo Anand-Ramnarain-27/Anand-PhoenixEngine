@@ -130,11 +130,10 @@ bool SceneSerializer::SaveScene(const ModuleScene* scene, const std::string& fil
         PrettyWriter<StringBuffer> writer(sb);
         doc.Accept(writer);
 
-        return app->getFileSystem()->Save(
+        bool saved = app->getFileSystem()->Save(
             filePath.c_str(), sb.GetString(), (unsigned int)sb.GetSize());
 
-        LOG("SceneSerializer: Scene saved successfully (%d objects)", objectCount);
-        return true;
+        return saved;
 
     }
     catch (const std::exception& e) {
