@@ -1,22 +1,16 @@
 #pragma once
 
-#include <memory>
 #include "EditorSceneSettings.h"
+#include <memory>
 #include <d3d12.h>
 
 class IScene;
 class ModuleCamera;
-class ModuleScene;
 
 class SceneManager
 {
 public:
-    enum class PlayState
-    {
-        Stopped,
-        Playing,
-        Paused
-    };
+    enum class PlayState { Stopped, Playing, Paused };
 
     SceneManager() = default;
     ~SceneManager();
@@ -28,8 +22,8 @@ public:
     void pause();
     void stop();
 
-    PlayState getState() const { return state; }
-    bool isPlaying() const { return state == PlayState::Playing; }
+    PlayState getState()   const { return state; }
+    bool      isPlaying()  const { return state == PlayState::Playing; }
 
     void update(float deltaTime);
     void render(ID3D12GraphicsCommandList* cmd, const ModuleCamera& camera, uint32_t width, uint32_t height);
@@ -45,8 +39,7 @@ public:
 
 private:
     std::unique_ptr<IScene> activeScene;
-    PlayState state = PlayState::Stopped;
-    bool hasSerializedState = false;
-
-    EditorSceneSettings settings;
+    PlayState               state = PlayState::Stopped;
+    bool                    hasSerializedState = false;
+    EditorSceneSettings     settings;
 };

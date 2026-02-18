@@ -2,7 +2,6 @@
 #include "FileDialog.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
-
 #include <imgui.h>
 #include <filesystem>
 #include <algorithm>
@@ -14,145 +13,120 @@ void FileDialog::open(Type type, const std::string& title, const std::string& de
     m_isOpen = true;
     m_type = type;
     m_title = title;
+    m_selectedIndex = -1;
     m_selectedPath.clear();
     m_fileName.clear();
-    m_selectedIndex = -1;
 
-    if (!defaultPath.empty() && fs::exists(defaultPath))
-    {
-        m_currentPath = fs::absolute(defaultPath).string();
-    }
-    else
-    {
-        m_currentPath = fs::current_path().string();
-    }
+    m_currentPath = (!defaultPath.empty() && fs::exists(defaultPath))
+        ? fs::absolute(defaultPath).string()
+        : fs::current_path().string();
 
     refreshDirectory();
 }
 
 bool FileDialog::draw()
 {
-    if (!m_isOpen)
-        return false;
+    if (!m_isOpen) return false;
 
     bool fileSelected = false;
 
     ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin(m_title.c_str(), &m_isOpen, ImGuiWindowFlags_NoCollapse))
+    if (!ImGui::Begin(m_title.c_str(), &m_isOpen, ImGuiWindowFlags_NoCollapse))
     {
-        ImGui::Text("Location: %s", m_currentPath.c_str());
-        ImGui::Separator();
+        ImGui::End();
+        return false;
+    }
 
-        if (ImGui::Button(".."))
-        {
-            fs::path parentPath = fs::path(m_currentPath).parent_path();
-            if (fs::exists(parentPath))
-            {
-                m_currentPath = parentPath.string();
-                refreshDirectory();
-                m_selectedIndex = -1;
-            }
-        }
+    ImGui::Text("Location: %s", m_currentPath.c_str());
+    ImGui::Separator();
 
-        ImGui::SameLine();
-        if (ImGui::Button("Refresh"))
+    if (ImGui::Button(".."))
+    {
+        fs::path parent = fs::path(m_currentPath).parent_path();
+        if (fs::exists(parent))
         {
+            m_currentPath = parent.string();
+            m_selectedIndex = -1;
             refreshDirectory();
         }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Refresh")) refreshDirectory();
+    ImGui::Separator();
 
-        ImGui::Separator();
+    ImGui::BeginChild("FileList", ImVec2(0, -70), true);
+    for (int i = 0; i < (int)m_entries.size(); ++i)
+    {
+        const FileEntry& entry = m_entries[i];
+        std::string label = (entry.isDirectory ? "[DIR]  " : "[FILE] ") + entry.name;
+        bool selected = (m_selectedIndex == i);
 
-        ImGui::BeginChild("FileList", ImVec2(0, -70), true);
-
-        for (int i = 0; i < m_entries.size(); ++i)
+        if (ImGui::Selectable(label.c_str(), selected, ImGuiSelectableFlags_AllowDoubleClick))
         {
-            const FileEntry& entry = m_entries[i];
-
-            const char* icon = entry.isDirectory ? "[DIR]" : "[FILE]";
-            std::string label = std::string(icon) + " " + entry.name;
-
-            bool isSelected = (m_selectedIndex == i);
-            if (ImGui::Selectable(label.c_str(), isSelected, ImGuiSelectableFlags_AllowDoubleClick))
+            m_selectedIndex = i;
+            if (entry.isDirectory)
             {
-                m_selectedIndex = i;
-
-                if (entry.isDirectory)
+                if (ImGui::IsMouseDoubleClicked(0))
                 {
-                    if (ImGui::IsMouseDoubleClicked(0))
-                    {
-                        m_currentPath = (fs::path(m_currentPath) / entry.name).string();
-                        refreshDirectory();
-                        m_selectedIndex = -1;
-                    }
+                    m_currentPath = (fs::path(m_currentPath) / entry.name).string();
+                    m_selectedIndex = -1;
+                    refreshDirectory();
                 }
-                else
+            }
+            else
+            {
+                m_fileName = entry.name;
+                if (ImGui::IsMouseDoubleClicked(0))
                 {
-                    m_fileName = entry.name;
-
-                    if (ImGui::IsMouseDoubleClicked(0))
-                    {
-                        m_selectedPath = (fs::path(m_currentPath) / entry.name).string();
-                        fileSelected = true;
-                        m_isOpen = false;
-                    }
+                    m_selectedPath = (fs::path(m_currentPath) / entry.name).string();
+                    fileSelected = true;
+                    m_isOpen = false;
                 }
             }
         }
+    }
+    ImGui::EndChild();
 
-        ImGui::EndChild();
+    ImGui::Separator();
+    ImGui::Text("File name:"); ImGui::SameLine();
 
-        ImGui::Separator();
-        ImGui::Text("File name:");
-        ImGui::SameLine();
+    char buf[256];
+    strncpy(buf, m_fileName.c_str(), sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+    if (ImGui::InputText("##filename", buf, sizeof(buf)))
+        m_fileName = buf;
 
-        char fileNameBuffer[256];
-        strncpy(fileNameBuffer, m_fileName.c_str(), sizeof(fileNameBuffer) - 1);
-        fileNameBuffer[sizeof(fileNameBuffer) - 1] = '\0';
+    ImGui::Separator();
 
-        if (ImGui::InputText("##filename", fileNameBuffer, sizeof(fileNameBuffer)))
-        {
-            m_fileName = fileNameBuffer;
-        }
-
-        ImGui::Separator();
-
-        bool canConfirm = !m_fileName.empty();
-
+    if (!m_fileName.empty())
+    {
         if (m_type == Type::Save)
         {
-            if (ImGui::Button("Save") && canConfirm)
+            if (ImGui::Button("Save"))
             {
-                std::string fullPath = (fs::path(m_currentPath) / m_fileName).string();
-
-                if (!m_extensionFilter.empty() &&
-                    !fullPath.ends_with(m_extensionFilter))
-                {
-                    fullPath += m_extensionFilter;
-                }
-
-                m_selectedPath = fullPath;
+                std::string path = (fs::path(m_currentPath) / m_fileName).string();
+                if (!m_extensionFilter.empty() && !path.ends_with(m_extensionFilter))
+                    path += m_extensionFilter;
+                m_selectedPath = path;
                 fileSelected = true;
                 m_isOpen = false;
             }
         }
         else
         {
-            if (ImGui::Button("Open") && canConfirm)
+            if (ImGui::Button("Open"))
             {
                 m_selectedPath = (fs::path(m_currentPath) / m_fileName).string();
                 fileSelected = true;
                 m_isOpen = false;
             }
         }
-
         ImGui::SameLine();
-        if (ImGui::Button("Cancel"))
-        {
-            m_isOpen = false;
-        }
     }
-    ImGui::End();
 
+    if (ImGui::Button("Cancel")) m_isOpen = false;
+
+    ImGui::End();
     return fileSelected;
 }
 
@@ -170,30 +144,19 @@ void FileDialog::refreshDirectory()
 
         for (const auto& entry : fs::directory_iterator(m_currentPath))
         {
-            std::string filename = entry.path().filename().string();
+            std::string name = entry.path().filename().string();
+            if (name[0] == '.') continue;
 
-            if (filename[0] == '.')
-                continue;
+            bool isDir = entry.is_directory();
+            if (!isDir && !m_extensionFilter.empty() && !matchesFilter(name)) continue;
 
-            FileEntry fileEntry;
-            fileEntry.name = filename;
-            fileEntry.isDirectory = entry.is_directory();
-
-            if (!fileEntry.isDirectory && !m_extensionFilter.empty())
-            {
-                if (!matchesFilter(filename))
-                    continue;
-            }
-
-            m_entries.push_back(fileEntry);
+            m_entries.push_back({ name, isDir });
         }
 
-        std::sort(m_entries.begin(), m_entries.end(),
-            [](const FileEntry& a, const FileEntry& b)
+        std::sort(m_entries.begin(), m_entries.end(), [](const FileEntry& a, const FileEntry& b)
             {
-                if (a.isDirectory != b.isDirectory)
-                    return a.isDirectory;
-                return a.name < b.name; 
+                if (a.isDirectory != b.isDirectory) return a.isDirectory;
+                return a.name < b.name;
             });
     }
     catch (const fs::filesystem_error& e)
@@ -204,16 +167,9 @@ void FileDialog::refreshDirectory()
 
 bool FileDialog::matchesFilter(const std::string& filename) const
 {
-    if (m_extensionFilter.empty())
-        return true;
+    if (m_extensionFilter.empty() || filename.length() < m_extensionFilter.length())
+        return m_extensionFilter.empty();
 
-    if (filename.length() >= m_extensionFilter.length())
-    {
-        return filename.compare(
-            filename.length() - m_extensionFilter.length(),
-            m_extensionFilter.length(),
-            m_extensionFilter) == 0;
-    }
-
-    return false;
+    return filename.compare(filename.length() - m_extensionFilter.length(),
+        m_extensionFilter.length(), m_extensionFilter) == 0;
 }

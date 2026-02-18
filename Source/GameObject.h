@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Component.h" 
+#include "Component.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -16,7 +16,7 @@ public:
     void update(float deltaTime);
     void render(ID3D12GraphicsCommandList* cmd);
 
-    void setParent(GameObject* newParent);
+    void        setParent(GameObject* newParent);
     GameObject* getParent()   const { return parent; }
     const std::vector<GameObject*>& getChildren() const { return children; }
     void clearChildren() { children.clear(); }
@@ -30,25 +30,26 @@ public:
 
     template<typename T>
     bool removeComponent();
-
     bool removeComponentByType(Component::Type type);
-
-    const std::vector<std::unique_ptr<Component>>& getComponents() const { return components; }
 
     template<typename T>
     T* getComponent() const;
 
-    const std::string& getName()  const { return name; }
+    const std::vector<std::unique_ptr<Component>>& getComponents() const { return components; }
+
+    const std::string& getName() const { return name; }
     void setName(const std::string& newName) { name = newName; }
 
-    uint32_t getUID()    const { return uid; }
-    bool     isActive()  const { return active; }
-    void     setActive(bool value) { active = value; }
+    uint32_t getUID()   const { return uid; }
+    bool isActive()     const { return active; }
+    void setActive(bool value) { active = value; }
 
     bool isPendingDestroy() const { return pendingDestroy; }
     void markForDestroy() { pendingDestroy = true; }
 
 private:
+    static uint32_t generateUID();
+
     uint32_t    uid;
     std::string name;
     bool        active = true;
@@ -59,6 +60,4 @@ private:
 
     std::vector<std::unique_ptr<Component>> components;
     ComponentTransform* transform = nullptr;
-
-    static uint32_t generateUID();
 };
