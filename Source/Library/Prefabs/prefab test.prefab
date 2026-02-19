@@ -1,5 +1,5 @@
 {
-  "PrefabName": "Duck Test Prefab",
+  "PrefabName": "prefab test",
   "Version": 1,
   "GameObject": {
     "Name": "Duck",
@@ -22,6 +22,15 @@
         0.009999999776482582
       ]
     },
-    "Components": []
+    "Components": [
+      {
+        "Type": 1,
+        "Data": "{\"HasModel\":true,\"ModelPath\":\"Assets/Models/Duck/Duck.gltf\"}"
+      },
+      {
+        "Type": 3,
+        "Data": "{\"direction\":[1.0,-1.0,0.38999998569488525],\"color\":[1.0,1.0,1.0],\"intensity\":1.0,\"enabled\":true}"
+      }
+    ]
   }
 }

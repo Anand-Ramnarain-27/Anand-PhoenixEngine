@@ -3,6 +3,7 @@
 #include "GameObject.h"
 #include "ModuleScene.h"
 #include "ComponentTransform.h"
+#include "ComponentFactory.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
 
@@ -35,16 +36,28 @@ bool PrefabManager::createPrefab(const GameObject* go, const std::string& prefab
 
     auto* t = go->getTransform();
     Value tf(kObjectType);
-
     Value pos(kArrayType); pos.PushBack(t->position.x, a).PushBack(t->position.y, a).PushBack(t->position.z, a);
     Value rot(kArrayType); rot.PushBack(t->rotation.x, a).PushBack(t->rotation.y, a).PushBack(t->rotation.z, a).PushBack(t->rotation.w, a);
     Value scl(kArrayType); scl.PushBack(t->scale.x, a).PushBack(t->scale.y, a).PushBack(t->scale.z, a);
-
     tf.AddMember("position", pos, a);
     tf.AddMember("rotation", rot, a);
     tf.AddMember("scale", scl, a);
     goNode.AddMember("Transform", tf, a);
-    goNode.AddMember("Components", Value(kArrayType), a);
+
+    Value comps(kArrayType);
+    for (const auto& comp : go->getComponents())
+    {
+        if (comp->getType() == Component::Type::Transform) continue;
+
+        std::string data;
+        comp->onSave(data);
+
+        Value c(kObjectType);
+        c.AddMember("Type", (int)comp->getType(), a);
+        c.AddMember("Data", Value(data.c_str(), a), a);
+        comps.PushBack(c, a);
+    }
+    goNode.AddMember("Components", comps, a);
     doc.AddMember("GameObject", goNode, a);
 
     FILE* fp = fopen(getPrefabPath(prefabName).c_str(), "wb");
@@ -86,6 +99,25 @@ GameObject* PrefabManager::instantiatePrefab(const std::string& prefabName, Modu
     const auto& r = tf["rotation"]; t->rotation = { r[0].GetFloat(), r[1].GetFloat(), r[2].GetFloat(), r[3].GetFloat() };
     const auto& s = tf["scale"];    t->scale = { s[0].GetFloat(), s[1].GetFloat(), s[2].GetFloat() };
     t->markDirty();
+
+    if (node.HasMember("Components") && node["Components"].IsArray())
+    {
+        for (SizeType i = 0; i < node["Components"].Size(); ++i)
+        {
+            const Value& cn = node["Components"][i];
+            auto          type = (Component::Type)cn["Type"].GetInt();
+            auto          comp = ComponentFactory::CreateComponent(type, go);
+            if (comp)
+            {
+                comp->onLoad(cn["Data"].GetString());
+                go->addComponent(std::move(comp));
+            }
+            else
+            {
+                LOG("PrefabManager: Failed to create component type %d", (int)type);
+            }
+        }
+    }
 
     return go;
 }
