@@ -10,7 +10,7 @@
 #include <algorithm>
 
 static constexpr float ORBIT_SENSITIVITY = 0.005f;
-static constexpr float PAN_SPEED = 0.45f;
+static constexpr float PAN_SPEED = 1.0f;
 static constexpr float ZOOM_SPEED = 1.0f;
 
 bool ModuleCamera::init()
