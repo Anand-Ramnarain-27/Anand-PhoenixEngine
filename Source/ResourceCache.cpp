@@ -6,79 +6,50 @@
 #include "MeshImporter.h"
 #include "MaterialImporter.h"
 
+template<typename T, typename LoadFn>
+static std::shared_ptr<T> getOrLoad(
+    std::unordered_map<std::string, std::shared_ptr<T>>& cache,
+    const std::string& path, LoadFn load)
+{
+    auto it = cache.find(path);
+    if (it != cache.end()) return it->second;
+    auto ptr = load(path);
+    if (ptr) cache[path] = ptr;
+    return ptr;
+}
+
 std::shared_ptr<Model> ResourceCache::getOrLoadModel(const std::string& path)
 {
-    auto it = m_modelCache.find(path);
-    if (it != m_modelCache.end())
-    {
-        LOG("ResourceCache: Returning cached model: %s", path.c_str());
-        return it->second;
-    }
-
-    LOG("ResourceCache: Loading new model: %s", path.c_str());
-    auto model = std::make_shared<Model>();
-
-    if (!model->load(path.c_str()))
-    {
-        LOG("ResourceCache: Failed to load model: %s", path.c_str());
-        return nullptr;
-    }
-
-    m_modelCache[path] = model;
-    return model;
+    return getOrLoad(m_modelCache, path, [](const std::string& p) -> std::shared_ptr<Model>
+        {
+            auto m = std::make_shared<Model>();
+            if (!m->load(p.c_str())) { LOG("ResourceCache: Failed to load model: %s", p.c_str()); return {}; }
+            return m;
+        });
 }
 
 std::shared_ptr<Mesh> ResourceCache::getOrLoadMesh(const std::string& path)
 {
-    auto it = m_meshCache.find(path);
-    if (it != m_meshCache.end())
-    {
-        LOG("ResourceCache: Returning cached mesh: %s", path.c_str());
-        return it->second;
-    }
-
-    LOG("ResourceCache: Loading new mesh: %s", path.c_str());
-    std::unique_ptr<Mesh> meshPtr;
-
-    if (!MeshImporter::Load(path, meshPtr))
-    {
-        LOG("ResourceCache: Failed to load mesh: %s", path.c_str());
-        return nullptr;
-    }
-
-    auto mesh = std::shared_ptr<Mesh>(meshPtr.release());
-
-    m_meshCache[path] = mesh;
-    return mesh;
+    return getOrLoad(m_meshCache, path, [](const std::string& p) -> std::shared_ptr<Mesh>
+        {
+            std::unique_ptr<Mesh> ptr;
+            if (!MeshImporter::Load(p, ptr)) { LOG("ResourceCache: Failed to load mesh: %s", p.c_str()); return {}; }
+            return std::shared_ptr<Mesh>(ptr.release());
+        });
 }
 
 std::shared_ptr<Material> ResourceCache::getOrLoadMaterial(const std::string& path)
 {
-    auto it = m_materialCache.find(path);
-    if (it != m_materialCache.end())
-    {
-        LOG("ResourceCache: Returning cached material: %s", path.c_str());
-        return it->second;
-    }
-
-    LOG("ResourceCache: Loading new material: %s", path.c_str());
-    std::unique_ptr<Material> matPtr;
-
-    if (!MaterialImporter::Load(path, matPtr))
-    {
-        LOG("ResourceCache: Failed to load material: %s", path.c_str());
-        return nullptr;
-    }
-
-    auto material = std::shared_ptr<Material>(matPtr.release());
-
-    m_materialCache[path] = material;
-    return material;
+    return getOrLoad(m_materialCache, path, [](const std::string& p) -> std::shared_ptr<Material>
+        {
+            std::unique_ptr<Material> ptr;
+            if (!MaterialImporter::Load(p, ptr)) { LOG("ResourceCache: Failed to load material: %s", p.c_str()); return {}; }
+            return std::shared_ptr<Material>(ptr.release());
+        });
 }
 
 void ResourceCache::clear()
 {
-    LOG("ResourceCache: Clearing all cached resources");
     m_modelCache.clear();
     m_meshCache.clear();
     m_materialCache.clear();
@@ -86,44 +57,14 @@ void ResourceCache::clear()
 
 void ResourceCache::clearUnused()
 {
-    for (auto it = m_modelCache.begin(); it != m_modelCache.end();)
-    {
-        if (it->second.use_count() == 1)
+    auto evict = [](auto& cache)
         {
-            LOG("ResourceCache: Removing unused model: %s", it->first.c_str());
-            it = m_modelCache.erase(it);
-        }
-        else
-        {
-            ++it;
-        }
-    }
-
-    for (auto it = m_meshCache.begin(); it != m_meshCache.end();)
-    {
-        if (it->second.use_count() == 1)
-        {
-            LOG("ResourceCache: Removing unused mesh: %s", it->first.c_str());
-            it = m_meshCache.erase(it);
-        }
-        else
-        {
-            ++it;
-        }
-    }
-
-    for (auto it = m_materialCache.begin(); it != m_materialCache.end();)
-    {
-        if (it->second.use_count() == 1)
-        {
-            LOG("ResourceCache: Removing unused material: %s", it->first.c_str());
-            it = m_materialCache.erase(it);
-        }
-        else
-        {
-            ++it;
-        }
-    }
+            for (auto it = cache.begin(); it != cache.end();)
+                it = (it->second.use_count() == 1) ? cache.erase(it) : std::next(it);
+        };
+    evict(m_modelCache);
+    evict(m_meshCache);
+    evict(m_materialCache);
 }
 
 void ResourceCache::getStats(int& modelCount, int& meshCount, int& materialCount) const

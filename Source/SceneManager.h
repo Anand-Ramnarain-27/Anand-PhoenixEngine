@@ -3,6 +3,7 @@
 #include "EditorSceneSettings.h"
 #include <memory>
 #include <d3d12.h>
+#include <string>
 
 class IScene;
 class ModuleCamera;
@@ -22,8 +23,8 @@ public:
     void pause();
     void stop();
 
-    PlayState getState()   const { return state; }
-    bool      isPlaying()  const { return state == PlayState::Playing; }
+    PlayState getState()  const { return state; }
+    bool      isPlaying() const { return state == PlayState::Playing; }
 
     void update(float deltaTime);
     void render(ID3D12GraphicsCommandList* cmd, const ModuleCamera& camera, uint32_t width, uint32_t height);
