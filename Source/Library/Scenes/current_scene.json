@@ -1,0 +1,66 @@
+{
+    "Scene": {
+        "Version": 1,
+        "GameObjects": [
+            {
+                "UID": 2275230704,
+                "ParentUID": 1929586339,
+                "Name": "Duck",
+                "Active": true,
+                "Transform": {
+                    "position": [
+                        -3.9125843048095703,
+                        0.0,
+                        0.0
+                    ],
+                    "rotation": [
+                        0.0,
+                        -0.0,
+                        0.0,
+                        1.0
+                    ],
+                    "scale": [
+                        0.009999999776482582,
+                        0.009999999776482582,
+                        0.009999999776482582
+                    ]
+                },
+                "Components": [
+                    {
+                        "Type": 1,
+                        "Data": "{\"HasModel\":true,\"ModelPath\":\"Assets/Models/Duck/Duck.gltf\"}"
+                    },
+                    {
+                        "Type": 3,
+                        "Data": "{\"direction\":[-0.5,-1.0,0.6100000143051147],\"color\":[1.0,1.0,0.8352941274642944],\"intensity\":1.0,\"enabled\":true}"
+                    }
+                ]
+            },
+            {
+                "UID": 4183661551,
+                "ParentUID": 1929586339,
+                "Name": "Duck",
+                "Active": true,
+                "Transform": {
+                    "position": [
+                        2.477325439453125,
+                        0.0,
+                        0.0
+                    ],
+                    "rotation": [
+                        0.0,
+                        -0.0,
+                        0.0,
+                        1.0
+                    ],
+                    "scale": [
+                        0.009999999776482582,
+                        0.009999999776482582,
+                        0.009999999776482582
+                    ]
+                },
+                "Components": []
+            }
+        ]
+    }
+}

@@ -23,7 +23,8 @@ public:
     void onLoad(const std::string& json)        override;
     Type getType() const override { return Type::Mesh; }
 
-    Model* getModel() const { return m_model.get(); }
+    Model* getModel()           const { return m_model.get(); }
+    const std::string& getModelPath() const { return m_modelFilePath; }
 
 private:
     std::shared_ptr<Model>              m_model;

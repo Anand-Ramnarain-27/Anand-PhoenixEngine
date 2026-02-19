@@ -326,76 +326,6 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     if (s.showAxis) { Matrix id = Matrix::Identity; dd::axisTriad(id.m[0], 0.0f, 2.0f, 2.0f); }
     if (s.debugDrawLights && moduleScene) debugDrawLights(moduleScene, s.debugLightSize);
 
-    camera->aspectRatio = (h > 0) ? float(w) / float(h) : 1.0f;
-
-    auto ddVec = [](const Vector3& v) -> const float* { return &v.x; };
-
-    if (moduleScene && s.debugDrawCameraFrustums)
-    {
-        std::function<void(GameObject*)> visitCams = [&](GameObject* node)
-            {
-                if (!node || !node->isActive()) return;
-                if (auto* cam = node->getComponent<ComponentCamera>())
-                {
-                    if (auto* t = node->getTransform())
-                    {
-                        Matrix world = t->getGlobalMatrix();
-                        Vector3 pos = world.Translation();
-                        Vector3 fwd = -Vector3(world.m[2][0], world.m[2][1], world.m[2][2]); fwd.Normalize();
-                        Vector3 right = Vector3(world.m[0][0], world.m[0][1], world.m[0][2]); right.Normalize();
-                        Vector3 up = Vector3(world.m[1][0], world.m[1][1], world.m[1][2]); up.Normalize();
-
-                        float aspect = (h > 0) ? float(w) / float(h) : 1.0f;
-                        Frustum f = Frustum::fromCamera(pos, fwd, right, up,
-                            cam->getFOV(), aspect, cam->getNearPlane(), cam->getFarPlane());
-
-                        if (cam->isMainCamera())
-                            camera->setGameCameraFrustum(f);
-
-                        ddVec(pos); 
-                        const auto& c = f.corners;
-                        using CI = Frustum::CornerIdx;
-                        auto col = cam->isMainCamera() ? dd::colors::Yellow : dd::colors::Cyan;
-
-                        dd::line(ddVec(c[CI::NTL]), ddVec(c[CI::NTR]), col);
-                        dd::line(ddVec(c[CI::NTR]), ddVec(c[CI::NBR]), col);
-                        dd::line(ddVec(c[CI::NBR]), ddVec(c[CI::NBL]), col);
-                        dd::line(ddVec(c[CI::NBL]), ddVec(c[CI::NTL]), col);
-
-                        dd::line(ddVec(c[CI::FTL]), ddVec(c[CI::FTR]), col);
-                        dd::line(ddVec(c[CI::FTR]), ddVec(c[CI::FBR]), col);
-                        dd::line(ddVec(c[CI::FBR]), ddVec(c[CI::FBL]), col);
-                        dd::line(ddVec(c[CI::FBL]), ddVec(c[CI::FTL]), col);
-
-                        dd::line(ddVec(c[CI::NTL]), ddVec(c[CI::FTL]), col);
-                        dd::line(ddVec(c[CI::NTR]), ddVec(c[CI::FTR]), col);
-                        dd::line(ddVec(c[CI::NBL]), ddVec(c[CI::FBL]), col);
-                        dd::line(ddVec(c[CI::NBR]), ddVec(c[CI::FBR]), col);
-
-                        dd::line(ddVec(pos), ddVec(pos + right * 0.4f), dd::colors::Red);
-                        dd::line(ddVec(pos), ddVec(pos + up * 0.4f), dd::colors::Green);
-                        dd::line(ddVec(pos), ddVec(pos + fwd * 0.4f), dd::colors::Blue);
-
-                        dd::line(ddVec(pos), ddVec(pos + fwd * cam->getNearPlane()), dd::colors::LightGoldenYellow);
-                        Vector3 farEnd = pos + fwd * std::min(cam->getFarPlane(), 50.0f);
-                        dd::line(ddVec(pos + fwd * cam->getNearPlane()), ddVec(farEnd), dd::colors::DarkCyan);
-                    }
-                }
-                for (auto* child : node->getChildren()) visitCams(child);
-            };
-        visitCams(moduleScene->getRoot());
-    }
-
-    if (s.debugDrawEditorCameraRay)
-    {
-        Vector3 edPos = camera->getPos();
-        Vector3 edFwd = camera->getForward();
-        Vector3 nearPt = edPos + edFwd * camera->nearZ;
-        Vector3 farPt = edPos + edFwd * std::min(camera->farZ, 20.0f);
-        dd::line(ddVec(edPos), ddVec(nearPt), dd::colors::White);
-        dd::line(ddVec(nearPt), ddVec(farPt), dd::colors::DarkGray);
-    }
-
     debugDrawPass->record(cmd, w, h, view, proj);
     END_EVENT(cmd);
     viewportRT->endRender(cmd);
@@ -855,11 +785,6 @@ void ModuleEditor::drawComponentCamera(ComponentCamera* cam)
 {
     bool isMain = cam->isMainCamera();
     if (ImGui::Checkbox("Main Camera", &isMain)) cam->setMainCamera(isMain);
-    if (isMain)
-    {
-        ImGui::SameLine();
-        ImGui::TextColored(ImVec4(1, 0.85f, 0.1f, 1), "(culling source)");
-    }
 
     float fovDeg = cam->getFOV() * 57.2957795f;
     if (ImGui::SliderFloat("FOV", &fovDeg, 10.0f, 170.0f)) cam->setFOV(fovDeg * 0.0174532925f);
@@ -870,60 +795,195 @@ void ModuleEditor::drawComponentCamera(ComponentCamera* cam)
 
     Vector4 bg = cam->getBackgroundColor();
     if (ImGui::ColorEdit4("Background", &bg.x)) cam->setBackgroundColor(bg);
-
-    ImGui::Separator();
-
-    ModuleCamera* edCam = app->getCamera();
-    if (edCam)
-    {
-        ImGui::Text("Frustum Culling");
-        int cm = (int)edCam->cullMode;
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Off##fc", &cm, 0)) edCam->cullMode = ModuleCamera::CullMode::None;
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Frustum##fc", &cm, 1)) edCam->cullMode = ModuleCamera::CullMode::Frustum;
-
-        ImGui::Text("Cull from");
-        int cs = (int)edCam->cullSource;
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Editor##cs", &cs, 0)) edCam->cullSource = ModuleCamera::CullSource::EditorCamera;
-        ImGui::SameLine();
-        if (ImGui::RadioButton("This Cam##cs", &cs, 1))
-        {
-            edCam->cullSource = ModuleCamera::CullSource::GameCamera;
-            cam->setMainCamera(true); 
-        }
-
-        if (edCam->cullSource == ModuleCamera::CullSource::GameCamera && !cam->isMainCamera())
-            ImGui::TextColored(ImVec4(1, 0.4f, 0.1f, 1), "  Check 'Main Camera' to use for culling");
-    }
-
-    ImGui::Separator();
-    if (selectedGameObject)
-    {
-        if (auto* t = selectedGameObject->getTransform())
-        {
-            Vector3 p = t->getGlobalMatrix().Translation();
-            ImGui::TextDisabled("Pos: %.2f  %.2f  %.2f", p.x, p.y, p.z);
-        }
-    }
 }
 
 void ModuleEditor::drawComponentMesh(ComponentMesh* mesh)
 {
-    if (mesh->getModel()) ImGui::TextDisabled("Model loaded");
-    else                  ImGui::TextColored(ImVec4(1, 0.6f, 0.4f, 1), "No model loaded");
+    namespace fs = std::filesystem;
 
+    // ── Model header row ────────────────────────────────────────────────────
+    Model* model = mesh->getModel();
+    const std::string& modelPath = mesh->getModelPath();
+    std::string modelName = modelPath.empty()
+        ? (model ? "(procedural)" : "None")
+        : fs::path(modelPath).stem().string();
+
+    if (model)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+        ImGui::Text("[M]  %s", modelName.c_str());
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        ImGui::TextDisabled("  %d mesh(es)  %d mat(s)",
+            (int)model->getMeshes().size(), (int)model->getMaterials().size());
+    }
+    else
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.3f, 1.0f), "[M]  No model loaded");
+    }
+
+    // ── Change / Load buttons ───────────────────────────────────────────────
     static char meshPathBuf[256] = "";
-    ImGui::SetNextItemWidth(-80);
-    ImGui::InputText("##meshpath", meshPathBuf, sizeof(meshPathBuf));
-    ImGui::SameLine();
-    if (ImGui::Button("Load") && strlen(meshPathBuf) > 0)
+    ImGui::SetNextItemWidth(-160.0f);
+    ImGui::InputTextWithHint("##meshpath", "Assets/Models/name/name.gltf", meshPathBuf, sizeof(meshPathBuf));
+    ImGui::SameLine(0, 4);
+    if (ImGui::Button("Load##ml", ImVec2(70, 0)) && strlen(meshPathBuf) > 0)
     {
         bool ok = mesh->loadModel(meshPathBuf);
         log(ok ? ("Loaded: " + std::string(meshPathBuf)).c_str()
-            : ("Failed to load: " + std::string(meshPathBuf)).c_str(),
+            : ("Failed: " + std::string(meshPathBuf)).c_str(),
             ok ? ImVec4(0.6f, 1, 0.6f, 1) : ImVec4(1, 0.4f, 0.4f, 1));
+        if (ok) meshPathBuf[0] = '\0';
+    }
+    ImGui::SameLine(0, 4);
+
+    // "Pick…" button opens a popup showing all imported models
+    if (ImGui::Button("Pick##ml", ImVec2(70, 0)))
+        ImGui::OpenPopup("##ModelPicker");
+
+    // ── Model picker popup ──────────────────────────────────────────────────
+    ImGui::SetNextWindowSize(ImVec2(320, 280), ImGuiCond_Appearing);
+    if (ImGui::BeginPopup("##ModelPicker"))
+    {
+        ImGui::TextDisabled("Imported models  (double-click to load)");
+        ImGui::Separator();
+
+        static char pickerSearch[64] = "";
+        ImGui::SetNextItemWidth(-1);
+        ImGui::InputTextWithHint("##pksearch", "Search...", pickerSearch, sizeof(pickerSearch));
+        ImGui::Separator();
+
+        std::string search(pickerSearch);
+        std::transform(search.begin(), search.end(), search.begin(), ::tolower);
+
+        std::string meshesRoot = app->getFileSystem()->GetLibraryPath() + "Meshes/";
+        bool anyModel = false;
+        try
+        {
+            for (const auto& entry : fs::directory_iterator(meshesRoot))
+            {
+                if (!entry.is_directory()) continue;
+
+                std::string name = entry.path().filename().string();
+                std::string lower = name;
+                std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+                if (!search.empty() && lower.find(search) == std::string::npos) continue;
+
+                // Guess original GLTF path from library folder name
+                std::string gltfPath = "Assets/Models/" + name + "/" + name + ".gltf";
+                bool isCurrent = (modelName == name);
+
+                if (isCurrent) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+
+                bool clicked = ImGui::Selectable(("  [M]  " + name).c_str(), isCurrent,
+                    ImGuiSelectableFlags_AllowDoubleClick);
+
+                if (isCurrent) ImGui::PopStyleColor();
+
+                if (clicked && ImGui::IsMouseDoubleClicked(0))
+                {
+                    bool ok = mesh->loadModel(gltfPath.c_str());
+                    log(ok ? ("Loaded: " + name).c_str()
+                        : ("Failed to load: " + gltfPath).c_str(),
+                        ok ? ImVec4(0.6f, 1, 0.6f, 1) : ImVec4(1, 0.4f, 0.4f, 1));
+                    ImGui::CloseCurrentPopup();
+                }
+                anyModel = true;
+            }
+        }
+        catch (...) {}
+
+        if (!anyModel)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.4f, 0.4f, 1));
+            ImGui::Text("    No models imported yet.");
+            ImGui::PopStyleColor();
+        }
+
+        ImGui::EndPopup();
+    }
+
+    // ── Materials ───────────────────────────────────────────────────────────
+    if (!model) return;
+
+    ImGui::Spacing();
+    ImGui::SeparatorText("Materials");
+
+    auto& mats = model->getMaterialsMutable();
+    for (int mi = 0; mi < (int)mats.size(); ++mi)
+    {
+        Material* mat = mats[mi].get();
+        if (!mat) continue;
+
+        Material::Data& d = mat->getData();
+
+        ImGui::PushID(mi);
+
+        // Material header
+        std::string matLabel = "Material " + std::to_string(mi);
+
+        bool open = ImGui::CollapsingHeader(matLabel.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+        if (open)
+        {
+            ImGui::Indent(8.0f);
+
+            // Texture picker popup – pick from imported textures
+            if (ImGui::SmallButton("Pick texture##tp"))
+                ImGui::OpenPopup(("##TexPicker" + std::to_string(mi)).c_str());
+
+            ImGui::SetNextWindowSize(ImVec2(300, 240), ImGuiCond_Appearing);
+            if (ImGui::BeginPopup(("##TexPicker" + std::to_string(mi)).c_str()))
+            {
+                ImGui::TextDisabled("Imported textures  (double-click to apply)");
+                ImGui::Separator();
+
+                static char texSearch[64] = "";
+                ImGui::SetNextItemWidth(-1);
+                ImGui::InputTextWithHint("##txs", "Search...", texSearch, sizeof(texSearch));
+
+                std::string ts(texSearch);
+                std::transform(ts.begin(), ts.end(), ts.begin(), ::tolower);
+
+                std::string texDir = app->getFileSystem()->GetLibraryPath() + "Textures/";
+                auto texFiles = app->getFileSystem()->GetFilesInDirectory(texDir.c_str(), ".dds");
+                bool anyTex = false;
+                for (const auto& tf : texFiles)
+                {
+                    std::string tname = fs::path(tf).stem().string();
+                    std::string tlower = tname;
+                    std::transform(tlower.begin(), tlower.end(), tlower.begin(), ::tolower);
+                    if (!ts.empty() && tlower.find(ts) == std::string::npos) continue;
+
+                    if (ImGui::Selectable(("  [T]  " + tname).c_str(), false,
+                        ImGuiSelectableFlags_AllowDoubleClick))
+                    {
+                        if (ImGui::IsMouseDoubleClicked(0))
+                        {
+                            ComPtr<ID3D12Resource> tex;
+                            D3D12_GPU_DESCRIPTOR_HANDLE srv{};
+                            if (TextureImporter::Load(tf, tex, srv))
+                            {
+                                mat->setBaseColorTexture(tex, srv);
+                                mesh->rebuildMaterialBuffers();
+                                log(("Applied texture: " + tname).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
+                            }
+                            else log(("Failed to load texture: " + tf).c_str(), ImVec4(1, 0.4f, 0.4f, 1));
+                            ImGui::CloseCurrentPopup();
+                        }
+                    }
+                    anyTex = true;
+                }
+                if (!anyTex)
+                {
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.4f, 0.4f, 1));
+                    ImGui::Text("    No textures imported yet.");
+                    ImGui::PopStyleColor();
+                }
+                ImGui::EndPopup();
+            }
+        }
+
+        ImGui::PopID();
     }
 }
 
@@ -1401,16 +1461,6 @@ void ModuleEditor::drawSceneSettings()
     if (!sceneManager) { ImGui::TextDisabled("No scene manager."); ImGui::End(); return; }
 
     EditorSceneSettings& s = sceneManager->getSettings();
-
-    if (ImGui::CollapsingHeader("Camera Debug", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        ImGui::Checkbox("Draw Camera Frustums", &s.debugDrawCameraFrustums);
-        ImGui::Checkbox("Draw Editor Camera Ray", &s.debugDrawEditorCameraRay);
-
-        ImGui::Separator();
-        if (ModuleCamera* cam = app->getCamera())
-            cam->onEditorDebugPanel();
-    }
 
     if (ImGui::CollapsingHeader("Display", ImGuiTreeNodeFlags_DefaultOpen))
     {

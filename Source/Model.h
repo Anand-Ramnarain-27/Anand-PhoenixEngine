@@ -18,8 +18,9 @@ public:
     const Matrix& getModelMatrix()                     const { return m_modelMatrix; }
     const std::string& getSrcFile()                    const { return m_srcFile; }
 
-    const std::vector<std::unique_ptr<Mesh>>& getMeshes()    const { return m_meshes; }
-    const std::vector<std::unique_ptr<Material>>& getMaterials() const { return m_materials; }
+    const std::vector<std::unique_ptr<Mesh>>& getMeshes()              const { return m_meshes; }
+    const std::vector<std::unique_ptr<Material>>& getMaterials()       const { return m_materials; }
+    std::vector<std::unique_ptr<Material>>& getMaterialsMutable() { return m_materials; }
 
     void addMesh(std::unique_ptr<Mesh> mesh) { m_meshes.push_back(std::move(mesh)); }
     void addMaterial(std::unique_ptr<Material> mat) { m_materials.push_back(std::move(mat)); }
