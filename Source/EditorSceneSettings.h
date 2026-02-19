@@ -18,4 +18,7 @@ struct EditorSceneSettings
 
     bool  debugDrawLights = false;
     float debugLightSize = 1.0f;
+
+    bool  debugDrawCameraFrustums = true;
+    bool  debugDrawEditorCameraRay  = true;
 };

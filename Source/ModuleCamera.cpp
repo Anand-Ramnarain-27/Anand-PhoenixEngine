@@ -1,63 +1,45 @@
 #include "Globals.h"
 #include "ModuleCamera.h"
+#include "FrustumDebugDraw.h"
 #include "Application.h"
 #include "MathUtils.h"
-
 #include "Mouse.h"
 #include "Keyboard.h"
 #include "GamePad.h"
-
+#include <imgui.h>
 #include <algorithm>
 
-static constexpr float FAR_PLANE = 500.0f;
-static constexpr float NEAR_PLANE = 0.1f;
-
-static constexpr float ROTATION_SPEED_DEG = 25.0f;  
-static constexpr float ORBIT_SENSITIVITY = 0.005f;  
-static constexpr float PAN_SPEED = 0.45f; 
+static constexpr float ORBIT_SENSITIVITY = 0.005f;
+static constexpr float PAN_SPEED = 0.45f;
 static constexpr float ZOOM_SPEED = 1.0f;
 
 bool ModuleCamera::init()
 {
-    params.polar = 0.0f;
-    params.azimuthal = 0.0f;
-    params.translation = Vector3(0.0f, 2.0f, 10.0f);
-
+    params = {};
     position = params.translation;
     rotation = Quaternion::Identity;
-
-    focusOnTarget(Vector3::Zero);   
-
+    focusOnTarget(Vector3::Zero);
     return true;
 }
 
 void ModuleCamera::update()
 {
-    Mouse& mouse = Mouse::Get();
-    Keyboard& keyboard = Keyboard::Get();
-    GamePad& pad = GamePad::Get();
-
-    const Mouse::State& ms = mouse.GetState();
-    const Keyboard::State& ks = keyboard.GetState();
-    GamePad::State         gps = pad.GetState(0);
+    const Mouse::State& ms = Mouse::Get().GetState();
+    const Keyboard::State& ks = Keyboard::Get().GetState();
+    GamePad::State         gps = GamePad::Get().GetState(0);
 
     const float dt = app->getElapsedMilis() * 0.001f;
-
     speedMultiplier = (ks.LeftShift || ks.RightShift) ? speedBoostMultiplier : 1.0f;
 
-    const bool isAltDown = ks.LeftAlt || ks.RightAlt;
-    const bool isOrbiting = isAltDown && ms.leftButton;
+    const bool isOrbiting = (ks.LeftAlt || ks.RightAlt) && ms.leftButton;
     const bool isFlyMode = ms.rightButton && !isOrbiting;
 
-    Vector2 mouseDelta = Vector2(
-        float(dragPosX - ms.x),
-        float(dragPosY - ms.y));
-
-    const int wheelDelta = ms.scrollWheelValue - previousWheelValue;
+    const Vector2 mouseDelta(float(dragPosX - ms.x), float(dragPosY - ms.y));
+    const int     wheelDelta = ms.scrollWheelValue - previousWheelValue;
     previousWheelValue = ms.scrollWheelValue;
 
     Vector3 translateLocal = Vector3::Zero;
-    Vector2 rotateDelta = Vector2::Zero;  
+    Vector2 rotateDelta = Vector2::Zero;
 
     if (isFlyMode || isOrbiting)
     {
@@ -89,50 +71,130 @@ void ModuleCamera::update()
         if (ks.E) translateLocal.y -= mv;
     }
 
-    if (ks.F && !prevFKeyState)
-        focusOnTarget(Vector3::Zero);
+    if (ks.F && !prevFKeyState) focusOnTarget(Vector3::Zero);
     prevFKeyState = ks.F;
 
-    if (isOrbiting)
-        updateOrbitMode(rotateDelta);
-    else
-        updateFlyMode(dt, translateLocal, rotateDelta);
+    if (isOrbiting) updateOrbitMode(rotateDelta);
+    else            updateFlyMode(dt, translateLocal, rotateDelta);
 
     dragPosX = ms.x;
     dragPosY = ms.y;
+
+    rebuildFrustum();
+}
+
+void ModuleCamera::rebuildFrustum()
+{
+    m_editorFrustum = Frustum::fromCamera(
+        position, getForward(), getRight(), getUp(),
+        fovY, aspectRatio, nearZ, farZ);
+
+    if (cullSource == CullSource::GameCamera && m_hasGameFrustum)
+        m_cullFrustum = m_gameFrustum;
+    else
+        m_cullFrustum = m_editorFrustum;
+}
+
+bool ModuleCamera::isVisible(const Vector3& aabbMin, const Vector3& aabbMax) const
+{
+    if (cullMode == CullMode::None) return true;
+    return m_cullFrustum.intersectsAABB(aabbMin, aabbMax);
+}
+
+void ModuleCamera::buildDebugLines(FrustumDebugDraw& dd) const
+{
+    const Vector3 fwd = getForward();
+    const Vector3 right = getRight();
+    const Vector3 up = getUp();
+
+    if (debugDrawEditorFrustum && m_editorFrustum.cornersValid)
+        dd.addFrustum(m_editorFrustum, Vector3(1, 1, 1));
+
+    if (debugDrawCullFrustum && m_cullFrustum.cornersValid)
+    {
+        bool isGameCam = (cullSource == CullSource::GameCamera && m_hasGameFrustum);
+        dd.addFrustum(m_cullFrustum, isGameCam ? Vector3(0, 1, 0) : Vector3(1, 1, 0));
+    }
+
+    if (debugDrawCameraAxes)
+        dd.addAxes(position, fwd, right, up, 0.5f);
+
+    if (debugDrawForwardRay)
+    {
+        dd.addLine(position, position + fwd * nearZ, Vector3(0, 1, 1));
+        dd.addLine(position + fwd * nearZ,
+            position + fwd * std::min(farZ, 20.0f), Vector3(0, 0.5f, 0.5f)); 
+    }
+}
+
+void ModuleCamera::onEditorDebugPanel()
+{
+    if (!ImGui::CollapsingHeader("Frustum Culling", ImGuiTreeNodeFlags_DefaultOpen))
+        return;
+
+    int cm = (int)cullMode;
+    ImGui::Text("Cull Mode");
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Off##cm", &cm, 0)) cullMode = CullMode::None;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Frustum##cm", &cm, 1)) cullMode = CullMode::Frustum;
+
+    int cs = (int)cullSource;
+    ImGui::Text("Cull From");
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Editor Cam##cs", &cs, 0)) cullSource = CullSource::EditorCamera;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Game Cam##cs", &cs, 1)) cullSource = CullSource::GameCamera;
+
+    if (cullSource == CullSource::GameCamera && !m_hasGameFrustum)
+        ImGui::TextColored(ImVec4(1, 0.4f, 0, 1), "  No game camera frustum set");
+
+    ImGui::Separator();
+    ImGui::Text("Debug Draw");
+    ImGui::Checkbox("Editor Frustum (white)", &debugDrawEditorFrustum);
+    ImGui::Checkbox("Cull Frustum (yellow/green)", &debugDrawCullFrustum);
+    ImGui::Checkbox("Camera Axes", &debugDrawCameraAxes);
+    ImGui::Checkbox("Forward Ray (cyan)", &debugDrawForwardRay);
+
+    ImGui::Separator();
+    ImGui::Text("Camera Parameters");
+
+    float fovDeg = fovY * 57.2957795f;
+    if (ImGui::SliderFloat("FOV (Y)", &fovDeg, 10.f, 170.f)) fovY = fovDeg * 0.0174532925f;
+    ImGui::DragFloat("Near", &nearZ, 0.01f, 0.01f, 10.0f);
+    ImGui::DragFloat("Far", &farZ, 1.0f, 10.0f, 5000.0f);
+    ImGui::SliderFloat("Aspect Ratio", &aspectRatio, 0.5f, 4.0f);
+
+    ImGui::Separator();
+    ImGui::Text("Position: %.2f  %.2f  %.2f", position.x, position.y, position.z);
+    Vector3 fwd = getForward();
+    ImGui::Text("Forward:  %.2f  %.2f  %.2f", fwd.x, fwd.y, fwd.z);
+    ImGui::Text("Lines buffered: (call buildDebugLines to count)");
 }
 
 void ModuleCamera::updateFlyMode(float, const Vector3& translateLocal, const Vector2& rotateDelta)
 {
     params.polar += rotateDelta.x;
-    params.azimuthal += rotateDelta.y;
+    params.azimuthal = std::clamp(params.azimuthal + rotateDelta.y, -XM_PIDIV2 + 0.01f, XM_PIDIV2 - 0.01f);
 
-    params.azimuthal = std::clamp(params.azimuthal, -XM_PIDIV2 + 0.01f, XM_PIDIV2 - 0.01f);
+    const Quaternion rotP = Quaternion::CreateFromAxisAngle(Vector3::UnitY, params.polar);
+    const Quaternion rotA = Quaternion::CreateFromAxisAngle(Vector3::UnitX, params.azimuthal);
+    rotation = rotA * rotP;
 
-    const Quaternion rotPolar = Quaternion::CreateFromAxisAngle(Vector3::UnitY, params.polar);
-    const Quaternion rotAzimuthal = Quaternion::CreateFromAxisAngle(Vector3::UnitX, params.azimuthal);
-    rotation = rotAzimuthal * rotPolar;
-
-    const Vector3 worldDir = Vector3::Transform(translateLocal, rotation);
-    params.translation += worldDir;
+    params.translation += Vector3::Transform(translateLocal, rotation);
     position = params.translation;
-
     rebuildViewMatrix();
 }
 
 void ModuleCamera::updateOrbitMode(const Vector2& rotateDelta)
 {
     params.polar += rotateDelta.x;
-    params.azimuthal += rotateDelta.y;
-    params.azimuthal = std::clamp(params.azimuthal, -XM_PIDIV2 + 0.01f, XM_PIDIV2 - 0.01f);
+    params.azimuthal = std::clamp(params.azimuthal + rotateDelta.y, -XM_PIDIV2 + 0.01f, XM_PIDIV2 - 0.01f);
 
-    const float radius = (position - Vector3::Zero).Length();
-    const float safeR = (radius < 0.5f) ? 5.0f : radius;
-
-    position.x = safeR * sinf(params.polar) * cosf(params.azimuthal);
-    position.y = safeR * sinf(params.azimuthal);
-    position.z = safeR * cosf(params.polar) * cosf(params.azimuthal);
-
+    const float r = std::max((position - Vector3::Zero).Length(), 0.5f);
+    position.x = r * sinf(params.polar) * cosf(params.azimuthal);
+    position.y = r * sinf(params.azimuthal);
+    position.z = r * cosf(params.polar) * cosf(params.azimuthal);
     params.translation = position;
 
     view = Matrix::CreateLookAt(position, Vector3::Zero, Vector3::UnitY);
@@ -141,18 +203,16 @@ void ModuleCamera::updateOrbitMode(const Vector2& rotateDelta)
 
 void ModuleCamera::rebuildViewMatrix()
 {
-    Quaternion invRot;
-    rotation.Inverse(invRot);
-
-    view = Matrix::CreateFromQuaternion(invRot);
-    view.Translation(Vector3::Transform(-position, invRot));
+    Quaternion inv;
+    rotation.Inverse(inv);
+    view = Matrix::CreateFromQuaternion(inv);
+    view.Translation(Vector3::Transform(-position, inv));
 }
 
 void ModuleCamera::focusOnTarget(const Vector3& target)
 {
     Vector3 dir = position - target;
-    if (dir.LengthSquared() < 1e-6f)
-        dir = Vector3(0.0f, 0.0f, 5.0f);
+    if (dir.LengthSquared() < 1e-6f) dir = Vector3(0.0f, 0.0f, 5.0f);
     dir.Normalize();
 
     params.translation = target + dir * 5.0f;
@@ -165,22 +225,11 @@ void ModuleCamera::focusOnTarget(const Vector3& target)
     params.azimuthal = asinf(std::clamp(-dir.y, -1.0f, 1.0f));
 }
 
-Matrix ModuleCamera::getPerspectiveProj(float aspect, float fov)
+Matrix  ModuleCamera::getPerspectiveProj(float aspect, float fov)
 {
-    return Matrix::CreatePerspectiveFieldOfView(fov, aspect, NEAR_PLANE, FAR_PLANE);
+    return Matrix::CreatePerspectiveFieldOfView(fov, aspect, 0.1f, 500.0f);
 }
 
-Vector3 ModuleCamera::getForward() const
-{
-    return Vector3::Transform(-Vector3::UnitZ, rotation);
-}
-
-Vector3 ModuleCamera::getRight() const
-{
-    return Vector3::Transform(Vector3::UnitX, rotation);
-}
-
-Vector3 ModuleCamera::getUp() const
-{
-    return Vector3::Transform(Vector3::UnitY, rotation);
-}
+Vector3 ModuleCamera::getForward() const { return Vector3::Transform(-Vector3::UnitZ, rotation); }
+Vector3 ModuleCamera::getRight()   const { return Vector3::Transform(Vector3::UnitX, rotation); }
+Vector3 ModuleCamera::getUp()      const { return Vector3::Transform(Vector3::UnitY, rotation); }

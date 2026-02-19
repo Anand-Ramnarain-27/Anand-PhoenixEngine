@@ -375,6 +375,8 @@
     <ClInclude Include="PrimitiveFactory.h">
       <Filter>engine\scene\primitives</Filter>
     </ClInclude>
+    <ClInclude Include="Frustum.h" />
+    <ClInclude Include="FrustumDebugDraw.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

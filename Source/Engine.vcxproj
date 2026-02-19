@@ -186,6 +186,8 @@
     <ClInclude Include="DescriptorBase.h" />
     <ClInclude Include="EditorSceneSettings.h" />
     <ClInclude Include="FileDialog.h" />
+    <ClInclude Include="Frustum.h" />
+    <ClInclude Include="FrustumDebugDraw.h" />
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="gltf_utils.h" />
     <ClInclude Include="HandleManager.h" />

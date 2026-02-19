@@ -15,7 +15,6 @@
 
 using namespace rapidjson;
 
-// Helper: push a vec3/quat inline
 static void pushVec3(Value& arr, const Vector3& v, Document::AllocatorType& a)
 {
     arr.PushBack(v.x, a).PushBack(v.y, a).PushBack(v.z, a);
