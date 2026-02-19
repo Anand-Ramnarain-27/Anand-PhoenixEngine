@@ -48,7 +48,6 @@ bool ModuleEditor::init()
     ModuleD3D12* d3d12 = app->getD3D12();
     ModuleShaderDescriptors* descs = app->getShaderDescriptors();
     ID3D12Device* device = d3d12->getDevice();
-
     descTable = descs->allocTable();
 
     ComPtr<ID3D12Device2> device2;
@@ -60,15 +59,15 @@ bool ModuleEditor::init()
     debugDrawPass = std::make_unique<DebugDrawPass>(device4.Get(), d3d12->getDrawCommandQueue(), false);
     viewportRT = std::make_unique<RenderTexture>("EditorViewport", DXGI_FORMAT_R8G8B8A8_UNORM,
         Vector4(0.1f, 0.1f, 0.1f, 1.0f), DXGI_FORMAT_D32_FLOAT, 1.0f);
+
     sceneManager = std::make_unique<SceneManager>();
     meshPipeline = std::make_unique<MeshPipeline>();
-
     if (!meshPipeline->init(device)) return false;
+
     sceneManager->setScene(std::make_unique<EmptyScene>(), device);
 
     D3D12_QUERY_HEAP_DESC qDesc = { D3D12_QUERY_HEAP_TYPE_TIMESTAMP, 2, 0 };
     device->CreateQueryHeap(&qDesc, IID_PPV_ARGS(&gpuQueryHeap));
-
     auto rbHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
     auto rbDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(UINT64) * 2);
     device->CreateCommittedResource(&rbHeap, D3D12_HEAP_FLAG_NONE, &rbDesc,
@@ -117,39 +116,47 @@ void ModuleEditor::handleViewportResize()
 
 void ModuleEditor::handleDialogs()
 {
-    auto tryScene = [&](bool saved, const char* okMsg, const char* failMsg)
+    auto tryScene = [&](bool ok, const char* okMsg, const char* failMsg)
         {
-            log(saved ? okMsg : failMsg, saved ? ImVec4(0.6f, 1.0f, 0.6f, 1.0f) : ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+            log(ok ? okMsg : failMsg,
+                ok ? ImVec4(0.6f, 1.0f, 0.6f, 1.0f) : ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
         };
 
     if (m_saveDialog.draw() && sceneManager && sceneManager->getActiveScene())
-        tryScene(sceneManager->saveCurrentScene(m_saveDialog.getSelectedPath()), "Scene saved!", "Failed to save scene.");
+    {
+        const std::string& path = m_saveDialog.getSelectedPath();
+        bool saved = sceneManager->saveCurrentScene(path);
+        if (saved)
+            m_currentScenePath = path;  
+        tryScene(saved, "Scene saved!", "Failed to save scene.");
+    }
 
     if (m_loadDialog.draw() && sceneManager && sceneManager->getActiveScene())
-        tryScene(sceneManager->loadScene(m_loadDialog.getSelectedPath()), "Scene loaded!", "Failed to load scene.");
+    {
+        const std::string& path = m_loadDialog.getSelectedPath();
+        bool loaded = sceneManager->loadScene(path);
+        if (loaded)
+            m_currentScenePath = path;  
+        tryScene(loaded, "Scene loaded!", "Failed to load scene.");
+    }
 }
 
 void ModuleEditor::preRender()
 {
     handleViewportResize();
-
     imguiPass->startFrame();
     ImGuizmo::BeginFrame();
-
     if (sceneManager) sceneManager->update(app->getElapsedMilis() * 0.001f);
     updateFPS();
-
     drawDockspace();
     drawMenuBar();
-
     if (showViewport) { drawViewport(); drawGizmoToolbar(); drawViewportOverlay(); }
-    if (showHierarchy)    drawHierarchy();
-    if (showInspector)    drawInspector();
-    if (showConsole)      drawConsole();
-    if (showPerformance)  drawPerformanceWindow();
-    if (showAssetBrowser) drawAssetBrowser();
-    if (showSceneSettings)drawSceneSettings();
-
+    if (showHierarchy)     drawHierarchy();
+    if (showInspector)     drawInspector();
+    if (showConsole)       drawConsole();
+    if (showPerformance)   drawPerformanceWindow();
+    if (showAssetBrowser)  drawAssetBrowser();
+    if (showSceneSettings) drawSceneSettings();
     handleDialogs();
 
     if (viewportRT && viewportSize.x > 4 && viewportSize.y > 4)
@@ -185,6 +192,7 @@ void ModuleEditor::handleNewScenePopup(ID3D12GraphicsCommandList* cmd)
         app->getD3D12()->flush();
         sceneManager->setScene(std::make_unique<EmptyScene>(), app->getD3D12()->getDevice());
         selectedGameObject = nullptr;
+        m_currentScenePath.clear(); 
         log("New scene created.", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
         ImGui::CloseCurrentPopup();
     }
@@ -292,6 +300,7 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     ModuleCamera* camera = app->getCamera();
     const Matrix& view = camera->getView();
     Matrix        proj = ModuleCamera::getPerspectiveProj(float(w) / float(h));
+
     const EditorSceneSettings& s = sceneManager->getSettings();
     ModuleScene* moduleScene = getActiveModuleScene();
 
@@ -306,7 +315,6 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     lightData.ambientColor = s.ambient.color;
     lightData.ambientIntensity = s.ambient.intensity;
     lightData.viewPos = camera->getPos();
-
     if (moduleScene) gatherLights(moduleScene->getRoot(), lightData);
 
     void* mapped = nullptr;
@@ -371,7 +379,6 @@ void ModuleEditor::drawDockspace()
         ImGui::DockBuilderDockWindow("Asset Browser", bottom);
         ImGui::DockBuilderFinish(dockID);
     }
-
     ImGui::End();
 }
 
@@ -381,12 +388,33 @@ void ModuleEditor::drawMenuBar()
 
     if (ImGui::BeginMenu("File"))
     {
-        if (ImGui::MenuItem("New Scene", "Ctrl+N"))         showNewSceneConfirmation = true;
+        if (ImGui::MenuItem("New Scene", "Ctrl+N"))
+            showNewSceneConfirmation = true;
+
         ImGui::Separator();
-        if (ImGui::MenuItem("Save Scene", "Ctrl+S"))         m_saveDialog.open(FileDialog::Type::Save, "Save Scene", "Library/Scenes");
-        if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S"))  m_saveDialog.open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
+
+        if (ImGui::MenuItem("Save Scene", "Ctrl+S"))
+        {
+            if (!m_currentScenePath.empty() && sceneManager && sceneManager->getActiveScene())
+            {
+                bool saved = sceneManager->saveCurrentScene(m_currentScenePath);
+                log(saved ? "Scene saved!" : "Failed to save scene.",
+                    saved ? ImVec4(0.6f, 1.0f, 0.6f, 1.0f) : ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+            }
+            else
+            {
+                m_saveDialog.open(FileDialog::Type::Save, "Save Scene", "Library/Scenes");
+            }
+        }
+
+        if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S"))
+            m_saveDialog.open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
+
         ImGui::Separator();
-        if (ImGui::MenuItem("Load Scene...", "Ctrl+O"))         m_loadDialog.open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
+
+        if (ImGui::MenuItem("Load Scene...", "Ctrl+O"))
+            m_loadDialog.open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
+
         ImGui::Separator();
         if (ImGui::MenuItem("Quit", "Alt+F4")) {}
         ImGui::EndMenu();
@@ -412,7 +440,7 @@ void ModuleEditor::drawMenuBar()
 
     if (ImGui::BeginMenu("GameObject"))
     {
-        if (ImGui::MenuItem("Create Empty"))                      createEmptyGameObject();
+        if (ImGui::MenuItem("Create Empty"))                             createEmptyGameObject();
         if (ImGui::MenuItem("Create Empty Child") && selectedGameObject) createEmptyGameObject("Empty", selectedGameObject);
         ImGui::Separator();
 
@@ -421,16 +449,17 @@ void ModuleEditor::drawMenuBar()
                 if (ImGui::MenuItem(label) && selectedGameObject && !existing)
                     selectedGameObject->addComponent(ComponentFactory::CreateComponent(type, selectedGameObject));
             };
-        tryAddComponent("Add Camera Component", Component::Type::Camera, selectedGameObject ? selectedGameObject->getComponent<ComponentCamera>() : nullptr);
-        tryAddComponent("Add Mesh Component", Component::Type::Mesh, selectedGameObject ? selectedGameObject->getComponent<ComponentMesh>() : nullptr);
-
+        tryAddComponent("Add Camera Component", Component::Type::Camera,
+            selectedGameObject ? selectedGameObject->getComponent<ComponentCamera>() : nullptr);
+        tryAddComponent("Add Mesh Component", Component::Type::Mesh,
+            selectedGameObject ? selectedGameObject->getComponent<ComponentMesh>() : nullptr);
         ImGui::EndMenu();
     }
 
     if (ImGui::BeginMenu("Scene"))
     {
-        if (ImGui::MenuItem("Play", nullptr, false, sceneManager && !sceneManager->isPlaying())) sceneManager->play();
-        if (ImGui::MenuItem("Pause", nullptr, false, sceneManager && sceneManager->isPlaying())) sceneManager->pause();
+        if (ImGui::MenuItem("Play", nullptr, false, sceneManager && !sceneManager->isPlaying()))                              sceneManager->play();
+        if (ImGui::MenuItem("Pause", nullptr, false, sceneManager && sceneManager->isPlaying()))                              sceneManager->pause();
         if (ImGui::MenuItem("Stop", nullptr, false, sceneManager && sceneManager->getState() != SceneManager::PlayState::Stopped)) sceneManager->stop();
         ImGui::EndMenu();
     }
@@ -446,13 +475,13 @@ void ModuleEditor::drawMenuBar()
         if (playing) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1));
         if (ImGui::Button("  Play  ", ImVec2(btnW, 0)) && sceneManager && !playing) sceneManager->play();
         if (playing) ImGui::PopStyleColor();
-
         ImGui::SameLine();
+
         if (paused) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.7f, 0.1f, 1));
         if (ImGui::Button(" Pause  ", ImVec2(btnW, 0)) && sceneManager && playing) sceneManager->pause();
         if (paused) ImGui::PopStyleColor();
-
         ImGui::SameLine();
+
         if (ImGui::Button("  Stop  ", ImVec2(btnW, 0)) && sceneManager) sceneManager->stop();
     }
 
@@ -474,11 +503,9 @@ void ModuleEditor::drawGizmoToolbar()
 
     ImGui::SetNextWindowPos({ win->Pos.x + 8, win->Pos.y + 28 }, ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.7f);
-
     constexpr ImGuiWindowFlags kFlags =
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
         ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing;
-
     if (!ImGui::Begin("##GizmoToolbar", nullptr, kFlags)) { ImGui::End(); return; }
 
     auto gizmoBtn = [&](const char* label, ImGuizmo::OPERATION op)
@@ -493,13 +520,13 @@ void ModuleEditor::drawGizmoToolbar()
     gizmoBtn("T", ImGuizmo::TRANSLATE);
     gizmoBtn("R", ImGuizmo::ROTATE);
     gizmoBtn("S", ImGuizmo::SCALE);
-
     ImGui::SameLine(0, 8);
+
     bool local = (gizmoMode == ImGuizmo::LOCAL);
     if (ImGui::Button(local ? "Local" : "World", ImVec2(48, 22)))
         gizmoMode = local ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
-
     ImGui::SameLine(0, 8);
+
     ImGui::Checkbox("Snap", &useSnap);
     if (useSnap)
     {
@@ -508,14 +535,12 @@ void ModuleEditor::drawGizmoToolbar()
         else if (gizmoOperation == ImGuizmo::ROTATE)    ImGui::TextDisabled("%.0f°", snapRotate);
         else                                            ImGui::TextDisabled("%.2f", snapScale);
     }
-
     ImGui::End();
 }
 
 void ModuleEditor::drawHierarchy()
 {
     ImGui::Begin("Hierarchy", &showHierarchy);
-
     ModuleScene* scene = getActiveModuleScene();
     if (!scene) { ImGui::End(); return; }
 
@@ -528,7 +553,6 @@ void ModuleEditor::drawHierarchy()
 
     if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right) && !ImGui::IsAnyItemHovered())
         ImGui::OpenPopup("##HierarchyBlank");
-
     hierarchyBlankContextMenu();
     ImGui::End();
 }
@@ -538,8 +562,8 @@ void ModuleEditor::drawHierarchyNode(GameObject* go)
     if (!go) return;
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
-    if (go == selectedGameObject) flags |= ImGuiTreeNodeFlags_Selected;
-    if (go->getChildren().empty()) flags |= ImGuiTreeNodeFlags_Leaf;
+    if (go == selectedGameObject)    flags |= ImGuiTreeNodeFlags_Selected;
+    if (go->getChildren().empty())   flags |= ImGuiTreeNodeFlags_Leaf;
 
     if (renamingObject && renamingTarget == go)
     {
@@ -558,9 +582,8 @@ void ModuleEditor::drawHierarchyNode(GameObject* go)
 
     bool open = ImGui::TreeNodeEx((void*)(uintptr_t)go->getUID(), flags, go->getName().c_str());
 
-    if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())    selectedGameObject = go;
-    if (ImGui::IsItemClicked(ImGuiMouseButton_Right))              selectedGameObject = go;
-
+    if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())   selectedGameObject = go;
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Right))             selectedGameObject = go;
     if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
     {
         renamingObject = true;
@@ -568,11 +591,7 @@ void ModuleEditor::drawHierarchyNode(GameObject* go)
         strncpy_s(renameBuffer, go->getName().c_str(), sizeof(renameBuffer) - 1);
     }
 
-    if (ImGui::BeginPopupContextItem())
-    {
-        hierarchyItemContextMenu(go);
-        ImGui::EndPopup();
-    }
+    if (ImGui::BeginPopupContextItem()) { hierarchyItemContextMenu(go); ImGui::EndPopup(); }
 
     if (ImGui::BeginDragDropSource())
     {
@@ -612,7 +631,6 @@ void ModuleEditor::hierarchyItemContextMenu(GameObject* go)
         createEmptyGameObject((go->getName() + " (Copy)").c_str(), go->getParent());
 
     ImGui::Separator();
-
     if (ImGui::BeginMenu("Add Component"))
     {
         auto addIf = [&](const char* label, Component::Type type, bool hasIt)
@@ -644,7 +662,7 @@ void ModuleEditor::hierarchyItemContextMenu(GameObject* go)
 void ModuleEditor::hierarchyBlankContextMenu()
 {
     if (!ImGui::BeginPopup("##HierarchyBlank")) return;
-    if (ImGui::MenuItem("Create Empty GameObject"))             createEmptyGameObject();
+    if (ImGui::MenuItem("Create Empty GameObject"))              createEmptyGameObject();
     if (ImGui::MenuItem("Create Empty Child") && selectedGameObject) createEmptyGameObject("Empty", selectedGameObject);
     ImGui::EndPopup();
 }
@@ -652,13 +670,7 @@ void ModuleEditor::hierarchyBlankContextMenu()
 void ModuleEditor::drawInspector()
 {
     ImGui::Begin("Inspector", &showInspector);
-
-    if (!selectedGameObject)
-    {
-        ImGui::TextDisabled("No GameObject selected.");
-        ImGui::End();
-        return;
-    }
+    if (!selectedGameObject) { ImGui::TextDisabled("No GameObject selected."); ImGui::End(); return; }
 
     bool active = selectedGameObject->isActive();
     if (ImGui::Checkbox("##active", &active)) selectedGameObject->setActive(active);
@@ -673,7 +685,8 @@ void ModuleEditor::drawInspector()
     ImGui::TextDisabled("UID: %u", selectedGameObject->getUID());
     ImGui::Separator();
 
-    if (ComponentTransform* t = selectedGameObject->getTransform(); t && ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ComponentTransform* t = selectedGameObject->getTransform();
+        t && ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
     {
         float pos[3] = { t->position.x, t->position.y, t->position.z };
         if (ImGui::DragFloat3("Position", pos, 0.1f))
@@ -682,10 +695,11 @@ void ModuleEditor::drawInspector()
         }
 
         Vector3 euler = t->rotation.ToEuler();
-        float deg[3] = { euler.x * 57.2957795f, euler.y * 57.2957795f, euler.z * 57.2957795f };
+        float   deg[3] = { euler.x * 57.2957795f, euler.y * 57.2957795f, euler.z * 57.2957795f };
         if (ImGui::DragFloat3("Rotation", deg, 0.5f))
         {
-            t->rotation = Quaternion::CreateFromYawPitchRoll(deg[1] * 0.0174532925f, deg[0] * 0.0174532925f, deg[2] * 0.0174532925f);
+            t->rotation = Quaternion::CreateFromYawPitchRoll(
+                deg[1] * 0.0174532925f, deg[0] * 0.0174532925f, deg[2] * 0.0174532925f);
             t->markDirty();
         }
 
@@ -702,7 +716,6 @@ void ModuleEditor::drawInspector()
     for (const auto& comp : selectedGameObject->getComponents())
     {
         if (comp->getType() == Component::Type::Transform) continue;
-
         ImGui::PushID((int)comp->getType());
 
         const char* label =
@@ -715,7 +728,6 @@ void ModuleEditor::drawInspector()
         bool headerOpen = true;
         bool open = ImGui::CollapsingHeader(label, &headerOpen,
             ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_ClipLabelForTrailingButton);
-
         if (!headerOpen) { toRemove = comp->getType(); wantsRemove = true; }
 
         if (open)
@@ -732,7 +744,6 @@ void ModuleEditor::drawInspector()
             if (ImGui::MenuItem("Remove Component")) { toRemove = comp->getType(); wantsRemove = true; }
             ImGui::EndPopup();
         }
-
         ImGui::PopID();
     }
 
@@ -740,6 +751,7 @@ void ModuleEditor::drawInspector()
         selectedGameObject->removeComponentByType(toRemove);
 
     ImGui::Spacing(); ImGui::Separator();
+
     const float btnW = 180.0f;
     ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - btnW) * 0.5f + ImGui::GetCursorPosX());
     if (ImGui::Button("Add Component", ImVec2(btnW, 0))) ImGui::OpenPopup("##AddComp");
@@ -777,7 +789,6 @@ void ModuleEditor::drawInspector()
             prefabBuf[0] = '\0';
         }
     }
-
     ImGui::End();
 }
 
@@ -790,7 +801,7 @@ void ModuleEditor::drawComponentCamera(ComponentCamera* cam)
     if (ImGui::SliderFloat("FOV", &fovDeg, 10.0f, 170.0f)) cam->setFOV(fovDeg * 0.0174532925f);
 
     float nearP = cam->getNearPlane(), farP = cam->getFarPlane();
-    if (ImGui::DragFloat("Near Plane", &nearP, 0.01f, 0.001f, farP - 0.01f))  cam->setNearPlane(nearP);
+    if (ImGui::DragFloat("Near Plane", &nearP, 0.01f, 0.001f, farP - 0.01f)) cam->setNearPlane(nearP);
     if (ImGui::DragFloat("Far Plane", &farP, 1.0f, nearP + 0.01f, 10000.f)) cam->setFarPlane(farP);
 
     Vector4 bg = cam->getBackgroundColor();
@@ -801,7 +812,6 @@ void ModuleEditor::drawComponentMesh(ComponentMesh* mesh)
 {
     namespace fs = std::filesystem;
 
-    // ── Model header row ────────────────────────────────────────────────────
     Model* model = mesh->getModel();
     const std::string& modelPath = mesh->getModelPath();
     std::string modelName = modelPath.empty()
@@ -822,7 +832,6 @@ void ModuleEditor::drawComponentMesh(ComponentMesh* mesh)
         ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.3f, 1.0f), "[M]  No model loaded");
     }
 
-    // ── Change / Load buttons ───────────────────────────────────────────────
     static char meshPathBuf[256] = "";
     ImGui::SetNextItemWidth(-160.0f);
     ImGui::InputTextWithHint("##meshpath", "Assets/Models/name/name.gltf", meshPathBuf, sizeof(meshPathBuf));
@@ -836,18 +845,13 @@ void ModuleEditor::drawComponentMesh(ComponentMesh* mesh)
         if (ok) meshPathBuf[0] = '\0';
     }
     ImGui::SameLine(0, 4);
+    if (ImGui::Button("Pick##ml", ImVec2(70, 0))) ImGui::OpenPopup("##ModelPicker");
 
-    // "Pick…" button opens a popup showing all imported models
-    if (ImGui::Button("Pick##ml", ImVec2(70, 0)))
-        ImGui::OpenPopup("##ModelPicker");
-
-    // ── Model picker popup ──────────────────────────────────────────────────
     ImGui::SetNextWindowSize(ImVec2(320, 280), ImGuiCond_Appearing);
     if (ImGui::BeginPopup("##ModelPicker"))
     {
         ImGui::TextDisabled("Imported models  (double-click to load)");
         ImGui::Separator();
-
         static char pickerSearch[64] = "";
         ImGui::SetNextItemWidth(-1);
         ImGui::InputTextWithHint("##pksearch", "Search...", pickerSearch, sizeof(pickerSearch));
@@ -855,36 +859,30 @@ void ModuleEditor::drawComponentMesh(ComponentMesh* mesh)
 
         std::string search(pickerSearch);
         std::transform(search.begin(), search.end(), search.begin(), ::tolower);
-
         std::string meshesRoot = app->getFileSystem()->GetLibraryPath() + "Meshes/";
         bool anyModel = false;
+
         try
         {
             for (const auto& entry : fs::directory_iterator(meshesRoot))
             {
                 if (!entry.is_directory()) continue;
-
                 std::string name = entry.path().filename().string();
                 std::string lower = name;
                 std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
                 if (!search.empty() && lower.find(search) == std::string::npos) continue;
 
-                // Guess original GLTF path from library folder name
                 std::string gltfPath = "Assets/Models/" + name + "/" + name + ".gltf";
                 bool isCurrent = (modelName == name);
-
                 if (isCurrent) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
-
                 bool clicked = ImGui::Selectable(("  [M]  " + name).c_str(), isCurrent,
                     ImGuiSelectableFlags_AllowDoubleClick);
-
                 if (isCurrent) ImGui::PopStyleColor();
 
                 if (clicked && ImGui::IsMouseDoubleClicked(0))
                 {
                     bool ok = mesh->loadModel(gltfPath.c_str());
-                    log(ok ? ("Loaded: " + name).c_str()
-                        : ("Failed to load: " + gltfPath).c_str(),
+                    log(ok ? ("Loaded: " + name).c_str() : ("Failed to load: " + gltfPath).c_str(),
                         ok ? ImVec4(0.6f, 1, 0.6f, 1) : ImVec4(1, 0.4f, 0.4f, 1));
                     ImGui::CloseCurrentPopup();
                 }
@@ -899,13 +897,10 @@ void ModuleEditor::drawComponentMesh(ComponentMesh* mesh)
             ImGui::Text("    No models imported yet.");
             ImGui::PopStyleColor();
         }
-
         ImGui::EndPopup();
     }
 
-    // ── Materials ───────────────────────────────────────────────────────────
     if (!model) return;
-
     ImGui::Spacing();
     ImGui::SeparatorText("Materials");
 
@@ -914,20 +909,14 @@ void ModuleEditor::drawComponentMesh(ComponentMesh* mesh)
     {
         Material* mat = mats[mi].get();
         if (!mat) continue;
-
         Material::Data& d = mat->getData();
-
         ImGui::PushID(mi);
 
-        // Material header
         std::string matLabel = "Material " + std::to_string(mi);
-
         bool open = ImGui::CollapsingHeader(matLabel.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
         if (open)
         {
             ImGui::Indent(8.0f);
-
-            // Texture picker popup – pick from imported textures
             if (ImGui::SmallButton("Pick texture##tp"))
                 ImGui::OpenPopup(("##TexPicker" + std::to_string(mi)).c_str());
 
@@ -936,17 +925,16 @@ void ModuleEditor::drawComponentMesh(ComponentMesh* mesh)
             {
                 ImGui::TextDisabled("Imported textures  (double-click to apply)");
                 ImGui::Separator();
-
                 static char texSearch[64] = "";
                 ImGui::SetNextItemWidth(-1);
                 ImGui::InputTextWithHint("##txs", "Search...", texSearch, sizeof(texSearch));
 
                 std::string ts(texSearch);
                 std::transform(ts.begin(), ts.end(), ts.begin(), ::tolower);
-
                 std::string texDir = app->getFileSystem()->GetLibraryPath() + "Textures/";
-                auto texFiles = app->getFileSystem()->GetFilesInDirectory(texDir.c_str(), ".dds");
+                auto        texFiles = app->getFileSystem()->GetFilesInDirectory(texDir.c_str(), ".dds");
                 bool anyTex = false;
+
                 for (const auto& tf : texFiles)
                 {
                     std::string tname = fs::path(tf).stem().string();
@@ -959,7 +947,7 @@ void ModuleEditor::drawComponentMesh(ComponentMesh* mesh)
                     {
                         if (ImGui::IsMouseDoubleClicked(0))
                         {
-                            ComPtr<ID3D12Resource> tex;
+                            ComPtr<ID3D12Resource>      tex;
                             D3D12_GPU_DESCRIPTOR_HANDLE srv{};
                             if (TextureImporter::Load(tf, tex, srv))
                             {
@@ -973,6 +961,7 @@ void ModuleEditor::drawComponentMesh(ComponentMesh* mesh)
                     }
                     anyTex = true;
                 }
+
                 if (!anyTex)
                 {
                     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.4f, 0.4f, 1));
@@ -982,7 +971,6 @@ void ModuleEditor::drawComponentMesh(ComponentMesh* mesh)
                 ImGui::EndPopup();
             }
         }
-
         ImGui::PopID();
     }
 }
@@ -1006,7 +994,7 @@ void ModuleEditor::drawGizmo()
     ImGuizmo::SetDrawlist();
     ImGuizmo::SetRect(viewportPos.x, viewportPos.y, w, h);
 
-    float snapVals[3] = {};
+    float  snapVals[3] = {};
     float* snapPtr = nullptr;
     if (useSnap)
     {
@@ -1030,8 +1018,9 @@ void ModuleEditor::drawGizmo()
         ImGuizmo::DecomposeMatrixToComponents(reinterpret_cast<const float*>(&localWorld), translation, eulerDeg, scale);
 
         t->position = { translation[0], translation[1], translation[2] };
-        t->scale = { scale[0], scale[1], scale[2] };
-        t->rotation = Quaternion::CreateFromYawPitchRoll(eulerDeg[1] * 0.0174532925f, eulerDeg[0] * 0.0174532925f, eulerDeg[2] * 0.0174532925f);
+        t->scale = { scale[0],       scale[1],       scale[2] };
+        t->rotation = Quaternion::CreateFromYawPitchRoll(
+            eulerDeg[1] * 0.0174532925f, eulerDeg[0] * 0.0174532925f, eulerDeg[2] * 0.0174532925f);
         t->markDirty();
     }
 }
@@ -1040,7 +1029,6 @@ void ModuleEditor::drawViewport()
 {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     bool open = ImGui::Begin("Viewport", &showViewport, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-
     if (open)
     {
         viewportSize = ImGui::GetContentRegionAvail();
@@ -1055,7 +1043,6 @@ void ModuleEditor::drawViewport()
             ImGui::TextDisabled("Viewport not ready...");
         }
     }
-
     ImGui::End();
     ImGui::PopStyleVar();
 }
@@ -1064,7 +1051,6 @@ void ModuleEditor::drawViewportOverlay()
 {
     ImGuiWindow* win = ImGui::FindWindowByName("Viewport");
     if (!win) return;
-
     char buf[160];
     sprintf_s(buf, "FPS: %.1f  CPU: %.2f ms  GPU: %.2f ms", app->getFPS(), app->getAvgElapsedMs(), gpuFrameTimeMs);
     ImGui::GetForegroundDrawList()->AddText({ win->Pos.x + 10, win->Pos.y + win->Size.y - 24 }, IM_COL32(0, 230, 0, 220), buf);
@@ -1073,12 +1059,10 @@ void ModuleEditor::drawViewportOverlay()
 void ModuleEditor::drawConsole()
 {
     ImGui::Begin("Console", &showConsole);
-
     if (ImGui::Button("Clear")) console.clear();
     ImGui::SameLine();
     ImGui::Checkbox("Auto-scroll", &autoScrollConsole);
     ImGui::Separator();
-
     ImGui::BeginChild("##ConsoleScroll");
     for (const auto& e : console)
     {
@@ -1089,7 +1073,6 @@ void ModuleEditor::drawConsole()
     if (autoScrollConsole && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
         ImGui::SetScrollHereY(1.0f);
     ImGui::EndChild();
-
     ImGui::End();
 }
 
@@ -1155,7 +1138,8 @@ void ModuleEditor::drawAssetBrowser()
     ImGui::SetCursorPosX(8); ImGui::InputText("##impModel", importModelBuf, sizeof(importModelBuf));
     ImGui::SetCursorPosX(8);
     const float halfBtn = (panelW - 20) * 0.5f;
-    if (ImGui::Button("Browse##model", ImVec2(halfBtn, 0))) m_modelBrowseDialog.open(FileDialog::Type::Open, "Select Model", "Assets/Models");
+    if (ImGui::Button("Browse##model", ImVec2(halfBtn, 0)))
+        m_modelBrowseDialog.open(FileDialog::Type::Open, "Select Model", "Assets/Models");
     ImGui::SameLine(0, 4);
     if (ImGui::Button("Import##model", ImVec2(halfBtn, 0)) && strlen(importModelBuf) > 0)
     {
@@ -1175,7 +1159,8 @@ void ModuleEditor::drawAssetBrowser()
         ImGui::SetNextItemWidth(panelW - 16);
         ImGui::SetCursorPosX(8); ImGui::InputText("##impTex", importTexBuf, sizeof(importTexBuf));
         ImGui::SetCursorPosX(8);
-        if (ImGui::Button("Browse##tex", ImVec2(halfBtn, 0))) m_texBrowseDialog.open(FileDialog::Type::Open, "Select Texture", "Assets/Textures");
+        if (ImGui::Button("Browse##tex", ImVec2(halfBtn, 0)))
+            m_texBrowseDialog.open(FileDialog::Type::Open, "Select Texture", "Assets/Textures");
         ImGui::SameLine(0, 4);
         if (ImGui::Button("Import##tex", ImVec2(halfBtn, 0)) && strlen(importTexBuf) > 0)
         {
@@ -1197,17 +1182,30 @@ void ModuleEditor::drawAssetBrowser()
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
         ImGui::SetCursorPosX(8); ImGui::Text("Scene");
         ImGui::PopStyleColor();
+
         ImGui::SetCursorPosX(8);
+
         if (ImGui::Button("Quick Save Scene", ImVec2(panelW - 16, 0)))
         {
-            std::string p = "Library/Scenes/current_scene.json";
+            std::string p = m_currentScenePath.empty()
+                ? "Library/Scenes/current_scene.json"
+                : m_currentScenePath;
             if (sceneManager && sceneManager->saveCurrentScene(p))
+            {
+                m_currentScenePath = p;
                 log(("Saved: " + p).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
+            }
+            else
+            {
+                log("Failed to save scene.", ImVec4(1, 0.4f, 0.4f, 1));
+            }
         }
         ImGui::SetCursorPosX(8);
-        if (ImGui::Button("Save As...", ImVec2(panelW - 16, 0))) m_saveDialog.open(FileDialog::Type::Save, "Save Scene", "Library/Scenes");
+        if (ImGui::Button("Save As...", ImVec2(panelW - 16, 0)))
+            m_saveDialog.open(FileDialog::Type::Save, "Save Scene", "Library/Scenes");
         ImGui::SetCursorPosX(8);
-        if (ImGui::Button("Load Scene...", ImVec2(panelW - 16, 0))) m_loadDialog.open(FileDialog::Type::Open, "Load Scene", "Library/Scenes");
+        if (ImGui::Button("Load Scene...", ImVec2(panelW - 16, 0)))
+            m_loadDialog.open(FileDialog::Type::Open, "Load Scene", "Library/Scenes");
         ImGui::Spacing();
     }
 
@@ -1241,14 +1239,12 @@ void ModuleEditor::drawAssetBrowser()
 
             bool selected = (selectedAsset == assetIdx);
             ImGui::PushID(assetIdx);
-            ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.26f, 0.59f, 0.98f, 0.4f));
+            ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.26f, 0.59f, 0.98f, 0.40f));
             ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.26f, 0.59f, 0.98f, 0.25f));
             bool clicked = ImGui::Selectable("##row", selected,
                 ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick, ImVec2(0, 20));
             ImGui::PopStyleColor(2);
-
             if (clicked) { selectedAsset = assetIdx; selectedAssetPath = path; selectedAssetType = type; }
-
             ImGui::SameLine(8);
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.85f, 1.0f, 1.0f));
             ImGui::Text("%s", icon.c_str());
@@ -1322,11 +1318,17 @@ void ModuleEditor::drawAssetBrowser()
             {
                 bool dbl = drawAssetRow(f, "[S]", "scene");
                 if (dbl && ImGui::IsMouseDoubleClicked(0) && sceneManager)
-                    if (sceneManager->loadScene(f)) log(("Loaded scene: " + f).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
+                    if (sceneManager->loadScene(f))
+                    {
+                        m_currentScenePath = f;
+                        log(("Loaded scene: " + f).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
+                    }
 
                 if (ImGui::BeginPopupContextItem(("##sc" + f).c_str()))
                 {
-                    if (ImGui::MenuItem("Load") && sceneManager) sceneManager->loadScene(f);
+                    if (ImGui::MenuItem("Load") && sceneManager)
+                        if (sceneManager->loadScene(f))
+                            m_currentScenePath = f;
                     if (ImGui::MenuItem("Delete")) app->getFileSystem()->Delete(f.c_str());
                     ImGui::EndPopup();
                 }
@@ -1349,7 +1351,6 @@ void ModuleEditor::drawAssetBrowser()
     ImGui::Separator();
 
     bool hasSelection = !selectedAssetPath.empty();
-
     if (hasSelection)
     {
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.85f, 1.0f, 1.0f));
@@ -1362,8 +1363,8 @@ void ModuleEditor::drawAssetBrowser()
         ImGui::Text("No asset selected");
         ImGui::PopStyleColor();
     }
-    ImGui::SameLine();
 
+    ImGui::SameLine();
     if (!hasSelection) ImGui::BeginDisabled();
 
     const float btnX = ImGui::GetContentRegionAvail().x;
@@ -1398,7 +1399,6 @@ void ModuleEditor::drawAssetBrowser()
                     }
                     else m_pendingTexturePath = selectedAssetPath;
                 }
-
                 if (m_pendingTexture)
                 {
                     std::string stem = std::filesystem::path(selectedAssetPath).stem().string();
@@ -1430,11 +1430,15 @@ void ModuleEditor::drawAssetBrowser()
             else if (selectedAssetType == "scene")
             {
                 if (sceneManager->loadScene(selectedAssetPath))
+                {
+                    m_currentScenePath = selectedAssetPath;
                     log(("Loaded scene: " + selectedAssetPath).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
+                }
             }
             else if (selectedAssetType == "prefab")
             {
-                PrefabManager::instantiatePrefab(std::filesystem::path(selectedAssetPath).stem().string(), scene);
+                PrefabManager::instantiatePrefab(
+                    std::filesystem::path(selectedAssetPath).stem().string(), scene);
                 log(("Instantiated prefab: " + selectedAssetPath).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
             }
         }
@@ -1476,7 +1480,6 @@ void ModuleEditor::drawSceneSettings()
         ImGui::Checkbox("Debug Draw Lights", &s.debugDrawLights);
         if (s.debugDrawLights) ImGui::SliderFloat("Light Size", &s.debugLightSize, 0.1f, 5.0f);
         ImGui::Separator();
-
         if (ImGui::TreeNodeEx("Ambient", ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::ColorEdit3("Color", &s.ambient.color.x);
@@ -1485,7 +1488,6 @@ void ModuleEditor::drawSceneSettings()
         }
         ImGui::TextDisabled("Add light components to GameObjects via Inspector.");
     }
-
     ImGui::End();
 }
 
@@ -1512,10 +1514,9 @@ void ModuleEditor::updateCameraConstants(const Matrix& view, const Matrix& proj)
 void ModuleEditor::updateMemory()
 {
     gpuMemoryMB = systemMemoryMB = 0;
-
     if (ID3D12Device* device = app->getD3D12()->getDevice())
     {
-        ComPtr<IDXGIDevice> dxgiDev;
+        ComPtr<IDXGIDevice>  dxgiDev;
         ComPtr<IDXGIAdapter> adapter;
         ComPtr<IDXGIAdapter3> adapter3;
         device->QueryInterface(IID_PPV_ARGS(&dxgiDev));
@@ -1528,7 +1529,6 @@ void ModuleEditor::updateMemory()
             gpuMemoryMB = info.CurrentUsage / (1024 * 1024);
         }
     }
-
     MEMORYSTATUSEX mem = { sizeof(mem) };
     GlobalMemoryStatusEx(&mem);
     systemMemoryMB = (mem.ullTotalPhys - mem.ullAvailPhys) / (1024 * 1024);
@@ -1550,13 +1550,10 @@ void ModuleEditor::deleteGameObject(GameObject* go)
     if (!go) return;
     if (selectedGameObject == go || isChildOf(go, selectedGameObject))
         selectedGameObject = nullptr;
-
     ModuleScene* scene = getActiveModuleScene();
     if (!scene) return;
-
     GameObject* grandparent = go->getParent();
     for (GameObject* child : go->getChildren()) child->setParent(grandparent);
-
     std::string name = go->getName();
     scene->destroyGameObject(go);
     log(("Deleted: " + name).c_str(), ImVec4(1.0f, 0.7f, 0.4f, 1.0f));
@@ -1585,7 +1582,7 @@ void ModuleEditor::debugDrawLights(ModuleScene* scene, float lightSize)
                 Vector3 pos = node->getTransform()->getGlobalMatrix().Translation();
                 Vector3 dir = dl->direction; dir.Normalize();
                 Vector3 end = pos + dir * lightSize * 2.0f;
-                float hs = lightSize * 0.2f;
+                float   hs = lightSize * 0.2f;
                 dd::line(v(pos), v(end), dd::colors::Yellow);
                 dd::line(v(pos + Vector3(-hs, 0, 0)), v(pos + Vector3(hs, 0, 0)), dd::colors::Yellow);
                 dd::line(v(pos + Vector3(0, -hs, 0)), v(pos + Vector3(0, hs, 0)), dd::colors::Yellow);
@@ -1595,7 +1592,7 @@ void ModuleEditor::debugDrawLights(ModuleScene* scene, float lightSize)
             if (auto* pl = node->getComponent<ComponentPointLight>(); pl && pl->enabled)
             {
                 Vector3 pos = node->getTransform()->getGlobalMatrix().Translation();
-                float hs = lightSize * 0.2f;
+                float   hs = lightSize * 0.2f;
                 dd::sphere(v(pos), dd::colors::Cyan, pl->radius);
                 dd::line(v(pos + Vector3(-hs, 0, 0)), v(pos + Vector3(hs, 0, 0)), dd::colors::Cyan);
                 dd::line(v(pos + Vector3(0, -hs, 0)), v(pos + Vector3(0, hs, 0)), dd::colors::Cyan);
@@ -1606,10 +1603,9 @@ void ModuleEditor::debugDrawLights(ModuleScene* scene, float lightSize)
             {
                 Vector3 pos = node->getTransform()->getGlobalMatrix().Translation();
                 Vector3 dir = sl->direction; dir.Normalize();
-                float outerRad = tanf(sl->outerAngle * 0.0174532925f) * sl->radius;
-                float innerRad = tanf(sl->innerAngle * 0.0174532925f) * sl->radius;
+                float   outerRad = tanf(sl->outerAngle * 0.0174532925f) * sl->radius;
+                float   innerRad = tanf(sl->innerAngle * 0.0174532925f) * sl->radius;
                 Vector3 tip = pos + dir * sl->radius;
-
                 Vector3 up = (fabsf(dir.y) < 0.99f) ? Vector3(0, 1, 0) : Vector3(1, 0, 0);
                 Vector3 right = dir.Cross(up); right.Normalize();
                 up = right.Cross(dir); up.Normalize();
@@ -1618,8 +1614,8 @@ void ModuleEditor::debugDrawLights(ModuleScene* scene, float lightSize)
                 const int   segs = 8;
                 for (int i = 0; i < segs; ++i)
                 {
-                    float a0 = (float)i / segs * twoPi;
-                    float a1 = (float)(i + 1) / segs * twoPi;
+                    float   a0 = (float)i / segs * twoPi;
+                    float   a1 = (float)(i + 1) / segs * twoPi;
                     Vector3 o0 = tip + (right * cosf(a0) + up * sinf(a0)) * outerRad;
                     Vector3 o1 = tip + (right * cosf(a1) + up * sinf(a1)) * outerRad;
                     Vector3 i0 = tip + (right * cosf(a0) + up * sinf(a0)) * innerRad;
@@ -1628,7 +1624,6 @@ void ModuleEditor::debugDrawLights(ModuleScene* scene, float lightSize)
                     dd::line(v(o0), v(o1), dd::colors::Orange);
                     dd::line(v(i0), v(i1), dd::colors::Yellow);
                 }
-
                 float hs = lightSize * 0.2f;
                 dd::line(v(pos), v(tip), dd::colors::Orange);
                 dd::line(v(pos + Vector3(-hs, 0, 0)), v(pos + Vector3(hs, 0, 0)), dd::colors::Orange);
@@ -1638,6 +1633,5 @@ void ModuleEditor::debugDrawLights(ModuleScene* scene, float lightSize)
 
             for (auto* child : node->getChildren()) visit(child);
         };
-
     visit(scene->getRoot());
 }

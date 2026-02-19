@@ -19,6 +19,7 @@ static void pushVec3(Value& arr, const Vector3& v, Document::AllocatorType& a)
 {
     arr.PushBack(v.x, a).PushBack(v.y, a).PushBack(v.z, a);
 }
+
 static void pushQuat(Value& arr, const Quaternion& q, Document::AllocatorType& a)
 {
     arr.PushBack(q.x, a).PushBack(q.y, a).PushBack(q.z, a).PushBack(q.w, a);
@@ -31,7 +32,9 @@ bool SceneSerializer::SaveScene(const ModuleScene* scene, const std::string& fil
     try
     {
         Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
-        Value sceneObj(kObjectType); sceneObj.AddMember("Version", 1, a);
+        Value sceneObj(kObjectType);
+        sceneObj.AddMember("Version", 1, a);
+
         Value goArray(kArrayType);
 
         std::function<void(GameObject*)> serialize = [&](GameObject* go)
@@ -39,8 +42,11 @@ bool SceneSerializer::SaveScene(const ModuleScene* scene, const std::string& fil
                 if (go == scene->getRoot()) return;
 
                 Value node(kObjectType);
+
                 node.AddMember("UID", go->getUID(), a);
-                node.AddMember("ParentUID", go->getParent() ? (int)go->getParent()->getUID() : 0, a);
+                node.AddMember("ParentUID",
+                    go->getParent() ? go->getParent()->getUID() : 0u, a);
+
                 node.AddMember("Name", Value(go->getName().c_str(), a), a);
                 node.AddMember("Active", go->isActive(), a);
 
@@ -55,15 +61,16 @@ bool SceneSerializer::SaveScene(const ModuleScene* scene, const std::string& fil
                 for (const auto& comp : go->getComponents())
                 {
                     if (comp->getType() == Component::Type::Transform) continue;
-                    std::string data; comp->onSave(data);
+                    std::string data;
+                    comp->onSave(data);
                     Value c(kObjectType);
                     c.AddMember("Type", (int)comp->getType(), a);
                     c.AddMember("Data", Value(data.c_str(), a), a);
                     comps.PushBack(c, a);
                 }
                 node.AddMember("Components", comps, a);
-                goArray.PushBack(node, a);
 
+                goArray.PushBack(node, a);
                 for (auto* child : go->getChildren()) serialize(child);
             };
 
@@ -79,7 +86,7 @@ bool SceneSerializer::SaveScene(const ModuleScene* scene, const std::string& fil
         return app->getFileSystem()->Save(filePath.c_str(), sb.GetString(), (unsigned)sb.GetSize());
     }
     catch (const std::exception& e) { LOG("SceneSerializer: Save exception: %s", e.what()); return false; }
-    catch (...) { LOG("SceneSerializer: Unknown save exception");         return false; }
+    catch (...) { LOG("SceneSerializer: Unknown save exception");        return false; }
 }
 
 bool SceneSerializer::LoadScene(const std::string& filePath, ModuleScene* scene)
@@ -87,13 +94,18 @@ bool SceneSerializer::LoadScene(const std::string& filePath, ModuleScene* scene)
     if (!scene) return false;
 
     auto* fs = app->getFileSystem();
-    if (!fs->Exists(filePath.c_str())) { LOG("SceneSerializer: File not found: %s", filePath.c_str()); return false; }
+    if (!fs->Exists(filePath.c_str()))
+    {
+        LOG("SceneSerializer: File not found: %s", filePath.c_str());
+        return false;
+    }
 
     char* buf = nullptr;
     unsigned size = fs->Load(filePath.c_str(), &buf);
     if (!buf || size == 0) return false;
 
-    Document doc; doc.Parse(buf, size);
+    Document doc;
+    doc.Parse(buf, size);
     delete[] buf;
 
     if (doc.HasParseError() || !doc.HasMember("Scene") || !doc["Scene"].HasMember("GameObjects"))
@@ -103,22 +115,41 @@ bool SceneSerializer::LoadScene(const std::string& filePath, ModuleScene* scene)
     }
 
     const Value& goArray = doc["Scene"]["GameObjects"];
+
     scene->clear();
 
     std::unordered_map<uint32_t, GameObject*> uidMap;
+
     for (SizeType i = 0; i < goArray.Size(); ++i)
     {
         const Value& node = goArray[i];
+
+        uint32_t uid = 0;
+        if (node["UID"].IsUint())       uid = node["UID"].GetUint();
+        else if (node["UID"].IsInt())   uid = static_cast<uint32_t>(node["UID"].GetInt());
+        else { LOG("SceneSerializer: UID has unexpected type, skipping"); continue; }
+
         auto* go = scene->createGameObject(node["Name"].GetString());
         go->setActive(node["Active"].GetBool());
-        uidMap[node["UID"].GetUint()] = go;
+        uidMap[uid] = go;
     }
 
     for (SizeType i = 0; i < goArray.Size(); ++i)
     {
         const Value& node = goArray[i];
-        auto* go = uidMap[node["UID"].GetUint()];
-        uint32_t     parentID = node["ParentUID"].GetUint();
+
+        uint32_t uid = 0;
+        if (node["UID"].IsUint()) uid = node["UID"].GetUint();
+        else if (node["UID"].IsInt())  uid = static_cast<uint32_t>(node["UID"].GetInt());
+        else continue;
+
+        auto it = uidMap.find(uid);
+        if (it == uidMap.end()) continue;
+        auto* go = it->second;
+
+        uint32_t parentID = 0;
+        if (node["ParentUID"].IsUint()) parentID = node["ParentUID"].GetUint();
+        else if (node["ParentUID"].IsInt())  parentID = static_cast<uint32_t>(node["ParentUID"].GetInt());
 
         if (parentID != 0)
         {
@@ -139,8 +170,15 @@ bool SceneSerializer::LoadScene(const std::string& filePath, ModuleScene* scene)
             const Value& cn = node["Components"][j];
             auto          type = (Component::Type)cn["Type"].GetInt();
             auto          comp = ComponentFactory::CreateComponent(type, go);
-            if (comp) { comp->onLoad(cn["Data"].GetString()); go->addComponent(std::move(comp)); }
-            else LOG("SceneSerializer: Failed to create component type %d", (int)type);
+            if (comp)
+            {
+                comp->onLoad(cn["Data"].GetString());
+                go->addComponent(std::move(comp));
+            }
+            else
+            {
+                LOG("SceneSerializer: Failed to create component type %d", (int)type);
+            }
         }
     }
 

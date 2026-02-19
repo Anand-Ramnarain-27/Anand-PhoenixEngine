@@ -102,6 +102,7 @@ private:
     FileDialog m_texBrowseDialog;
     FileDialog m_modelBrowseDialog;
     bool showNewSceneConfirmation = false;
+    std::string m_currentScenePath;
 
     bool        renamingObject = false;
     char        renameBuffer[256] = {};
