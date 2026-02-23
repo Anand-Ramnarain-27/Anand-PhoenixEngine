@@ -853,17 +853,138 @@ void ModuleEditor::drawInspector()
 void ModuleEditor::drawComponentCamera(ComponentCamera* cam)
 {
     bool isMain = cam->isMainCamera();
-    if (ImGui::Checkbox("Main Camera", &isMain)) cam->setMainCamera(isMain);
+    if (ImGui::Checkbox("Is Active Camera", &isMain))
+        cam->setMainCamera(isMain);
+
+    if (isMain)
+    {
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.4f, 1.0f), "(rendering camera)");
+    }
+
+    ModuleCamera* modCam = app->getCamera();
+    bool isCulling = (modCam->cullSource == ModuleCamera::CullSource::GameCamera);
+
+    if (ImGui::Checkbox("Is Culling Camera", &isCulling))
+    {
+        modCam->cullSource = isCulling
+            ? ModuleCamera::CullSource::GameCamera
+            : ModuleCamera::CullSource::EditorCamera;
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("When checked, this camera's frustum is used\n"
+            "for frustum culling instead of the editor camera.");
+
+    ImGui::Separator();
 
     float fovDeg = cam->getFOV() * 57.2957795f;
-    if (ImGui::SliderFloat("FOV", &fovDeg, 10.0f, 170.0f)) cam->setFOV(fovDeg * 0.0174532925f);
+    if (ImGui::SliderFloat("Field of View", &fovDeg, 10.0f, 170.0f))
+        cam->setFOV(fovDeg * 0.0174532925f);
 
-    float nearP = cam->getNearPlane(), farP = cam->getFarPlane();
-    if (ImGui::DragFloat("Near Plane", &nearP, 0.01f, 0.001f, farP - 0.01f)) cam->setNearPlane(nearP);
-    if (ImGui::DragFloat("Far Plane", &farP, 1.0f, nearP + 0.01f, 10000.f)) cam->setFarPlane(farP);
+    float nearP = cam->getNearPlane();
+    float farP = cam->getFarPlane();
+    if (ImGui::DragFloat("Near Plane", &nearP, 0.01f, 0.001f, farP - 0.01f))
+        cam->setNearPlane(nearP);
+    if (ImGui::DragFloat("Far Plane", &farP, 1.0f, nearP + 0.01f, 10000.0f))
+        cam->setFarPlane(farP);
+
+    if (viewportSize.x > 0.0f && viewportSize.y > 0.0f)
+    {
+        float aspect = viewportSize.x / viewportSize.y;
+        ImGui::Text("Aspect Ratio: %.3f  (%dx%d)",
+            aspect, (int)viewportSize.x, (int)viewportSize.y);
+    }
+
+    ImGui::Separator();
 
     Vector4 bg = cam->getBackgroundColor();
-    if (ImGui::ColorEdit4("Background", &bg.x)) cam->setBackgroundColor(bg);
+    if (ImGui::ColorEdit4("Background", &bg.x))
+        cam->setBackgroundColor(bg);
+
+    ImGui::Separator();
+
+    ImGui::TextDisabled("Scene cameras:");
+
+    ModuleScene* scene = getActiveModuleScene();
+    if (!scene)
+    {
+        ImGui::TextDisabled("  (no active scene)");
+        return;
+    }
+
+    struct CamEntry { GameObject* go; ComponentCamera* camComp; };
+    std::vector<CamEntry> allCams;
+
+    std::function<void(GameObject*)> collectCams = [&](GameObject* node)
+        {
+            if (auto* c = node->getComponent<ComponentCamera>())
+                allCams.push_back({ node, c });
+            for (auto* child : node->getChildren())
+                collectCams(child);
+        };
+    collectCams(scene->getRoot());
+
+    if (allCams.empty())
+    {
+        ImGui::TextDisabled("  (none found)");
+        return;
+    }
+
+    ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(FLT_MAX, 200));
+    if (ImGui::BeginChild("##camList", ImVec2(0, std::min<float>(allCams.size() * 22.0f + 8.0f, 120.0f)),
+        true, ImGuiWindowFlags_None))
+    {
+        for (auto& entry : allCams)
+        {
+            bool isThisOne = (entry.camComp == cam);
+            bool isThisMain = entry.camComp->isMainCamera();
+
+            std::string label = entry.go->getName();
+            if (isThisMain)  label = "[Main] " + label;
+
+            ImGui::PushID(entry.go->getUID());
+
+            if (isThisOne)
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.9f, 1.0f, 1.0f));
+
+            if (ImGui::Selectable(label.c_str(), isThisMain))
+            {
+                for (auto& e2 : allCams)
+                    e2.camComp->setMainCamera(false);
+                entry.camComp->setMainCamera(true);
+
+                selectedGameObject = entry.go;
+            }
+
+            if (isThisOne)
+                ImGui::PopStyleColor();
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::Text("GameObject: %s", entry.go->getName().c_str());
+                ImGui::Text("FOV: %.1f deg", entry.camComp->getFOV() * 57.2957795f);
+                ImGui::Text("Near: %.3f  Far: %.1f", entry.camComp->getNearPlane(), entry.camComp->getFarPlane());
+                ImGui::Text("Main: %s", entry.camComp->isMainCamera() ? "yes" : "no");
+                ImGui::EndTooltip();
+            }
+
+            ImGui::PopID();
+        }
+    }
+    ImGui::EndChild();
+
+    if (!cam->isMainCamera())
+    {
+        if (ImGui::Button("Make Active Camera"))
+        {
+            for (auto& e : allCams)
+                e.camComp->setMainCamera(false);
+            cam->setMainCamera(true);
+        }
+    }
 }
 
 void ModuleEditor::drawComponentMesh(ComponentMesh* mesh)
