@@ -1,0 +1,36 @@
+{
+  "PrefabName": "Ducky",
+  "Version": 1,
+  "GameObject": {
+    "Name": "Duck",
+    "Active": true,
+    "Transform": {
+      "position": [
+        -4.887884140014648,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        -0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.009999999776482582,
+        0.009999999776482582,
+        0.009999999776482582
+      ]
+    },
+    "Components": [
+      {
+        "Type": 1,
+        "Data": "{\"HasModel\":true,\"ModelPath\":\"Assets/Models/Duck/Duck.gltf\"}"
+      },
+      {
+        "Type": 3,
+        "Data": "{\"direction\":[-0.5,-0.7599999904632568,0.6800000071525574],\"color\":[1.0,1.0,1.0],\"intensity\":1.0,\"enabled\":true}"
+      }
+    ]
+  }
+}

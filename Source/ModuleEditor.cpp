@@ -24,6 +24,7 @@
 #include "ComponentFactory.h"
 #include "PrimitiveFactory.h"
 #include "ModuleCamera.h"
+#include "FrustumDebugDraw.h"
 #include "PrefabManager.h"
 #include "TextureImporter.h"
 #include <d3dx12.h>
@@ -304,6 +305,42 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     const EditorSceneSettings& s = sceneManager->getSettings();
     ModuleScene* moduleScene = getActiveModuleScene();
 
+    camera->clearGameCameraFrustum();
+    if (moduleScene)
+    {
+        float aspect = float(w) / float(h);
+
+        std::function<void(GameObject*)> findMainCam = [&](GameObject* go)
+            {
+                if (auto* cam = go->getComponent<ComponentCamera>())
+                {
+                    if (cam->isMainCamera())
+                    {
+                        auto* t = go->getTransform();
+                        if (t)
+                        {
+                            Matrix world = t->getGlobalMatrix();
+                            Vector3 pos = world.Translation();
+                            Vector3 fwd = Vector3::TransformNormal(-Vector3::UnitZ, world);
+                            Vector3 right = Vector3::TransformNormal(Vector3::UnitX, world);
+                            Vector3 up = Vector3::TransformNormal(Vector3::UnitY, world);
+                            fwd.Normalize(); right.Normalize(); up.Normalize();
+
+                            Frustum gameFrustum = Frustum::fromCamera(
+                                pos, fwd, right, up,
+                                cam->getFOV(), aspect,
+                                cam->getNearPlane(), cam->getFarPlane());
+
+                            camera->setGameCameraFrustum(gameFrustum);
+                        }
+                    }
+                }
+                for (auto* child : go->getChildren()) findMainCam(child);
+            };
+
+        findMainCam(moduleScene->getRoot());
+    }
+
     viewportRT->beginRender(cmd);
     BEGIN_EVENT(cmd, "Editor Viewport");
 
@@ -334,6 +371,27 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     if (s.showAxis) { Matrix id = Matrix::Identity; dd::axisTriad(id.m[0], 0.0f, 2.0f, 2.0f); }
     if (s.debugDrawLights && moduleScene) debugDrawLights(moduleScene, s.debugLightSize);
 
+    {
+        FrustumDebugDraw fdd;
+        camera->buildDebugLines(fdd);
+
+        for (const auto& line : fdd.lines)
+        {
+            ddVec3 from = { line.from.x, line.from.y, line.from.z };
+            ddVec3 to = { line.to.x,   line.to.y,   line.to.z };
+
+            const Vector3& c = line.color;
+
+            if (c.x > 0.5f && c.y > 0.5f && c.z > 0.5f) dd::line(from, to, dd::colors::White); 
+            else if (c.x > 0.5f && c.y > 0.5f && c.z < 0.5f) dd::line(from, to, dd::colors::Yellow);  
+            else if (c.x < 0.5f && c.y > 0.5f && c.z < 0.5f) dd::line(from, to, dd::colors::Green);  
+            else if (c.x < 0.5f && c.y > 0.5f && c.z > 0.5f) dd::line(from, to, dd::colors::Cyan);   
+            else if (c.x > 0.5f && c.y < 0.5f && c.z < 0.5f) dd::line(from, to, dd::colors::Red);  
+            else if (c.x < 0.5f && c.y < 0.5f && c.z > 0.5f) dd::line(from, to, dd::colors::Blue);    
+            else                                                dd::line(from, to, dd::colors::White); 
+        }
+    }
+    
     debugDrawPass->record(cmd, w, h, view, proj);
     END_EVENT(cmd);
     viewportRT->endRender(cmd);
@@ -1488,6 +1546,12 @@ void ModuleEditor::drawSceneSettings()
         }
         ImGui::TextDisabled("Add light components to GameObjects via Inspector.");
     }
+
+    if (ImGui::CollapsingHeader("Camera & Culling", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        app->getCamera()->onEditorDebugPanel();
+    }
+
     ImGui::End();
 }
 

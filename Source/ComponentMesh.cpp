@@ -6,6 +6,8 @@
 #include "Material.h"
 #include "Application.h"
 #include "ModuleResources.h"
+#include "ModuleCamera.h"
+
 #include "3rdParty/rapidjson/document.h"
 #include "3rdParty/rapidjson/writer.h"
 #include "3rdParty/rapidjson/stringbuffer.h"
@@ -50,6 +52,7 @@ bool ComponentMesh::loadModel(const char* filePath)
     if (!m_model) { LOG("ComponentMesh: Failed to load model: %s", filePath); return false; }
     m_modelFilePath = filePath;
     rebuildMaterialBuffers();
+    computeLocalAABB();
     return true;
 }
 
@@ -58,11 +61,21 @@ void ComponentMesh::setModel(std::unique_ptr<Model> model)
     m_model = std::shared_ptr<Model>(std::move(model));
     m_modelFilePath.clear();
     rebuildMaterialBuffers();
+    computeLocalAABB();
 }
 
 void ComponentMesh::render(ID3D12GraphicsCommandList* cmd)
 {
     if (!m_model) return;
+
+    if (m_hasAABB)
+    {
+        Vector3 worldMin, worldMax;
+        getWorldAABB(worldMin, worldMax);
+
+        if (!app->getCamera()->isVisible(worldMin, worldMax))
+            return;
+    }
 
     Matrix world = (m_model->getModelMatrix() * owner->getTransform()->getGlobalMatrix()).Transpose();
     cmd->SetGraphicsRoot32BitConstants(1, 16, &world, 0);
@@ -103,4 +116,55 @@ void ComponentMesh::onLoad(const std::string& jsonStr)
     if (doc.HasParseError()) { LOG("ComponentMesh: JSON parse error"); return; }
     if (doc.HasMember("HasModel") && doc["HasModel"].GetBool() && doc.HasMember("ModelPath"))
         loadModel(doc["ModelPath"].GetString());
+}
+
+void ComponentMesh::computeLocalAABB()
+{
+    if (!m_model) return;
+
+    m_localAABBMin = Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
+    m_localAABBMax = Vector3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+    m_hasAABB = false;
+
+    for (const auto& mesh : m_model->getMeshes())
+    {
+        if (!mesh || !mesh->hasAABB()) continue;
+
+        m_localAABBMin = Vector3::Min(m_localAABBMin, mesh->getAABBMin());
+        m_localAABBMax = Vector3::Max(m_localAABBMax, mesh->getAABBMax());
+        m_hasAABB = true;
+    }
+}
+
+void ComponentMesh::getWorldAABB(Vector3& outMin, Vector3& outMax) const
+{
+    auto* t = owner->getTransform();
+    Matrix world = t ? t->getGlobalMatrix() : Matrix::Identity;
+
+    world = m_model ? (m_model->getModelMatrix() * world) : world;
+
+    const Vector3& mn = m_localAABBMin;
+    const Vector3& mx = m_localAABBMax;
+
+    Vector3 corners[8] =
+    {
+        { mn.x, mn.y, mn.z },
+        { mx.x, mn.y, mn.z },
+        { mn.x, mx.y, mn.z },
+        { mx.x, mx.y, mn.z },
+        { mn.x, mn.y, mx.z },
+        { mx.x, mn.y, mx.z },
+        { mn.x, mx.y, mx.z },
+        { mx.x, mx.y, mx.z },
+    };
+
+    outMin = Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
+    outMax = Vector3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+    for (auto& c : corners)
+    {
+        Vector3 wc = Vector3::Transform(c, world);
+        outMin = Vector3::Min(outMin, wc);
+        outMax = Vector3::Max(outMax, wc);
+    }
 }

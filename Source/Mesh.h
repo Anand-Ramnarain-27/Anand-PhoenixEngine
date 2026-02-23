@@ -35,6 +35,9 @@ public:
     const std::vector<Vertex>& getVertices() const { return m_vertices; }
     const std::vector<uint32_t>& getIndices()  const { return m_indices; }
 
+    const Vector3& getAABBMin() const { return m_aabbMin; }
+    const Vector3& getAABBMax() const { return m_aabbMax; }
+    bool           hasAABB()    const { return m_hasAABB; }
 private:
     void createBuffers();
     void cleanup();
@@ -49,4 +52,9 @@ private:
 
     ComPtr<ID3D12Resource>  m_indexBuffer;
     D3D12_INDEX_BUFFER_VIEW m_indexBufferView = {};
+
+    void computeAABB();
+    Vector3 m_aabbMin = {};
+    Vector3 m_aabbMax = {};
+    bool    m_hasAABB = false;
 };

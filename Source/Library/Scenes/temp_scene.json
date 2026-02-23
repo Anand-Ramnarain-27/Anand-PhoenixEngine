@@ -1,0 +1,165 @@
+{
+    "Scene": {
+        "Version": 1,
+        "GameObjects": [
+            {
+                "UID": 1896648271,
+                "ParentUID": 3099576422,
+                "Name": "Duck",
+                "Active": true,
+                "Transform": {
+                    "position": [
+                        3.4334964752197266,
+                        0.0,
+                        0.0
+                    ],
+                    "rotation": [
+                        0.0,
+                        -0.0,
+                        0.0,
+                        1.0
+                    ],
+                    "scale": [
+                        0.009999999776482582,
+                        0.009999999776482582,
+                        0.009999999776482582
+                    ]
+                },
+                "Components": [
+                    {
+                        "Type": 1,
+                        "Data": "{\"HasModel\":true,\"ModelPath\":\"Assets/Models/Duck/Duck.gltf\"}"
+                    },
+                    {
+                        "Type": 3,
+                        "Data": "{\"direction\":[-0.5,-1.0,0.0],\"color\":[1.0,1.0,1.0],\"intensity\":1.0,\"enabled\":true}"
+                    }
+                ]
+            },
+            {
+                "UID": 2354804290,
+                "ParentUID": 3099576422,
+                "Name": "Duck",
+                "Active": true,
+                "Transform": {
+                    "position": [
+                        -4.887884140014648,
+                        0.0,
+                        0.0
+                    ],
+                    "rotation": [
+                        0.0,
+                        -0.0,
+                        0.0,
+                        1.0
+                    ],
+                    "scale": [
+                        0.009999999776482582,
+                        0.009999999776482582,
+                        0.009999999776482582
+                    ]
+                },
+                "Components": [
+                    {
+                        "Type": 1,
+                        "Data": "{\"HasModel\":true,\"ModelPath\":\"Assets/Models/Duck/Duck.gltf\"}"
+                    },
+                    {
+                        "Type": 3,
+                        "Data": "{\"direction\":[-0.5,-0.7599999904632568,0.6800000071525574],\"color\":[1.0,1.0,1.0],\"intensity\":1.0,\"enabled\":true}"
+                    }
+                ]
+            },
+            {
+                "UID": 1970360731,
+                "ParentUID": 3099576422,
+                "Name": "Duck",
+                "Active": true,
+                "Transform": {
+                    "position": [
+                        -0.6914682984352112,
+                        0.0,
+                        0.0
+                    ],
+                    "rotation": [
+                        0.0,
+                        -0.0,
+                        0.0,
+                        1.0
+                    ],
+                    "scale": [
+                        0.009999999776482582,
+                        0.009999999776482582,
+                        0.009999999776482582
+                    ]
+                },
+                "Components": [
+                    {
+                        "Type": 1,
+                        "Data": "{\"HasModel\":true,\"ModelPath\":\"Assets/Models/Duck/Duck.gltf\"}"
+                    }
+                ]
+            },
+            {
+                "UID": 4259780686,
+                "ParentUID": 3099576422,
+                "Name": "Duck",
+                "Active": true,
+                "Transform": {
+                    "position": [
+                        6.819225311279297,
+                        0.0,
+                        -10.283743858337402
+                    ],
+                    "rotation": [
+                        0.0,
+                        -0.0,
+                        0.0,
+                        1.0
+                    ],
+                    "scale": [
+                        0.009999999776482582,
+                        0.009999999776482582,
+                        0.009999999776482582
+                    ]
+                },
+                "Components": [
+                    {
+                        "Type": 1,
+                        "Data": "{\"HasModel\":true,\"ModelPath\":\"Assets/Models/Duck/Duck.gltf\"}"
+                    }
+                ]
+            },
+            {
+                "UID": 1634264721,
+                "ParentUID": 3099576422,
+                "Name": "Empty",
+                "Active": true,
+                "Transform": {
+                    "position": [
+                        5.959282875061035,
+                        4.474489212036133,
+                        6.926356315612793
+                    ],
+                    "rotation": [
+                        0.0,
+                        -0.0,
+                        0.0,
+                        1.0
+                    ],
+                    "scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                },
+                "Components": [
+                    {
+                        "Type": 2,
+                        "Data": "{\"FOV\":1.1878186464309692,\"NearPlane\":0.4699999988079071,\"FarPlane\":175.0,\"IsMainCamera\":true,\"BackgroundColor\":[0.20000000298023224,0.30000001192092896,0.4000000059604645,1.0]}"
+                    }
+                ]
+            }
+        ]
+    }
+}

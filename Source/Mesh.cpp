@@ -16,6 +16,22 @@ void Mesh::setData(const std::vector<Vertex>& vertices, const std::vector<uint32
     m_indices = indices;
     m_materialIndex = materialIndex;
     createBuffers();
+    computeAABB();
+}
+
+void Mesh::computeAABB()
+{
+    if (m_vertices.empty()) return;
+
+    m_aabbMin = m_vertices[0].position;
+    m_aabbMax = m_vertices[0].position;
+
+    for (const auto& v : m_vertices)
+    {
+        m_aabbMin = Vector3::Min(m_aabbMin, v.position);
+        m_aabbMax = Vector3::Max(m_aabbMax, v.position);
+    }
+    m_hasAABB = true;
 }
 
 void Mesh::createBuffers()
