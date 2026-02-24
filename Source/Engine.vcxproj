@@ -185,6 +185,9 @@
     <ClInclude Include="DepthStencilDesc.h" />
     <ClInclude Include="DescriptorBase.h" />
     <ClInclude Include="EditorSceneSettings.h" />
+    <ClInclude Include="EnvironmentGenerator.h" />
+    <ClInclude Include="EnvironmentMap.h" />
+    <ClInclude Include="EnvironmentSystem.h" />
     <ClInclude Include="FileDialog.h" />
     <ClInclude Include="Frustum.h" />
     <ClInclude Include="FrustumDebugDraw.h" />
@@ -235,6 +238,7 @@
     <ClInclude Include="SceneSerializer.h" />
     <ClInclude Include="ShaderTableDesc.h" />
     <ClInclude Include="SimpleMath.h" />
+    <ClInclude Include="SkyboxRenderer.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="TextureImporter.h" />
   </ItemGroup>
@@ -312,6 +316,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="DepthStencilDesc.cpp" />
+    <ClCompile Include="EnvironmentGenerator.cpp" />
+    <ClCompile Include="EnvironmentSystem.cpp" />
     <ClCompile Include="FileDialog.cpp" />
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="Material.cpp" />
@@ -362,6 +368,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="SkyboxRenderer.cpp" />
     <ClCompile Include="TextureImporter.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -418,6 +425,16 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
+    <FxCompile Include="SkyboxPS.hlsl">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="SkyboxVS.hlsl">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
     </FxCompile>
     <FxCompile Include="TextureSamplerPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>

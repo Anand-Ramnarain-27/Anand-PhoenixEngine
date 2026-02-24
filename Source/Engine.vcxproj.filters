@@ -167,6 +167,9 @@
     <ClCompile Include="PrimitiveFactory.cpp">
       <Filter>engine\scene\primitives</Filter>
     </ClCompile>
+    <ClCompile Include="EnvironmentGenerator.cpp" />
+    <ClCompile Include="SkyboxRenderer.cpp" />
+    <ClCompile Include="EnvironmentSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -377,6 +380,10 @@
     </ClInclude>
     <ClInclude Include="Frustum.h" />
     <ClInclude Include="FrustumDebugDraw.h" />
+    <ClInclude Include="EnvironmentMap.h" />
+    <ClInclude Include="EnvironmentGenerator.h" />
+    <ClInclude Include="SkyboxRenderer.h" />
+    <ClInclude Include="EnvironmentSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -539,6 +546,12 @@
       <Filter>shaders</Filter>
     </FxCompile>
     <FxCompile Include="MeshPS.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="SkyboxVS.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="SkyboxPS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
   </ItemGroup>
