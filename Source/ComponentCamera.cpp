@@ -2,6 +2,8 @@
 #include "ComponentCamera.h"
 #include "GameObject.h"
 #include "ComponentTransform.h"
+#include "Application.h"
+#include "ModuleCamera.h"
 #include "3rdParty/rapidjson/document.h"
 #include "3rdParty/rapidjson/writer.h"
 #include "3rdParty/rapidjson/stringbuffer.h"
@@ -14,11 +16,47 @@ ComponentCamera::ComponentCamera(GameObject* owner)
 {
 }
 
+void ComponentCamera::update(float /*dt*/)
+{
+    rebuildFrustum();
+
+    if (m_isMainCamera)
+        app->getCamera()->setGameCameraFrustum(m_frustum);
+}
+
+void ComponentCamera::rebuildFrustum()
+{
+    auto* t = owner->getTransform();
+    if (!t) return;
+
+    const Matrix& world = t->getGlobalMatrix();
+
+    Vector3 right(world._11, world._12, world._13);
+    Vector3 up(world._21, world._22, world._23);
+    Vector3 forward(world._31, world._32, world._33); 
+
+    right.Normalize();
+    up.Normalize();
+    forward.Normalize();
+
+    const Vector3 pos = world.Translation();
+
+    const float aspect = app->getCamera()->aspectRatio;
+
+    m_frustum = Frustum::fromCamera(pos, forward, right, up,
+        m_fov, aspect,
+        m_nearPlane, m_farPlane);
+}
+
 void ComponentCamera::onEditor()
 {
     if (!ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) return;
 
-    ImGui::Checkbox("Main Camera", &m_isMainCamera);
+    if (ImGui::Checkbox("Main Camera", &m_isMainCamera))
+    {
+        if (!m_isMainCamera)
+            app->getCamera()->clearGameCameraFrustum();
+    }
 
     float fovDeg = m_fov * 57.2957795f;
     if (ImGui::SliderFloat("FOV", &fovDeg, 30.0f, 120.0f))
@@ -30,7 +68,11 @@ void ComponentCamera::onEditor()
     ImGui::Separator();
 
     if (auto* t = owner->getTransform())
-        ImGui::Text("Position: %.2f, %.2f, %.2f", t->position.x, t->position.y, t->position.z);
+        ImGui::Text("Position: %.2f, %.2f, %.2f",
+            t->position.x, t->position.y, t->position.z);
+
+    ImGui::Separator();
+    ImGui::TextDisabled("Frustum drawn in viewport when 'Debug Draw Camera Frustums' is on.");
 }
 
 void ComponentCamera::onSave(std::string& outJson) const
@@ -63,7 +105,8 @@ void ComponentCamera::onLoad(const std::string& jsonStr)
     if (doc.HasMember("BackgroundColor"))
     {
         const auto& c = doc["BackgroundColor"];
-        m_backgroundColor = { c[0].GetFloat(), c[1].GetFloat(), c[2].GetFloat(), c[3].GetFloat() };
+        m_backgroundColor = { c[0].GetFloat(), c[1].GetFloat(),
+                               c[2].GetFloat(), c[3].GetFloat() };
     }
 }
 
