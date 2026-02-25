@@ -1,30 +1,40 @@
 #pragma once
 
-#include <wrl.h>
 #include <memory>
-#include "Mesh.h"
-#include "EnvironmentMap.h"
+#include <wrl.h>
+#include <d3d12.h>
+#include <DirectXMath.h>
 
-using Microsoft::WRL::ComPtr;
+using namespace Microsoft::WRL;
+using namespace DirectX;
+
+class SkyboxCube;
 
 class SkyboxRenderer
 {
 public:
-    bool init(ID3D12Device* device);
+    SkyboxRenderer();
+    ~SkyboxRenderer();
 
+    bool initialize(ID3D12Device* device, DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat, bool useMSAA);
     void render(
-        ID3D12GraphicsCommandList* cmd,
-        const EnvironmentMap& env,
+        ID3D12GraphicsCommandList* cmdList,
+        const EnvironmentMap& environment,
         const Matrix& view,
         const Matrix& projection);
 
 private:
+
+    struct SkyboxCB
+    {
+        XMMATRIX viewProj;
+    };
+
     bool createRootSignature(ID3D12Device* device);
-    bool createPSO(ID3D12Device* device);
-    void createCube();
+    bool createPipelineState(ID3D12Device* device, DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat, bool useMSAA);
 
 private:
-    ComPtr<ID3D12RootSignature> rootSig;
-    ComPtr<ID3D12PipelineState> pso;
-    std::unique_ptr<Mesh>       cube;
+    ComPtr<ID3D12RootSignature> m_rootSignature;
+    ComPtr<ID3D12PipelineState> m_pipelineState;
+    std::unique_ptr<SkyboxCube> m_cube;
 };

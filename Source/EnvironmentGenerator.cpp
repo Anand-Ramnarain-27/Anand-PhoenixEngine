@@ -5,38 +5,40 @@
 #include "ModuleShaderDescriptors.h"
 
 std::unique_ptr<EnvironmentMap>
-EnvironmentGenerator::LoadCubemap(const std::string& file)
+EnvironmentGenerator::loadCubemap(const std::string& file)
 {
     auto* resources = app->getResources();
-    auto* shaderDesc = app->getShaderDescriptors();
+    auto* descriptors = app->getShaderDescriptors();
 
-    if (!resources || !shaderDesc)
+    if (!resources || !descriptors)
         return nullptr;
 
     auto env = std::make_unique<EnvironmentMap>();
 
-    env->cubemap = resources->createTextureFromFile(file, true);
+    // Load DDS as cubemap
+    env->texture = resources->createTextureFromFile(file, true);
 
-    if (!env->cubemap)
+    if (!env->texture)
     {
         LOG("EnvironmentGenerator: Failed to load cubemap %s", file.c_str());
         return nullptr;
     }
 
-    env->srvTable = shaderDesc->allocTable("SkyboxCubemap");
+    // Allocate descriptor table
+    env->srvTable = descriptors->allocTable("EnvironmentCubemap");
 
     if (!env->srvTable.isValid())
         return nullptr;
 
-    D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
-    desc.Format = env->cubemap->GetDesc().Format;
-    desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-    desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    desc.TextureCube.MipLevels = env->cubemap->GetDesc().MipLevels;
-    desc.TextureCube.MostDetailedMip = 0;
-    desc.TextureCube.ResourceMinLODClamp = 0.0f;
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+    srvDesc.Format = env->texture->GetDesc().Format;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.TextureCube.MipLevels = env->texture->GetDesc().MipLevels;
+    srvDesc.TextureCube.MostDetailedMip = 0;
+    srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
 
-    env->srvTable.createSRV(env->cubemap.Get(), 0, &desc);
+    env->srvTable.createSRV(env->texture.Get(), 0, &srvDesc);
 
     env->gpuHandle = env->srvTable.getGPUHandle(0);
 

@@ -6,5 +6,5 @@
 class EnvironmentGenerator
 {
 public:
-    std::unique_ptr<EnvironmentMap> LoadCubemap(const std::string& file);
+    std::unique_ptr<EnvironmentMap> loadCubemap(const std::string& file);
 };

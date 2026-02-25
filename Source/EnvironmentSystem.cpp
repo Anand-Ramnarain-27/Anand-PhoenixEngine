@@ -1,14 +1,17 @@
 #include "Globals.h"
 #include "EnvironmentSystem.h"
 
-bool EnvironmentSystem::init(ID3D12Device* device)
+bool EnvironmentSystem::init(ID3D12Device* device,
+    DXGI_FORMAT rtvFormat,
+    DXGI_FORMAT dsvFormat,
+    bool useMSAA)
 {
-    return renderer.init(device);
+    return renderer.initialize(device, rtvFormat, dsvFormat, useMSAA);
 }
 
 void EnvironmentSystem::load(const std::string& file)
 {
-    environment = generator.LoadCubemap(file);
+    environment = generator.loadCubemap(file);
 }
 
 void EnvironmentSystem::render(
@@ -16,6 +19,6 @@ void EnvironmentSystem::render(
     const Matrix& view,
     const Matrix& projection)
 {
-    if (environment)
+    if (environment && environment->isValid())
         renderer.render(cmd, *environment, view, projection);
 }

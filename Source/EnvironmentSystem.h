@@ -6,7 +6,10 @@
 class EnvironmentSystem
 {
 public:
-    bool init(ID3D12Device* device);
+    bool init(ID3D12Device* device,
+        DXGI_FORMAT rtvFormat,
+        DXGI_FORMAT dsvFormat,
+        bool useMSAA);
 
     void load(const std::string& file);
 
