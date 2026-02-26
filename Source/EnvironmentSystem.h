@@ -1,4 +1,5 @@
 #pragma once
+
 #include <memory>
 #include "EnvironmentGenerator.h"
 #include "SkyboxRenderer.h"
@@ -13,14 +14,16 @@ public:
 
     void load(const std::string& file);
 
-    void render(
-        ID3D12GraphicsCommandList* cmd,
+    void render(ID3D12GraphicsCommandList* cmd,
         const Matrix& view,
         const Matrix& projection);
 
-private:
-    EnvironmentGenerator generator;
-    SkyboxRenderer renderer;
+    const EnvironmentMap* getEnvironmentMap() const { return m_environment.get(); }
 
-    std::unique_ptr<EnvironmentMap> environment;
+    bool hasIBL() const { return m_environment && m_environment->hasIBL(); }
+
+private:
+    EnvironmentGenerator              m_generator;
+    SkyboxRenderer                    m_renderer;
+    std::unique_ptr<EnvironmentMap>   m_environment;
 };

@@ -170,6 +170,7 @@
     <ClCompile Include="EnvironmentGenerator.cpp" />
     <ClCompile Include="SkyboxRenderer.cpp" />
     <ClCompile Include="EnvironmentSystem.cpp" />
+    <ClCompile Include="IBLGenerator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -384,6 +385,7 @@
     <ClInclude Include="EnvironmentGenerator.h" />
     <ClInclude Include="SkyboxRenderer.h" />
     <ClInclude Include="EnvironmentSystem.h" />
+    <ClInclude Include="IBLGenerator.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

@@ -3,16 +3,16 @@
 
 bool EnvironmentSystem::init(
     ID3D12Device* device,
-    DXGI_FORMAT,
-    DXGI_FORMAT,
-    bool useMSAA)
+    DXGI_FORMAT   rtvFormat,
+    DXGI_FORMAT   dsvFormat,
+    bool          useMSAA)
 {
-    return renderer.init(device, useMSAA);
+    return m_renderer.init(device, useMSAA);
 }
 
 void EnvironmentSystem::load(const std::string& file)
 {
-    environment = generator.loadCubemap(file);
+    m_environment = m_generator.loadCubemap(file);
 }
 
 void EnvironmentSystem::render(
@@ -20,6 +20,6 @@ void EnvironmentSystem::render(
     const Matrix& view,
     const Matrix& projection)
 {
-    if (environment && environment->isValid())
-        renderer.render(cmd, *environment, view, projection);
+    if (m_environment && m_environment->isValid())
+        m_renderer.render(cmd, *m_environment, view, projection);
 }

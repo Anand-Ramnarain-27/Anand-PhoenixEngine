@@ -194,6 +194,7 @@
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="gltf_utils.h" />
     <ClInclude Include="HandleManager.h" />
+    <ClInclude Include="IBLGenerator.h" />
     <ClInclude Include="IScene.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="MaterialImporter.h" />
@@ -320,6 +321,7 @@
     <ClCompile Include="EnvironmentSystem.cpp" />
     <ClCompile Include="FileDialog.cpp" />
     <ClCompile Include="GameObject.cpp" />
+    <ClCompile Include="IBLGenerator.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="MaterialImporter.cpp" />
     <ClCompile Include="Mesh.cpp" />
