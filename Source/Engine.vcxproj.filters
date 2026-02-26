@@ -554,5 +554,20 @@
     <FxCompile Include="SkyboxPS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
+    <FxCompile Include="CubemapConvVS.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="IrradianceMapPS.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="PrefilterEnvMapPS.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="FullScreenTriangleVS.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="EnvironmentBRDFPS.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
