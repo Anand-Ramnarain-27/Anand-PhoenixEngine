@@ -1,4 +1,3 @@
-// MeshPS.hlsl
 struct DirectionalLight
 {
     float3 direction;

@@ -1,10 +1,7 @@
-// FullScreenTriangleVS.hlsl
-// Generates a single giant triangle from SV_VertexID. No vertex buffer needed.
-
 struct VSOut
 {
     float4 position : SV_POSITION;
-    float2 uv : TEXCOORD0; // explicit index prevents linkage register mismatch
+    float2 uv : TEXCOORD0; 
 };
 
 static const float2 kPositions[3] =

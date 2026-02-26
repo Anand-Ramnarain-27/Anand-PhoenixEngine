@@ -1,7 +1,3 @@
-// PrefilterEnvMapPS.hlsl
-// GGX importance-sampled specular pre-filter (Karis split-sum, first term).
-// N = V = R assumption removes view dependency so it can be baked per mip.
-
 #define PI          3.14159265359f
 #define NUM_SAMPLES 1024u
 
@@ -20,10 +16,9 @@ cbuffer FaceCB : register(b0)
 struct PSIn
 {
     float4 position : SV_POSITION;
-    float3 direction : TEXCOORD0; // must match CubemapConvVS output exactly
+    float3 direction : TEXCOORD0; 
 };
 
-// ---- Hammersley ---------------------------------------------------------
 float radicalInverse_VdC(uint bits)
 {
     bits = (bits << 16u) | (bits >> 16u);
@@ -39,7 +34,6 @@ float2 hammersley(uint i, uint n)
     return float2(float(i) / float(n), radicalInverse_VdC(i));
 }
 
-// ---- GGX importance sampling --------------------------------------------
 float3 sampleGGX(float u1, float u2, float alpha)
 {
     float a2 = alpha * alpha;
@@ -71,7 +65,6 @@ float sampleLod(float pdf, uint numSamples, uint texWidth)
     return max(0.5f * log2(solidAngleSample / solidAngleTexel), 0.0f);
 }
 
-// ---- Main ---------------------------------------------------------------
 float4 main(PSIn input) : SV_TARGET
 {
     float3 R = normalize(input.direction);

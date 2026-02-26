@@ -1,18 +1,12 @@
-// EnvironmentBRDFPS.hlsl
-// Pre-computes the Environment BRDF integration LUT (Karis split-sum, second term).
-// Output: R16G16_FLOAT   R = fa (F0 scale),  G = fb (constant bias)
-// UV axes: uv.x = N·V,  uv.y = roughness
-
 #define PI          3.14159265359f
 #define NUM_SAMPLES 1024u
 
 struct PSIn
 {
     float4 position : SV_POSITION;
-    float2 uv : TEXCOORD0; // must match FullScreenTriangleVS output exactly
+    float2 uv : TEXCOORD0;
 };
 
-// ---- Hammersley ---------------------------------------------------------
 float radicalInverse_VdC(uint bits)
 {
     bits = (bits << 16u) | (bits >> 16u);
@@ -28,7 +22,6 @@ float2 hammersley(uint i, uint n)
     return float2(float(i) / float(n), radicalInverse_VdC(i));
 }
 
-// ---- GGX importance sampling --------------------------------------------
 float3 sampleGGX(float u1, float u2, float alpha)
 {
     float a2 = alpha * alpha;
@@ -38,7 +31,6 @@ float3 sampleGGX(float u1, float u2, float alpha)
     return float3(cos(phi) * sinTheta, sin(phi) * sinTheta, cosTheta);
 }
 
-// ---- Smith-GGX Visibility -----------------------------------------------
 float V_SmithGGX(float NdotL, float NdotV, float alpha)
 {
     float k = alpha * 0.5f;
@@ -47,7 +39,6 @@ float V_SmithGGX(float NdotL, float NdotV, float alpha)
     return gL * gV;
 }
 
-// ---- Main ---------------------------------------------------------------
 float4 main(PSIn input) : SV_TARGET
 {
     float NdotV = max(input.uv.x, 1e-4f);

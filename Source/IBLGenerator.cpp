@@ -6,18 +6,13 @@
 #include "ModuleResources.h"
 #include "ModuleRTDescriptors.h"
 #include "ModuleShaderDescriptors.h"
-#include "ReadData.h"   // DX::ReadData – loads a compiled .cso blob by filename
+#include "ReadData.h" 
 
 #include <array>
 #include <algorithm>
 
 using namespace DirectX;
 
-// ---------------------------------------------------------------------------
-// Cubemap face orientations (DirectX order: +X -X +Y -Y +Z -Z)
-// Each entry: camera looks toward `front`, with `up` as the up-vector.
-// Derived from the "Setting up the Camera" slide in IBL I.
-// ---------------------------------------------------------------------------
 namespace
 {
     struct FaceDesc { XMFLOAT3 front; XMFLOAT3 up; };
@@ -32,8 +27,6 @@ namespace
         { {  0,  0, -1 }, {  0,  1,  0 } },   // 5: -Z
     } };
 
-    // Cube vertex positions only (3 floats per vertex, 36 verts = 12 tris).
-    // Identical to the SkyboxRenderer cube so we can share the same geometry.
     static const float kCubeVerts[] =
     {
         -1,  1, -1,  -1, -1, -1,   1, -1, -1,
@@ -56,7 +49,6 @@ namespace
     };
 }
 
-// ---------------------------------------------------------------------------
 bool IBLGenerator::ensureGeometry(ID3D12Device* device)
 {
     if (m_geometryReady) return true;
@@ -77,7 +69,6 @@ bool IBLGenerator::ensureFaceCB(ID3D12Device* device)
 {
     if (m_faceCB) return true;
 
-    // One aligned slot is enough: we update it before each draw.
     FaceCB zero{};
     auto* resources = app->getResources();
     m_faceCB = resources->createUploadBuffer(&zero, sizeof(FaceCB), "IBL_FaceCB");
@@ -87,7 +78,6 @@ bool IBLGenerator::ensureFaceCB(ID3D12Device* device)
     return true;
 }
 
-// ---------------------------------------------------------------------------
 bool IBLGenerator::createCubemapResource(
     ID3D12Device* device, uint32_t size, uint32_t mips,
     DXGI_FORMAT fmt, const wchar_t* name,
@@ -95,7 +85,7 @@ bool IBLGenerator::createCubemapResource(
 {
     auto desc = CD3DX12_RESOURCE_DESC::Tex2D(
         fmt, size, size,
-        6,          // ArraySize = 6 faces
+        6,         
         mips,
         1, 0,
         D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
@@ -132,19 +122,12 @@ bool IBLGenerator::create2DResource(
     return true;
 }
 
-// ---------------------------------------------------------------------------
-// Shared root signature for irradiance + pre-filter passes:
-//   [0] CBV  b0  – FaceCB  (vp matrix, flip flags, roughness)
-//   [1] SRV  t0  – source cubemap (descriptor table, 1 entry)
-//   Static sampler s0 = linear-wrap (for sampling source env)
-// ---------------------------------------------------------------------------
 bool IBLGenerator::createConvPipeline(
     ID3D12Device* device,
     const wchar_t* psCsoPath, DXGI_FORMAT rtvFmt,
     ComPtr<ID3D12RootSignature>& outRS,
     ComPtr<ID3D12PipelineState>& outPSO)
 {
-    // Root signature
     CD3DX12_ROOT_PARAMETER params[2];
     params[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
 
@@ -174,7 +157,6 @@ bool IBLGenerator::createConvPipeline(
         blob->GetBufferSize(), IID_PPV_ARGS(&outRS))))
         return false;
 
-    // Shaders
     auto vs = DX::ReadData(L"CubemapConvVS.cso");
     auto ps = DX::ReadData(psCsoPath);
 
@@ -201,15 +183,11 @@ bool IBLGenerator::createConvPipeline(
     return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&outPSO)));
 }
 
-// ---------------------------------------------------------------------------
-// BRDF LUT root signature: nothing bound (inputs encoded in UV from VS).
-// ---------------------------------------------------------------------------
 bool IBLGenerator::createBRDFPipeline(
     ID3D12Device* device,
     ComPtr<ID3D12RootSignature>& outRS,
     ComPtr<ID3D12PipelineState>& outPSO)
 {
-    // Empty root signature (no resources needed)
     CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
     rsDesc.Init(0, nullptr, 0, nullptr,
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -243,10 +221,6 @@ bool IBLGenerator::createBRDFPipeline(
     return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&outPSO)));
 }
 
-// ---------------------------------------------------------------------------
-// Render one face/mip of a target cubemap using the current conv pipeline.
-// Handles: barrier PSR?RT, set up viewport, upload CB, draw cube, barrier RT?PSR.
-// ---------------------------------------------------------------------------
 void IBLGenerator::renderCubeFace(
     ID3D12Device* device,
     ID3D12GraphicsCommandList* cmd,
@@ -265,8 +239,6 @@ void IBLGenerator::renderCubeFace(
 
     uint32_t mipSize = std::max(1u, baseFaceSize >> mipLevel);
 
-    // --- Create RTV for this face + mip ----------------------------------
-    // Uses your existing ModuleRTDescriptors::create(resource, arraySlice, mipSlice, format)
     RenderTargetDesc rtv = rtDescs->create(target, faceIndex, mipLevel, rtvFmt);
     if (!rtv)
     {
@@ -274,7 +246,6 @@ void IBLGenerator::renderCubeFace(
         return;
     }
 
-    // --- Transition: PIXEL_SHADER_RESOURCE ? RENDER_TARGET ---------------
     UINT subRes = D3D12CalcSubresource(mipLevel, faceIndex, 0, totalMips, 6);
 
     auto barrierIn = CD3DX12_RESOURCE_BARRIER::Transition(
@@ -284,7 +255,6 @@ void IBLGenerator::renderCubeFace(
         subRes);
     cmd->ResourceBarrier(1, &barrierIn);
 
-    // --- Set render target + viewport ------------------------------------
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = rtv.getCPUHandle();
     cmd->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
@@ -296,19 +266,15 @@ void IBLGenerator::renderCubeFace(
     cmd->RSSetViewports(1, &vp);
     cmd->RSSetScissorRects(1, &sc);
 
-    // --- Build view * projection for this face ---------------------------
     const FaceDesc& fd = kFaces[faceIndex];
     XMVECTOR eye = XMVectorZero();
     XMVECTOR at = XMLoadFloat3(&fd.front);
     XMVECTOR up = XMLoadFloat3(&fd.up);
 
-    // Right-handed LookAt + 90-deg FOV, square aspect
     XMMATRIX view = XMMatrixLookAtRH(eye, at, up);
     XMMATRIX proj = XMMatrixPerspectiveFovRH(XM_PIDIV2, 1.0f, 0.1f, 100.0f);
     XMMATRIX vp_m = view * proj;
 
-    // Coordinate-system handedness correction (IBL I lecture, Quirk slide).
-    // +X and -X faces need flipZ; all others need flipX.
     bool flipZ = (faceIndex == 0 || faceIndex == 1);
     bool flipX = !flipZ;
 
@@ -317,7 +283,6 @@ void IBLGenerator::renderCubeFace(
     m_faceCBPtr->flipZ = flipZ ? 1 : 0;
     XMStoreFloat4x4(&m_faceCBPtr->vp, XMMatrixTranspose(vp_m));
 
-    // --- Bind pipeline + resources ---------------------------------------
     ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap() };
     cmd->SetDescriptorHeaps(1, heaps);
 
@@ -326,12 +291,10 @@ void IBLGenerator::renderCubeFace(
     cmd->SetGraphicsRootConstantBufferView(0, m_faceCB->GetGPUVirtualAddress());
     cmd->SetGraphicsRootDescriptorTable(1, sourceSRV);
 
-    // --- Draw cube -------------------------------------------------------
     cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     cmd->IASetVertexBuffers(0, 1, &m_vbView);
     cmd->DrawInstanced(36, 1, 0, 0);
 
-    // --- Transition: RENDER_TARGET ? PIXEL_SHADER_RESOURCE ---------------
     auto barrierOut = CD3DX12_RESOURCE_BARRIER::Transition(
         target,
         D3D12_RESOURCE_STATE_RENDER_TARGET,
@@ -340,9 +303,6 @@ void IBLGenerator::renderCubeFace(
     cmd->ResourceBarrier(1, &barrierOut);
 }
 
-// ---------------------------------------------------------------------------
-// Main entry point
-// ---------------------------------------------------------------------------
 bool IBLGenerator::generate(
     ID3D12Device* device,
     ID3D12GraphicsCommandList* cmd,
@@ -361,9 +321,6 @@ bool IBLGenerator::generate(
 
     auto* shaderDescs = app->getShaderDescriptors();
 
-    // -----------------------------------------------------------------------
-    // 1. Create GPU resources
-    // -----------------------------------------------------------------------
     static constexpr uint32_t kIrradianceSize = 32;
     static constexpr uint32_t kPrefilterSize = 128;
     static constexpr uint32_t kBRDFLUTSize = 512;
@@ -381,9 +338,6 @@ bool IBLGenerator::generate(
         DXGI_FORMAT_R16G16_FLOAT, L"BRDFIntegrationLUT",
         env.brdfLUT)) return false;
 
-    // -----------------------------------------------------------------------
-    // 2. Build pipelines  (stored as members so they outlive Execute+flush)
-    // -----------------------------------------------------------------------
     m_irradiancePSO.Reset(); m_irradianceRS.Reset();
     m_prefilterPSO.Reset();  m_prefilterRS.Reset();
     m_brdfPSO.Reset();       m_brdfRS.Reset();
@@ -405,9 +359,6 @@ bool IBLGenerator::generate(
         LOG("IBLGenerator: failed to create BRDF pipeline"); return false;
     }
 
-    // -----------------------------------------------------------------------
-    // 3. Bake irradiance cubemap  (6 faces, 1 mip)
-    // -----------------------------------------------------------------------
     LOG("IBLGenerator: baking irradiance map...");
     for (uint32_t face = 0; face < 6; ++face)
     {
@@ -419,9 +370,6 @@ bool IBLGenerator::generate(
             DXGI_FORMAT_R16G16B16A16_FLOAT);
     }
 
-    // -----------------------------------------------------------------------
-    // 4. Bake pre-filtered env map  (6 faces x NUM_ROUGHNESS_LEVELS mips)
-    // -----------------------------------------------------------------------
     LOG("IBLGenerator: baking pre-filtered env map (%u roughness levels)...", kNumRoughness);
     for (uint32_t mip = 0; mip < kNumRoughness; ++mip)
     {
@@ -440,14 +388,10 @@ bool IBLGenerator::generate(
         }
     }
 
-    // -----------------------------------------------------------------------
-    // 5. Bake BRDF LUT  (full-screen triangle, no vertex buffer)
-    // -----------------------------------------------------------------------
     LOG("IBLGenerator: baking BRDF integration LUT...");
     {
         auto* rtDescs = app->getRTDescriptors();
 
-        // create() without face/mip args uses the plain 2D overload
         RenderTargetDesc rtv = rtDescs->create(env.brdfLUT.Get());
         if (!rtv) { LOG("IBLGenerator: BRDF LUT RTV alloc failed"); return false; }
 
@@ -471,7 +415,7 @@ bool IBLGenerator::generate(
         cmd->SetPipelineState(m_brdfPSO.Get());
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         cmd->IASetVertexBuffers(0, 0, nullptr);
-        cmd->DrawInstanced(3, 1, 0, 0);   // 3 verts ? 1 giant triangle (no VB needed)
+        cmd->DrawInstanced(3, 1, 0, 0); 
 
         auto barrierOut = CD3DX12_RESOURCE_BARRIER::Transition(
             env.brdfLUT.Get(),
@@ -480,11 +424,6 @@ bool IBLGenerator::generate(
         cmd->ResourceBarrier(1, &barrierOut);
     }
 
-    // -----------------------------------------------------------------------
-    // 6. Create shader-visible SRVs for all three maps
-    // -----------------------------------------------------------------------
-
-    // -- Irradiance cubemap SRV --
     env.irradianceSRVTable = shaderDescs->allocTable("IBL_Irradiance");
     if (!env.irradianceSRVTable.isValid())
     {
@@ -500,7 +439,6 @@ bool IBLGenerator::generate(
         env.irradianceSRVTable.createSRV(env.irradianceCubemap.Get(), 0, &srvDesc);
     }
 
-    // -- Pre-filtered cubemap SRV (all mips) --
     env.prefilteredSRVTable = shaderDescs->allocTable("IBL_Prefilter");
     if (!env.prefilteredSRVTable.isValid())
     {
@@ -516,7 +454,6 @@ bool IBLGenerator::generate(
         env.prefilteredSRVTable.createSRV(env.prefilteredCubemap.Get(), 0, &srvDesc);
     }
 
-    // -- BRDF LUT SRV --
     env.brdfLUTSRVTable = shaderDescs->allocTable("IBL_BRDF_LUT");
     if (!env.brdfLUTSRVTable.isValid())
     {
@@ -535,8 +472,6 @@ bool IBLGenerator::generate(
 
     LOG("IBLGenerator: IBL bake complete.");
 
-    // Close the command list HERE while the local PSOs are still alive.
-    // The caller must NOT call Close() again; it just needs to Execute + flush.
     cmd->Close();
 
     return true;

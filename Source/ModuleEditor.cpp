@@ -363,9 +363,7 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     lightData.ambientIntensity = s.ambient.intensity;
     lightData.viewPos = camera->getPos();
     lightData.iblEnabled = (sky.enabled && environmentSystem && environmentSystem->hasIBL()) ? 1u : 0u;
-
-    // Pass roughness mip count to shader so prefiltered mip level is computed correctly.
-    // numRoughnessLevels lives in the spotLight padding field (see MeshPipeline.h comment).
+     
     lightData.spotLight.numRoughnessLevels = float(EnvironmentMap::NUM_ROUGHNESS_LEVELS);
 
     if (moduleScene) gatherLights(moduleScene->getRoot(), lightData);
@@ -380,9 +378,7 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     Matrix identity = Matrix::Identity.Transpose();
     cmd->SetGraphicsRoot32BitConstants(0, 16, &vp, 0);
     cmd->SetGraphicsRoot32BitConstants(1, 16, &identity, 0);
-
-    // Bind IBL tables BEFORE mesh draws so the shader can sample them.
-    // bindIBL is a no-op when IBL is not available.
+     
     if (sky.enabled && environmentSystem)
         meshPipeline->bindIBL(cmd, environmentSystem.get());
 
@@ -391,9 +387,7 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     if (sky.enabled && environmentSystem)
     {
         environmentSystem->render(cmd, view, proj);
-
-        // Skybox changes the PSO — restore mesh pipeline state for anything
-        // that renders after (debug draws, gizmos, etc.).
+         
         cmd->SetPipelineState(meshPipeline->getPSO());
         cmd->SetGraphicsRootSignature(meshPipeline->getRootSig());
     }

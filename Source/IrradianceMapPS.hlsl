@@ -1,8 +1,3 @@
-// IrradianceMapPS.hlsl
-// Computes the diffuse irradiance integral for one texel of the irradiance cubemap.
-// Monte Carlo + Malley's method (cosine-weighted hemisphere sampling).
-// Estimator: (PI / N) * sum(Li)  -- cos/PDF cancel.
-
 #define PI          3.14159265359f
 #define NUM_SAMPLES 1024u
 
@@ -12,10 +7,9 @@ SamplerState linearWrap : register(s0);
 struct PSIn
 {
     float4 position : SV_POSITION;
-    float3 direction : TEXCOORD0; // must match CubemapConvVS output exactly
+    float3 direction : TEXCOORD0;
 };
 
-// ---- Hammersley low-discrepancy sequence --------------------------------
 float radicalInverse_VdC(uint bits)
 {
     bits = (bits << 16u) | (bits >> 16u);
@@ -31,7 +25,6 @@ float2 hammersley(uint i, uint n)
     return float2(float(i) / float(n), radicalInverse_VdC(i));
 }
 
-// ---- Malley's method: cosine-weighted hemisphere sample -----------------
 float3 hemisphereSampleCosine(float u1, float u2)
 {
     float phi = 2.0f * PI * u1;
@@ -39,7 +32,6 @@ float3 hemisphereSampleCosine(float u1, float u2)
     return float3(r * cos(phi), r * sin(phi), sqrt(max(0.0f, 1.0f - u2)));
 }
 
-// ---- Orthonormal basis from normal --------------------------------------
 float3x3 buildTBN(float3 N)
 {
     float3 up = abs(N.y) > 0.999f ? float3(0, 0, 1) : float3(0, 1, 0);
@@ -48,7 +40,6 @@ float3x3 buildTBN(float3 N)
     return float3x3(right, bt, N);
 }
 
-// ---- Mip level for anti-aliasing ----------------------------------------
 float sampleLod(float pdf, uint numSamples, uint texWidth)
 {
     float solidAngleSample = 1.0f / (float(numSamples) * pdf + 1e-6f);
@@ -56,7 +47,6 @@ float sampleLod(float pdf, uint numSamples, uint texWidth)
     return max(0.5f * log2(solidAngleSample / solidAngleTexel), 0.0f);
 }
 
-// ---- Main ---------------------------------------------------------------
 float4 main(PSIn input) : SV_TARGET
 {
     float3 N = normalize(input.direction);
