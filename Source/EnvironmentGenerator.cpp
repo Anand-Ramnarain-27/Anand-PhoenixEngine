@@ -13,7 +13,10 @@ EnvironmentGenerator::loadCubemap(const std::string& file)
     auto* shaderDesc = app->getShaderDescriptors();
 
     if (!d3d12 || !resources || !shaderDesc) return nullptr;
-     
+
+    // -----------------------------------------------------------------------
+    // 1. Load the source cubemap DDS and create its SRV
+    // -----------------------------------------------------------------------
     auto env = std::make_unique<EnvironmentMap>();
 
     env->cubemap = resources->createTextureFromFile(file, true /*generateMips*/);
@@ -39,11 +42,16 @@ EnvironmentGenerator::loadCubemap(const std::string& file)
     env->srvTable.createSRV(env->cubemap.Get(), 0, &srvDesc);
 
     LOG("EnvironmentGenerator: cubemap loaded '%s'", file.c_str());
-     
+
+    // -----------------------------------------------------------------------
+    // 2. Run the IBL bake on a fresh one-shot command list
+    //    (so it doesn't interfere with the normal frame command list)
+    // -----------------------------------------------------------------------
     LOG("EnvironmentGenerator: starting IBL pre-computation...");
 
     ID3D12Device* device = d3d12->getDevice();
-     
+
+    // Open a fresh command list for the bake
     ComPtr<ID3D12CommandAllocator>    bakeAlloc;
     ComPtr<ID3D12GraphicsCommandList> bakeCmd;
 
@@ -51,25 +59,28 @@ EnvironmentGenerator::loadCubemap(const std::string& file)
         IID_PPV_ARGS(&bakeAlloc));
     device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
         bakeAlloc.Get(), nullptr, IID_PPV_ARGS(&bakeCmd));
-     
+
+    // Set the shader-visible heap so descriptor tables work inside the bake
     ID3D12DescriptorHeap* heaps[] = { shaderDesc->getHeap() };
     bakeCmd->SetDescriptorHeaps(1, heaps);
 
     bool ok = m_iblGenerator.generate(device, bakeCmd.Get(), *env);
 
-    bakeCmd->Close();
-
+    // generate() closes the command list internally (before its local PSOs are destroyed).
     if (ok)
-    { 
+    {
+        // Execute and wait for the bake to finish before returning
         ID3D12CommandList* lists[] = { bakeCmd.Get() };
         d3d12->getDrawCommandQueue()->ExecuteCommandLists(1, lists);
-        d3d12->flush();   
+        d3d12->flush();   // blocks until GPU is idle
+        m_iblGenerator.releasePipelines();  // safe to release now GPU is done
 
         LOG("EnvironmentGenerator: IBL pre-computation done.");
     }
     else
     {
-        LOG("EnvironmentGenerator: IBL pre-computation FAILED."); 
+        LOG("EnvironmentGenerator: IBL pre-computation FAILED.");
+        // Still return the env with just the skybox – IBL won't be used
     }
 
     return env;

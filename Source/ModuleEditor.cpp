@@ -27,6 +27,7 @@
 #include "FrustumDebugDraw.h"
 #include "PrefabManager.h"
 #include "TextureImporter.h"
+#include "EnvironmentMap.h"
 #include <d3dx12.h>
 #include <filesystem>
 
@@ -93,7 +94,7 @@ bool ModuleEditor::init()
 
 bool ModuleEditor::cleanUp()
 {
-    environmentSystem.reset(); 
+    environmentSystem.reset();
     imguiPass.reset();
     debugDrawPass.reset();
     viewportRT.reset();
@@ -135,7 +136,7 @@ void ModuleEditor::handleDialogs()
         const std::string& path = m_saveDialog.getSelectedPath();
         bool saved = sceneManager->saveCurrentScene(path);
         if (saved)
-            m_currentScenePath = path;  
+            m_currentScenePath = path;
         tryScene(saved, "Scene saved!", "Failed to save scene.");
     }
 
@@ -144,7 +145,7 @@ void ModuleEditor::handleDialogs()
         const std::string& path = m_loadDialog.getSelectedPath();
         bool loaded = sceneManager->loadScene(path);
         if (loaded)
-            m_currentScenePath = path;  
+            m_currentScenePath = path;
         tryScene(loaded, "Scene loaded!", "Failed to load scene.");
     }
 }
@@ -200,7 +201,7 @@ void ModuleEditor::handleNewScenePopup(ID3D12GraphicsCommandList* cmd)
         app->getD3D12()->flush();
         sceneManager->setScene(std::make_unique<EmptyScene>(), app->getD3D12()->getDevice());
         selectedGameObject = nullptr;
-        m_currentScenePath.clear(); 
+        m_currentScenePath.clear();
         log("New scene created.", ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
         ImGui::CloseCurrentPopup();
     }
@@ -355,10 +356,15 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     cmd->SetGraphicsRootSignature(meshPipeline->getRootSig());
     cmd->SetGraphicsRootDescriptorTable(5, app->getSamplerHeap()->getGPUHandle(ModuleSamplerHeap::Type(m_samplerType)));
 
+    const EditorSceneSettings::Skybox& sky = s.skybox;
+
     MeshPipeline::LightCB lightData = {};
     lightData.ambientColor = s.ambient.color;
     lightData.ambientIntensity = s.ambient.intensity;
     lightData.viewPos = camera->getPos();
+    lightData.iblEnabled = (sky.enabled && environmentSystem && environmentSystem->hasIBL()) ? 1u : 0u;
+    lightData.spotLight.numRoughnessLevels = float(EnvironmentMap::NUM_ROUGHNESS_LEVELS);
+
     if (moduleScene) gatherLights(moduleScene->getRoot(), lightData);
 
     void* mapped = nullptr;
@@ -373,10 +379,16 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     cmd->SetGraphicsRoot32BitConstants(1, 16, &identity, 0);
 
     if (sceneManager) sceneManager->render(cmd, *camera, w, h);
-
-    const EditorSceneSettings::Skybox& sky = s.skybox;
     if (sky.enabled && environmentSystem)
+    {
         environmentSystem->render(cmd, view, proj);
+
+        // After rendering the skybox the PSO changes back to the mesh pipeline;
+        // re-bind root signature + IBL tables so mesh draws can use them.
+        cmd->SetPipelineState(meshPipeline->getPSO());
+        cmd->SetGraphicsRootSignature(meshPipeline->getRootSig());
+        meshPipeline->bindIBL(cmd, environmentSystem.get());
+    }
 
     if (s.showGrid) dd::xzSquareGrid(-100.0f, 100.0f, 0.0f, 1.0f, dd::colors::Gray);
     if (s.showAxis) { Matrix id = Matrix::Identity; dd::axisTriad(id.m[0], 0.0f, 2.0f, 2.0f); }
@@ -393,16 +405,16 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
 
             const Vector3& c = line.color;
 
-            if (c.x > 0.5f && c.y > 0.5f && c.z > 0.5f) dd::line(from, to, dd::colors::White); 
-            else if (c.x > 0.5f && c.y > 0.5f && c.z < 0.5f) dd::line(from, to, dd::colors::Yellow);  
-            else if (c.x < 0.5f && c.y > 0.5f && c.z < 0.5f) dd::line(from, to, dd::colors::Green);  
-            else if (c.x < 0.5f && c.y > 0.5f && c.z > 0.5f) dd::line(from, to, dd::colors::Cyan);   
-            else if (c.x > 0.5f && c.y < 0.5f && c.z < 0.5f) dd::line(from, to, dd::colors::Red);  
-            else if (c.x < 0.5f && c.y < 0.5f && c.z > 0.5f) dd::line(from, to, dd::colors::Blue);    
-            else                                                dd::line(from, to, dd::colors::White); 
+            if (c.x > 0.5f && c.y > 0.5f && c.z > 0.5f) dd::line(from, to, dd::colors::White);
+            else if (c.x > 0.5f && c.y > 0.5f && c.z < 0.5f) dd::line(from, to, dd::colors::Yellow);
+            else if (c.x < 0.5f && c.y > 0.5f && c.z < 0.5f) dd::line(from, to, dd::colors::Green);
+            else if (c.x < 0.5f && c.y > 0.5f && c.z > 0.5f) dd::line(from, to, dd::colors::Cyan);
+            else if (c.x > 0.5f && c.y < 0.5f && c.z < 0.5f) dd::line(from, to, dd::colors::Red);
+            else if (c.x < 0.5f && c.y < 0.5f && c.z > 0.5f) dd::line(from, to, dd::colors::Blue);
+            else                                                dd::line(from, to, dd::colors::White);
         }
     }
-    
+
     debugDrawPass->record(cmd, w, h, view, proj);
     END_EVENT(cmd);
     viewportRT->endRender(cmd);

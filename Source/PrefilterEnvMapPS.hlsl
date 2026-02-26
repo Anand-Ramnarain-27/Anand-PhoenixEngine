@@ -1,4 +1,7 @@
 // PrefilterEnvMapPS.hlsl
+// GGX importance-sampled specular pre-filter (Karis split-sum, first term).
+// N = V = R assumption removes view dependency so it can be baked per mip.
+
 #define PI          3.14159265359f
 #define NUM_SAMPLES 1024u
 
@@ -14,6 +17,13 @@ cbuffer FaceCB : register(b0)
     float _pad;
 };
 
+struct PSIn
+{
+    float4 position : SV_POSITION;
+    float3 direction : TEXCOORD0; // must match CubemapConvVS output exactly
+};
+
+// ---- Hammersley ---------------------------------------------------------
 float radicalInverse_VdC(uint bits)
 {
     bits = (bits << 16u) | (bits >> 16u);
@@ -29,6 +39,7 @@ float2 hammersley(uint i, uint n)
     return float2(float(i) / float(n), radicalInverse_VdC(i));
 }
 
+// ---- GGX importance sampling --------------------------------------------
 float3 sampleGGX(float u1, float u2, float alpha)
 {
     float a2 = alpha * alpha;
@@ -49,8 +60,8 @@ float3x3 buildTBN(float3 N)
 {
     float3 up = abs(N.y) > 0.999f ? float3(0, 0, 1) : float3(0, 1, 0);
     float3 right = normalize(cross(up, N));
-    float3 bitangent = cross(N, right);
-    return float3x3(right, bitangent, N);
+    float3 bt = cross(N, right);
+    return float3x3(right, bt, N);
 }
 
 float sampleLod(float pdf, uint numSamples, uint texWidth)
@@ -60,12 +71,11 @@ float sampleLod(float pdf, uint numSamples, uint texWidth)
     return max(0.5f * log2(solidAngleSample / solidAngleTexel), 0.0f);
 }
 
-float4 main(float3 direction : TEXCOORD) : SV_TARGET
+// ---- Main ---------------------------------------------------------------
+float4 main(PSIn input) : SV_TARGET
 {
-    float3 R = normalize(direction);
-    float3 N = R;
-    float3 V = R;
-
+    float3 R = normalize(input.direction);
+    float3 N = R, V = R;
     float alpha = max(roughness * roughness, 0.001f);
     float3x3 TBN = buildTBN(N);
 
@@ -78,24 +88,20 @@ float4 main(float3 direction : TEXCOORD) : SV_TARGET
     for (uint i = 0u; i < NUM_SAMPLES; ++i)
     {
         float2 u = hammersley(i, NUM_SAMPLES);
-        float3 Hts = sampleGGX(u.x, u.y, alpha); 
-        float3 H = normalize(mul(Hts, TBN)); 
-        float3 L = reflect(-V, H); 
+        float3 Hts = sampleGGX(u.x, u.y, alpha);
+        float3 H = normalize(mul(Hts, TBN));
+        float3 L = reflect(-V, H);
 
         float NdotL = dot(N, L);
         if (NdotL > 0.0f)
         {
             float NdotH = max(dot(N, H), 0.0f);
             float VdotH = max(dot(V, H), 0.0f);
-            
             float D = D_GGX(NdotH, alpha);
             float pdf = (D * NdotH) / max(4.0f * VdotH, 1e-6f);
-
             float lod = sampleLod(pdf, NUM_SAMPLES, texW);
 
-            float3 Li = environmentMap.SampleLevel(linearWrap, L, lod).rgb;
-            
-            colorSum += Li * NdotL;
+            colorSum += environmentMap.SampleLevel(linearWrap, L, lod).rgb * NdotL;
             weightSum += NdotL;
         }
     }

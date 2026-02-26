@@ -7,9 +7,21 @@
 
 using Microsoft::WRL::ComPtr;
 
+class EnvironmentSystem;
+
 class MeshPipeline
 {
 public:
+    static constexpr UINT SLOT_VP = 0;  
+    static constexpr UINT SLOT_WORLD = 1;  
+    static constexpr UINT SLOT_LIGHT_CB = 2;  
+    static constexpr UINT SLOT_MATERIAL_CB = 3; 
+    static constexpr UINT SLOT_ALBEDO_TEX = 4; 
+    static constexpr UINT SLOT_SAMPLER = 5; 
+    static constexpr UINT SLOT_IRRADIANCE = 6; 
+    static constexpr UINT SLOT_PREFILTER = 7; 
+    static constexpr UINT SLOT_BRDF_LUT = 8; 
+
     struct GPUDirectionalLight
     {
         Vector3 direction;
@@ -35,7 +47,8 @@ public:
         Vector3 color;
         float   outerCos;
         float   intensity;
-        Vector3 pad;
+        float   numRoughnessLevels;  
+        Vector2 pad;
     };
 
     struct LightCB
@@ -47,7 +60,7 @@ public:
         uint32_t numDirLights;
         uint32_t numPointLights;
         uint32_t numSpotLights;
-        uint32_t pad1;
+        uint32_t iblEnabled;     
         GPUDirectionalLight dirLights[2];
         GPUPointLight       pointLight;
         GPUSpotLight        spotLight;
@@ -55,7 +68,9 @@ public:
 
     bool init(ID3D12Device* device);
 
-    ID3D12PipelineState* getPSO()    const { return pso.Get(); }
+    void bindIBL(ID3D12GraphicsCommandList* cmd, const EnvironmentSystem* env) const;
+
+    ID3D12PipelineState* getPSO()     const { return pso.Get(); }
     ID3D12RootSignature* getRootSig() const { return rootSig.Get(); }
 
     void                    setSamplerType(ModuleSamplerHeap::Type type) { m_samplerType = type; }
