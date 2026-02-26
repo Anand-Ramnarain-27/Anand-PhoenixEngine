@@ -1,21 +1,19 @@
 cbuffer SkyboxCB : register(b0)
 {
-    float4x4 viewProj;
+    float4x4 vp;
 };
 
-struct VSOutput
+struct VSOut
 {
-    float3 texCoord : TEXCOORD;
     float4 position : SV_POSITION;
+    float3 dir : TEXCOORD;
 };
 
-VSOutput main(float3 position : POSITION)
+VSOut main(float3 pos : POSITION)
 {
-    VSOutput output;
-    output.texCoord = position;
-
-    float4 pos = mul(float4(position, 1.0f), viewProj);
-    output.position = pos.xyww;
-
-    return output;
+    VSOut o;
+    o.dir = pos;
+    float4 clip = mul(float4(pos, 1), vp);
+    o.position = clip.xyww;
+    return o;
 }

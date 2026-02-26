@@ -65,6 +65,12 @@ bool ModuleEditor::init()
     meshPipeline = std::make_unique<MeshPipeline>();
     if (!meshPipeline->init(device)) return false;
 
+    environmentSystem = std::make_unique<EnvironmentSystem>();
+    if (!environmentSystem->init(device, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT, false))
+    {
+        return false;
+    }
+
     sceneManager->setScene(std::make_unique<EmptyScene>(), device);
 
     D3D12_QUERY_HEAP_DESC qDesc = { D3D12_QUERY_HEAP_TYPE_TIMESTAMP, 2, 0 };
@@ -87,6 +93,7 @@ bool ModuleEditor::init()
 
 bool ModuleEditor::cleanUp()
 {
+    environmentSystem.reset(); 
     imguiPass.reset();
     debugDrawPass.reset();
     viewportRT.reset();
@@ -366,6 +373,10 @@ void ModuleEditor::renderViewportToTexture(ID3D12GraphicsCommandList* cmd)
     cmd->SetGraphicsRoot32BitConstants(1, 16, &identity, 0);
 
     if (sceneManager) sceneManager->render(cmd, *camera, w, h);
+
+    const EditorSceneSettings::Skybox& sky = s.skybox;
+    if (sky.enabled && environmentSystem)
+        environmentSystem->render(cmd, view, proj);
 
     if (s.showGrid) dd::xzSquareGrid(-100.0f, 100.0f, 0.0f, 1.0f, dd::colors::Gray);
     if (s.showAxis) { Matrix id = Matrix::Identity; dd::axisTriad(id.m[0], 0.0f, 2.0f, 2.0f); }
@@ -1671,6 +1682,82 @@ void ModuleEditor::drawSceneSettings()
     if (ImGui::CollapsingHeader("Camera & Culling", ImGuiTreeNodeFlags_DefaultOpen))
     {
         app->getCamera()->onEditorDebugPanel();
+    }
+
+    if (ImGui::CollapsingHeader("Skybox", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        EditorSceneSettings::Skybox& sky = s.skybox;
+        ImGui::Checkbox("Enable Skybox", &sky.enabled);
+        ImGui::Separator();
+
+        static std::vector<std::string> skyboxFiles;
+        static int selectedSkybox = -1;
+        static bool scanned = false;
+
+        if (!scanned || ImGui::Button("Refresh"))
+        {
+            skyboxFiles.clear();
+            selectedSkybox = -1;
+            scanned = true;
+
+            std::string skyboxDir = "Assets/Skybox/";
+            try
+            {
+                for (const auto& entry : std::filesystem::directory_iterator(skyboxDir))
+                {
+                    if (entry.is_regular_file())
+                    {
+                        std::string ext = entry.path().extension().string();
+                        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                        if (ext == ".dds")
+                        {
+                            skyboxFiles.push_back(entry.path().filename().string());
+                            if (skyboxDir + entry.path().filename().string() == sky.cubemapPath)
+                                selectedSkybox = (int)skyboxFiles.size() - 1;
+                        }
+                    }
+                }
+            }
+            catch (...)
+            {
+                log("[Editor] Could not scan Assets/Skybox folder");
+            }
+        }
+
+        ImGui::SameLine();
+        ImGui::TextDisabled("%d file(s) found", (int)skyboxFiles.size());
+
+        ImGui::BeginChild("SkyboxList", ImVec2(0, 120), true);
+        for (int i = 0; i < (int)skyboxFiles.size(); ++i)
+        {
+            bool selected = (selectedSkybox == i);
+            if (ImGui::Selectable(skyboxFiles[i].c_str(), selected))
+                selectedSkybox = i;
+            if (selected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndChild();
+
+        if (selectedSkybox >= 0 && selectedSkybox < (int)skyboxFiles.size())
+        {
+            std::string fullPath = "Assets/Skybox/" + skyboxFiles[selectedSkybox];
+            ImGui::TextDisabled("Path: %s", fullPath.c_str());
+
+            if (ImGui::Button("Load Selected Skybox"))
+            {
+                sky.cubemapPath = fullPath;
+                if (environmentSystem)
+                {
+                    environmentSystem->load(sky.cubemapPath);
+                    log(("Skybox loaded: " + skyboxFiles[selectedSkybox]).c_str(),
+                        ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
+                }
+            }
+        }
+        else
+        {
+            ImGui::TextDisabled("No skybox selected");
+        }
     }
 
     ImGui::End();

@@ -6,6 +6,7 @@
 #include "MeshPipeline.h"
 #include "FileDialog.h"
 #include "EditorSceneSettings.h"
+#include "EnvironmentSystem.h"
 #include <memory>
 #include <vector>
 #include <imgui.h>
@@ -48,6 +49,7 @@ private:
     std::unique_ptr<DebugDrawPass>  debugDrawPass;
     std::unique_ptr<SceneManager>   sceneManager;
     std::unique_ptr<MeshPipeline>   meshPipeline;
+    std::unique_ptr<EnvironmentSystem> environmentSystem;
     ShaderTableDesc                 descTable;
 
     GameObject* selectedGameObject = nullptr;

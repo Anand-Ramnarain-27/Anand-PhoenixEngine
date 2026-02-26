@@ -21,4 +21,10 @@ struct EditorSceneSettings
 
     bool  debugDrawCameraFrustums = true;
     bool  debugDrawEditorCameraRay  = true;
+
+    struct Skybox
+    {
+        bool        enabled = false;
+        std::string cubemapPath;         
+    } skybox;
 };

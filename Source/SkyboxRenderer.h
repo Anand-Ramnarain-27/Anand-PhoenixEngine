@@ -1,25 +1,19 @@
 #pragma once
 
-#include <memory>
 #include <wrl.h>
 #include <d3d12.h>
-#include <DirectXMath.h>
+#include "EnvironmentMap.h"
 
-using namespace Microsoft::WRL;
-using namespace DirectX;
-
-class SkyboxCube;
+using Microsoft::WRL::ComPtr;
 
 class SkyboxRenderer
 {
 public:
-    SkyboxRenderer();
-    ~SkyboxRenderer();
+    bool init(ID3D12Device* device, bool useMSAA = false);
 
-    bool initialize(ID3D12Device* device, DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat, bool useMSAA);
     void render(
-        ID3D12GraphicsCommandList* cmdList,
-        const EnvironmentMap& environment,
+        ID3D12GraphicsCommandList* cmd,
+        const EnvironmentMap& env,
         const Matrix& view,
         const Matrix& projection);
 
@@ -27,14 +21,24 @@ private:
 
     struct SkyboxCB
     {
-        XMMATRIX viewProj;
+        Matrix vp;
     };
 
     bool createRootSignature(ID3D12Device* device);
-    bool createPipelineState(ID3D12Device* device, DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat, bool useMSAA);
+    bool createPipeline(ID3D12Device* device, bool useMSAA);
+    bool createGeometry(ID3D12Device* device);
+    bool createConstantBuffer(ID3D12Device* device);
 
 private:
-    ComPtr<ID3D12RootSignature> m_rootSignature;
-    ComPtr<ID3D12PipelineState> m_pipelineState;
-    std::unique_ptr<SkyboxCube> m_cube;
+
+    ComPtr<ID3D12RootSignature> rootSignature;
+    ComPtr<ID3D12PipelineState> pso;
+
+    ComPtr<ID3D12Resource> vertexBuffer;
+    D3D12_VERTEX_BUFFER_VIEW vbView{};
+
+    ComPtr<ID3D12Resource> constantBuffer;
+    SkyboxCB* cbData = nullptr;
+
+    UINT vertexCount = 0;
 };

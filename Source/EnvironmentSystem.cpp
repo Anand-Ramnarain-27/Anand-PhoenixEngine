@@ -1,12 +1,13 @@
 #include "Globals.h"
 #include "EnvironmentSystem.h"
 
-bool EnvironmentSystem::init(ID3D12Device* device,
-    DXGI_FORMAT rtvFormat,
-    DXGI_FORMAT dsvFormat,
+bool EnvironmentSystem::init(
+    ID3D12Device* device,
+    DXGI_FORMAT,
+    DXGI_FORMAT,
     bool useMSAA)
 {
-    return renderer.initialize(device, rtvFormat, dsvFormat, useMSAA);
+    return renderer.init(device, useMSAA);
 }
 
 void EnvironmentSystem::load(const std::string& file)
