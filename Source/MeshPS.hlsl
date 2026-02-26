@@ -67,6 +67,11 @@ struct PSInput
 
 #define PI 3.14159265359f
 
+float luminance(float3 c)
+{
+    return dot(c, float3(0.2126f, 0.7152f, 0.0722f));
+}
+
 float D_GGX(float NdotH, float alpha)
 {
     float a2 = alpha * alpha;
@@ -141,6 +146,12 @@ float3 iblAmbient(float3 N, float3 V, float3 albedoColor, float metal, float rou
     float2 fab = brdfLUT.SampleLevel(textureSampler[0], float2(NdotV, rough), 0).rg;
     float3 specular = prefilter * (F0 * fab.x + fab.y);
 
+    float3 iblResult = diffuse + specular;
+    float iblLum = luminance(iblResult);
+    float3 neutralFloor = albedoColor * 0.15f; 
+    float blendT = saturate(iblLum / 0.05f);
+    return lerp(neutralFloor, iblResult, blendT);
+    
     return diffuse + specular;
 }
 

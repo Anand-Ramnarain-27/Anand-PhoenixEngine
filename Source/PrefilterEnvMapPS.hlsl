@@ -19,6 +19,11 @@ struct PSIn
     float3 direction : TEXCOORD0; 
 };
 
+float luminance(float3 c)
+{
+    return dot(c, float3(0.2126f, 0.7152f, 0.0722f));
+}
+
 float radicalInverse_VdC(uint bits)
 {
     bits = (bits << 16u) | (bits >> 16u);
@@ -77,6 +82,8 @@ float4 main(PSIn input) : SV_TARGET
 
     float3 colorSum = 0.0f;
     float weightSum = 0.0f;
+    float totalLum = 0.0f;
+    uint lumCount = 0u;
 
     for (uint i = 0u; i < NUM_SAMPLES; ++i)
     {
@@ -84,8 +91,8 @@ float4 main(PSIn input) : SV_TARGET
         float3 Hts = sampleGGX(u.x, u.y, alpha);
         float3 H = normalize(mul(Hts, TBN));
         float3 L = reflect(-V, H);
-
         float NdotL = dot(N, L);
+
         if (NdotL > 0.0f)
         {
             float NdotH = max(dot(N, H), 0.0f);
@@ -94,11 +101,28 @@ float4 main(PSIn input) : SV_TARGET
             float pdf = (D * NdotH) / max(4.0f * VdotH, 1e-6f);
             float lod = sampleLod(pdf, NUM_SAMPLES, texW);
 
-            colorSum += environmentMap.SampleLevel(linearWrap, L, lod).rgb * NdotL;
+            float3 s = environmentMap.SampleLevel(linearWrap, L, lod).rgb;
+            colorSum += s * NdotL;
             weightSum += NdotL;
+            totalLum += luminance(s);
+            lumCount++;
         }
     }
 
     float3 result = (weightSum > 1e-6f) ? colorSum / weightSum : float3(0, 0, 0);
+    
+    if (lumCount > 0u)
+    {
+        float avgLum = totalLum / float(lumCount);
+        if (avgLum < 0.1f && avgLum > 1e-6f)
+        {
+            float exposure = 0.5f / avgLum;
+            float resultLum = luminance(result);
+            float3 grey = float3(resultLum, resultLum, resultLum);
+            float desatAmount = saturate((0.1f - avgLum) / 0.1f);
+            result = lerp(result, grey, desatAmount) * exposure;
+        }
+    }
+
     return float4(result, 1.0f);
 }

@@ -1,6 +1,9 @@
 #define PI          3.14159265359f
 #define NUM_SAMPLES 1024u
 
+#define IBL_MIN_LUMINANCE   0.1f
+#define IBL_TARGET_LUMINANCE 0.5f
+
 TextureCube environmentMap : register(t0);
 SamplerState linearWrap : register(s0);
 
@@ -47,6 +50,11 @@ float sampleLod(float pdf, uint numSamples, uint texWidth)
     return max(0.5f * log2(solidAngleSample / solidAngleTexel), 0.0f);
 }
 
+float luminance(float3 c)
+{
+    return dot(c, float3(0.2126f, 0.7152f, 0.0722f));
+}
+
 float4 main(PSIn input) : SV_TARGET
 {
     float3 N = normalize(input.direction);
@@ -56,6 +64,7 @@ float4 main(PSIn input) : SV_TARGET
     environmentMap.GetDimensions(0, texW, texH, mipCount);
 
     float3 irradiance = 0.0f;
+    float totalLum = 0.0f;
 
     for (uint i = 0u; i < NUM_SAMPLES; ++i)
     {
@@ -65,9 +74,24 @@ float4 main(PSIn input) : SV_TARGET
         float pdf = cosTheta / PI;
         float3 Lws = mul(Lts, TBN);
         float lod = sampleLod(pdf, NUM_SAMPLES, texW);
-        irradiance += environmentMap.SampleLevel(linearWrap, Lws, lod).rgb;
+
+        float3 sample = environmentMap.SampleLevel(linearWrap, Lws, lod).rgb;
+        irradiance += sample;
+        totalLum += luminance(sample);
     }
 
     irradiance *= PI / float(NUM_SAMPLES);
+    totalLum /= float(NUM_SAMPLES);
+    
+    if (totalLum < IBL_MIN_LUMINANCE && totalLum > 1e-6f)
+    {
+        float exposure = IBL_TARGET_LUMINANCE / totalLum;
+    
+        float3 grey = float3(totalLum, totalLum, totalLum);
+        float desatAmount = saturate((IBL_MIN_LUMINANCE - totalLum) / IBL_MIN_LUMINANCE);
+        irradiance = lerp(irradiance, grey * (luminance(irradiance) / max(totalLum, 1e-6f)), desatAmount);
+        irradiance *= exposure;
+    }
+
     return float4(irradiance, 1.0f);
 }
