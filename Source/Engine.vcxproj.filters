@@ -167,10 +167,18 @@
     <ClCompile Include="PrimitiveFactory.cpp">
       <Filter>engine\scene\primitives</Filter>
     </ClCompile>
-    <ClCompile Include="EnvironmentGenerator.cpp" />
-    <ClCompile Include="SkyboxRenderer.cpp" />
-    <ClCompile Include="EnvironmentSystem.cpp" />
-    <ClCompile Include="IBLGenerator.cpp" />
+    <ClCompile Include="EnvironmentGenerator.cpp">
+      <Filter>engine\graphics\environment</Filter>
+    </ClCompile>
+    <ClCompile Include="EnvironmentSystem.cpp">
+      <Filter>engine\graphics\environment</Filter>
+    </ClCompile>
+    <ClCompile Include="IBLGenerator.cpp">
+      <Filter>engine\graphics\environment</Filter>
+    </ClCompile>
+    <ClCompile Include="SkyboxRenderer.cpp">
+      <Filter>engine\graphics\environment</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -379,13 +387,27 @@
     <ClInclude Include="PrimitiveFactory.h">
       <Filter>engine\scene\primitives</Filter>
     </ClInclude>
-    <ClInclude Include="Frustum.h" />
-    <ClInclude Include="FrustumDebugDraw.h" />
-    <ClInclude Include="EnvironmentMap.h" />
-    <ClInclude Include="EnvironmentGenerator.h" />
-    <ClInclude Include="SkyboxRenderer.h" />
-    <ClInclude Include="EnvironmentSystem.h" />
-    <ClInclude Include="IBLGenerator.h" />
+    <ClInclude Include="Frustum.h">
+      <Filter>engine\modules</Filter>
+    </ClInclude>
+    <ClInclude Include="FrustumDebugDraw.h">
+      <Filter>engine\modules</Filter>
+    </ClInclude>
+    <ClInclude Include="EnvironmentGenerator.h">
+      <Filter>engine\graphics\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="EnvironmentMap.h">
+      <Filter>engine\graphics\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="EnvironmentSystem.h">
+      <Filter>engine\graphics\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="IBLGenerator.h">
+      <Filter>engine\graphics\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="SkyboxRenderer.h">
+      <Filter>engine\graphics\environment</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -397,15 +419,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="LightingDemo.hlsli">
-      <Filter>exercises\shaders</Filter>
-    </None>
-    <None Include="RenderToTextureDemo.hlsli">
-      <Filter>exercises\shaders</Filter>
-    </None>
-    <None Include="ViewportDemo.hlsli">
-      <Filter>exercises\shaders</Filter>
-    </None>
     <None Include="SimpleMath.inl">
       <Filter>engine\utils</Filter>
     </None>
@@ -447,9 +460,6 @@
     <Filter Include="engine\ui\imgui\backends">
       <UniqueIdentifier>{dc6caaf3-8679-4ed8-bff9-f6e2c612bf5a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="exercises">
-      <UniqueIdentifier>{a7244081-a8d6-4fbf-901f-3d6276011f94}</UniqueIdentifier>
-    </Filter>
     <Filter Include="engine\graphics\passes">
       <UniqueIdentifier>{cfd145a4-246d-4cf4-82a9-d9bc929bbf9c}</UniqueIdentifier>
     </Filter>
@@ -480,14 +490,8 @@
     <Filter Include="engine\editor">
       <UniqueIdentifier>{2cef77e4-b439-43cd-8e0a-86f01d317eae}</UniqueIdentifier>
     </Filter>
-    <Filter Include="exercises\shaders">
-      <UniqueIdentifier>{06295b1e-4250-4577-a3ee-f1f32904bf6e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="engine\core\utils">
       <UniqueIdentifier>{c75a7c56-98a7-4b34-b412-2efac88d181f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="shaders">
-      <UniqueIdentifier>{194f2fe2-6de2-4346-b851-4d6d09af2c5d}</UniqueIdentifier>
     </Filter>
     <Filter Include="engine\scene\prefabs">
       <UniqueIdentifier>{31c0b4d4-da15-4ee8-b1a2-d78d104508c2}</UniqueIdentifier>
@@ -507,6 +511,12 @@
     <Filter Include="engine\scene\primitives">
       <UniqueIdentifier>{bb64cc50-9643-4435-9ef0-678aab9d9034}</UniqueIdentifier>
     </Filter>
+    <Filter Include="engine\graphics\environment">
+      <UniqueIdentifier>{bbc8b950-1c82-4c42-974d-eef6d7cdada0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{2763b0bf-8de5-40bd-826e-2f3c6d2bd54a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Engine.rc">
@@ -514,61 +524,37 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="TextureSamplerPS.hlsl">
-      <Filter>exercises\shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="TextureSamplerVS.hlsl">
-      <Filter>exercises\shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="BasicModelScenePS.hlsl">
-      <Filter>exercises\shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="BasicModelSceneVS.hlsl">
-      <Filter>exercises\shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="LightingDemoPS.hlsl">
-      <Filter>exercises\shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="LightingDemoVS.hlsl">
-      <Filter>exercises\shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="RenderToTextureDemoVS.hlsl">
-      <Filter>exercises\shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="RenderToTextureDemoPS.hlsl">
-      <Filter>exercises\shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="ViewportDemoVS.hlsl">
-      <Filter>exercises\shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="ViewportDemoPS.hlsl">
-      <Filter>exercises\shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="MeshVS.hlsl">
+    <FxCompile Include="shaders\CubemapConvVS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
-    <FxCompile Include="MeshPS.hlsl">
+    <FxCompile Include="shaders\EnvironmentBRDFPS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
-    <FxCompile Include="SkyboxVS.hlsl">
+    <FxCompile Include="shaders\FullScreenTriangleVS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
-    <FxCompile Include="SkyboxPS.hlsl">
+    <FxCompile Include="shaders\IrradianceMapPS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
-    <FxCompile Include="CubemapConvVS.hlsl">
+    <FxCompile Include="shaders\MeshPS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
-    <FxCompile Include="IrradianceMapPS.hlsl">
+    <FxCompile Include="shaders\MeshVS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
-    <FxCompile Include="PrefilterEnvMapPS.hlsl">
+    <FxCompile Include="shaders\PrefilterEnvMapPS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
-    <FxCompile Include="FullScreenTriangleVS.hlsl">
+    <FxCompile Include="shaders\SkyboxPS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
-    <FxCompile Include="EnvironmentBRDFPS.hlsl">
+    <FxCompile Include="shaders\SkyboxVS.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\TextureSamplerPS.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\TextureSamplerVS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
   </ItemGroup>
