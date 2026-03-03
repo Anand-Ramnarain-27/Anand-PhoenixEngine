@@ -172,6 +172,7 @@
     <ClInclude Include="3rdParty\imgui-docking\imgui_internal.h" />
     <ClInclude Include="3rdParty\ImGuizmo\ImGuizmo.h" />
     <ClInclude Include="Application.h" />
+    <ClInclude Include="AssetBrowserPanel.h" />
     <ClInclude Include="Component.h" />
     <ClInclude Include="ComponentCamera.h" />
     <ClInclude Include="ComponentDirectionalLight.h" />
@@ -180,11 +181,15 @@
     <ClInclude Include="ComponentPointLight.h" />
     <ClInclude Include="ComponentSpotLight.h" />
     <ClInclude Include="ComponentTransform.h" />
+    <ClInclude Include="ConsolePanel.h" />
     <ClInclude Include="DebugDrawPass.h" />
     <ClInclude Include="debug_draw.hpp" />
     <ClInclude Include="DepthStencilDesc.h" />
     <ClInclude Include="DescriptorBase.h" />
+    <ClInclude Include="EditorPanel.h" />
     <ClInclude Include="EditorSceneSettings.h" />
+    <ClInclude Include="EditorSelection.h" />
+    <ClInclude Include="EditorViewport.h" />
     <ClInclude Include="EnvironmentGenerator.h" />
     <ClInclude Include="EnvironmentMap.h" />
     <ClInclude Include="EnvironmentSystem.h" />
@@ -192,9 +197,12 @@
     <ClInclude Include="Frustum.h" />
     <ClInclude Include="FrustumDebugDraw.h" />
     <ClInclude Include="GameObject.h" />
+    <ClInclude Include="GameViewPanel.h" />
     <ClInclude Include="gltf_utils.h" />
     <ClInclude Include="HandleManager.h" />
+    <ClInclude Include="HierarchyPanel.h" />
     <ClInclude Include="IBLGenerator.h" />
+    <ClInclude Include="InspectorPanel.h" />
     <ClInclude Include="IScene.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="MaterialImporter.h" />
@@ -216,6 +224,7 @@
     <ClInclude Include="ModuleD3D12.h" />
     <ClInclude Include="ModuleEditor.h" />
     <ClInclude Include="ModuleResources.h" />
+    <ClInclude Include="PerformancePanel.h" />
     <ClInclude Include="PhoenixEngine.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GamePad.h" />
@@ -237,6 +246,8 @@
     <ClInclude Include="SceneImporter.h" />
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="SceneSerializer.h" />
+    <ClInclude Include="SceneSettingsPanel.h" />
+    <ClInclude Include="SceneViewPanel.h" />
     <ClInclude Include="ShaderTableDesc.h" />
     <ClInclude Include="SimpleMath.h" />
     <ClInclude Include="SkyboxRenderer.h" />
@@ -305,6 +316,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Application.cpp" />
+    <ClCompile Include="AssetBrowserPanel.cpp" />
     <ClCompile Include="ComponentCamera.cpp" />
     <ClCompile Include="ComponentDirectionalLight.cpp" />
     <ClCompile Include="ComponentFactory.cpp" />
@@ -312,6 +324,7 @@
     <ClCompile Include="ComponentPointLight.cpp" />
     <ClCompile Include="ComponentSpotLight.cpp" />
     <ClCompile Include="ComponentTransform.cpp" />
+    <ClCompile Include="ConsolePanel.cpp" />
     <ClCompile Include="DebugDrawPass.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
@@ -321,7 +334,10 @@
     <ClCompile Include="EnvironmentSystem.cpp" />
     <ClCompile Include="FileDialog.cpp" />
     <ClCompile Include="GameObject.cpp" />
+    <ClCompile Include="GameViewPanel.cpp" />
+    <ClCompile Include="HierarchyPanel.cpp" />
     <ClCompile Include="IBLGenerator.cpp" />
+    <ClCompile Include="InspectorPanel.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="MaterialImporter.cpp" />
     <ClCompile Include="Mesh.cpp" />
@@ -339,6 +355,7 @@
     <ClCompile Include="ModuleD3D12.cpp" />
     <ClCompile Include="ModuleEditor.cpp" />
     <ClCompile Include="ModuleResources.cpp" />
+    <ClCompile Include="PerformancePanel.cpp" />
     <ClCompile Include="PhoenixEngine.cpp" />
     <ClCompile Include="GamePad.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -365,6 +382,8 @@
     <ClCompile Include="SceneImporter.cpp" />
     <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="SceneSerializer.cpp" />
+    <ClCompile Include="SceneSettingsPanel.cpp" />
+    <ClCompile Include="SceneViewPanel.cpp" />
     <ClCompile Include="ShaderTableDesc.cpp" />
     <ClCompile Include="SimpleMath.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>

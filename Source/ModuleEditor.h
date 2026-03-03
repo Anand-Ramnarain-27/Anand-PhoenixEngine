@@ -1,5 +1,4 @@
 #pragma once
-
 #include "Module.h"
 #include "SceneManager.h"
 #include "ShaderTableDesc.h"
@@ -7,20 +6,25 @@
 #include "FileDialog.h"
 #include "EditorSceneSettings.h"
 #include "EnvironmentSystem.h"
+#include "EditorSelection.h"
 #include <memory>
 #include <vector>
 #include <imgui.h>
-#include <ImGuizmo.h>
 
 class ImGuiPass;
-class RenderTexture;
 class DebugDrawPass;
+class EditorPanel;
+class SceneViewPanel;
+class GameViewPanel;
+class HierarchyPanel;
+class InspectorPanel;
+class ConsolePanel;
+class PerformancePanel;
+class AssetBrowserPanel;
+class SceneSettingsPanel;
 class GameObject;
 class ComponentCamera;
 class ComponentMesh;
-class ComponentDirectionalLight;
-class ComponentPointLight;
-class ComponentSpotLight;
 class ModuleScene;
 
 class ModuleEditor : public Module
@@ -29,125 +33,82 @@ public:
     ModuleEditor();
     ~ModuleEditor();
 
-    bool init() override;
-    bool cleanUp() override;
+    bool init()     override;
+    bool cleanUp()  override;
     void preRender() override;
-    void render() override;
+    void render()   override;
 
-    SceneManager* getSceneManager() const { return sceneManager.get(); }
-    void log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
-
-private:
-    struct CameraConstants { Matrix viewProj; };
-    struct ObjectConstants { Matrix world; };
-    struct ConsoleEntry { std::string text; ImVec4 color; };
-
-    static constexpr int FPS_HISTORY = 200;
-
-    std::unique_ptr<ImGuiPass>      imguiPass;
-    std::unique_ptr<RenderTexture>  viewportRT;
-    std::unique_ptr<DebugDrawPass>  debugDrawPass;
-    std::unique_ptr<SceneManager>   sceneManager;
-    std::unique_ptr<MeshPipeline>   meshPipeline;
-    std::unique_ptr<EnvironmentSystem> environmentSystem;
-    ShaderTableDesc                 descTable;
-
-    GameObject* selectedGameObject = nullptr;
-    ImGuizmo::OPERATION  gizmoOperation = ImGuizmo::TRANSLATE;
-    ImGuizmo::MODE       gizmoMode = ImGuizmo::LOCAL;
-    bool                 useSnap = false;
-    float                snapTranslate[3] = { 0.25f, 0.25f, 0.25f };
-    float                snapRotate = 15.0f;
-    float                snapScale = 0.1f;
-
-    bool showHierarchy = true;
-    bool showInspector = true;
-    bool showConsole = true;
-    bool showViewport = true;
-    bool showPerformance = false;
-    bool showAssetBrowser = true;
-    bool showSceneSettings = true;
-    bool firstFrame = true;
-
-    int     m_samplerType = 0;
-    ImVec2  viewportSize = {};
-    ImVec2  viewportPos = {};
-    ImVec2  lastViewportSize = {};
-
-    bool pendingViewportResize = false;
-    UINT pendingViewportWidth = 0;
-    UINT pendingViewportHeight = 0;
-
-    std::vector<ConsoleEntry> console;
-    bool autoScrollConsole = true;
-
-    float    fpsHistory[FPS_HISTORY] = {};
-    int      fpsIndex = 0;
-
-    ComPtr<ID3D12QueryHeap> gpuQueryHeap;
-    ComPtr<ID3D12Resource>  gpuReadbackBuffer;
-    double                  gpuFrameTimeMs = 0.0;
-    bool                    gpuTimerReady = false;
-    uint64_t                gpuMemoryMB = 0;
-    uint64_t                systemMemoryMB = 0;
-
-    ComPtr<ID3D12Resource>  cameraConstantBuffer;
-    ComPtr<ID3D12Resource>  objectConstantBuffer;
-    ComPtr<ID3D12Resource>  lightConstantBuffer;
-
-    ComPtr<ID3D12Resource>       m_pendingTexture;
-    D3D12_GPU_DESCRIPTOR_HANDLE  m_pendingTextureSRV = {};
-    std::string                  m_pendingTexturePath;
-
-    FileDialog m_saveDialog;
-    FileDialog m_loadDialog;
-    FileDialog m_texBrowseDialog;
-    FileDialog m_modelBrowseDialog;
-    bool showNewSceneConfirmation = false;
-    std::string m_currentScenePath;
-
-    bool        renamingObject = false;
-    char        renameBuffer[256] = {};
-    GameObject* renamingTarget = nullptr;
-
-    ComPtr<ID3D12Resource> createUploadBuffer(ID3D12Device* device, SIZE_T size, const wchar_t* name);
-
+    SceneManager* getSceneManager()     const { return m_sceneManager.get(); }
+    MeshPipeline* getMeshPipeline()     const { return m_meshPipeline.get(); }
+    EnvironmentSystem* getEnvSystem()      const { return m_envSystem.get(); }
+    DebugDrawPass* getDebugDraw()        const { return m_debugDraw.get(); }
+    EditorSelection& getSelection() { return m_selection; }
+    double getGpuFrameTimeMs()   const { return m_gpuFrameTimeMs; }
+    int getSamplerType()      const { return m_samplerType; }
+    void setSamplerType(int t) { m_samplerType = t; }
     ModuleScene* getActiveModuleScene() const;
-    void         handleViewportResize();
-    void         handleDialogs();
-    void         handleNewScenePopup(ID3D12GraphicsCommandList* cmd);
 
-    void drawDockspace();
-    void drawMenuBar();
-    void drawGizmoToolbar();
-    void drawHierarchy();
-    void drawHierarchyNode(GameObject* go);
-    void drawInspector();
-    void drawConsole();
-    void drawViewport();
-    void drawViewportOverlay();
-    void drawPerformanceWindow();
-    void drawAssetBrowser();
-    void drawSceneSettings();
-    void drawGizmo();
+    void renderSceneWithCamera(
+        ID3D12GraphicsCommandList* cmd,
+        const Matrix& view, const Matrix& proj,
+        uint32_t w, uint32_t h,
+        bool editorExtras);  
 
-    void hierarchyItemContextMenu(GameObject* go);
-    void hierarchyBlankContextMenu();
+    void log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
+    GameObject* createEmptyGameObject(const char* name = "Empty", GameObject* parent = nullptr);
+    void        deleteGameObject(GameObject* go);
+    static bool isChildOf(const GameObject* root, const GameObject* needle);
 
     void drawComponentCamera(ComponentCamera* cam);
     void drawComponentMesh(ComponentMesh* mesh);
 
-    void renderViewportToTexture(ID3D12GraphicsCommandList* cmd);
-    void gatherLights(GameObject* root, MeshPipeline::LightCB& out) const;
-    void updateCameraConstants(const Matrix& view, const Matrix& proj);
+    ImVec2  getSceneViewSize() const;
 
-    void updateFPS();
-    void updateMemory();
+private:
+    std::unique_ptr<ImGuiPass>         m_imguiPass;
+    std::unique_ptr<DebugDrawPass>     m_debugDraw;
+    std::unique_ptr<SceneManager>      m_sceneManager;
+    std::unique_ptr<MeshPipeline>      m_meshPipeline;
+    std::unique_ptr<EnvironmentSystem> m_envSystem;
+    ShaderTableDesc                    m_descTable;
 
-    void        deleteGameObject(GameObject* go);
-    GameObject* createEmptyGameObject(const char* name = "Empty", GameObject* parent = nullptr);
+    ComPtr<ID3D12QueryHeap> m_gpuQueryHeap;
+    ComPtr<ID3D12Resource>  m_gpuReadback;
+    double                  m_gpuFrameTimeMs = 0.0;
+    bool                    m_gpuTimerReady = false;
+    float m_memoryUpdateTimer = 0.0f;
 
+    ComPtr<ID3D12Resource>  m_cameraCB;
+    ComPtr<ID3D12Resource>  m_objectCB;
+    ComPtr<ID3D12Resource>  m_lightCB;
+
+    std::unique_ptr<SceneViewPanel>    m_sceneView;
+    std::unique_ptr<GameViewPanel>     m_gameView;
+    std::unique_ptr<HierarchyPanel>    m_hierarchy;
+    std::unique_ptr<InspectorPanel>    m_inspector;
+    std::unique_ptr<ConsolePanel>      m_console;
+    std::unique_ptr<PerformancePanel>  m_performance;
+    std::unique_ptr<AssetBrowserPanel> m_assetBrowser;
+    std::unique_ptr<SceneSettingsPanel> m_sceneSettings;
+
+    EditorSelection m_selection;
+    int             m_samplerType = 0;
+    bool            m_firstFrame = true;
+
+    FileDialog  m_saveDialog;
+    FileDialog  m_loadDialog;
+    std::string m_currentScenePath;
+    bool        m_showNewSceneConfirm = false;
+
+    struct CameraConstants { Matrix viewProj; };
+    struct ObjectConstants { Matrix world; };
+
+    ComPtr<ID3D12Resource> createUploadBuffer(ID3D12Device* device, SIZE_T size, const wchar_t* name);
+    void gatherLights(GameObject* node, MeshPipeline::LightCB& out) const;
     void debugDrawLights(ModuleScene* scene, float lightSize);
-
-    static bool isChildOf(const GameObject* root, const GameObject* needle);
+    void updateMemory();
+    void handleNewScenePopup(ID3D12GraphicsCommandList* cmd);
+    void drawDockspace();
+    void drawMenuBar();
+    void handleDialogs();
 };

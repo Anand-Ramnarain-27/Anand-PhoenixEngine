@@ -179,6 +179,14 @@
     <ClCompile Include="SkyboxRenderer.cpp">
       <Filter>engine\graphics\environment</Filter>
     </ClCompile>
+    <ClCompile Include="SceneViewPanel.cpp" />
+    <ClCompile Include="GameViewPanel.cpp" />
+    <ClCompile Include="HierarchyPanel.cpp" />
+    <ClCompile Include="ConsolePanel.cpp" />
+    <ClCompile Include="PerformancePanel.cpp" />
+    <ClCompile Include="InspectorPanel.cpp" />
+    <ClCompile Include="AssetBrowserPanel.cpp" />
+    <ClCompile Include="SceneSettingsPanel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -408,6 +416,17 @@
     <ClInclude Include="SkyboxRenderer.h">
       <Filter>engine\graphics\environment</Filter>
     </ClInclude>
+    <ClInclude Include="EditorSelection.h" />
+    <ClInclude Include="EditorViewport.h" />
+    <ClInclude Include="EditorPanel.h" />
+    <ClInclude Include="SceneViewPanel.h" />
+    <ClInclude Include="GameViewPanel.h" />
+    <ClInclude Include="HierarchyPanel.h" />
+    <ClInclude Include="ConsolePanel.h" />
+    <ClInclude Include="PerformancePanel.h" />
+    <ClInclude Include="InspectorPanel.h" />
+    <ClInclude Include="AssetBrowserPanel.h" />
+    <ClInclude Include="SceneSettingsPanel.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
