@@ -179,7 +179,13 @@ void AssetBrowserPanel::drawAssetList(float contentW, float panelH)
             for (const auto& e : fs::directory_iterator(modPath))
             {
                 if (!e.is_directory()) continue;
-                drawAssetRow(e.path().string(), "[M]", "model", e.path().filename().string());
+
+                std::string name = e.path().filename().string();
+                std::string sourcePath = "Assets/Models/" + name + "/" + name + ".gltf";
+                UID uid = app->getAssets()->findUID(sourcePath);
+
+                std::string uidStr = uid ? ("uid:" + std::to_string(uid)).substr(0, 16) : "no uid";
+                drawAssetRow(e.path().string(), "[M]", "model", uidStr);
                 any = true;
             }
         }

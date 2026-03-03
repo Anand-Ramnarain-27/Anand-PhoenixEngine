@@ -179,14 +179,31 @@
     <ClCompile Include="SkyboxRenderer.cpp">
       <Filter>engine\graphics\environment</Filter>
     </ClCompile>
-    <ClCompile Include="SceneViewPanel.cpp" />
-    <ClCompile Include="GameViewPanel.cpp" />
-    <ClCompile Include="HierarchyPanel.cpp" />
-    <ClCompile Include="ConsolePanel.cpp" />
-    <ClCompile Include="PerformancePanel.cpp" />
-    <ClCompile Include="InspectorPanel.cpp" />
-    <ClCompile Include="AssetBrowserPanel.cpp" />
-    <ClCompile Include="SceneSettingsPanel.cpp" />
+    <ClCompile Include="AssetBrowserPanel.cpp">
+      <Filter>engine\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="ConsolePanel.cpp">
+      <Filter>engine\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="GameViewPanel.cpp">
+      <Filter>engine\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="HierarchyPanel.cpp">
+      <Filter>engine\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="InspectorPanel.cpp">
+      <Filter>engine\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="PerformancePanel.cpp">
+      <Filter>engine\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneSettingsPanel.cpp">
+      <Filter>engine\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneViewPanel.cpp">
+      <Filter>engine\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="MetaFileManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -416,17 +433,43 @@
     <ClInclude Include="SkyboxRenderer.h">
       <Filter>engine\graphics\environment</Filter>
     </ClInclude>
-    <ClInclude Include="EditorSelection.h" />
-    <ClInclude Include="EditorViewport.h" />
-    <ClInclude Include="EditorPanel.h" />
-    <ClInclude Include="SceneViewPanel.h" />
-    <ClInclude Include="GameViewPanel.h" />
-    <ClInclude Include="HierarchyPanel.h" />
-    <ClInclude Include="ConsolePanel.h" />
-    <ClInclude Include="PerformancePanel.h" />
-    <ClInclude Include="InspectorPanel.h" />
-    <ClInclude Include="AssetBrowserPanel.h" />
-    <ClInclude Include="SceneSettingsPanel.h" />
+    <ClInclude Include="AssetBrowserPanel.h">
+      <Filter>engine\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="ConsolePanel.h">
+      <Filter>engine\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="EditorPanel.h">
+      <Filter>engine\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="EditorSelection.h">
+      <Filter>engine\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="EditorViewport.h">
+      <Filter>engine\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="GameViewPanel.h">
+      <Filter>engine\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HierarchyPanel.h">
+      <Filter>engine\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="InspectorPanel.h">
+      <Filter>engine\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="PerformancePanel.h">
+      <Filter>engine\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneSettingsPanel.h">
+      <Filter>engine\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneViewPanel.h">
+      <Filter>engine\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="ResourceBase.h">
+      <Filter>engine</Filter>
+    </ClInclude>
+    <ClInclude Include="MetaFileManager.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

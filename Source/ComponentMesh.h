@@ -4,6 +4,7 @@
 #include "Material.h"
 #include "Model.h"
 #include "ModuleD3D12.h"
+#include "ModuleAssets.h"
 #include <memory>
 #include <vector>
 #include <string>
@@ -12,7 +13,7 @@ class ComponentMesh : public Component
 {
 public:
     explicit ComponentMesh(GameObject* owner);
-    ~ComponentMesh() override = default;
+    ~ComponentMesh() override;
 
     bool loadModel(const char* filePath);
     void setModel(std::unique_ptr<Model> model);
@@ -36,6 +37,7 @@ private:
     std::shared_ptr<Model>              m_model;
     std::vector<ComPtr<ID3D12Resource>> m_materialBuffers;
     std::string                         m_modelFilePath;
+    UID                                 m_modelUID = 0;
 
     Vector3 m_localAABBMin = {};
     Vector3 m_localAABBMax = {};

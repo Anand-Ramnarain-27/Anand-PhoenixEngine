@@ -20,6 +20,12 @@ ComponentMesh::ComponentMesh(GameObject* owner)
 {
 }
 
+ComponentMesh::~ComponentMesh()
+{
+    if (m_modelUID != 0)
+        app->getAssets()->releaseResource(m_modelUID);
+}
+
 static ComPtr<ID3D12Resource> makeMaterialBuffer(const Material::Data& data)
 {
     auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
@@ -48,9 +54,17 @@ void ComponentMesh::rebuildMaterialBuffers()
 
 bool ComponentMesh::loadModel(const char* filePath)
 {
+    if (m_modelUID != 0)
+        app->getAssets()->releaseResource(m_modelUID);
+
     m_model = app->getResourceCache()->getOrLoadModel(filePath);
     if (!m_model) { LOG("ComponentMesh: Failed to load model: %s", filePath); return false; }
+
     m_modelFilePath = filePath;
+    m_modelUID = app->getAssets()->findUID(filePath); 
+
+    app->getAssets()->requestResource(m_modelUID);
+
     rebuildMaterialBuffers();
     computeLocalAABB();
     return true;
@@ -105,6 +119,8 @@ void ComponentMesh::onSave(std::string& outJson) const
     {
         Value path; path.SetString(m_modelFilePath.c_str(), a);
         doc.AddMember("ModelPath", path, a);
+
+        doc.AddMember("ModelUID", app->getAssets()->findUID(m_modelFilePath), a);
     }
     StringBuffer buf; Writer<StringBuffer> w(buf); doc.Accept(w);
     outJson = buf.GetString();
@@ -114,7 +130,14 @@ void ComponentMesh::onLoad(const std::string& jsonStr)
 {
     Document doc; doc.Parse(jsonStr.c_str());
     if (doc.HasParseError()) { LOG("ComponentMesh: JSON parse error"); return; }
-    if (doc.HasMember("HasModel") && doc["HasModel"].GetBool() && doc.HasMember("ModelPath"))
+    if (!doc.HasMember("HasModel") || !doc["HasModel"].GetBool()) return;
+
+    if (doc.HasMember("ModelUID"))
+    {
+        m_modelUID = doc["ModelUID"].GetUint64();
+    }
+
+    if (doc.HasMember("ModelPath"))
         loadModel(doc["ModelPath"].GetString());
 }
 
