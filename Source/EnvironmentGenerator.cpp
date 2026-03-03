@@ -2,14 +2,14 @@
 #include "EnvironmentGenerator.h"
 #include "Application.h"
 #include "ModuleD3D12.h"
-#include "ModuleResources.h"
+#include "ModuleGPUResources.h"
 #include "ModuleShaderDescriptors.h"
 
 std::unique_ptr<EnvironmentMap>
 EnvironmentGenerator::loadCubemap(const std::string& file)
 {
     auto* d3d12 = app->getD3D12();
-    auto* resources = app->getResources();
+    auto* resources = app->getGPUResources();
     auto* shaderDesc = app->getShaderDescriptors();
 
     if (!d3d12 || !resources || !shaderDesc) return nullptr;

@@ -2,7 +2,7 @@
 #include "TextureImporter.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
-#include "ModuleResources.h"
+#include "ModuleGPUResources.h"
 #include "ModuleShaderDescriptors.h"
 #include "ModuleD3D12.h"
 #include "ShaderTableDesc.h"
@@ -94,7 +94,7 @@ bool TextureImporter::Load(const std::string& file, ComPtr<ID3D12Resource>& outT
         return false;
     }
 
-    outTexture = app->getResources()->createTextureFromFile(file, true);
+    outTexture = app->getGPUResources()->createTextureFromFile(file, true);
     if (!outTexture)
     {
         LOG("TextureImporter: Failed to create texture resource");

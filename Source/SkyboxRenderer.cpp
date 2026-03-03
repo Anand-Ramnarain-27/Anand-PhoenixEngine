@@ -2,7 +2,7 @@
 #include "SkyboxRenderer.h"
 #include "Application.h"
 #include "ModuleShaderDescriptors.h"
-#include "ModuleResources.h"
+#include "ModuleGPUResources.h"
 #include "ReadData.h"
 
 using namespace DirectX;
@@ -41,7 +41,7 @@ bool SkyboxRenderer::init(ID3D12Device* device, bool useMSAA)
 
 bool SkyboxRenderer::createGeometry(ID3D12Device* device)
 {
-    auto* resources = app->getResources();
+    auto* resources = app->getGPUResources();
 
     vertexBuffer = resources->createDefaultBuffer(
         cubeVertices,
@@ -59,7 +59,7 @@ bool SkyboxRenderer::createGeometry(ID3D12Device* device)
 
 bool SkyboxRenderer::createConstantBuffer(ID3D12Device* device)
 {
-    auto* resources = app->getResources();
+    auto* resources = app->getGPUResources();
 
     SkyboxCB zeroCB = {}; 
     constantBuffer = resources->createUploadBuffer(

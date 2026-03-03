@@ -7,7 +7,7 @@
 
 namespace DirectX { class ScratchImage;  struct TexMetadata; }
 
-class ModuleResources : public Module
+class ModuleGPUResources : public Module
 {
 private:
 
@@ -28,8 +28,8 @@ private:
 
 public:
 
-    ModuleResources();
-    ~ModuleResources();
+    ModuleGPUResources();
+    ~ModuleGPUResources();
 
     bool init() override;
     void preRender() override;
@@ -54,7 +54,7 @@ private:
     ComPtr<ID3D12Resource> getUploadHeap(size_t size);
 };
 
-inline ComPtr<ID3D12Resource> ModuleResources::createRenderTarget(DXGI_FORMAT format, size_t width, size_t height, UINT sampleCount, const Vector4& clearColour, const char* name)
+inline ComPtr<ID3D12Resource> ModuleGPUResources::createRenderTarget(DXGI_FORMAT format, size_t width, size_t height, UINT sampleCount, const Vector4& clearColour, const char* name)
 {
     return createRenderTarget(format, width, height, 1, 1, sampleCount, clearColour, name);
 }

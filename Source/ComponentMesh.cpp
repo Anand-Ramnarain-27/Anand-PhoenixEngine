@@ -5,7 +5,7 @@
 #include "Model.h"
 #include "Material.h"
 #include "Application.h"
-#include "ModuleResources.h"
+#include "ModuleGPUResources.h"
 #include "ModuleCamera.h"
 
 #include "3rdParty/rapidjson/document.h"

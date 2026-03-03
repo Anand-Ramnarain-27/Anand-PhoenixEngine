@@ -1,7 +1,7 @@
 #include "Globals.h"
 #include "Mesh.h"
 #include "Application.h"
-#include "ModuleResources.h"
+#include "ModuleGPUResources.h"
 
 const D3D12_INPUT_ELEMENT_DESC Mesh::InputLayout[3] =
 {
@@ -36,10 +36,10 @@ void Mesh::computeAABB()
 
 void Mesh::createBuffers()
 {
-    ModuleResources* resources = app->getResources();
-    if (!resources || m_vertices.empty()) return;
+    ModuleGPUResources* gpuresources = app->getGPUResources();
+    if (!gpuresources || m_vertices.empty()) return;
 
-    m_vertexBuffer = resources->createDefaultBuffer(m_vertices.data(), m_vertices.size() * sizeof(Vertex), "MeshVB");
+    m_vertexBuffer = gpuresources->createDefaultBuffer(m_vertices.data(), m_vertices.size() * sizeof(Vertex), "MeshVB");
     if (m_vertexBuffer)
     {
         m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
@@ -49,7 +49,7 @@ void Mesh::createBuffers()
 
     if (m_indices.empty()) return;
 
-    m_indexBuffer = resources->createDefaultBuffer(m_indices.data(), m_indices.size() * sizeof(uint32_t), "MeshIB");
+    m_indexBuffer = gpuresources->createDefaultBuffer(m_indices.data(), m_indices.size() * sizeof(uint32_t), "MeshIB");
     if (m_indexBuffer)
     {
         m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();

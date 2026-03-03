@@ -10,7 +10,7 @@
 
 class Module;
 class ModuleD3D12;
-class ModuleResources;
+class ModuleGPUResources;
 class ModuleSamplerHeap;
 class ModuleCamera;
 class ModuleEditor;
@@ -38,7 +38,7 @@ public:
 	bool         cleanUp();
 
     ModuleD3D12* getD3D12() { return d3d12Module; }
-    ModuleResources* getResources() { return resources; }
+    ModuleGPUResources* getGPUResources() { return gpuresources; }
     ModuleSamplerHeap* getSamplerHeap() { return samplerHeaps; }
     ModuleFileSystem* getFileSystem() { return fileSystem; }
 	ModuleCamera* getCamera() { return camera; }
@@ -73,7 +73,7 @@ private:
     std::vector<std::pair<Module*, Module*> > swapModules;
 
     ModuleD3D12* d3d12Module = nullptr;
-    ModuleResources* resources = nullptr;
+    ModuleGPUResources* gpuresources = nullptr;
     ModuleSamplerHeap* samplerHeaps = nullptr;
     ModuleFileSystem* fileSystem = nullptr;
     ModuleCamera* camera = nullptr;

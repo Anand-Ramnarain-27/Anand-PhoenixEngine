@@ -3,7 +3,7 @@
 #include "EnvironmentMap.h"
 #include "Application.h"
 #include "ModuleD3D12.h"
-#include "ModuleResources.h"
+#include "ModuleGPUResources.h"
 #include "ModuleRTDescriptors.h"
 #include "ModuleShaderDescriptors.h"
 #include "ReadData.h" 
@@ -53,7 +53,7 @@ bool IBLGenerator::ensureGeometry(ID3D12Device* device)
 {
     if (m_geometryReady) return true;
 
-    auto* resources = app->getResources();
+    auto* resources = app->getGPUResources();
     m_cubeVB = resources->createDefaultBuffer(kCubeVerts, sizeof(kCubeVerts), "IBL_CubeVB");
     if (!m_cubeVB) { LOG("IBLGenerator: failed to create cube VB"); return false; }
 
@@ -70,7 +70,7 @@ bool IBLGenerator::ensureFaceCB(ID3D12Device* device)
     if (m_faceCB) return true;
 
     FaceCB zero{};
-    auto* resources = app->getResources();
+    auto* resources = app->getGPUResources();
     m_faceCB = resources->createUploadBuffer(&zero, sizeof(FaceCB), "IBL_FaceCB");
     if (!m_faceCB) { LOG("IBLGenerator: failed to create face CB"); return false; }
 

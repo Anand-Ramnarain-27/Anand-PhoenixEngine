@@ -1,7 +1,7 @@
 #include "Globals.h"
 #include "RenderTexture.h"
 #include "Application.h"
-#include "ModuleResources.h"
+#include "ModuleGPUResources.h"
 #include "ModuleRTDescriptors.h"
 #include "ModuleDSDescriptors.h"
 #include "ModuleShaderDescriptors.h"
@@ -15,7 +15,7 @@ void RenderTexture::resize(UINT width, UINT height)
 
     if (m_width == 0 || m_height == 0) { releaseResources(); return; }
 
-    auto* resources = app->getResources();
+    auto* resources = app->getGPUResources();
     auto* shaderDesc = app->getShaderDescriptors();
     auto* rtDesc = app->getRTDescriptors();
 
@@ -52,7 +52,7 @@ void RenderTexture::resize(UINT width, UINT height)
 
 void RenderTexture::releaseResources()
 {
-    auto* resources = app->getResources();
+    auto* resources = app->getGPUResources();
     if (m_textures.texture)      resources->deferRelease(m_textures.texture);
     if (m_textures.resolved)     resources->deferRelease(m_textures.resolved);
     if (m_textures.depthTexture) resources->deferRelease(m_textures.depthTexture);

@@ -71,7 +71,7 @@
     <ClCompile Include="ModuleShaderDescriptors.cpp">
       <Filter>engine\d3d12</Filter>
     </ClCompile>
-    <ClCompile Include="ModuleResources.cpp">
+    <ClCompile Include="ModuleGPUResources.cpp">
       <Filter>engine\d3d12</Filter>
     </ClCompile>
     <ClCompile Include="ModuleInput.cpp">
@@ -295,7 +295,7 @@
     <ClInclude Include="ModuleShaderDescriptors.h">
       <Filter>engine\d3d12</Filter>
     </ClInclude>
-    <ClInclude Include="ModuleResources.h">
+    <ClInclude Include="ModuleGPUResources.h">
       <Filter>engine\d3d12</Filter>
     </ClInclude>
     <ClInclude Include="ModuleInput.h">

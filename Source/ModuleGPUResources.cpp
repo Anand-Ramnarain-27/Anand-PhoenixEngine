@@ -1,6 +1,6 @@
 #include "Globals.h"
 
-#include "ModuleResources.h"
+#include "ModuleGPUResources.h"
 
 #include "Application.h"
 #include "ModuleD3D12.h"
@@ -8,16 +8,16 @@
 #include "DirectXTex.h"
 
 
-ModuleResources::ModuleResources()
+ModuleGPUResources::ModuleGPUResources()
 {
 }
 
-ModuleResources::~ModuleResources()
+ModuleGPUResources::~ModuleGPUResources()
 {
 }
 
 
-bool ModuleResources::init()
+bool ModuleGPUResources::init()
 {
     ModuleD3D12* d3d12 = app->getD3D12();
     ID3D12Device4* device = d3d12->getDevice();
@@ -29,12 +29,12 @@ bool ModuleResources::init()
     return ok;
 }
 
-bool ModuleResources::cleanUp()
+bool ModuleGPUResources::cleanUp()
 {
     return true;
 }
 
-ComPtr<ID3D12Resource> ModuleResources::createUploadBuffer(const void* data, size_t size, const char* name)
+ComPtr<ID3D12Resource> ModuleGPUResources::createUploadBuffer(const void* data, size_t size, const char* name)
 {
     ModuleD3D12* d3d12 = app->getD3D12();
     ID3D12Device2* device = d3d12->getDevice();
@@ -59,7 +59,7 @@ ComPtr<ID3D12Resource> ModuleResources::createUploadBuffer(const void* data, siz
 }
 
 
-ComPtr<ID3D12Resource> ModuleResources::createDefaultBuffer(const void* data, size_t size, const char* name)
+ComPtr<ID3D12Resource> ModuleGPUResources::createDefaultBuffer(const void* data, size_t size, const char* name)
 {
     ModuleD3D12* d3d12 = app->getD3D12();
     ID3D12Device2* device = d3d12->getDevice();
@@ -101,7 +101,7 @@ ComPtr<ID3D12Resource> ModuleResources::createDefaultBuffer(const void* data, si
     return buffer;
 }
 
-ComPtr<ID3D12Resource> ModuleResources::createRawTexture2D(const void* data, size_t rowSize, size_t width, size_t height, DXGI_FORMAT format)
+ComPtr<ID3D12Resource> ModuleGPUResources::createRawTexture2D(const void* data, size_t rowSize, size_t width, size_t height, DXGI_FORMAT format)
 {
     ModuleD3D12* d3d12 = app->getD3D12();
     ID3D12Device2* device = d3d12->getDevice();
@@ -163,7 +163,7 @@ ComPtr<ID3D12Resource> ModuleResources::createRawTexture2D(const void* data, siz
     return texture;
 }
 
-ComPtr<ID3D12Resource> ModuleResources::createTextureFromMemory(const void* data, size_t size, const char* name)
+ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromMemory(const void* data, size_t size, const char* name)
 {
     ScratchImage image;
     bool ok = SUCCEEDED(LoadFromDDSMemory(data, size, DDS_FLAGS_NONE, nullptr, image));
@@ -176,7 +176,7 @@ ComPtr<ID3D12Resource> ModuleResources::createTextureFromMemory(const void* data
     return nullptr;
 }
 
-ComPtr<ID3D12Resource> ModuleResources::createTextureFromFile(const std::filesystem::path& path, bool defaultSRGB)
+ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromFile(const std::filesystem::path& path, bool defaultSRGB)
 {
     const wchar_t* fileName = path.c_str();
     ScratchImage image;
@@ -193,7 +193,7 @@ ComPtr<ID3D12Resource> ModuleResources::createTextureFromFile(const std::filesys
     return nullptr;
 }
 
-ComPtr<ID3D12Resource> ModuleResources::createTextureFromImage(const ScratchImage& image, const char* name)
+ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromImage(const ScratchImage& image, const char* name)
 {
     ModuleD3D12* d3d12 = app->getD3D12();
     ID3D12Device2* device = d3d12->getDevice();
@@ -262,7 +262,7 @@ ComPtr<ID3D12Resource> ModuleResources::createTextureFromImage(const ScratchImag
     return ComPtr<ID3D12Resource>();
 }
 
-ComPtr<ID3D12Resource> ModuleResources::createRenderTarget(DXGI_FORMAT format, size_t width, size_t height, size_t arraySize, size_t mipLevels,
+ComPtr<ID3D12Resource> ModuleGPUResources::createRenderTarget(DXGI_FORMAT format, size_t width, size_t height, size_t arraySize, size_t mipLevels,
     UINT sampleCount, const Vector4& clearColour, const char* name)
 {
     ComPtr<ID3D12Resource> texture;
@@ -282,7 +282,7 @@ ComPtr<ID3D12Resource> ModuleResources::createRenderTarget(DXGI_FORMAT format, s
     return texture;
 }
 
-ComPtr<ID3D12Resource> ModuleResources::createDepthStencil(DXGI_FORMAT format, size_t width, size_t height, UINT sampleCount, float clearDepth, uint8_t clearStencil, const char* name)
+ComPtr<ID3D12Resource> ModuleGPUResources::createDepthStencil(DXGI_FORMAT format, size_t width, size_t height, UINT sampleCount, float clearDepth, uint8_t clearStencil, const char* name)
 {
     ComPtr<ID3D12Resource> texture;
 
@@ -303,7 +303,7 @@ ComPtr<ID3D12Resource> ModuleResources::createDepthStencil(DXGI_FORMAT format, s
     return texture;
 }
 
-ComPtr<ID3D12Resource> ModuleResources::getUploadHeap(size_t size)
+ComPtr<ID3D12Resource> ModuleGPUResources::getUploadHeap(size_t size)
 {
     ModuleD3D12* d3d12 = app->getD3D12();
     ID3D12Device* device = d3d12->getDevice();
@@ -317,7 +317,7 @@ ComPtr<ID3D12Resource> ModuleResources::getUploadHeap(size_t size)
     return uploadHeap;
 }
 
-void ModuleResources::preRender()
+void ModuleGPUResources::preRender()
 {
     // collect garbage
 
@@ -337,7 +337,7 @@ void ModuleResources::preRender()
     }
 }
 
-void ModuleResources::deferRelease(ComPtr<ID3D12Resource> resource)
+void ModuleGPUResources::deferRelease(ComPtr<ID3D12Resource> resource)
 {
     if (resource)
     {
