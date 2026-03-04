@@ -10,11 +10,12 @@ static const char* typeName(ResourceBase::Type t)
 {
     switch (t)
     {
-    case ResourceBase::Type::Mesh:    return "Mesh";
-    case ResourceBase::Type::Texture: return "Texture";
-    case ResourceBase::Type::Model:   return "Model";
-    case ResourceBase::Type::Scene:   return "Scene";
-    default:                          return "Unknown";
+    case ResourceBase::Type::Mesh:     return "Mesh";
+    case ResourceBase::Type::Texture:  return "Texture";
+    case ResourceBase::Type::Material: return "Material";
+    case ResourceBase::Type::Model:    return "Model";
+    case ResourceBase::Type::Scene:    return "Scene";
+    default:                           return "Unknown";
     }
 }
 
@@ -28,24 +29,32 @@ void ResourcesPanel::draw()
     ImGui::Separator();
 
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.f));
-    ImGui::Text("  %-16s %-10s %-5s  %s", "UID", "Type", "Refs", "Asset Path");
+    ImGui::Text("  %-10s  %-5s  %s", "Type", "Refs", "Asset Path");
     ImGui::PopStyleColor();
     ImGui::Separator();
 
     for (auto& [uid, res] : resources)
     {
         std::string path = app->getAssets()->getPathFromUID(uid);
+        if (path.empty())
+            path = app->getResources()->getLibraryPath(uid);
+        if (path.empty())
+            path = "(uid=" + std::to_string(uid) + ")";
 
-        ImVec4 col = res->referenceCount > 0
-            ? ImVec4(0.6f, 1.f, 0.6f, 1.f)
-            : ImVec4(1.f, 0.8f, 0.2f, 1.f);
+        ImVec4 col;
+        switch (res->type)
+        {
+        case ResourceBase::Type::Mesh:     col = ImVec4(0.6f, 0.9f, 1.0f, 1.f); break;
+        case ResourceBase::Type::Material: col = ImVec4(1.0f, 0.85f, 0.5f, 1.f); break;
+        case ResourceBase::Type::Texture:  col = ImVec4(0.8f, 0.6f, 1.0f, 1.f); break;
+        default:                           col = ImVec4(0.6f, 1.f, 0.6f, 1.f); break;
+        }
 
         ImGui::PushStyleColor(ImGuiCol_Text, col);
-        ImGui::Text("  %-16llu %-10s %-5d  %s",
-            uid,
+        ImGui::Text("  %-10s  %-5d  %s",
             typeName(res->type),
             res->referenceCount,
-            path.empty() ? "(unknown)" : path.c_str());
+            path.c_str());
         ImGui::PopStyleColor();
     }
 

@@ -1,6 +1,6 @@
 #pragma once
 #include "ResourceBase.h"
-#include "Model.h"
+#include "Mesh.h"
 #include <memory>
 
 class ResourceMesh : public ResourceBase
@@ -9,11 +9,11 @@ public:
     ResourceMesh(UID uid);
     ~ResourceMesh() override;
 
-    bool LoadInMemory()       override;
-    void UnloadFromMemory()   override;
+    bool LoadInMemory()     override;
+    void UnloadFromMemory() override;
 
-    Model* GetModel() const { return m_model.get(); }
+    Mesh* getMesh() const { return m_mesh.get(); }
 
 private:
-    std::unique_ptr<Model> m_model;
+    std::unique_ptr<Mesh> m_mesh;
 };

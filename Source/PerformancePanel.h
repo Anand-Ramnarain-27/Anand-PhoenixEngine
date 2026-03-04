@@ -4,7 +4,7 @@
 class PerformancePanel : public EditorPanel
 {
 public:
-    explicit PerformancePanel(ModuleEditor* editor) : EditorPanel(editor) {}
+    explicit PerformancePanel(ModuleEditor* editor) : EditorPanel(editor) { open = false; }
     void draw() override;
     const char* getName() const override { return "Performance"; }
 

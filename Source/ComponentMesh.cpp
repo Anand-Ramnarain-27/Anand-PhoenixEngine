@@ -3,158 +3,277 @@
 #include "GameObject.h"
 #include "ComponentTransform.h"
 #include "Material.h"
+#include "Model.h"
 #include "Application.h"
 #include "ModuleGPUResources.h"
 #include "ModuleAssets.h"
 #include "ModuleResources.h"
 #include "ModuleCamera.h"
 #include "ResourceMesh.h"
+#include "ResourceMaterial.h"
+#include "MetaFileManager.h"
 
 #include "3rdParty/rapidjson/document.h"
 #include "3rdParty/rapidjson/writer.h"
 #include "3rdParty/rapidjson/stringbuffer.h"
 #include <d3dx12.h>
+#include <filesystem>
 
 using namespace rapidjson;
 
-ComponentMesh::ComponentMesh(GameObject* owner)
-    : Component(owner)
-{
-}
+ComponentMesh::ComponentMesh(GameObject* owner) : Component(owner) {}
 
 ComponentMesh::~ComponentMesh()
 {
-    if (m_resource)
-        app->getResources()->ReleaseResource(m_resource);
+    releaseEntries();
 }
 
-Model* ComponentMesh::getModel() const
+void ComponentMesh::releaseEntries()
 {
-    if (m_resource) return m_resource->GetModel();
-    return m_proceduralModel.get();
+    for (auto& e : m_entries)
+    {
+        if (e.meshRes)     app->getResources()->ReleaseResource(e.meshRes);
+        if (e.materialRes) app->getResources()->ReleaseResource(e.materialRes);
+        e.meshRes = nullptr;
+        e.materialRes = nullptr;
+    }
+    m_entries.clear();
 }
 
-static ComPtr<ID3D12Resource> makeMaterialBuffer(const Material::Data& data)
+static ComPtr<ID3D12Resource> makeMaterialCB(const Material::Data& data)
 {
     auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer((sizeof(Material::Data) + 255) & ~255);
 
-    ComPtr<ID3D12Resource> buffer;
+    ComPtr<ID3D12Resource> buf;
     app->getD3D12()->getDevice()->CreateCommittedResource(
         &heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buffer));
+        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buf));
 
     void* mapped = nullptr;
-    buffer->Map(0, nullptr, &mapped);
+    buf->Map(0, nullptr, &mapped);
     memcpy(mapped, &data, sizeof(Material::Data));
-    buffer->Unmap(0, nullptr);
-    buffer->SetName(L"MaterialCB");
-    return buffer;
+    buf->Unmap(0, nullptr);
+    buf->SetName(L"MaterialCB");
+    return buf;
+}
+
+void ComponentMesh::rebuildEntry(MeshEntry& e)
+{
+    Material::Data data = {};
+    if (e.materialRes && e.materialRes->getMaterial())
+        data = e.materialRes->getMaterial()->getData();
+
+    e.materialCB = makeMaterialCB(data);
 }
 
 void ComponentMesh::rebuildMaterialBuffers()
 {
-    Model* model = getModel();
-    if (!model) return;
+    for (auto& e : m_entries)
+        rebuildEntry(e);
 
-    m_materialBuffers.clear();
-    for (const auto& mat : model->getMaterials())
-        m_materialBuffers.push_back(makeMaterialBuffer(mat->getData()));
+    if (m_proceduralModel)
+    {
+        m_proceduralMaterialBuffers.clear();
+        for (const auto& mat : m_proceduralModel->getMaterials())
+            m_proceduralMaterialBuffers.push_back(makeMaterialCB(mat->getData()));
+    }
 }
 
 bool ComponentMesh::loadModel(const char* filePath)
 {
-    if (m_resource)
-    {
-        app->getResources()->ReleaseResource(m_resource);
-        m_resource = nullptr;
-        m_modelUID = 0;
-    }
+    releaseEntries();
     m_proceduralModel.reset();
+    m_proceduralMaterialBuffers.clear();
+    m_modelPath.clear();
+    m_modelUID = 0;
 
-    m_modelUID = app->getAssets()->findUID(filePath);
-    if (m_modelUID == 0)
+    std::string normPath = filePath;
+    for (char& c : normPath) if (c == '\\') c = '/';
+
+    namespace fs = std::filesystem;
+    std::string sceneName = fs::path(normPath).stem().string();
+
+    if (normPath.find("Library/") == 0 || normPath.find("Library\\") == 0)
     {
-        LOG("ComponentMesh: No UID for '%s' — import it first", filePath);
+        std::string resolved = app->getAssets()->getAssetPathForScene(sceneName);
+        if (resolved.empty())
+        {
+            LOG("ComponentMesh: Cannot resolve asset path for scene '%s'", sceneName.c_str());
+            return false;
+        }
+        normPath = resolved;
+        for (char& c : normPath) if (c == '\\') c = '/';
+        sceneName = fs::path(normPath).stem().string();
+    }
+
+    UID sceneUID = app->getAssets()->findUID(normPath);
+    if (sceneUID == 0)
+    {
+        std::string resolved = app->getAssets()->getAssetPathForScene(sceneName);
+        if (!resolved.empty())
+            sceneUID = app->getAssets()->findUID(resolved);
+    }
+
+    if (sceneUID == 0)
+    {
+        LOG("ComponentMesh: No UID for '%s' — import it first", normPath.c_str());
         return false;
     }
 
-    m_resource = static_cast<ResourceMesh*>(
-        app->getResources()->RequestResource(m_modelUID));
+    std::string canonicalPath = app->getAssets()->getPathFromUID(sceneUID);
+    if (canonicalPath.empty()) canonicalPath = normPath;
 
-    if (!m_resource)
+    m_modelUID = sceneUID;
+    m_modelPath = canonicalPath;
+
+    std::string meshFolder = "Library/Meshes/" + sceneName + "/";
+    int meshCount = 0;
+    while (app->getFileSystem()->Exists(
+        (meshFolder + std::to_string(meshCount) + ".mesh").c_str()))
+        ++meshCount;
+
+    if (meshCount == 0)
     {
-        LOG("ComponentMesh: RequestResource failed uid=%llu", m_modelUID);
+        LOG("ComponentMesh: No meshes found in Library for '%s'", sceneName.c_str());
         return false;
     }
 
-    rebuildMaterialBuffers();
+    for (int i = 0; i < meshCount; ++i)
+    {
+        UID meshUID = app->getAssets()->findSubUID(canonicalPath, "mesh", i);
+        UID matUID = app->getAssets()->findSubUID(canonicalPath, "mat", i);
+
+        MeshEntry e;
+        e.meshUID = meshUID;
+        e.materialUID = matUID;
+
+        if (meshUID)
+            e.meshRes = app->getResources()->RequestMesh(meshUID);
+
+        if (matUID)
+            e.materialRes = app->getResources()->RequestMaterial(matUID);
+
+        rebuildEntry(e);
+        m_entries.push_back(std::move(e));
+    }
+
     computeLocalAABB();
-    return true;
+    return !m_entries.empty();
 }
 
-void ComponentMesh::setModel(std::unique_ptr<Model> model)
+void ComponentMesh::setProceduralModel(std::unique_ptr<Model> model)
 {
-    // release any resource-managed model first
-    if (m_resource)
+    releaseEntries();
+    m_proceduralModel = std::shared_ptr<Model>(std::move(model));
+    m_modelUID = 0;
+    m_modelPath.clear();
+
+    m_proceduralMaterialBuffers.clear();
+    for (const auto& mat : m_proceduralModel->getMaterials())
+        m_proceduralMaterialBuffers.push_back(makeMaterialCB(mat->getData()));
+
+    computeLocalAABB();
+}
+
+void ComponentMesh::overrideMaterial(int slot, UID materialUID)
+{
+    if (slot < 0 || slot >= (int)m_entries.size()) return;
+    MeshEntry& e = m_entries[slot];
+
+    if (e.materialRes)
     {
-        app->getResources()->ReleaseResource(m_resource);
-        m_resource = nullptr;
-        m_modelUID = 0;
+        app->getResources()->ReleaseResource(e.materialRes);
+        e.materialRes = nullptr;
     }
 
-    m_proceduralModel = std::shared_ptr<Model>(std::move(model));
-    rebuildMaterialBuffers();
-    computeLocalAABB();
+    e.materialUID = materialUID;
+
+    if (materialUID != 0)
+        e.materialRes = app->getResources()->RequestMaterial(materialUID);
+
+    rebuildEntry(e);
 }
 
 void ComponentMesh::render(ID3D12GraphicsCommandList* cmd)
 {
-    Model* model = getModel();
-    if (!model) return;
+    if (m_proceduralModel)
+    {
+        if (m_hasAABB)
+        {
+            Vector3 wMin, wMax;
+            getWorldAABB(wMin, wMax);
+            if (!app->getCamera()->isVisible(wMin, wMax)) return;
+        }
+
+        Matrix world = (m_proceduralModel->getModelMatrix()
+            * owner->getTransform()->getGlobalMatrix()).Transpose();
+        cmd->SetGraphicsRoot32BitConstants(1, 16, &world, 0);
+
+        const auto& meshes = m_proceduralModel->getMeshes();
+        const auto& mats = m_proceduralModel->getMaterials();
+
+        for (size_t i = 0; i < meshes.size(); ++i)
+        {
+            int mi = meshes[i]->getMaterialIndex();
+            if (mi >= 0 && mi < (int)mats.size())
+            {
+                if (mi < (int)m_proceduralMaterialBuffers.size())
+                    cmd->SetGraphicsRootConstantBufferView(
+                        3, m_proceduralMaterialBuffers[mi]->GetGPUVirtualAddress());
+                if (mats[mi]->hasTexture())
+                    cmd->SetGraphicsRootDescriptorTable(4, mats[mi]->getTextureGPUHandle());
+            }
+            meshes[i]->draw(cmd);
+        }
+        return;
+    }
+
+    if (m_entries.empty()) return;
 
     if (m_hasAABB)
     {
-        Vector3 worldMin, worldMax;
-        getWorldAABB(worldMin, worldMax);
-        if (!app->getCamera()->isVisible(worldMin, worldMax))
-            return;
+        Vector3 wMin, wMax;
+        getWorldAABB(wMin, wMax);
+        if (!app->getCamera()->isVisible(wMin, wMax)) return;
     }
 
-    Matrix world = (model->getModelMatrix() * owner->getTransform()->getGlobalMatrix()).Transpose();
+    Matrix world = owner->getTransform()->getGlobalMatrix().Transpose();
     cmd->SetGraphicsRoot32BitConstants(1, 16, &world, 0);
 
-    const auto& meshes = model->getMeshes();
-    const auto& materials = model->getMaterials();
-
-    for (size_t i = 0; i < meshes.size(); ++i)
+    for (const auto& e : m_entries)
     {
-        int mi = meshes[i]->getMaterialIndex();
-        if (mi >= 0 && mi < (int)materials.size())
-        {
-            if (mi < (int)m_materialBuffers.size())
-                cmd->SetGraphicsRootConstantBufferView(
-                    3, m_materialBuffers[mi]->GetGPUVirtualAddress());
-            if (materials[mi]->hasTexture())
-                cmd->SetGraphicsRootDescriptorTable(
-                    4, materials[mi]->getTextureGPUHandle());
-        }
-        meshes[i]->draw(cmd);
+        if (!e.meshRes || !e.meshRes->getMesh()) continue;
+
+        if (e.materialCB)
+            cmd->SetGraphicsRootConstantBufferView(3, e.materialCB->GetGPUVirtualAddress());
+
+        if (e.materialRes && e.materialRes->getMaterial()
+            && e.materialRes->getMaterial()->hasTexture())
+            cmd->SetGraphicsRootDescriptorTable(
+                4, e.materialRes->getMaterial()->getTextureGPUHandle());
+
+        e.meshRes->getMesh()->draw(cmd);
     }
 }
 
 void ComponentMesh::onSave(std::string& outJson) const
 {
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
-
     doc.AddMember("ModelUID", m_modelUID, a);
 
-    std::string path = m_modelUID
-        ? app->getAssets()->getPathFromUID(m_modelUID)
-        : std::string();
+    Value pathVal; pathVal.SetString(m_modelPath.c_str(), a);
+    doc.AddMember("ModelPath", pathVal, a);
 
-    Value v; v.SetString(path.c_str(), a);
-    doc.AddMember("ModelPath", v, a);
+    Value entries(kArrayType);
+    for (const auto& e : m_entries)
+    {
+        Value ev(kObjectType);
+        ev.AddMember("meshUID", e.meshUID, a);
+        ev.AddMember("materialUID", e.materialUID, a);
+        entries.PushBack(ev, a);
+    }
+    doc.AddMember("Entries", entries, a);
 
     StringBuffer buf; Writer<StringBuffer> w(buf); doc.Accept(w);
     outJson = buf.GetString();
@@ -163,7 +282,7 @@ void ComponentMesh::onSave(std::string& outJson) const
 void ComponentMesh::onLoad(const std::string& jsonStr)
 {
     Document doc; doc.Parse(jsonStr.c_str());
-    if (doc.HasParseError()) { LOG("ComponentMesh: JSON parse error"); return; }
+    if (doc.HasParseError()) return;
 
     if (doc.HasMember("ModelPath") && doc["ModelPath"].IsString())
     {
@@ -171,42 +290,59 @@ void ComponentMesh::onLoad(const std::string& jsonStr)
         if (!path.empty())
             loadModel(path.c_str());
     }
+
+    if (doc.HasMember("Entries") && doc["Entries"].IsArray())
+    {
+        const auto& arr = doc["Entries"].GetArray();
+        for (int i = 0; i < (int)arr.Size() && i < (int)m_entries.size(); ++i)
+        {
+            UID savedMat = arr[i]["materialUID"].GetUint64();
+            if (savedMat != m_entries[i].materialUID)
+                overrideMaterial(i, savedMat);
+        }
+    }
 }
 
 void ComponentMesh::computeLocalAABB()
 {
-    Model* model = getModel();
-    if (!model) return;
-
     m_localAABBMin = Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
     m_localAABBMax = Vector3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
     m_hasAABB = false;
 
-    for (const auto& mesh : model->getMeshes())
+    for (const auto& e : m_entries)
     {
-        if (!mesh || !mesh->hasAABB()) continue;
+        if (!e.meshRes || !e.meshRes->getMesh()) continue;
+        Mesh* mesh = e.meshRes->getMesh();
+        if (!mesh->hasAABB()) continue;
         m_localAABBMin = Vector3::Min(m_localAABBMin, mesh->getAABBMin());
         m_localAABBMax = Vector3::Max(m_localAABBMax, mesh->getAABBMax());
         m_hasAABB = true;
+    }
+
+    if (m_proceduralModel)
+    {
+        for (const auto& mesh : m_proceduralModel->getMeshes())
+        {
+            if (!mesh || !mesh->hasAABB()) continue;
+            m_localAABBMin = Vector3::Min(m_localAABBMin, mesh->getAABBMin());
+            m_localAABBMax = Vector3::Max(m_localAABBMax, mesh->getAABBMax());
+            m_hasAABB = true;
+        }
     }
 }
 
 void ComponentMesh::getWorldAABB(Vector3& outMin, Vector3& outMax) const
 {
-    Model* model = getModel();
     auto* t = owner->getTransform();
     Matrix world = t ? t->getGlobalMatrix() : Matrix::Identity;
-    if (model) world = model->getModelMatrix() * world;
 
     const Vector3& mn = m_localAABBMin;
     const Vector3& mx = m_localAABBMax;
 
     Vector3 corners[8] =
     {
-        { mn.x, mn.y, mn.z }, { mx.x, mn.y, mn.z },
-        { mn.x, mx.y, mn.z }, { mx.x, mx.y, mn.z },
-        { mn.x, mn.y, mx.z }, { mx.x, mn.y, mx.z },
-        { mn.x, mx.y, mx.z }, { mx.x, mx.y, mx.z },
+        {mn.x,mn.y,mn.z},{mx.x,mn.y,mn.z},{mn.x,mx.y,mn.z},{mx.x,mx.y,mn.z},
+        {mn.x,mn.y,mx.z},{mx.x,mn.y,mx.z},{mn.x,mx.y,mx.z},{mx.x,mx.y,mx.z},
     };
 
     outMin = Vector3(FLT_MAX, FLT_MAX, FLT_MAX);

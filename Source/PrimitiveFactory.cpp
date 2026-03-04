@@ -43,6 +43,6 @@ GameObject* PrimitiveFactory::createTexturedQuadObject(ModuleScene* scene, const
 {
     GameObject* go = scene->createGameObject(name);
     ComponentMesh* mc = go->createComponent<ComponentMesh>();
-    mc->setModel(createTexturedQuad(texture, srv));
+    mc->setProceduralModel(createTexturedQuad(texture, srv));
     return go;
 }

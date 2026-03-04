@@ -113,4 +113,5 @@ private:
     void drawDockspace();
     void drawMenuBar();
     void handleDialogs();
+    void handleShortcuts();
 };

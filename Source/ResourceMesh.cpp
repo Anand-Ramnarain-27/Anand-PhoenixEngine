@@ -1,9 +1,9 @@
 #include "Globals.h"
 #include "ResourceMesh.h"
-#include "Model.h"
+#include "MeshImporter.h"
 
 ResourceMesh::ResourceMesh(UID uid)
-    : ResourceBase(uid, Type::Model)
+    : ResourceBase(uid, Type::Mesh)
 {
 }
 
@@ -14,20 +14,20 @@ ResourceMesh::~ResourceMesh()
 
 bool ResourceMesh::LoadInMemory()
 {
-    if (m_model) return true; 
+    if (m_mesh) return true;
 
-    auto model = std::make_unique<Model>();
-    if (!model->load(libraryFile.c_str()))
+    std::unique_ptr<Mesh> mesh;
+    if (!MeshImporter::Load(libraryFile, mesh))
     {
-        LOG("ResourceMesh: Failed to load model from %s", libraryFile.c_str());
+        LOG("ResourceMesh: Failed to load %s", libraryFile.c_str());
         return false;
     }
 
-    m_model = std::move(model);
+    m_mesh = std::move(mesh);
     return true;
 }
 
 void ResourceMesh::UnloadFromMemory()
 {
-    m_model.reset();
+    m_mesh.reset();
 }

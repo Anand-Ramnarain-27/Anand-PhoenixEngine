@@ -207,6 +207,7 @@
     <ClInclude Include="Material.h" />
     <ClInclude Include="MaterialImporter.h" />
     <ClInclude Include="Mesh.h" />
+    <ClInclude Include="MeshEntry.h" />
     <ClInclude Include="MeshImporter.h" />
     <ClInclude Include="MeshPipeline.h" />
     <ClInclude Include="MetaFileManager.h" />
@@ -246,8 +247,10 @@
     <ClInclude Include="Resource.h" />
     <ClInclude Include="ResourceBase.h" />
     <ClInclude Include="ResourceCache.h" />
+    <ClInclude Include="ResourceMaterial.h" />
     <ClInclude Include="ResourceMesh.h" />
     <ClInclude Include="ResourcesPanel.h" />
+    <ClInclude Include="ResourceTexture.h" />
     <ClInclude Include="SceneImporter.h" />
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="SceneSerializer.h" />
@@ -386,8 +389,10 @@
     <ClCompile Include="RenderTargetDesc.cpp" />
     <ClCompile Include="RenderTexture.cpp" />
     <ClCompile Include="ResourceCache.cpp" />
+    <ClCompile Include="ResourceMaterial.cpp" />
     <ClCompile Include="ResourceMesh.cpp" />
     <ClCompile Include="ResourcesPanel.cpp" />
+    <ClCompile Include="ResourceTexture.cpp" />
     <ClCompile Include="SceneImporter.cpp" />
     <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="SceneSerializer.cpp" />

@@ -143,6 +143,8 @@ void ModuleEditor::preRender()
     m_imguiPass->startFrame();
     ImGuizmo::BeginFrame();
 
+    handleShortcuts();
+
     if (m_sceneManager) m_sceneManager->update(app->getElapsedMilis() * 0.001f);
 
     m_performance->pushFPS(app->getFPS());
@@ -620,4 +622,54 @@ void ModuleEditor::debugDrawLights(ModuleScene* scene, float sz)
 ImVec2 ModuleEditor::getSceneViewSize() const
 {
     return m_sceneView ? m_sceneView->viewport.size : ImVec2(0, 0);
+}
+
+void ModuleEditor::handleShortcuts()
+{
+    if (ImGui::GetIO().WantTextInput)
+        return;
+
+    ImGuiIO& io = ImGui::GetIO();
+    bool ctrl = io.KeyCtrl;
+    bool shift = io.KeyShift;
+
+    if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_N, false))
+    {
+        m_showNewSceneConfirm = true;
+    }
+
+    if (ctrl && shift && ImGui::IsKeyPressed(ImGuiKey_N, false))
+    {
+        createEmptyGameObject();
+    }
+
+    if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_S, false))
+    {
+        if (!m_currentScenePath.empty() && m_sceneManager->getActiveScene())
+        {
+            bool ok = m_sceneManager->saveCurrentScene(m_currentScenePath);
+            log(ok ? "Scene saved!" : "Failed to save.",
+                ok ? ImVec4(0.6f, 1, 0.6f, 1) : ImVec4(1, 0.4f, 0.4f, 1));
+        }
+        else
+        {
+            m_saveDialog.open(FileDialog::Type::Save, "Save Scene", "Library/Scenes");
+        }
+    }
+
+    if (ctrl && shift && ImGui::IsKeyPressed(ImGuiKey_S, false))
+    {
+        m_saveDialog.open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
+    }
+
+    if (ctrl && ImGui::IsKeyPressed(ImGuiKey_O, false))
+    {
+        m_loadDialog.open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
+    }
+
+    if (ImGui::IsKeyPressed(ImGuiKey_Delete, false))
+    {
+        if (m_selection.has())
+            deleteGameObject(m_selection.object);
+    }
 }

@@ -203,10 +203,24 @@
     <ClCompile Include="SceneViewPanel.cpp">
       <Filter>engine\editor</Filter>
     </ClCompile>
-    <ClCompile Include="MetaFileManager.cpp" />
-    <ClCompile Include="ModuleResources.cpp" />
-    <ClCompile Include="ResourceMesh.cpp" />
-    <ClCompile Include="ResourcesPanel.cpp" />
+    <ClCompile Include="ResourcesPanel.cpp">
+      <Filter>engine\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="MetaFileManager.cpp">
+      <Filter>engine\resources</Filter>
+    </ClCompile>
+    <ClCompile Include="ResourceTexture.cpp">
+      <Filter>engine\resources</Filter>
+    </ClCompile>
+    <ClCompile Include="ResourceMesh.cpp">
+      <Filter>engine\resources</Filter>
+    </ClCompile>
+    <ClCompile Include="ResourceMaterial.cpp">
+      <Filter>engine\resources</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleResources.cpp">
+      <Filter>engine\d3d12</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -472,10 +486,27 @@
     <ClInclude Include="ResourceBase.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="MetaFileManager.h" />
-    <ClInclude Include="ModuleResources.h" />
-    <ClInclude Include="ResourceMesh.h" />
-    <ClInclude Include="ResourcesPanel.h" />
+    <ClInclude Include="ResourcesPanel.h">
+      <Filter>engine\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="MetaFileManager.h">
+      <Filter>engine\resources</Filter>
+    </ClInclude>
+    <ClInclude Include="ResourceTexture.h">
+      <Filter>engine\resources</Filter>
+    </ClInclude>
+    <ClInclude Include="ResourceMesh.h">
+      <Filter>engine\resources</Filter>
+    </ClInclude>
+    <ClInclude Include="ResourceMaterial.h">
+      <Filter>engine\resources</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleResources.h">
+      <Filter>engine\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="MeshEntry.h">
+      <Filter>engine\resources</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

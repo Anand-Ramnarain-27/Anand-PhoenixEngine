@@ -1,10 +1,11 @@
 #include "Globals.h"
 #include "ModuleResources.h"
 #include "ResourceMesh.h"
-#include "Application.h"
-#include "ModuleFileSystem.h"
+#include "ResourceMaterial.h"
+#include "ResourceTexture.h"
 #include "MetaFileManager.h"
 #include "ModuleAssets.h"
+#include "Application.h"
 #include <algorithm>
 #include <chrono>
 
@@ -21,13 +22,35 @@ bool ModuleResources::cleanUp()
 {
     StopAssetWatcher();
 
-    for (auto& pair : m_resources)
+    for (auto& [uid, res] : m_resources)
     {
-        pair.second->UnloadFromMemory();
-        delete pair.second;
+        res->UnloadFromMemory();
+        delete res;
     }
     m_resources.clear();
+    m_registry.clear();
     return true;
+}
+
+void ModuleResources::registerMesh(UID uid, const std::string& libraryPath)
+{
+    m_registry[uid] = { libraryPath, ResourceBase::Type::Mesh, 0 };
+}
+
+void ModuleResources::registerMaterial(UID uid, const std::string& libraryPath, UID textureUID)
+{
+    m_registry[uid] = { libraryPath, ResourceBase::Type::Material, textureUID };
+}
+
+void ModuleResources::registerTexture(UID uid, const std::string& libraryPath)
+{
+    m_registry[uid] = { libraryPath, ResourceBase::Type::Texture, 0 };
+}
+
+std::string ModuleResources::getLibraryPath(UID uid) const
+{
+    auto it = m_registry.find(uid);
+    return it != m_registry.end() ? it->second.libraryPath : "";
 }
 
 ResourceBase* ModuleResources::RequestResource(UID uid)
@@ -71,41 +94,80 @@ void ModuleResources::ReleaseResource(ResourceBase* resource)
     }
 }
 
+ResourceMesh* ModuleResources::RequestMesh(UID uid)
+{
+    return static_cast<ResourceMesh*>(RequestResource(uid));
+}
+
+ResourceMaterial* ModuleResources::RequestMaterial(UID uid)
+{
+    return static_cast<ResourceMaterial*>(RequestResource(uid));
+}
+
+ResourceTexture* ModuleResources::RequestTexture(UID uid)
+{
+    return static_cast<ResourceTexture*>(RequestResource(uid));
+}
+
 ResourceBase* ModuleResources::CreateResourceFromUID(UID uid)
 {
+    auto regIt = m_registry.find(uid);
+    if (regIt != m_registry.end())
+    {
+        const ResourceRecord& rec = regIt->second;
+        ResourceBase* res = nullptr;
+
+        switch (rec.type)
+        {
+        case ResourceBase::Type::Mesh:
+        {
+            auto* r = new ResourceMesh(uid);
+            r->libraryFile = rec.libraryPath;
+            r->assetsFile = app->getAssets()->getPathFromUID(uid);
+            res = r;
+            break;
+        }
+        case ResourceBase::Type::Material:
+        {
+            auto* r = new ResourceMaterial(uid);
+            r->libraryFile = rec.libraryPath;
+            r->assetsFile = app->getAssets()->getPathFromUID(uid);
+            r->textureUID = rec.textureUID;
+            res = r;
+            break;
+        }
+        case ResourceBase::Type::Texture:
+        {
+            auto* r = new ResourceTexture(uid);
+            r->libraryFile = rec.libraryPath;
+            r->assetsFile = app->getAssets()->getPathFromUID(uid);
+            res = r;
+            break;
+        }
+        default:
+            LOG("ModuleResources: Unknown type for uid=%llu", uid);
+            return nullptr;
+        }
+
+        return res;
+    }
+
     std::string assetPath = app->getAssets()->getPathFromUID(uid);
     if (assetPath.empty())
     {
-        LOG("ModuleResources: No asset path for uid=%llu", uid);
+        LOG("ModuleResources: No registry entry and no asset path for uid=%llu", uid);
         return nullptr;
     }
 
     MetaData meta;
     if (!MetaFileManager::load(assetPath, meta))
     {
-        LOG("ModuleResources: No meta for %s", assetPath.c_str());
+        LOG("ModuleResources: No meta file for %s", assetPath.c_str());
         return nullptr;
     }
 
-    switch (meta.type)
-    {
-    case ResourceBase::Type::Model:
-    case ResourceBase::Type::Mesh:
-    {
-        ResourceMesh* r = new ResourceMesh(uid);
-        r->assetsFile = assetPath;
-        r->libraryFile = assetPath; 
-        return r;
-    }
-    default:
-        LOG("ModuleResources: Unhandled type %d for uid=%llu", (int)meta.type, uid);
-        return nullptr;
-    }
-}
-
-std::string ModuleResources::GetLibraryMeshPath(UID uid) const
-{
-    return (m_libraryPath / "Meshes" / (std::to_string(uid) + ".mesh")).string();
+    LOG("ModuleResources: uid=%llu not in registry, cannot create without library path", uid);
+    return nullptr;
 }
 
 void ModuleResources::StartAssetWatcher()

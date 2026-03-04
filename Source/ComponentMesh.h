@@ -1,12 +1,13 @@
 #pragma once
 #include "Component.h"
-#include "Material.h"
-#include "Model.h"
+#include "MeshEntry.h"
 #include "ModuleD3D12.h"
-#include "ResourceMesh.h"
-#include <memory>
 #include <vector>
 #include <string>
+
+class ResourceMesh;
+class ResourceMaterial;
+class Model;
 
 class ComponentMesh : public Component
 {
@@ -16,7 +17,9 @@ public:
 
     bool loadModel(const char* filePath);
 
-    void setModel(std::unique_ptr<Model> model);
+    void setProceduralModel(std::unique_ptr<class Model> model);
+
+    void overrideMaterial(int slot, UID materialUID);
 
     void rebuildMaterialBuffers();
 
@@ -25,9 +28,13 @@ public:
     void onLoad(const std::string& json)        override;
     Type getType() const override { return Type::Mesh; }
 
-    Model* getModel() const;
+    Model* getProceduralModel() const { return m_proceduralModel.get(); }
+
+    const std::string& getModelPath() const { return m_modelPath; }
 
     UID getModelUID() const { return m_modelUID; }
+
+    const std::vector<MeshEntry>& getEntries() const { return m_entries; }
 
     void           computeLocalAABB();
     bool           hasAABB()         const { return m_hasAABB; }
@@ -36,12 +43,15 @@ public:
     void getWorldAABB(Vector3& outMin, Vector3& outMax) const;
 
 private:
-    UID           m_modelUID = 0;
-    ResourceMesh* m_resource = nullptr;  
+    void releaseEntries();
+    void rebuildEntry(MeshEntry& e);
 
-    std::shared_ptr<Model> m_proceduralModel;
+    UID                  m_modelUID = 0;
+    std::string          m_modelPath;
+    std::vector<MeshEntry> m_entries;
 
-    std::vector<ComPtr<ID3D12Resource>> m_materialBuffers;
+    std::shared_ptr<Model>                      m_proceduralModel;
+    std::vector<ComPtr<ID3D12Resource>>         m_proceduralMaterialBuffers;
 
     Vector3 m_localAABBMin = {};
     Vector3 m_localAABBMax = {};

@@ -7,6 +7,8 @@
 #include "SceneManager.h"
 #include "GameObject.h"
 #include "ComponentMesh.h"
+#include "MeshEntry.h"
+#include "ResourceMaterial.h"
 #include "PrefabManager.h"
 #include "TextureImporter.h"
 #include "PrimitiveFactory.h"
@@ -174,6 +176,7 @@ void AssetBrowserPanel::drawAssetList(float contentW, float panelH)
     {
         sectionHeader("MODELS");
         std::string modPath = app->getFileSystem()->GetLibraryPath() + "Meshes/";
+        ModuleScene* scene = m_editor->getActiveModuleScene();
         bool any = false;
         try {
             for (const auto& e : fs::directory_iterator(modPath))
@@ -186,6 +189,29 @@ void AssetBrowserPanel::drawAssetList(float contentW, float panelH)
 
                 std::string uidStr = uid ? ("uid:" + std::to_string(uid)).substr(0, 16) : "no uid";
                 drawAssetRow(e.path().string(), "[M]", "model", uidStr);
+
+                if (ImGui::BeginPopupContextItem(("##mctx" + e.path().string()).c_str()))
+                {
+                    std::string sceneName2 = e.path().filename().string();
+                    std::string ap = app->getAssets()->getAssetPathForScene(sceneName2);
+                    if (ImGui::MenuItem("Add to Scene"))
+                    {
+                        if (!ap.empty() && scene)
+                        {
+                            GameObject* go = scene->createGameObject(sceneName2);
+                            go->createComponent<ComponentMesh>()->loadModel(ap.c_str());
+                        }
+                    }
+                    ImGui::Separator();
+                    if (ImGui::MenuItem("Delete"))
+                    {
+                        if (!ap.empty()) app->getAssets()->deleteAsset(ap);
+                        else app->getFileSystem()->Delete(e.path().string().c_str());
+                        m_editor->log(("Deleted: " + sceneName2).c_str(), ImVec4(1, 0.6f, 0.4f, 1));
+                        m_selectedPath.clear(); m_selectedType.clear();
+                    }
+                    ImGui::EndPopup();
+                }
                 any = true;
             }
         }
@@ -310,7 +336,28 @@ void AssetBrowserPanel::drawActionBar()
     ImGui::SameLine(0, 4);
     if (ImGui::Button("Delete", ImVec2(100, 0)) && hasSelection)
     {
-        if (m_selectedType == "scene" || m_selectedType == "texture")
+        if (m_selectedType == "model")
+        {
+            std::string sceneName = fs::path(m_selectedPath).filename().string();
+            std::string assetPath = app->getAssets()->getAssetPathForScene(sceneName);
+            if (!assetPath.empty())
+                app->getAssets()->deleteAsset(assetPath);
+            else
+            {
+                app->getFileSystem()->Delete(m_selectedPath.c_str());
+            }
+            m_editor->log(("Deleted model: " + sceneName).c_str(), ImVec4(1, 0.6f, 0.4f, 1));
+            m_selectedPath.clear();
+            m_selectedType.clear();
+        }
+        else if (m_selectedType == "texture")
+        {
+            app->getAssets()->deleteAsset(m_selectedPath);
+            m_editor->log(("Deleted texture: " + m_selectedPath).c_str(), ImVec4(1, 0.6f, 0.4f, 1));
+            m_selectedPath.clear();
+            m_selectedType.clear();
+        }
+        else if (m_selectedType == "scene")
         {
             app->getFileSystem()->Delete(m_selectedPath.c_str());
             m_editor->log(("Deleted: " + m_selectedPath).c_str(), ImVec4(1, 0.6f, 0.4f, 1));
@@ -330,12 +377,19 @@ void AssetBrowserPanel::handleAddToScene()
 
     if (m_selectedType == "model")
     {
-        std::string name = fs::path(m_selectedPath).filename().string();
-        std::string gltf = "Assets/Models/" + name + "/" + name + ".gltf";
-        GameObject* go = scene->createGameObject(name);
+        std::string sceneName = fs::path(m_selectedPath).filename().string();
+
+        std::string assetPath = app->getAssets()->getAssetPathForScene(sceneName);
+        if (assetPath.empty())
+        {
+            m_editor->log(("No asset path found for: " + sceneName).c_str(), ImVec4(1, 0.4f, 0.4f, 1));
+            return;
+        }
+
+        GameObject* go = scene->createGameObject(sceneName);
         auto* cm = go->createComponent<ComponentMesh>();
-        bool ok = cm->loadModel(gltf.c_str());
-        m_editor->log(ok ? ("Added: " + name).c_str() : ("Failed: " + gltf).c_str(),
+        bool ok = cm->loadModel(assetPath.c_str());
+        m_editor->log(ok ? ("Added: " + sceneName).c_str() : ("Failed: " + assetPath).c_str(),
             ok ? ImVec4(0.6f, 1, 0.6f, 1) : ImVec4(1, 0.4f, 0.4f, 1));
         sel.object = go;
     }
@@ -357,17 +411,20 @@ void AssetBrowserPanel::handleAddToScene()
         if (sel.has())
         {
             auto* existing = sel.object->getComponent<ComponentMesh>();
-            if (existing && existing->getModel())
+            if (existing && !existing->getEntries().empty())
             {
-                for (auto& mat : existing->getModel()->getMaterials())
-                    mat->setBaseColorTexture(m_pendingTexture, m_pendingTextureSRV);
+                ComPtr<ID3D12Resource>      tex = m_pendingTexture;
+                D3D12_GPU_DESCRIPTOR_HANDLE srv2 = m_pendingTextureSRV;
+                for (const auto& e : existing->getEntries())
+                    if (e.materialRes && e.materialRes->getMaterial())
+                        e.materialRes->getMaterial()->setBaseColorTexture(tex, srv2);
                 existing->rebuildMaterialBuffers();
                 m_editor->log(("Applied texture to: " + sel.object->getName()).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
             }
             else
             {
                 if (!existing) existing = sel.object->createComponent<ComponentMesh>();
-                existing->setModel(PrimitiveFactory::createTexturedQuad(m_pendingTexture, m_pendingTextureSRV));
+                existing->setProceduralModel(PrimitiveFactory::createTexturedQuad(m_pendingTexture, m_pendingTextureSRV));
                 existing->rebuildMaterialBuffers();
                 m_editor->log(("Created quad on: " + sel.object->getName()).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
             }

@@ -20,6 +20,8 @@
 #include "TextureImporter.h"
 #include "Material.h"
 #include "Model.h"
+#include "MeshEntry.h"
+#include "ResourceMaterial.h"
 #include "EditorSelection.h"
 #include <filesystem>
 #include <algorithm>
@@ -271,32 +273,27 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh)
 {
     namespace fs = std::filesystem;
 
-    Model* model = mesh->getModel();
+    bool        hasEntries = !mesh->getEntries().empty();
+    bool        hasProcedural = (mesh->getProceduralModel() != nullptr);
+    bool        hasAnything = hasEntries || hasProcedural;
 
     std::string modelName = "None";
-    std::string modelPath;
-    if (model)
-    {
-        UID uid = mesh->getModelUID();
-        if (uid != 0)
-        {
-            modelPath = app->getAssets()->getPathFromUID(uid);
-            modelName = modelPath.empty() ? "(unknown)" : fs::path(modelPath).stem().string();
-        }
-        else
-        {
-            modelName = "(procedural)";
-        }
-    }
+    std::string modelPath = mesh->getModelPath();
+    if (hasEntries)
+        modelName = modelPath.empty() ? "(unknown)" : fs::path(modelPath).stem().string();
+    else if (hasProcedural)
+        modelName = "(procedural)";
 
-    if (model)
+    if (hasAnything)
     {
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
         ImGui::Text("[M]  %s", modelName.c_str());
         ImGui::PopStyleColor();
         ImGui::SameLine();
-        ImGui::TextDisabled("  %d mesh(es)  %d mat(s)",
-            (int)model->getMeshes().size(), (int)model->getMaterials().size());
+        if (hasEntries)
+            ImGui::TextDisabled("  %d submesh(es)", (int)mesh->getEntries().size());
+        else
+            ImGui::TextDisabled("  procedural");
     }
     else
     {
@@ -344,7 +341,7 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh)
                 std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
                 if (!search.empty() && lower.find(search) == std::string::npos) continue;
 
-                std::string gltf = "Assets/Models/" + name + "/" + name + ".gltf";
+                std::string assetPath = app->getAssets()->getAssetPathForScene(name);
                 bool        isCurrent = (modelName == name);
 
                 if (isCurrent) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
@@ -354,9 +351,16 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh)
 
                 if (clicked && ImGui::IsMouseDoubleClicked(0))
                 {
-                    bool ok = mesh->loadModel(gltf.c_str());
-                    m_editor->log(ok ? ("Loaded: " + name).c_str() : ("Failed: " + gltf).c_str(),
-                        ok ? ImVec4(0.6f, 1, 0.6f, 1) : ImVec4(1, 0.4f, 0.4f, 1));
+                    if (assetPath.empty())
+                    {
+                        m_editor->log(("No asset path for: " + name).c_str(), ImVec4(1, 0.4f, 0.4f, 1));
+                    }
+                    else
+                    {
+                        bool ok = mesh->loadModel(assetPath.c_str());
+                        m_editor->log(ok ? ("Loaded: " + name).c_str() : ("Failed: " + assetPath).c_str(),
+                            ok ? ImVec4(0.6f, 1, 0.6f, 1) : ImVec4(1, 0.4f, 0.4f, 1));
+                    }
                     ImGui::CloseCurrentPopup();
                 }
                 any = true;
@@ -373,41 +377,71 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh)
         ImGui::EndPopup();
     }
 
-    if (!model) return;
+    if (!hasAnything) return;
+
+    if (!hasEntries) return;
 
     ImGui::Spacing();
     ImGui::SeparatorText("Materials");
-    auto& mats = model->getMaterialsMutable();
 
-    for (int mi = 0; mi < (int)mats.size(); ++mi)
+    const auto& entries = mesh->getEntries();
+    for (int mi = 0; mi < (int)entries.size(); ++mi)
     {
-        Material* mat = mats[mi].get();
-        if (!mat) continue;
+        const MeshEntry& e = entries[mi];
+        Material* mat = (e.materialRes ? e.materialRes->getMaterial() : nullptr);
 
         ImGui::PushID(mi);
-        std::string matLabel = "Material " + std::to_string(mi);
+        std::string matLabel = "Submesh " + std::to_string(mi);
 
         if (ImGui::CollapsingHeader(matLabel.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::Indent(8.0f);
-            if (ImGui::SmallButton("Pick texture"))
-                ImGui::OpenPopup(("##TexPicker" + std::to_string(mi)).c_str());
 
-            ImGui::SetNextWindowSize(ImVec2(300, 240), ImGuiCond_Appearing);
-            if (ImGui::BeginPopup(("##TexPicker" + std::to_string(mi)).c_str()))
+            if (mat)
             {
-                ImGui::TextDisabled("Imported textures  (double-click to apply)");
+                Material::Data& data = mat->getData();
+                if (ImGui::ColorEdit4("Base Color", &data.baseColor.x))
+                    mesh->rebuildMaterialBuffers();
+            }
+
+            if (mat && mat->hasTexture())
+            {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 1.f, 0.7f, 1.f));
+                ImGui::Text("Texture: applied");
+                ImGui::PopStyleColor();
+            }
+            else
+            {
+                ImGui::TextDisabled("Texture: none");
+            }
+
+            ImGui::SameLine();
+
+            bool openPicker = ImGui::SmallButton(("Pick##tp" + std::to_string(mi)).c_str());
+
+            std::string popupId = "TexPickerModal" + std::to_string(mi);
+            if (openPicker)
+                ImGui::OpenPopup(popupId.c_str());
+
+            ImGui::SetNextWindowSize(ImVec2(300, 280), ImGuiCond_Appearing);
+            if (ImGui::BeginPopupModal(popupId.c_str(), nullptr,
+                ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings))
+            {
+                ImGui::TextDisabled("Double-click a texture to apply");
                 ImGui::Separator();
+
                 static char texSearch[64] = "";
                 ImGui::SetNextItemWidth(-1);
                 ImGui::InputTextWithHint("##txs", "Search...", texSearch, sizeof(texSearch));
+                ImGui::Separator();
 
                 std::string ts(texSearch);
                 std::transform(ts.begin(), ts.end(), ts.begin(), ::tolower);
                 std::string texDir = app->getFileSystem()->GetLibraryPath() + "Textures/";
                 auto        texFiles = app->getFileSystem()->GetFilesInDirectory(texDir.c_str(), ".dds");
-                bool anyTex = false;
+                bool        anyTex = false;
 
+                ImGui::BeginChild("##texlist", ImVec2(0, 190));
                 for (const auto& tf : texFiles)
                 {
                     std::string tname = fs::path(tf).stem().string();
@@ -416,15 +450,19 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh)
                     if (!ts.empty() && tlower.find(ts) == std::string::npos) continue;
 
                     if (ImGui::Selectable(("  [T]  " + tname).c_str(), false,
-                        ImGuiSelectableFlags_AllowDoubleClick) && ImGui::IsMouseDoubleClicked(0))
+                        ImGuiSelectableFlags_AllowDoubleClick)
+                        && ImGui::IsMouseDoubleClicked(0))
                     {
                         ComPtr<ID3D12Resource>      tex;
                         D3D12_GPU_DESCRIPTOR_HANDLE srv{};
                         if (TextureImporter::Load(tf, tex, srv))
                         {
-                            mat->setBaseColorTexture(tex, srv);
-                            mesh->rebuildMaterialBuffers();
-                            m_editor->log(("Applied texture: " + tname).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
+                            if (mat)
+                            {
+                                mat->setBaseColorTexture(tex, srv);
+                                mesh->rebuildMaterialBuffers();
+                                m_editor->log(("Applied: " + tname).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
+                            }
                         }
                         else m_editor->log(("Failed: " + tf).c_str(), ImVec4(1, 0.4f, 0.4f, 1));
                         ImGui::CloseCurrentPopup();
@@ -437,8 +475,15 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh)
                     ImGui::Text("    No textures imported yet.");
                     ImGui::PopStyleColor();
                 }
+                ImGui::EndChild();
+
+                ImGui::Separator();
+                if (ImGui::Button("Cancel", ImVec2(-1, 0)))
+                    ImGui::CloseCurrentPopup();
+
                 ImGui::EndPopup();
             }
+
             ImGui::Unindent(8.0f);
         }
         ImGui::PopID();
