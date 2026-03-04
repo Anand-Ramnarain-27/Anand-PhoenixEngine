@@ -4,6 +4,9 @@
 #include "Application.h"
 #include "ModuleCamera.h"
 #include "ModuleScene.h"
+#include "ModuleAssets.h"
+#include "ModuleResources.h"
+#include "ResourceMesh.h"
 #include "SceneManager.h"
 #include "GameObject.h"
 #include "ComponentTransform.h"
@@ -218,7 +221,6 @@ void InspectorPanel::drawComponentCamera(ComponentCamera* cam)
             for (auto* child : node->getChildren()) collect(child);
         };
     collect(scene->getRoot());
-
     if (allCams.empty()) return;
 
     ImGui::TextDisabled("Scene cameras:");
@@ -270,10 +272,22 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh)
     namespace fs = std::filesystem;
 
     Model* model = mesh->getModel();
-    const std::string& modelPath = mesh->getModelPath();
-    std::string modelName = modelPath.empty()
-        ? (model ? "(procedural)" : "None")
-        : fs::path(modelPath).stem().string();
+
+    std::string modelName = "None";
+    std::string modelPath;
+    if (model)
+    {
+        UID uid = mesh->getModelUID();
+        if (uid != 0)
+        {
+            modelPath = app->getAssets()->getPathFromUID(uid);
+            modelName = modelPath.empty() ? "(unknown)" : fs::path(modelPath).stem().string();
+        }
+        else
+        {
+            modelName = "(procedural)";
+        }
+    }
 
     if (model)
     {
@@ -331,7 +345,7 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh)
                 if (!search.empty() && lower.find(search) == std::string::npos) continue;
 
                 std::string gltf = "Assets/Models/" + name + "/" + name + ".gltf";
-                bool isCurrent = (modelName == name);
+                bool        isCurrent = (modelName == name);
 
                 if (isCurrent) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 1.0f, 0.6f, 1.0f));
                 bool clicked = ImGui::Selectable(("  [M]  " + name).c_str(), isCurrent,

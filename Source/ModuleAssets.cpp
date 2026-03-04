@@ -2,67 +2,55 @@
 #include "ModuleAssets.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
+#include "MetaFileManager.h"
 #include "SceneImporter.h"
 #include "TextureImporter.h"
 #include "tiny_gltf.h"
-#include "3rdParty/rapidjson/document.h"
-#include "3rdParty/rapidjson/prettywriter.h"
-#include "3rdParty/rapidjson/stringbuffer.h"
 #include <filesystem>
 #include <algorithm>
-#include <random>
-#include <chrono>
 
-using namespace rapidjson;
 namespace fs = std::filesystem;
 
-static bool isSupportedExtension(const std::string& extLow)
+static bool isSupportedExtension(const std::string& ext)
 {
-    return extLow == ".gltf" || extLow == ".glb" ||
-        extLow == ".fbx" || extLow == ".stl" ||
-        extLow == ".blend" ||
-        extLow == ".png" || extLow == ".jpg" ||
-        extLow == ".jpeg" || extLow == ".dds" ||
-        extLow == ".tga" || extLow == ".bmp" ||
-        extLow == ".hdr";
+    return ext == ".gltf" || ext == ".glb" ||
+        ext == ".fbx" || ext == ".stl" || ext == ".blend" ||
+        ext == ".png" || ext == ".jpg" || ext == ".jpeg" ||
+        ext == ".dds" || ext == ".tga" || ext == ".bmp" || ext == ".hdr";
 }
-
-static bool isModelExtension(const std::string& extLow)
+static bool isModelExtension(const std::string& ext)
 {
-    return extLow == ".gltf" || extLow == ".glb" ||
-        extLow == ".fbx" || extLow == ".stl" ||
-        extLow == ".blend";
+    return ext == ".gltf" || ext == ".glb" ||
+        ext == ".fbx" || ext == ".stl" || ext == ".blend";
 }
-
-static bool isTextureExtension(const std::string& extLow)
+static bool isTextureExtension(const std::string& ext)
 {
-    return extLow == ".png" || extLow == ".jpg" ||
-        extLow == ".jpeg" || extLow == ".dds" ||
-        extLow == ".tga" || extLow == ".bmp" ||
-        extLow == ".hdr";
+    return ext == ".png" || ext == ".jpg" || ext == ".jpeg" ||
+        ext == ".dds" || ext == ".tga" || ext == ".bmp" || ext == ".hdr";
 }
 
 bool ModuleAssets::init()
 {
     ensureLibraryDirectories();
-    refreshAssets(); 
+    refreshAssets();
     return true;
 }
 
 bool ModuleAssets::cleanUp()
 {
     m_pathToUID.clear();
+    m_uidToPath.clear();
     return true;
 }
 
 void ModuleAssets::ensureLibraryDirectories()
 {
-    ModuleFileSystem* fs = app->getFileSystem();
-    fs->CreateDir("Library");
-    fs->CreateDir("Library/Meshes");
-    fs->CreateDir("Library/Materials");
-    fs->CreateDir("Library/Textures");
-    fs->CreateDir("Library/Scenes");
+    ModuleFileSystem* fsys = app->getFileSystem();
+    fsys->CreateDir("Library");
+    fsys->CreateDir("Library/Meshes");
+    fsys->CreateDir("Library/Materials");
+    fsys->CreateDir("Library/Textures");
+    fsys->CreateDir("Library/Scenes");
 }
 
 void ModuleAssets::refreshAssets()
@@ -77,13 +65,16 @@ void ModuleAssets::refreshAssets()
         std::string path = entry.path().string();
         std::string ext = entry.path().extension().string();
         std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-
         if (ext == ".meta") continue;
-
         if (!isSupportedExtension(ext)) continue;
 
-        UID uid = getOrCreateUID(path);
+        ResourceBase::Type rtype = ResourceBase::Type::Unknown;
+        if (isModelExtension(ext))        rtype = ResourceBase::Type::Model;
+        else if (isTextureExtension(ext)) rtype = ResourceBase::Type::Texture;
+
+        UID uid = MetaFileManager::getOrCreateUID(path, rtype);
         m_pathToUID[path] = uid;
+        m_uidToPath[uid] = path;
 
         if (isModelExtension(ext))
         {
@@ -108,9 +99,9 @@ void ModuleAssets::refreshAssets()
                 if (ok)
                 {
                     MetaData meta;
-                    loadMeta(path, meta);
-                    meta.lastModified = getLastModified(path);
-                    saveMeta(path, meta);
+                    MetaFileManager::load(path, meta);
+                    meta.lastModified = MetaFileManager::getLastModified(path);
+                    MetaFileManager::save(path, meta);
                 }
             }
         }
@@ -126,12 +117,17 @@ UID ModuleAssets::importAsset(const char* filePath)
         return 0;
     }
 
-    fs::path   path(filePath);
-    std::string ext = path.extension().string();
+    fs::path    p(filePath);
+    std::string ext = p.extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
-    UID uid = getOrCreateUID(filePath);
+    ResourceBase::Type rtype = isModelExtension(ext) ? ResourceBase::Type::Model
+        : isTextureExtension(ext) ? ResourceBase::Type::Texture
+        : ResourceBase::Type::Unknown;
+
+    UID uid = MetaFileManager::getOrCreateUID(filePath, rtype);
     m_pathToUID[filePath] = uid;
+    m_uidToPath[uid] = filePath;
 
     bool ok = false;
 
@@ -148,7 +144,7 @@ UID ModuleAssets::importAsset(const char* filePath)
         if (!warn.empty()) LOG("ModuleAssets: GLTF Warning: %s", warn.c_str());
         if (!ok) { LOG("ModuleAssets: Failed to load GLTF: %s", err.c_str()); return 0; }
 
-        std::string sceneName = path.stem().string();
+        std::string sceneName = p.stem().string();
         ok = SceneImporter::ImportFromLoadedGLTF(gltfModel, sceneName);
         if (!ok) { LOG("ModuleAssets: Import failed for: %s", sceneName.c_str()); return 0; }
     }
@@ -163,7 +159,7 @@ UID ModuleAssets::importAsset(const char* filePath)
     }
     else if (ext == ".fbx" || ext == ".stl" || ext == ".blend")
     {
-        LOG("ModuleAssets: Format not yet supported for import: %s", ext.c_str());
+        LOG("ModuleAssets: Format not yet supported: %s", ext.c_str());
         return uid;
     }
     else
@@ -175,9 +171,9 @@ UID ModuleAssets::importAsset(const char* filePath)
     if (ok)
     {
         MetaData meta;
-        loadMeta(filePath, meta);
-        meta.lastModified = getLastModified(filePath);
-        saveMeta(filePath, meta);
+        MetaFileManager::load(filePath, meta);
+        meta.lastModified = MetaFileManager::getLastModified(filePath);
+        MetaFileManager::save(filePath, meta);
         LOG("ModuleAssets: Imported %s (uid=%llu)", filePath, uid);
     }
 
@@ -190,22 +186,35 @@ UID ModuleAssets::findUID(const std::string& assetPath) const
     if (it != m_pathToUID.end()) return it->second;
 
     MetaData meta;
-    return loadMeta(assetPath, meta) ? meta.uid : 0;
+    return MetaFileManager::load(assetPath, meta) ? meta.uid : 0;
+}
+
+std::string ModuleAssets::getPathFromUID(UID uid) const
+{
+    auto it = m_uidToPath.find(uid);
+    return it != m_uidToPath.end() ? it->second : "";
 }
 
 bool ModuleAssets::needsReimport(const std::string& assetPath) const
 {
     MetaData meta;
-    if (!loadMeta(assetPath, meta)) return true;  
-    return getLastModified(assetPath) != meta.lastModified;
+    if (!MetaFileManager::load(assetPath, meta)) return true;
+    return MetaFileManager::getLastModified(assetPath) != meta.lastModified;
+}
+
+bool ModuleAssets::sceneExists(const std::string& sceneName) const
+{
+    ModuleFileSystem* fsys = app->getFileSystem();
+    std::string path = fsys->GetLibraryPath() + "Meshes/" + sceneName;
+    return fsys->Exists(path.c_str()) && fsys->IsDirectory(path.c_str());
 }
 
 std::vector<ModuleAssets::SceneInfo> ModuleAssets::getImportedScenes() const
 {
     std::vector<SceneInfo> scenes;
-    ModuleFileSystem* fs = app->getFileSystem();
-    std::string meshesPath = fs->GetLibraryPath() + "Meshes/";
-    if (!fs->Exists(meshesPath.c_str())) return scenes;
+    ModuleFileSystem* fsys = app->getFileSystem();
+    std::string meshesPath = fsys->GetLibraryPath() + "Meshes/";
+    if (!fsys->Exists(meshesPath.c_str())) return scenes;
 
     try
     {
@@ -222,7 +231,7 @@ std::vector<ModuleAssets::SceneInfo> ModuleAssets::getImportedScenes() const
 
             std::string metaPath = info.path + "/scene.meta";
             char* buffer = nullptr;
-            uint32_t size = fs->Load(metaPath.c_str(), &buffer);
+            uint32_t size = fsys->Load(metaPath.c_str(), &buffer);
             if (buffer && size >= sizeof(SceneImporter::SceneHeader))
             {
                 SceneImporter::SceneHeader header;
@@ -240,95 +249,4 @@ std::vector<ModuleAssets::SceneInfo> ModuleAssets::getImportedScenes() const
     catch (const std::exception& e) { LOG("ModuleAssets: Error: %s", e.what()); }
 
     return scenes;
-}
-
-bool ModuleAssets::sceneExists(const std::string& sceneName) const
-{
-    ModuleFileSystem* fs = app->getFileSystem();
-    std::string path = fs->GetLibraryPath() + "Meshes/" + sceneName;
-    return fs->Exists(path.c_str()) && fs->IsDirectory(path.c_str());
-}
-
-bool ModuleAssets::saveMeta(const std::string& assetPath, const MetaData& meta) const
-{
-    Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
-    doc.AddMember("uid", meta.uid, a);
-    doc.AddMember("lastModified", meta.lastModified, a);
-
-    StringBuffer sb;
-    PrettyWriter<StringBuffer> writer(sb);
-    doc.Accept(writer);
-
-    std::string metaPath = assetPath + ".meta";
-    return app->getFileSystem()->Save(metaPath.c_str(), sb.GetString(), (unsigned)sb.GetSize());
-}
-
-bool ModuleAssets::loadMeta(const std::string& assetPath, MetaData& outMeta) const
-{
-    std::string metaPath = assetPath + ".meta";
-    char* buf = nullptr;
-    unsigned size = app->getFileSystem()->Load(metaPath.c_str(), &buf);
-    if (!buf || size == 0) return false;
-
-    Document doc; doc.Parse(buf, size); delete[] buf;
-    if (doc.HasParseError()) return false;
-
-    if (doc.HasMember("uid"))          outMeta.uid = doc["uid"].GetUint64();
-    if (doc.HasMember("lastModified")) outMeta.lastModified = doc["lastModified"].GetUint64();
-    return true;
-}
-
-UID ModuleAssets::getOrCreateUID(const std::string& assetPath)
-{
-    MetaData meta;
-    if (loadMeta(assetPath, meta) && meta.uid != 0)
-        return meta.uid;  
-
-    meta.uid = generateUID();
-    meta.lastModified = getLastModified(assetPath);
-    saveMeta(assetPath, meta);
-    LOG("ModuleAssets: Created .meta for %s  (uid=%llu)", assetPath.c_str(), meta.uid);
-    return meta.uid;
-}
-
-UID ModuleAssets::generateUID()
-{
-    static std::mt19937_64 gen(std::random_device{}());
-    static std::uniform_int_distribution<uint64_t> dis(1, UINT64_MAX);
-    return dis(gen);
-}
-
-uint64_t ModuleAssets::getLastModified(const std::string& filePath)
-{
-    try {
-        auto ftime = fs::last_write_time(filePath);
-        auto duration = ftime.time_since_epoch();
-        return (uint64_t)std::chrono::duration_cast<std::chrono::seconds>(duration).count();
-    }
-    catch (...) { return 0; }
-}
-
-void ModuleAssets::requestResource(UID uid)
-{
-    if (uid == 0) return;
-    m_refCounts[uid]++;
-    LOG("ModuleAssets: requestResource uid=%llu refCount=%d",
-        uid, m_refCounts[uid]);
-}
-
-void ModuleAssets::releaseResource(UID uid)
-{
-    if (uid == 0) return;
-    auto it = m_refCounts.find(uid);
-    if (it == m_refCounts.end()) return;
-
-    it->second--;
-    LOG("ModuleAssets: releaseResource uid=%llu refCount=%d",
-        uid, it->second);
-
-    if (it->second <= 0)
-    {
-        LOG("ModuleAssets: uid=%llu has 0 references, could unload", uid);
-        m_refCounts.erase(it);
-    }
 }

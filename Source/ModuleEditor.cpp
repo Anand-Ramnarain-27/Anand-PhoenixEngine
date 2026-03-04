@@ -31,6 +31,7 @@
 #include "PerformancePanel.h"
 #include "AssetBrowserPanel.h"
 #include "SceneSettingsPanel.h"
+#include "ResourcesPanel.h"
 #include <d3dx12.h>
 
 ModuleEditor::ModuleEditor() = default;
@@ -96,6 +97,7 @@ bool ModuleEditor::init()
     m_performance = std::make_unique<PerformancePanel>(this);
     m_assetBrowser = std::make_unique<AssetBrowserPanel>(this);
     m_sceneSettings = std::make_unique<SceneSettingsPanel>(this);
+    m_resources = std::make_unique<ResourcesPanel>(this);
 
     log("[Editor] Initialized", ImVec4(0.6f, 1, 0.6f, 1));
     return true;
@@ -111,6 +113,7 @@ bool ModuleEditor::cleanUp()
     m_performance.reset();
     m_assetBrowser.reset();
     m_sceneSettings.reset();
+    m_resources.reset();
 
     m_envSystem.reset();
     m_imguiPass.reset();
@@ -155,6 +158,7 @@ void ModuleEditor::preRender()
     if (m_performance->open) m_performance->draw();
     if (m_assetBrowser->open) m_assetBrowser->draw();
     if (m_sceneSettings->open) m_sceneSettings->draw();
+    if (m_resources->open) m_resources->draw();
 
     handleDialogs();
 }
@@ -324,8 +328,8 @@ void ModuleEditor::drawDockspace()
         ImGui::DockBuilderDockWindow("Scene View", center);
         ImGui::DockBuilderDockWindow("Game View", center);
         ImGui::DockBuilderDockWindow("Console", bottom);
-        ImGui::DockBuilderDockWindow("Performance", bottom);
         ImGui::DockBuilderDockWindow("Asset Browser", bottom);
+        ImGui::DockBuilderDockWindow("Resources", bottom);
         ImGui::DockBuilderFinish(dock);
     }
     ImGui::End();
@@ -389,6 +393,8 @@ void ModuleEditor::drawMenuBar()
         if (ImGui::MenuItem("Stop", nullptr, false, m_sceneManager && m_sceneManager->getState() != SceneManager::PlayState::Stopped)) m_sceneManager->stop();
         ImGui::EndMenu();
     }
+
+    ImGui::MenuItem("Resources", nullptr, &m_resources->open);
 
     {
         const float btnW = 70.0f;

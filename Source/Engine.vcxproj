@@ -215,6 +215,7 @@
     <ClInclude Include="ModuleDescriptorsBase.h" />
     <ClInclude Include="ModuleDSDescriptors.h" />
     <ClInclude Include="ModuleFileSystem.h" />
+    <ClInclude Include="ModuleResources.h" />
     <ClInclude Include="ModuleRingBuffer.h" />
     <ClInclude Include="ModuleRTDescriptors.h" />
     <ClInclude Include="ModuleScene.h" />
@@ -245,6 +246,8 @@
     <ClInclude Include="Resource.h" />
     <ClInclude Include="ResourceBase.h" />
     <ClInclude Include="ResourceCache.h" />
+    <ClInclude Include="ResourceMesh.h" />
+    <ClInclude Include="ResourcesPanel.h" />
     <ClInclude Include="SceneImporter.h" />
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="SceneSerializer.h" />
@@ -349,6 +352,7 @@
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="ModuleAssets.cpp" />
     <ClCompile Include="ModuleFileSystem.cpp" />
+    <ClCompile Include="ModuleResources.cpp" />
     <ClCompile Include="ModuleRingBuffer.cpp" />
     <ClCompile Include="ModuleScene.cpp" />
     <ClCompile Include="ModuleShaderDescriptors.cpp" />
@@ -382,6 +386,8 @@
     <ClCompile Include="RenderTargetDesc.cpp" />
     <ClCompile Include="RenderTexture.cpp" />
     <ClCompile Include="ResourceCache.cpp" />
+    <ClCompile Include="ResourceMesh.cpp" />
+    <ClCompile Include="ResourcesPanel.cpp" />
     <ClCompile Include="SceneImporter.cpp" />
     <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="SceneSerializer.cpp" />

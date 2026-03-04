@@ -11,6 +11,7 @@
 class Module;
 class ModuleD3D12;
 class ModuleGPUResources;
+class ModuleResources;
 class ModuleSamplerHeap;
 class ModuleCamera;
 class ModuleEditor;
@@ -39,6 +40,7 @@ public:
 
     ModuleD3D12* getD3D12() { return d3d12Module; }
     ModuleGPUResources* getGPUResources() { return gpuresources; }
+	ModuleResources* getResources() { return resources; }
     ModuleSamplerHeap* getSamplerHeap() { return samplerHeaps; }
     ModuleFileSystem* getFileSystem() { return fileSystem; }
 	ModuleCamera* getCamera() { return camera; }
@@ -74,6 +76,7 @@ private:
 
     ModuleD3D12* d3d12Module = nullptr;
     ModuleGPUResources* gpuresources = nullptr;
+	ModuleResources* resources = nullptr;
     ModuleSamplerHeap* samplerHeaps = nullptr;
     ModuleFileSystem* fileSystem = nullptr;
     ModuleCamera* camera = nullptr;

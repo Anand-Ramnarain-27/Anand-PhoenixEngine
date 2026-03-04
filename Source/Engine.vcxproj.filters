@@ -204,6 +204,9 @@
       <Filter>engine\editor</Filter>
     </ClCompile>
     <ClCompile Include="MetaFileManager.cpp" />
+    <ClCompile Include="ModuleResources.cpp" />
+    <ClCompile Include="ResourceMesh.cpp" />
+    <ClCompile Include="ResourcesPanel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -470,6 +473,9 @@
       <Filter>engine</Filter>
     </ClInclude>
     <ClInclude Include="MetaFileManager.h" />
+    <ClInclude Include="ModuleResources.h" />
+    <ClInclude Include="ResourceMesh.h" />
+    <ClInclude Include="ResourcesPanel.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

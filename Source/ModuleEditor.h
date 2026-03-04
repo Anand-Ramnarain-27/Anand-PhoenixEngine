@@ -22,6 +22,7 @@ class ConsolePanel;
 class PerformancePanel;
 class AssetBrowserPanel;
 class SceneSettingsPanel;
+class ResourcesPanel;
 class GameObject;
 class ComponentCamera;
 class ComponentMesh;
@@ -90,6 +91,7 @@ private:
     std::unique_ptr<PerformancePanel>  m_performance;
     std::unique_ptr<AssetBrowserPanel> m_assetBrowser;
     std::unique_ptr<SceneSettingsPanel> m_sceneSettings;
+    std::unique_ptr<ResourcesPanel> m_resources;
 
     EditorSelection m_selection;
     int             m_samplerType = 0;
