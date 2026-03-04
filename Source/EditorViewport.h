@@ -18,7 +18,7 @@ struct EditorViewport
 
     bool isReady() const
     {
-        return rt && rt->isValid() && !pendingResize && size.x > 4 && size.y > 4;
+        return rt && rt->isValid() && size.x > 4 && size.y > 4;
     }
 
     void checkResize()
