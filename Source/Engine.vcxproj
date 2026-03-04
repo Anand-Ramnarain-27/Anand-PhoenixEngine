@@ -241,12 +241,10 @@
     <ClInclude Include="PrefabManager.h" />
     <ClInclude Include="PrimitiveFactory.h" />
     <ClInclude Include="ReadData.h" />
-    <ClInclude Include="RenderPipelineTestScene.h" />
     <ClInclude Include="RenderTargetDesc.h" />
     <ClInclude Include="RenderTexture.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="ResourceBase.h" />
-    <ClInclude Include="ResourceCache.h" />
     <ClInclude Include="ResourceMaterial.h" />
     <ClInclude Include="ResourceMesh.h" />
     <ClInclude Include="ResourcesPanel.h" />
@@ -385,10 +383,8 @@
     <ClCompile Include="Mouse.cpp" />
     <ClCompile Include="PrefabManager.cpp" />
     <ClCompile Include="PrimitiveFactory.cpp" />
-    <ClCompile Include="RenderPipelineTestScene.cpp" />
     <ClCompile Include="RenderTargetDesc.cpp" />
     <ClCompile Include="RenderTexture.cpp" />
-    <ClCompile Include="ResourceCache.cpp" />
     <ClCompile Include="ResourceMaterial.cpp" />
     <ClCompile Include="ResourceMesh.cpp" />
     <ClCompile Include="ResourcesPanel.cpp" />

@@ -2,7 +2,6 @@
 
 #include "Globals.h"
 #include "ModuleFileSystem.h"
-#include "ResourceCache.h"
 
 #include <array>
 #include <vector>
@@ -20,12 +19,6 @@ class ModuleRingBuffer;
 class ModuleRTDescriptors;
 class ModuleDSDescriptors;
 class ModuleAssets;
-
-//class BasicModelScene;
-//class ModuleTextureSampler;
-//class LightingDemo;
-//class RenderToTextureDemo;
-//class ViewportDemo;
 
 class Application
 {
@@ -50,13 +43,6 @@ public:
     ModuleRTDescriptors* getRTDescriptors() { return rtDescriptors; }
     ModuleDSDescriptors* getDSDescriptors() { return dsDescriptors; }
 	ModuleAssets* getAssets() { return assets; }
-    ResourceCache* getResourceCache() { return &m_resourceCache; }
-
-	/*BasicModelScene* getBasicModelScene() { return basicModelScene; }
-    ModuleTextureSampler* getTextureSampler() { return textureSampler; }
-	LightingDemo* getLightingDemo() { return lightingDemo; }
-	RenderToTextureDemo* getRenderToTextureDemo() { return renderToTextureDemo; }
-	ViewportDemo* getViewportDemo() { return viewportDemo; }*/
 
     void                        swapModule(Module* from, Module* to) { swapModules.push_back(std::make_pair(from, to)); }
     
@@ -85,14 +71,8 @@ private:
     ModuleRTDescriptors* rtDescriptors = nullptr;
     ModuleDSDescriptors* dsDescriptors = nullptr;
 	ModuleAssets* assets = nullptr;
-    ResourceCache m_resourceCache;
 
     ModuleEditor* editor = nullptr;
-  /*  ModuleTextureSampler* textureSampler = nullptr;
-	BasicModelScene* basicModelScene = nullptr;
-	LightingDemo* lightingDemo = nullptr;
-	RenderToTextureDemo* renderToTextureDemo = nullptr;
-	ViewportDemo* viewportDemo = nullptr;*/
 
     uint64_t  lastMilis = 0;
     TickList  tickList;

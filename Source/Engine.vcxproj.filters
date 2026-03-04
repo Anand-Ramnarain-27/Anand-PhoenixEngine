@@ -37,7 +37,6 @@
     <ClCompile Include="Model.cpp">
       <Filter>engine\graphics\scene</Filter>
     </ClCompile>
-    <ClCompile Include="RenderPipelineTestScene.cpp" />
     <ClCompile Include="GamePad.cpp">
       <Filter>engine\input</Filter>
     </ClCompile>
@@ -130,9 +129,6 @@
     </ClCompile>
     <ClCompile Include="PrefabManager.cpp">
       <Filter>engine\scene\prefabs</Filter>
-    </ClCompile>
-    <ClCompile Include="ResourceCache.cpp">
-      <Filter>engine\resources</Filter>
     </ClCompile>
     <ClCompile Include="TextureImporter.cpp">
       <Filter>engine\resources\importers</Filter>
@@ -266,7 +262,6 @@
     <ClInclude Include="Model.h">
       <Filter>engine\graphics\scene</Filter>
     </ClInclude>
-    <ClInclude Include="RenderPipelineTestScene.h" />
     <ClInclude Include="GamePad.h">
       <Filter>engine\input</Filter>
     </ClInclude>
@@ -389,9 +384,6 @@
     </ClInclude>
     <ClInclude Include="PrefabManager.h">
       <Filter>engine\scene\prefabs</Filter>
-    </ClInclude>
-    <ClInclude Include="ResourceCache.h">
-      <Filter>engine\resources</Filter>
     </ClInclude>
     <ClInclude Include="TextureImporter.h">
       <Filter>engine\resources\importers</Filter>
