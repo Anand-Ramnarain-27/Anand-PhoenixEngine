@@ -23,6 +23,7 @@ class PerformancePanel;
 class AssetBrowserPanel;
 class SceneSettingsPanel;
 class ResourcesPanel;
+class PrefabPanel;
 class GameObject;
 class ComponentCamera;
 class ComponentMesh;
@@ -53,7 +54,7 @@ public:
         ID3D12GraphicsCommandList* cmd,
         const Matrix& view, const Matrix& proj,
         uint32_t w, uint32_t h,
-        bool editorExtras);  
+        bool editorExtras);
 
     void log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
     GameObject* createEmptyGameObject(const char* name = "Empty", GameObject* parent = nullptr);
@@ -92,6 +93,7 @@ private:
     std::unique_ptr<AssetBrowserPanel> m_assetBrowser;
     std::unique_ptr<SceneSettingsPanel> m_sceneSettings;
     std::unique_ptr<ResourcesPanel> m_resources;
+    std::unique_ptr<PrefabPanel> m_prefabs;
 
     EditorSelection m_selection;
     int             m_samplerType = 0;

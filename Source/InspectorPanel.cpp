@@ -51,6 +51,24 @@ void InspectorPanel::draw()
         go->setName(nameBuf);
 
     ImGui::TextDisabled("UID: %u", go->getUID());
+
+    if (PrefabManager::isPrefabInstance(go))
+    {
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.26f, 0.59f, 0.98f, 1));
+        ImGui::Text("[Prefab: %s]", PrefabManager::getPrefabName(go).c_str());
+        ImGui::PopStyleColor();
+
+        const PrefabInstanceData* inst = PrefabManager::getInstanceData(go);
+        if (inst && !inst->overrides.isEmpty())
+        {
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.95f, 0.65f, 0.15f, 1));
+            ImGui::Text("(overrides)");
+            ImGui::PopStyleColor();
+        }
+    }
+
     ImGui::Separator();
 
     drawTransform();
@@ -81,9 +99,12 @@ void InspectorPanel::draw()
 
         if (expanded)
         {
-            if (comp->getType() == Component::Type::Camera) drawComponentCamera(static_cast<ComponentCamera*>(comp.get()));
-            else if (comp->getType() == Component::Type::Mesh)   drawComponentMesh(static_cast<ComponentMesh*>(comp.get()));
-            else                                                  comp->onEditor();
+            if (comp->getType() == Component::Type::Camera)
+                drawComponentCamera(static_cast<ComponentCamera*>(comp.get()));
+            else if (comp->getType() == Component::Type::Mesh)
+                drawComponentMesh(static_cast<ComponentMesh*>(comp.get()));
+            else
+                comp->onEditor();
         }
 
         if (ImGui::BeginPopupContextItem("##compctx"))
@@ -113,6 +134,10 @@ void InspectorPanel::draw()
     {
         if (PrefabManager::createPrefab(go, prefabBuf))
         {
+            PrefabInstanceData d;
+            d.prefabName = prefabBuf;
+            d.prefabUID = PrefabManager::makePrefabUID(prefabBuf);
+            PrefabManager::linkInstance(go, d);
             m_editor->log(("Prefab saved: " + std::string(prefabBuf)).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
             prefabBuf[0] = '\0';
         }
@@ -132,6 +157,8 @@ void InspectorPanel::drawTransform()
     {
         t->position = { pos[0], pos[1], pos[2] };
         t->markDirty();
+        if (PrefabManager::isPrefabInstance(go))
+            PrefabManager::markPropertyOverride(go, (int)Component::Type::Transform, "position");
     }
 
     Vector3 euler = t->rotation.ToEuler();
@@ -141,6 +168,8 @@ void InspectorPanel::drawTransform()
         t->rotation = Quaternion::CreateFromYawPitchRoll(
             deg[1] * 0.0174532925f, deg[0] * 0.0174532925f, deg[2] * 0.0174532925f);
         t->markDirty();
+        if (PrefabManager::isPrefabInstance(go))
+            PrefabManager::markPropertyOverride(go, (int)Component::Type::Transform, "rotation");
     }
 
     float scl[3] = { t->scale.x, t->scale.y, t->scale.z };
@@ -148,6 +177,8 @@ void InspectorPanel::drawTransform()
     {
         t->scale = { scl[0], scl[1], scl[2] };
         t->markDirty();
+        if (PrefabManager::isPrefabInstance(go))
+            PrefabManager::markPropertyOverride(go, (int)Component::Type::Transform, "scale");
     }
 }
 
@@ -166,6 +197,11 @@ void InspectorPanel::drawAddComponentMenu()
             if (ImGui::MenuItem(label, nullptr, false, !hasIt))
             {
                 go->addComponent(ComponentFactory::CreateComponent(type, go));
+                if (PrefabManager::isPrefabInstance(go))
+                {
+                    PrefabInstanceData* inst = PrefabManager::getInstanceDataMutable(go);
+                    if (inst) inst->overrides.addedComponentTypes.push_back((int)type);
+                }
                 ImGui::CloseCurrentPopup();
             }
         };
@@ -273,9 +309,9 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh)
 {
     namespace fs = std::filesystem;
 
-    bool        hasEntries = !mesh->getEntries().empty();
-    bool        hasProcedural = (mesh->getProceduralModel() != nullptr);
-    bool        hasAnything = hasEntries || hasProcedural;
+    bool hasEntries = !mesh->getEntries().empty();
+    bool hasProcedural = (mesh->getProceduralModel() != nullptr);
+    bool hasAnything = hasEntries || hasProcedural;
 
     std::string modelName = "None";
     std::string modelPath = mesh->getModelPath();
@@ -352,9 +388,7 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh)
                 if (clicked && ImGui::IsMouseDoubleClicked(0))
                 {
                     if (assetPath.empty())
-                    {
                         m_editor->log(("No asset path for: " + name).c_str(), ImVec4(1, 0.4f, 0.4f, 1));
-                    }
                     else
                     {
                         bool ok = mesh->loadModel(assetPath.c_str());
@@ -377,9 +411,7 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh)
         ImGui::EndPopup();
     }
 
-    if (!hasAnything) return;
-
-    if (!hasEntries) return;
+    if (!hasAnything || !hasEntries) return;
 
     ImGui::Spacing();
     ImGui::SeparatorText("Materials");
@@ -418,10 +450,8 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh)
             ImGui::SameLine();
 
             bool openPicker = ImGui::SmallButton(("Pick##tp" + std::to_string(mi)).c_str());
-
             std::string popupId = "TexPickerModal" + std::to_string(mi);
-            if (openPicker)
-                ImGui::OpenPopup(popupId.c_str());
+            if (openPicker) ImGui::OpenPopup(popupId.c_str());
 
             ImGui::SetNextWindowSize(ImVec2(300, 280), ImGuiCond_Appearing);
             if (ImGui::BeginPopupModal(popupId.c_str(), nullptr,

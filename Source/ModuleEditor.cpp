@@ -32,6 +32,7 @@
 #include "AssetBrowserPanel.h"
 #include "SceneSettingsPanel.h"
 #include "ResourcesPanel.h"
+#include "PrefabPanel.h"
 #include <d3dx12.h>
 
 ModuleEditor::ModuleEditor() = default;
@@ -98,6 +99,7 @@ bool ModuleEditor::init()
     m_assetBrowser = std::make_unique<AssetBrowserPanel>(this);
     m_sceneSettings = std::make_unique<SceneSettingsPanel>(this);
     m_resources = std::make_unique<ResourcesPanel>(this);
+    m_prefabs = std::make_unique<PrefabPanel>(this);
 
     log("[Editor] Initialized", ImVec4(0.6f, 1, 0.6f, 1));
     return true;
@@ -114,6 +116,7 @@ bool ModuleEditor::cleanUp()
     m_assetBrowser.reset();
     m_sceneSettings.reset();
     m_resources.reset();
+    m_prefabs.reset();
 
     m_envSystem.reset();
     m_imguiPass.reset();
@@ -161,6 +164,7 @@ void ModuleEditor::preRender()
     if (m_assetBrowser->open) m_assetBrowser->draw();
     if (m_sceneSettings->open) m_sceneSettings->draw();
     if (m_resources->open) m_resources->draw();
+    if (m_prefabs->open) m_prefabs->draw();
 
     handleDialogs();
 }
@@ -218,7 +222,7 @@ void ModuleEditor::render()
     }
 
     m_memoryUpdateTimer += (float)app->getElapsedMilis();
-    if (m_memoryUpdateTimer >= 1000.0f) 
+    if (m_memoryUpdateTimer >= 1000.0f)
     {
         m_memoryUpdateTimer = 0.0f;
         updateMemory();
@@ -332,6 +336,7 @@ void ModuleEditor::drawDockspace()
         ImGui::DockBuilderDockWindow("Console", bottom);
         ImGui::DockBuilderDockWindow("Asset Browser", bottom);
         ImGui::DockBuilderDockWindow("Resources", bottom);
+        ImGui::DockBuilderDockWindow("Prefabs", bottom);
         ImGui::DockBuilderFinish(dock);
     }
     ImGui::End();
@@ -377,6 +382,7 @@ void ModuleEditor::drawMenuBar()
         ImGui::MenuItem("Performance", nullptr, &m_performance->open);
         ImGui::MenuItem("Asset Browser", nullptr, &m_assetBrowser->open);
         ImGui::MenuItem("Scene Settings", nullptr, &m_sceneSettings->open);
+        ImGui::MenuItem("Prefabs", nullptr, &m_prefabs->open);
         ImGui::EndMenu();
     }
 

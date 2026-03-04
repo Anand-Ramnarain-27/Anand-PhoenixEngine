@@ -5,6 +5,7 @@
 #include "Component.h"
 #include "ComponentTransform.h"
 #include "ComponentFactory.h"
+#include "PrefabManager.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
 #include "3rdParty/rapidjson/document.h"
@@ -44,11 +45,17 @@ bool SceneSerializer::SaveScene(const ModuleScene* scene, const std::string& fil
                 Value node(kObjectType);
 
                 node.AddMember("UID", go->getUID(), a);
-                node.AddMember("ParentUID",
-                    go->getParent() ? go->getParent()->getUID() : 0u, a);
-
+                node.AddMember("ParentUID", go->getParent() ? go->getParent()->getUID() : 0u, a);
                 node.AddMember("Name", Value(go->getName().c_str(), a), a);
                 node.AddMember("Active", go->isActive(), a);
+
+                if (PrefabManager::isPrefabInstance(go))
+                {
+                    Value pfLink(kObjectType);
+                    pfLink.AddMember("PrefabName", Value(PrefabManager::getPrefabName(go).c_str(), a), a);
+                    pfLink.AddMember("PrefabUID", PrefabManager::getPrefabUID(go), a);
+                    node.AddMember("PrefabLink", pfLink, a);
+                }
 
                 auto* t = go->getTransform();
                 Value tf(kObjectType);
@@ -125,8 +132,8 @@ bool SceneSerializer::LoadScene(const std::string& filePath, ModuleScene* scene)
         const Value& node = goArray[i];
 
         uint32_t uid = 0;
-        if (node["UID"].IsUint())       uid = node["UID"].GetUint();
-        else if (node["UID"].IsInt())   uid = static_cast<uint32_t>(node["UID"].GetInt());
+        if (node["UID"].IsUint())     uid = node["UID"].GetUint();
+        else if (node["UID"].IsInt()) uid = static_cast<uint32_t>(node["UID"].GetInt());
         else { LOG("SceneSerializer: UID has unexpected type, skipping"); continue; }
 
         auto* go = scene->createGameObject(node["Name"].GetString());
@@ -139,8 +146,8 @@ bool SceneSerializer::LoadScene(const std::string& filePath, ModuleScene* scene)
         const Value& node = goArray[i];
 
         uint32_t uid = 0;
-        if (node["UID"].IsUint()) uid = node["UID"].GetUint();
-        else if (node["UID"].IsInt())  uid = static_cast<uint32_t>(node["UID"].GetInt());
+        if (node["UID"].IsUint())     uid = node["UID"].GetUint();
+        else if (node["UID"].IsInt()) uid = static_cast<uint32_t>(node["UID"].GetInt());
         else continue;
 
         auto it = uidMap.find(uid);
@@ -148,14 +155,24 @@ bool SceneSerializer::LoadScene(const std::string& filePath, ModuleScene* scene)
         auto* go = it->second;
 
         uint32_t parentID = 0;
-        if (node["ParentUID"].IsUint()) parentID = node["ParentUID"].GetUint();
-        else if (node["ParentUID"].IsInt())  parentID = static_cast<uint32_t>(node["ParentUID"].GetInt());
+        if (node["ParentUID"].IsUint())     parentID = node["ParentUID"].GetUint();
+        else if (node["ParentUID"].IsInt()) parentID = static_cast<uint32_t>(node["ParentUID"].GetInt());
 
         if (parentID != 0)
         {
             auto pit = uidMap.find(parentID);
             if (pit != uidMap.end()) go->setParent(pit->second);
             else LOG("SceneSerializer: Parent UID %u not found for %s", parentID, go->getName().c_str());
+        }
+
+        if (node.HasMember("PrefabLink") && node["PrefabLink"].IsObject())
+        {
+            const Value& lk = node["PrefabLink"];
+            PrefabInstanceData d;
+            d.prefabName = lk.HasMember("PrefabName") ? lk["PrefabName"].GetString() : "";
+            d.prefabUID = lk.HasMember("PrefabUID") ? lk["PrefabUID"].GetUint() : 0;
+            if (!d.prefabName.empty())
+                PrefabManager::linkInstance(go, d);
         }
 
         auto* t = go->getTransform();

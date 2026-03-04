@@ -11,6 +11,7 @@
 #include "ComponentSpotLight.h"
 #include "ComponentFactory.h"
 #include "EditorSelection.h"
+#include "PrefabManager.h"
 
 void HierarchyPanel::draw()
 {
@@ -126,6 +127,48 @@ void HierarchyPanel::itemContextMenu(GameObject* go)
     ImGui::Separator();
     if (ImGui::MenuItem("Create Empty Child")) m_editor->createEmptyGameObject("Empty", go);
     ImGui::Separator();
+
+    ImGui::Separator();
+    if (ImGui::BeginMenu("Prefab"))
+    {
+        static char pfNameBuf[128] = "";
+        ImGui::SetNextItemWidth(140.0f);
+        ImGui::InputTextWithHint("##pfn", go->getName().c_str(), pfNameBuf, sizeof(pfNameBuf));
+        ImGui::SameLine();
+        if (ImGui::Button("Save"))
+        {
+            std::string name = strlen(pfNameBuf) > 0 ? pfNameBuf : go->getName();
+            if (PrefabManager::createPrefab(go, name))
+            {
+                PrefabInstanceData d; d.prefabName = name;
+                PrefabManager::linkInstance(go, d);
+                m_editor->log(("Prefab saved: " + name).c_str(), ImVec4(0.4f, 0.85f, 0.4f, 1));
+            }
+            memset(pfNameBuf, 0, sizeof(pfNameBuf));
+        }
+
+        if (PrefabManager::isPrefabInstance(go))
+        {
+            ImGui::Separator();
+            if (ImGui::MenuItem("Apply to Prefab"))
+            {
+                PrefabManager::applyToPrefab(go);
+                m_editor->log("Applied to prefab.", ImVec4(0.4f, 0.85f, 0.4f, 1));
+            }
+            if (ImGui::MenuItem("Revert to Prefab"))
+            {
+                PrefabManager::revertToPrefab(go, m_editor->getActiveModuleScene());
+                m_editor->log("Reverted from prefab.", ImVec4(0.95f, 0.75f, 0.20f, 1));
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Unpack (Unlink)"))
+            {
+                PrefabManager::unlinkInstance(go);
+                m_editor->log("Prefab unlinked.", ImVec4(0.95f, 0.75f, 0.20f, 1));
+            }
+        }
+        ImGui::EndMenu();
+    }
 
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0.4f, 0.4f, 1));
     if (ImGui::MenuItem("Delete")) m_editor->deleteGameObject(go);
