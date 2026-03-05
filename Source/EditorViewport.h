@@ -1,5 +1,4 @@
 #pragma once
-
 #include "RenderTexture.h"
 #include <imgui.h>
 #include <memory>
@@ -11,20 +10,15 @@ struct EditorViewport
     ImVec2 size = {};
     ImVec2 pos = {};
     ImVec2 lastSize = {};
-
-    bool pendingResize = false;
+    bool     pendingResize = false;
     uint32_t newWidth = 0;
     uint32_t newHeight = 0;
 
-    bool isReady() const
-    {
-        return rt && rt->isValid() && size.x > 4 && size.y > 4;
-    }
+    bool isReady() const { return rt && rt->isValid() && size.x > 4 && size.y > 4; }
 
     void checkResize()
     {
-        if (size.x > 4 && size.y > 4 &&
-            (size.x != lastSize.x || size.y != lastSize.y))
+        if (size.x > 4 && size.y > 4 && (size.x != lastSize.x || size.y != lastSize.y))
         {
             pendingResize = true;
             newWidth = (uint32_t)size.x;

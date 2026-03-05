@@ -23,20 +23,19 @@ private:
     void drawBreadcrumb();
     void drawThumbnailGrid();
     void drawStatusBar();
-    void drawModals();        
-
+    void drawModals();
     void drawFolderNode(const std::string& absPath, bool forceOpen = false);
-
     void drawItemContextMenu(int idx);
     void drawEmptyAreaContextMenu();
+    void drawPrefabInstanceBar();
 
     void navigateTo(const std::string& absPath);
     void refreshCurrentDir();
 
-    bool        isAssetFile(const std::string& ext) const;
-    void        spawnAsset(const std::string& path);
-    void        drawColoredBox(ImVec2 localPos, ImVec4 col, const char* label);
-    ImVec4      typeColor(const std::string& ext) const;
+    bool isAssetFile(const std::string& ext) const;
+    void spawnAsset(const std::string& path);
+    void drawColoredBox(ImVec2 localPos, ImVec4 col, const char* label);
+    ImVec4 typeColor(const std::string& ext) const;
     const char* typeIcon(const std::string& ext) const;
 
     void prefabSaveSelected(const char* name);
@@ -46,28 +45,20 @@ private:
     void prefabDelete(const std::string& name);
     void prefabCreateVariant(const std::string& src, const std::string& dst);
     void prefabRename(const std::string& oldName, const std::string& newName);
-    void drawPrefabInstanceBar(); 
 
     struct RootFolder { std::string path; std::string label; };
     std::vector<RootFolder> m_roots;
 
     std::string m_currentPath;
-    std::string m_selectedPath;  
+    std::string m_selectedPath;
 
-    struct Entry {
-        std::string path, name, ext;
-        bool isDir = false;
-    };
+    struct Entry { std::string path, name, ext; bool isDir = false; };
     std::vector<Entry> m_entries;
     bool m_dirty = true;
 
     char m_searchBuf[128] = {};
 
-    struct ThumbEntry {
-        ComPtr<ID3D12Resource>      tex;
-        D3D12_GPU_DESCRIPTOR_HANDLE srv = {};
-        bool attempted = false;
-    };
+    struct ThumbEntry { ComPtr<ID3D12Resource> tex; D3D12_GPU_DESCRIPTOR_HANDLE srv = {}; bool attempted = false; };
     std::unordered_map<std::string, ThumbEntry> m_thumbCache;
 
     bool m_showVariantModal = false;

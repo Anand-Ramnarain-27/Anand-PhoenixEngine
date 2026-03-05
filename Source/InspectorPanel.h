@@ -18,4 +18,5 @@ private:
     void drawComponentCamera(ComponentCamera* cam);
     void drawComponentMesh(ComponentMesh* mesh);
     void drawAddComponentMenu();
+
 };

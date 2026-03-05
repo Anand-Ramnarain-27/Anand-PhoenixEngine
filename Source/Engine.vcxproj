@@ -181,13 +181,13 @@
     <ClInclude Include="ComponentPointLight.h" />
     <ClInclude Include="ComponentSpotLight.h" />
     <ClInclude Include="ComponentTransform.h" />
-    <ClInclude Include="ConsolePanel.h" />
     <ClInclude Include="DebugDrawPass.h" />
     <ClInclude Include="debug_draw.hpp" />
     <ClInclude Include="DepthStencilDesc.h" />
     <ClInclude Include="DescriptorBase.h" />
     <ClInclude Include="EditorColors.h" />
     <ClInclude Include="EditorPanel.h" />
+    <ClInclude Include="EditorPanels.h" />
     <ClInclude Include="EditorSceneSettings.h" />
     <ClInclude Include="EditorSelection.h" />
     <ClInclude Include="EditorViewport.h" />
@@ -228,7 +228,6 @@
     <ClInclude Include="ModuleD3D12.h" />
     <ClInclude Include="ModuleEditor.h" />
     <ClInclude Include="ModuleGPUResources.h" />
-    <ClInclude Include="PerformancePanel.h" />
     <ClInclude Include="PhoenixEngine.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GamePad.h" />
@@ -248,7 +247,6 @@
     <ClInclude Include="ResourceCommon.h" />
     <ClInclude Include="ResourceMaterial.h" />
     <ClInclude Include="ResourceMesh.h" />
-    <ClInclude Include="ResourcesPanel.h" />
     <ClInclude Include="ResourceTexture.h" />
     <ClInclude Include="SceneImporter.h" />
     <ClInclude Include="SceneManager.h" />
@@ -260,6 +258,7 @@
     <ClInclude Include="SkyboxRenderer.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="TextureImporter.h" />
+    <ClInclude Include="ViewportPanel.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="3rdParty\imgui-docking\backends\imgui_impl_dx12.cpp">
@@ -399,6 +398,7 @@
     </ClCompile>
     <ClCompile Include="SkyboxRenderer.cpp" />
     <ClCompile Include="TextureImporter.cpp" />
+    <ClCompile Include="ViewportPanel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Engine.rc" />

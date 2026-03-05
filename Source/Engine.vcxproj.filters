@@ -208,6 +208,9 @@
     <ClCompile Include="ModuleResources.cpp">
       <Filter>engine\d3d12</Filter>
     </ClCompile>
+    <ClCompile Include="ViewportPanel.cpp">
+      <Filter>engine\editor</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -436,9 +439,6 @@
     <ClInclude Include="AssetBrowserPanel.h">
       <Filter>engine\editor</Filter>
     </ClInclude>
-    <ClInclude Include="ConsolePanel.h">
-      <Filter>engine\editor</Filter>
-    </ClInclude>
     <ClInclude Include="EditorPanel.h">
       <Filter>engine\editor</Filter>
     </ClInclude>
@@ -457,16 +457,10 @@
     <ClInclude Include="InspectorPanel.h">
       <Filter>engine\editor</Filter>
     </ClInclude>
-    <ClInclude Include="PerformancePanel.h">
-      <Filter>engine\editor</Filter>
-    </ClInclude>
     <ClInclude Include="SceneSettingsPanel.h">
       <Filter>engine\editor</Filter>
     </ClInclude>
     <ClInclude Include="SceneViewPanel.h">
-      <Filter>engine\editor</Filter>
-    </ClInclude>
-    <ClInclude Include="ResourcesPanel.h">
       <Filter>engine\editor</Filter>
     </ClInclude>
     <ClInclude Include="ResourceTexture.h">
@@ -492,6 +486,12 @@
     </ClInclude>
     <ClInclude Include="ImporterUtils.h">
       <Filter>engine\resources\importers</Filter>
+    </ClInclude>
+    <ClInclude Include="ViewportPanel.h">
+      <Filter>engine\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="EditorPanels.h">
+      <Filter>engine\editor</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

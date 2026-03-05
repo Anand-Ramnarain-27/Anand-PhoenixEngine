@@ -1,27 +1,18 @@
 #pragma once
-#include "EditorPanel.h"
-#include "EditorViewport.h"
-#include <d3d12.h>
+#include "ViewportPanel.h"
 
-class GameViewPanel : public EditorPanel
+class GameViewPanel : public ViewportPanel
 {
 public:
     explicit GameViewPanel(ModuleEditor* editor);
-    void draw() override;     
+    void draw() override;
     const char* getName() const override { return "Game View"; }
 
-    void renderToTexture(ID3D12GraphicsCommandList* cmd);
-    void handleResize();
-
-    EditorViewport viewport;
-
 protected:
-    void drawContent() override;
-    ImGuiWindowFlags windowFlags() const override
-    {
-        return ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
-    }
-    bool noPadding() const override { return true; }
+    bool buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView, Matrix& outProj) override;
+    void onDrawOverlays() override;
+    bool useEditorExtras() const override { return false; }
+    const char* notReadyText() const override { return "Game View not ready..."; }
 
 private:
     void drawPlaymodeOverlay();

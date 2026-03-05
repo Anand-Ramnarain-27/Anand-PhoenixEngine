@@ -1,28 +1,22 @@
 #pragma once
-#include "EditorPanel.h"
-#include "EditorViewport.h"
-#include "AssetBrowserPanel.h"   
+#include "ViewportPanel.h"
+#include "AssetBrowserPanel.h"
 #include <ImGuizmo.h>
-#include <d3d12.h>
 
-class SceneViewPanel : public EditorPanel
+class SceneViewPanel : public ViewportPanel
 {
 public:
     explicit SceneViewPanel(ModuleEditor* editor);
     const char* getName() const override { return "Scene View"; }
 
-    void renderToTexture(ID3D12GraphicsCommandList* cmd);
-    void handleResize();
-
-    EditorViewport viewport;
-
 protected:
-    void drawContent() override;
-    ImGuiWindowFlags windowFlags() const override
-    {
-        return ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
-    }
-    bool noPadding() const override { return true; }
+    bool buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView, Matrix& outProj) override;
+    void onPostRender(ID3D12GraphicsCommandList* cmd, uint32_t w, uint32_t h) override;
+    void onResized(uint32_t w, uint32_t h) override;
+    void onImageDrawn() override;
+    void onDrawOverlays() override;
+    bool useEditorExtras() const override { return true; }
+    const char* notReadyText() const override { return "Scene View not ready..."; }
 
 private:
     void drawGizmoToolbar();
@@ -32,7 +26,7 @@ private:
     ImGuizmo::OPERATION m_gizmoOp = ImGuizmo::TRANSLATE;
     ImGuizmo::MODE      m_gizmoMode = ImGuizmo::LOCAL;
     bool  m_useSnap = false;
-    float m_snapT[3] = { 0.25f, 0.25f, 0.25f };
+    float m_snapT[3] = { 0.5f, 0.5f, 0.5f };
     float m_snapR = 15.0f;
     float m_snapS = 0.1f;
 };

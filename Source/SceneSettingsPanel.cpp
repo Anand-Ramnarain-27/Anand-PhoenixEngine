@@ -13,11 +13,7 @@ namespace fs = std::filesystem;
 
 void SceneSettingsPanel::drawContent()
 {
-    if (!m_editor->getSceneManager())
-    {
-        textMuted("No scene manager.");
-        return;
-    }
+    if (!m_editor->getSceneManager()) { textMuted("No scene manager."); return; }
     drawDisplaySection();
     drawLightingSection();
     drawCameraSection();
@@ -72,9 +68,7 @@ void SceneSettingsPanel::drawSkyboxSection()
 
     if (!m_scanned || ImGui::Button("Refresh"))
     {
-        m_skyboxFiles.clear();
-        m_selectedSkybox = -1;
-        m_scanned = true;
+        m_skyboxFiles.clear(); m_selectedSkybox = -1; m_scanned = true;
         try
         {
             for (const auto& entry : fs::directory_iterator("Assets/Skybox/"))
@@ -91,14 +85,12 @@ void SceneSettingsPanel::drawSkyboxSection()
         catch (...) { m_editor->log("[Editor] Could not scan Assets/Skybox/"); }
     }
 
-    ImGui::SameLine();
-    textMuted("%d file(s)", (int)m_skyboxFiles.size());
+    ImGui::SameLine(); textMuted("%d file(s)", (int)m_skyboxFiles.size());
 
     ImGui::BeginChild("##SkyboxList", ImVec2(0, 120), true);
     for (int i = 0; i < (int)m_skyboxFiles.size(); ++i)
     {
-        if (ImGui::Selectable(m_skyboxFiles[i].c_str(), m_selectedSkybox == i))
-            m_selectedSkybox = i;
+        if (ImGui::Selectable(m_skyboxFiles[i].c_str(), m_selectedSkybox == i)) m_selectedSkybox = i;
         if (m_selectedSkybox == i) ImGui::SetItemDefaultFocus();
     }
     ImGui::EndChild();
@@ -113,13 +105,9 @@ void SceneSettingsPanel::drawSkyboxSection()
             if (EnvironmentSystem* env = m_editor->getEnvSystem())
             {
                 env->load(sky.cubemapPath);
-                m_editor->log(("Skybox loaded: " + m_skyboxFiles[m_selectedSkybox]).c_str(),
-                    EditorColors::Success);
+                m_editor->log(("Skybox loaded: " + m_skyboxFiles[m_selectedSkybox]).c_str(), EditorColors::Success);
             }
         }
     }
-    else
-    {
-        textMuted("No skybox selected");
-    }
+    else textMuted("No skybox selected");
 }

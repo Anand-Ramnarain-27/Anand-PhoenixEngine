@@ -7,6 +7,7 @@
 #include "EditorSceneSettings.h"
 #include "EnvironmentSystem.h"
 #include "EditorSelection.h"
+#include "EditorPanels.h"
 #include <memory>
 #include <vector>
 #include <imgui.h>
@@ -16,8 +17,6 @@ class DebugDrawPass;
 class EditorPanel;
 class SceneViewPanel;
 class GameViewPanel;
-class ConsolePanel;
-class PerformancePanel;
 class GameObject;
 class ComponentCamera;
 class ComponentMesh;
@@ -34,26 +33,23 @@ public:
     void preRender() override;
     void render()    override;
 
-    SceneManager* getSceneManager()   const { return m_sceneManager.get(); }
-    MeshPipeline* getMeshPipeline()   const { return m_meshPipeline.get(); }
-    EnvironmentSystem* getEnvSystem()      const { return m_envSystem.get(); }
-    DebugDrawPass* getDebugDraw()      const { return m_debugDraw.get(); }
+    SceneManager* getSceneManager()    const { return m_sceneManager.get(); }
+    MeshPipeline* getMeshPipeline()    const { return m_meshPipeline.get(); }
+    EnvironmentSystem* getEnvSystem()       const { return m_envSystem.get(); }
+    DebugDrawPass* getDebugDraw()       const { return m_debugDraw.get(); }
     EditorSelection& getSelection() { return m_selection; }
-    double             getGpuFrameTimeMs() const { return m_gpuFrameTimeMs; }
-    int                getSamplerType()    const { return m_samplerType; }
+    double             getGpuFrameTimeMs()  const { return m_gpuFrameTimeMs; }
+    int                getSamplerType()     const { return m_samplerType; }
     void               setSamplerType(int t) { m_samplerType = t; }
     ModuleScene* getActiveModuleScene() const;
-    ImVec2             getSceneViewSize()  const;
+    ImVec2             getSceneViewSize()   const;
 
-    void renderSceneWithCamera(
-        ID3D12GraphicsCommandList* cmd,
-        const Matrix& view, const Matrix& proj,
-        uint32_t w, uint32_t h, bool editorExtras);
+    void renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras);
 
     void        log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
     GameObject* createEmptyGameObject(const char* name = "Empty", GameObject* parent = nullptr);
     void        deleteGameObject(GameObject* go);
-    void        spawnAssetAtPath(const std::string& path); 
+    void        spawnAssetAtPath(const std::string& path);
     static bool isChildOf(const GameObject* root, const GameObject* needle);
 
     void drawComponentCamera(ComponentCamera* cam);

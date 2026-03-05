@@ -1,118 +1,85 @@
 #include "Globals.h"
 #include "SceneViewPanel.h"
-#include "ModuleDSDescriptors.h"
-#include "ModuleRTDescriptors.h"
 #include "ModuleEditor.h"
 #include "Application.h"
-#include "ModuleD3D12.h"
 #include "ModuleCamera.h"
 #include "ModuleScene.h"
-#include "RenderTexture.h"
 #include "SceneManager.h"
 #include "GameObject.h"
 #include "ComponentCamera.h"
 #include "ComponentTransform.h"
 #include "EditorSelection.h"
 #include "Frustum.h"
+#include "ModuleDSDescriptors.h"
+#include "ModuleRTDescriptors.h"
+#include "RenderTexture.h"
 #include <functional>
 
-SceneViewPanel::SceneViewPanel(ModuleEditor* editor) : EditorPanel(editor)
+static constexpr float kDeg2Rad = 0.0174532925f;
+
+SceneViewPanel::SceneViewPanel(ModuleEditor* editor) : ViewportPanel(editor)
 {
     viewport.rt = std::make_unique<RenderTexture>(
-        "SceneView", DXGI_FORMAT_R8G8B8A8_UNORM,
-        Vector4(0.1f, 0.1f, 0.1f, 1.0f),
-        DXGI_FORMAT_D32_FLOAT, 1.0f);
+        "SceneView", DXGI_FORMAT_R8G8B8A8_UNORM, Vector4(0.1f, 0.1f, 0.1f, 1.0f), DXGI_FORMAT_D32_FLOAT, 1.0f);
 }
 
-void SceneViewPanel::renderToTexture(ID3D12GraphicsCommandList* cmd)
+bool SceneViewPanel::buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView, Matrix& outProj)
 {
-    const uint32_t w = (uint32_t)viewport.size.x;
-    const uint32_t h = (uint32_t)viewport.size.y;
-    if (!viewport.rt || w == 0 || h == 0) return;
-
     ModuleCamera* camera = app->getCamera();
-    if (!camera) return;
+    if (!camera) return false;
 
-    const Matrix& view = camera->getView();
-    Matrix        proj = ModuleCamera::getPerspectiveProj(float(w) / float(h));
+    outView = camera->getView();
+    outProj = ModuleCamera::getPerspectiveProj(float(w) / float(h));
 
-    ModuleScene* moduleScene = m_editor->getActiveModuleScene();
     camera->clearGameCameraFrustum();
-    if (moduleScene)
+    if (ModuleScene* ms = m_editor->getActiveModuleScene())
     {
         float aspect = float(w) / float(h);
         std::function<void(GameObject*)> findMainCam = [&](GameObject* go)
             {
                 if (auto* cam = go->getComponent<ComponentCamera>(); cam && cam->isMainCamera())
-                {
-                    auto* t = go->getTransform();
-                    if (t)
+                    if (auto* t = go->getTransform())
                     {
-                        Matrix  world = t->getGlobalMatrix();
+                        Matrix world = t->getGlobalMatrix();
                         Vector3 pos = world.Translation();
                         Vector3 fwd = Vector3::TransformNormal(-Vector3::UnitZ, world); fwd.Normalize();
                         Vector3 right = Vector3::TransformNormal(Vector3::UnitX, world); right.Normalize();
                         Vector3 up = Vector3::TransformNormal(Vector3::UnitY, world); up.Normalize();
-                        camera->setGameCameraFrustum(Frustum::fromCamera(
-                            pos, fwd, right, up,
-                            cam->getFOV(), aspect,
-                            cam->getNearPlane(), cam->getFarPlane()));
+                        camera->setGameCameraFrustum(Frustum::fromCamera(pos, fwd, right, up, cam->getFOV(), aspect, cam->getNearPlane(), cam->getFarPlane()));
                     }
-                }
                 for (auto* child : go->getChildren()) findMainCam(child);
             };
-        findMainCam(moduleScene->getRoot());
+        findMainCam(ms->getRoot());
     }
-
-    viewport.rt->beginRender(cmd);
-    BEGIN_EVENT(cmd, "Scene View");
-    m_editor->renderSceneWithCamera(cmd, view, proj, w, h, true);
-    END_EVENT(cmd);
-    viewport.rt->endRender(cmd);
+    return true;
 }
 
-void SceneViewPanel::drawContent()
+void SceneViewPanel::onPostRender(ID3D12GraphicsCommandList* cmd, uint32_t w, uint32_t h)
 {
-    viewport.size = ImGui::GetContentRegionAvail();
-    viewport.checkResize();
+    BEGIN_EVENT(cmd, "Scene View");
+    END_EVENT(cmd);
+}
 
-    if (viewport.isReady())
+void SceneViewPanel::onResized(uint32_t w, uint32_t h)
+{
+    if (auto* sm = m_editor->getSceneManager()) sm->onViewportResized(w, h);
+}
+
+void SceneViewPanel::onImageDrawn()
+{
+    if (ImGui::BeginDragDropTarget())
     {
-        ImGui::Image((ImTextureID)viewport.rt->getSrvHandle().ptr, viewport.size);
-        viewport.pos = ImGui::GetItemRectMin();
-
-        if (ImGui::BeginDragDropTarget())
-        {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kDragAsset))
-            {
-                std::string path(static_cast<const char*>(payload->Data), payload->DataSize - 1);
-                m_editor->spawnAssetAtPath(path);
-            }
-            ImGui::EndDragDropTarget();
-        }
-
-        drawGizmo();
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kDragAsset))
+            m_editor->spawnAssetAtPath(std::string(static_cast<const char*>(payload->Data), payload->DataSize - 1));
+        ImGui::EndDragDropTarget();
     }
-    else
-    {
-        textMuted("Scene View not ready...");
-    }
+    drawGizmo();
+}
 
+void SceneViewPanel::onDrawOverlays()
+{
     drawGizmoToolbar();
     drawOverlay();
-}
-
-void SceneViewPanel::handleResize()
-{
-    if (!viewport.pendingResize) return;
-    if (viewport.newWidth > 4 && viewport.newHeight > 4)
-    {
-        app->getD3D12()->flush();
-        viewport.rt->resize(viewport.newWidth, viewport.newHeight);
-        if (auto* sm = m_editor->getSceneManager())
-            sm->onViewportResized(viewport.newWidth, viewport.newHeight);
-    }
-    viewport.pendingResize = false;
 }
 
 void SceneViewPanel::drawGizmoToolbar()
@@ -122,8 +89,7 @@ void SceneViewPanel::drawGizmoToolbar()
         if (ImGui::IsKeyPressed(ImGuiKey_T)) m_gizmoOp = ImGuizmo::TRANSLATE;
         if (ImGui::IsKeyPressed(ImGuiKey_R)) m_gizmoOp = ImGuizmo::ROTATE;
         if (ImGui::IsKeyPressed(ImGuiKey_S)) m_gizmoOp = ImGuizmo::SCALE;
-        if (ImGui::IsKeyPressed(ImGuiKey_G)) m_gizmoMode =
-            (m_gizmoMode == ImGuizmo::LOCAL) ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
+        if (ImGui::IsKeyPressed(ImGuiKey_G)) m_gizmoMode = (m_gizmoMode == ImGuizmo::LOCAL) ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
     }
 
     ImGuiWindow* win = ImGui::FindWindowByName("Scene View");
@@ -156,7 +122,6 @@ void SceneViewPanel::drawGizmoToolbar()
     if (ImGui::Button(local ? "Local" : "World", ImVec2(48, 22)))
         m_gizmoMode = local ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
     ImGui::SameLine(0, 8);
-
     ImGui::Checkbox("Snap", &m_useSnap);
     ImGui::End();
 }
@@ -165,7 +130,6 @@ void SceneViewPanel::drawGizmo()
 {
     EditorSelection& sel = m_editor->getSelection();
     if (!sel.has()) return;
-
     ComponentTransform* t = sel.object->getTransform();
     if (!t) return;
 
@@ -191,9 +155,7 @@ void SceneViewPanel::drawGizmo()
         snapPtr = snap;
     }
 
-    if (ImGuizmo::Manipulate(
-        (const float*)&view, (const float*)&proj,
-        m_gizmoOp, m_gizmoMode, (float*)&world, nullptr, snapPtr))
+    if (ImGuizmo::Manipulate((const float*)&view, (const float*)&proj, m_gizmoOp, m_gizmoMode, (float*)&world, nullptr, snapPtr))
     {
         Matrix local = world;
         if (GameObject* par = sel.object->getParent())
@@ -203,8 +165,7 @@ void SceneViewPanel::drawGizmo()
         ImGuizmo::DecomposeMatrixToComponents((const float*)&local, tr, rot, sc);
         t->position = { tr[0], tr[1], tr[2] };
         t->scale = { sc[0], sc[1], sc[2] };
-        t->rotation = Quaternion::CreateFromYawPitchRoll(
-            rot[1] * 0.0174532925f, rot[0] * 0.0174532925f, rot[2] * 0.0174532925f);
+        t->rotation = Quaternion::CreateFromYawPitchRoll(rot[1] * kDeg2Rad, rot[0] * kDeg2Rad, rot[2] * kDeg2Rad);
         t->markDirty();
     }
 }
@@ -214,9 +175,6 @@ void SceneViewPanel::drawOverlay()
     ImGuiWindow* win = ImGui::FindWindowByName("Scene View");
     if (!win) return;
     char buf[160];
-    sprintf_s(buf, "FPS: %.1f  CPU: %.2f ms  GPU: %.2f ms",
-        app->getFPS(), app->getAvgElapsedMs(), m_editor->getGpuFrameTimeMs());
-    ImGui::GetForegroundDrawList()->AddText(
-        { win->Pos.x + 10, win->Pos.y + win->Size.y - 24 },
-        IM_COL32(0, 230, 0, 220), buf);
+    sprintf_s(buf, "FPS: %.1f  CPU: %.2f ms  GPU: %.2f ms", app->getFPS(), app->getAvgElapsedMs(), m_editor->getGpuFrameTimeMs());
+    ImGui::GetForegroundDrawList()->AddText({ win->Pos.x + 10, win->Pos.y + win->Size.y - 24 }, IM_COL32(0, 230, 0, 220), buf);
 }
