@@ -1,5 +1,4 @@
 #pragma once
-
 #include <array>
 #include <SimpleMath.h>
 
@@ -7,8 +6,8 @@ using namespace DirectX::SimpleMath;
 
 struct FrustumPlane
 {
-    Vector3 normal;  
-    float   d;       
+    Vector3 normal;
+    float d;
 
     float signedDist(const Vector3& p) const { return normal.Dot(p) - d; }
 };
@@ -16,34 +15,19 @@ struct FrustumPlane
 struct Frustum
 {
     enum PlaneIdx { Near = 0, Far, Left, Right, Top, Bottom, COUNT };
-    std::array<FrustumPlane, COUNT> planes;
+    enum CornerIdx { NTL = 0, NTR, NBL, NBR, FTL, FTR, FBL, FBR, CORNER_COUNT };
 
-    enum CornerIdx
-    {
-        NTL = 0, NTR, NBL, NBR,   
-        FTL, FTR, FBL, FBR,  
-        CORNER_COUNT
-    };
+    std::array<FrustumPlane, COUNT> planes;
     std::array<Vector3, CORNER_COUNT> corners;
     bool cornersValid = false;
 
-    static Frustum fromCamera(
-        const Vector3& pos,
-        const Vector3& fwd, 
-        const Vector3& right,
-        const Vector3& up,   
-        float fovY,       
-        float aspect,       
-        float nearDist,
-        float farDist)
+    static Frustum fromCamera(const Vector3& pos, const Vector3& fwd, const Vector3& right, const Vector3& up, float fovY, float aspect, float nearDist, float farDist)
     {
         Frustum f;
-
         const float hNear = tanf(fovY * 0.5f) * nearDist;
         const float wNear = hNear * aspect;
         const float hFar = tanf(fovY * 0.5f) * farDist;
         const float wFar = hFar * aspect;
-
         const Vector3 nc = pos + fwd * nearDist;
         const Vector3 fc = pos + fwd * farDist;
 
@@ -57,47 +41,38 @@ struct Frustum
         f.corners[FBR] = fc - up * hFar + right * wFar;
         f.cornersValid = true;
 
-        f.buildPlane(PlaneIdx::Near, nc, fwd);
-        f.buildPlane(PlaneIdx::Far, fc, -fwd);
-        f.buildPlaneFromPoints(PlaneIdx::Left, pos, f.corners[NTL], f.corners[FTL]);
-        f.buildPlaneFromPoints(PlaneIdx::Right, pos, f.corners[FTR], f.corners[NTR]);
-        f.buildPlaneFromPoints(PlaneIdx::Top, pos, f.corners[NTR], f.corners[FTR]);
-        f.buildPlaneFromPoints(PlaneIdx::Bottom, pos, f.corners[FBL], f.corners[NBL]);
-
+        f.buildPlane(Near, nc, fwd);
+        f.buildPlane(Far, fc, -fwd);
+        f.buildPlaneFromPoints(Left, pos, f.corners[NTL], f.corners[FTL]);
+        f.buildPlaneFromPoints(Right, pos, f.corners[FTR], f.corners[NTR]);
+        f.buildPlaneFromPoints(Top, pos, f.corners[NTR], f.corners[FTR]);
+        f.buildPlaneFromPoints(Bottom, pos, f.corners[FBL], f.corners[NBL]);
         return f;
     }
 
-    bool intersectsAABB(const Vector3& aabbMin, const Vector3& aabbMax) const
+    bool testVertsAgainstPlanes(const Vector3 verts[8]) const
     {
-        const Vector3 verts[8] =
-        {
-            { aabbMin.x, aabbMin.y, aabbMin.z },
-            { aabbMax.x, aabbMin.y, aabbMin.z },
-            { aabbMin.x, aabbMax.y, aabbMin.z },
-            { aabbMax.x, aabbMax.y, aabbMin.z },
-            { aabbMin.x, aabbMin.y, aabbMax.z },
-            { aabbMax.x, aabbMin.y, aabbMax.z },
-            { aabbMin.x, aabbMax.y, aabbMax.z },
-            { aabbMax.x, aabbMax.y, aabbMax.z },
-        };
-
         for (const FrustumPlane& plane : planes)
         {
             int outCount = 0;
-            for (const Vector3& v : verts)
-                if (plane.signedDist(v) < 0.0f) ++outCount;
-
-            if (outCount == 8) return false; 
+            for (int i = 0; i < 8; ++i) if (plane.signedDist(verts[i]) < 0.0f) ++outCount;
+            if (outCount == 8) return false;
         }
         return true;
     }
 
-    bool intersectsOBB(const Vector3& center,
-        const Vector3& he,
-        const Vector3 axes[3]) const
+    bool intersectsAABB(const Vector3& mn, const Vector3& mx) const
     {
-        const Vector3 verts[8] =
-        {
+        const Vector3 verts[8] = {
+            {mn.x, mn.y, mn.z}, {mx.x, mn.y, mn.z}, {mn.x, mx.y, mn.z}, {mx.x, mx.y, mn.z},
+            {mn.x, mn.y, mx.z}, {mx.x, mn.y, mx.z}, {mn.x, mx.y, mx.z}, {mx.x, mx.y, mx.z}
+        };
+        return testVertsAgainstPlanes(verts);
+    }
+
+    bool intersectsOBB(const Vector3& center, const Vector3& he, const Vector3 axes[3]) const
+    {
+        const Vector3 verts[8] = {
             center + axes[0] * he.x + axes[1] * he.y + axes[2] * he.z,
             center - axes[0] * he.x + axes[1] * he.y + axes[2] * he.z,
             center + axes[0] * he.x - axes[1] * he.y + axes[2] * he.z,
@@ -105,23 +80,14 @@ struct Frustum
             center + axes[0] * he.x + axes[1] * he.y - axes[2] * he.z,
             center - axes[0] * he.x + axes[1] * he.y - axes[2] * he.z,
             center + axes[0] * he.x - axes[1] * he.y - axes[2] * he.z,
-            center - axes[0] * he.x - axes[1] * he.y - axes[2] * he.z,
+            center - axes[0] * he.x - axes[1] * he.y - axes[2] * he.z
         };
-
-        for (const FrustumPlane& plane : planes)
-        {
-            int outCount = 0;
-            for (const Vector3& v : verts)
-                if (plane.signedDist(v) < 0.0f) ++outCount;
-            if (outCount == 8) return false;
-        }
-        return true;
+        return testVertsAgainstPlanes(verts);
     }
 
     bool containsPoint(const Vector3& p) const
     {
-        for (const FrustumPlane& plane : planes)
-            if (plane.signedDist(p) < 0.0f) return false;
+        for (const FrustumPlane& plane : planes) if (plane.signedDist(p) < 0.0f) return false;
         return true;
     }
 
@@ -134,9 +100,7 @@ private:
 
     void buildPlaneFromPoints(int idx, const Vector3& A, const Vector3& B, const Vector3& C)
     {
-        Vector3 ab = B - A;
-        Vector3 ac = C - A;
-        Vector3 n = ab.Cross(ac);
+        Vector3 n = (B - A).Cross(C - A);
         n.Normalize();
         planes[idx].normal = n;
         planes[idx].d = n.Dot(A);
