@@ -1,5 +1,4 @@
 #pragma once
-
 #include <cstdint>
 #include <d3d12.h>
 
@@ -11,7 +10,7 @@ class IScene
 public:
     virtual ~IScene() = default;
 
-    virtual const char* getName()        const = 0;
+    virtual const char* getName() const = 0;
     virtual const char* getDescription() const { return nullptr; }
 
     virtual bool initialize(ID3D12Device* device) = 0;
@@ -23,6 +22,6 @@ public:
     virtual void onEnter() {}
     virtual void onExit() {}
     virtual void onViewportResized(uint32_t, uint32_t) {}
-    virtual bool wantsDebugDraw()                    const { return true; }
+    virtual bool wantsDebugDraw() const { return true; }
     virtual ModuleScene* getModuleScene() { return nullptr; }
 };
