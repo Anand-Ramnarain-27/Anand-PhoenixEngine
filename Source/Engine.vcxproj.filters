@@ -490,6 +490,9 @@
     <ClInclude Include="ResourceCommon.h">
       <Filter>engine\resources</Filter>
     </ClInclude>
+    <ClInclude Include="ImporterUtils.h">
+      <Filter>engine\resources\importers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
