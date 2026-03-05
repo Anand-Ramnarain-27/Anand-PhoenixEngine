@@ -302,6 +302,13 @@ void ModuleEditor::drawMenuBar() {
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Edit")) {
+        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, canUndo())) undoToSavePoint();
+        if (ImGui::MenuItem("Redo", "Ctrl+Y", false, canRedo())) redo();
+        ImGui::Separator();
+        if (ImGui::MenuItem("Copy", "Ctrl+C", false, m_selection.has())) copySelected();
+        if (ImGui::MenuItem("Paste", "Ctrl+V", false, !m_clipboard.serialized.empty())) pasteClipboard();
+        if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, m_selection.has())) duplicateSelected();
+        ImGui::Separator();
         if (ImGui::MenuItem("Create Empty", "Ctrl+Shift+N")) createEmptyGameObject();
         ImGui::EndMenu();
     }
@@ -344,7 +351,12 @@ void ModuleEditor::handleDialogs() {
     auto tryScene = [&](bool ok, const char* good, const char* bad) { log(ok ? good : bad, ok ? EditorColors::Success : EditorColors::Danger); };
     if (m_saveDialog->draw() && m_sceneManager->getActiveScene()) {
         const std::string& p = m_saveDialog->getSelectedPath();
-        if (m_sceneManager->saveCurrentScene(p)) { m_currentScenePath = p; tryScene(true, "Scene saved!", ""); }
+        if (m_sceneManager->saveCurrentScene(p)) {
+            m_currentScenePath = p;
+            m_savePointIndex = (int)m_undoStack.size();
+            m_redoStack.clear();
+            tryScene(true, "Scene saved!", "");
+        }
         else tryScene(false, "", "Failed to save scene.");
     }
     if (m_loadDialog->draw() && m_sceneManager->getActiveScene()) {
@@ -366,6 +378,9 @@ void ModuleEditor::handleNewScenePopup(ID3D12GraphicsCommandList*) {
         m_sceneManager->setScene(std::make_unique<EmptyScene>(), app->getD3D12()->getDevice());
         m_selection.clear();
         m_currentScenePath.clear();
+        m_undoStack.clear();
+        m_redoStack.clear();
+        m_savePointIndex = 0;
         log("New scene created.", EditorColors::Success);
         ImGui::CloseCurrentPopup();
     }
@@ -381,6 +396,33 @@ GameObject* ModuleEditor::createEmptyGameObject(const char* name, GameObject* pa
     if (parent) go->setParent(parent);
     m_selection.object = go;
     log(("Created: " + std::string(name)).c_str(), EditorColors::Success);
+
+    std::string goName = go->getName();
+    auto serialized = std::make_shared<std::string>();
+    auto livePtr = std::make_shared<GameObject*>(go);
+
+    pushCommand({
+        [this, serialized, livePtr, goName]() {
+            ModuleScene* s = getActiveModuleScene();
+            if (!s) return;
+            GameObject* restored = serialized->empty()
+                ? s->createGameObject(goName.c_str())
+                : PrefabManager::deserializeGameObject(*serialized, s);
+            if (restored) { *livePtr = restored; m_selection.object = restored; log(("Redo create: " + goName).c_str(), EditorColors::Success); }
+        },
+        [this, livePtr, serialized, goName]() {
+            GameObject* go = *livePtr;
+            if (!go) return;
+            *serialized = PrefabManager::serializeGameObject(go);
+            if (m_selection.object == go) m_selection.clear();
+            app->getD3D12()->flush();
+            ModuleScene* s = getActiveModuleScene();
+            if (s) s->destroyGameObject(go);
+            *livePtr = nullptr;
+            log(("Undo create: " + goName).c_str(), EditorColors::Warning);
+        }
+        });
+
     return go;
 }
 
@@ -392,8 +434,36 @@ void ModuleEditor::deleteGameObject(GameObject* go) {
     GameObject* par = go->getParent();
     for (auto* c : go->getChildren()) c->setParent(par);
     std::string name = go->getName();
+    std::string serialized = PrefabManager::serializeGameObject(go);
+
+    app->getD3D12()->flush();
     scene->destroyGameObject(go);
     log(("Deleted: " + name).c_str(), EditorColors::Warning);
+
+    auto livePtr = std::make_shared<GameObject*>(nullptr);
+
+    pushCommand({
+        [this, livePtr, serialized, name]() {
+            GameObject* target = *livePtr;
+            if (!target) return;
+            if (m_selection.object == target) m_selection.clear();
+            app->getD3D12()->flush();
+            ModuleScene* s = getActiveModuleScene();
+            if (s) s->destroyGameObject(target);
+            *livePtr = nullptr;
+            log(("Redo delete: " + name).c_str(), EditorColors::Warning);
+        },
+        [this, livePtr, serialized, name]() {
+            ModuleScene* s = getActiveModuleScene();
+            if (!s) return;
+            GameObject* restored = PrefabManager::deserializeGameObject(serialized, s);
+            if (restored) {
+                *livePtr = restored;
+                m_selection.object = restored;
+                log(("Undo delete: " + name).c_str(), EditorColors::Success);
+            }
+        }
+        });
 }
 
 void ModuleEditor::spawnAssetAtPath(const std::string& path) {
@@ -537,6 +607,113 @@ ImVec2 ModuleEditor::getSceneViewSize() const {
     return m_sceneView ? m_sceneView->viewport.size : ImVec2(0, 0);
 }
 
+void ModuleEditor::pushCommand(EditorCommand cmd) {
+    m_redoStack.clear();
+    m_undoStack.push_back(std::move(cmd));
+    if ((int)m_undoStack.size() > kMaxUndoSteps) {
+        m_undoStack.pop_front();
+        if (m_savePointIndex > 0) --m_savePointIndex;
+    }
+}
+
+bool ModuleEditor::canUndo() const {
+    return (int)m_undoStack.size() > m_savePointIndex;
+}
+
+bool ModuleEditor::canRedo() const {
+    return !m_redoStack.empty();
+}
+
+void ModuleEditor::undoToSavePoint() {
+    if (!canUndo()) return;
+    EditorCommand& cmd = m_undoStack.back();
+    cmd.undo();
+    m_redoStack.push_back(std::move(cmd));
+    m_undoStack.pop_back();
+}
+
+void ModuleEditor::redo() {
+    if (!canRedo()) return;
+    EditorCommand& cmd = m_redoStack.back();
+    cmd.execute();
+    m_undoStack.push_back(std::move(cmd));
+    m_redoStack.pop_back();
+}
+
+void ModuleEditor::copySelected() {
+    if (!m_selection.has()) return;
+    m_clipboard.name = m_selection.object->getName();
+    m_clipboard.serialized = PrefabManager::serializeGameObject(m_selection.object);
+    log(("Copied: " + m_clipboard.name).c_str(), EditorColors::Info);
+}
+
+void ModuleEditor::pasteClipboard() {
+    if (m_clipboard.serialized.empty()) return;
+    ModuleScene* scene = getActiveModuleScene();
+    if (!scene) return;
+    GameObject* pasted = PrefabManager::deserializeGameObject(m_clipboard.serialized, scene);
+    if (!pasted) return;
+    std::string pastedName = pasted->getName();
+    m_selection.object = pasted;
+    log(("Pasted: " + pastedName).c_str(), EditorColors::Success);
+
+    std::string clipData = m_clipboard.serialized;
+    auto livePtr = std::make_shared<GameObject*>(pasted);
+
+    pushCommand({
+        [this, clipData, livePtr, pastedName]() {
+            ModuleScene* s = getActiveModuleScene();
+            if (!s) return;
+            GameObject* restored = PrefabManager::deserializeGameObject(clipData, s);
+            if (restored) { *livePtr = restored; m_selection.object = restored; log(("Redo paste: " + pastedName).c_str(), EditorColors::Success); }
+        },
+        [this, livePtr, pastedName]() {
+            GameObject* p = *livePtr;
+            if (!p) return;
+            if (m_selection.object == p) m_selection.clear();
+            app->getD3D12()->flush();
+            ModuleScene* s = getActiveModuleScene();
+            if (s) s->destroyGameObject(p);
+            *livePtr = nullptr;
+            log(("Undo paste: " + pastedName).c_str(), EditorColors::Warning);
+        }
+        });
+}
+
+void ModuleEditor::duplicateSelected() {
+    if (!m_selection.has()) return;
+    std::string serialized = PrefabManager::serializeGameObject(m_selection.object);
+    std::string srcName = m_selection.object->getName();
+    ModuleScene* scene = getActiveModuleScene();
+    if (!scene) return;
+    GameObject* dupe = PrefabManager::deserializeGameObject(serialized, scene);
+    if (!dupe) return;
+    std::string dupeName = dupe->getName();
+    m_selection.object = dupe;
+    log(("Duplicated: " + dupeName).c_str(), EditorColors::Success);
+
+    auto livePtr = std::make_shared<GameObject*>(dupe);
+
+    pushCommand({
+        [this, serialized, livePtr, dupeName]() {
+            ModuleScene* s = getActiveModuleScene();
+            if (!s) return;
+            GameObject* restored = PrefabManager::deserializeGameObject(serialized, s);
+            if (restored) { *livePtr = restored; m_selection.object = restored; log(("Redo duplicate: " + dupeName).c_str(), EditorColors::Success); }
+        },
+        [this, livePtr, dupeName]() {
+            GameObject* d = *livePtr;
+            if (!d) return;
+            if (m_selection.object == d) m_selection.clear();
+            app->getD3D12()->flush();
+            ModuleScene* s = getActiveModuleScene();
+            if (s) s->destroyGameObject(d);
+            *livePtr = nullptr;
+            log(("Undo duplicate: " + dupeName).c_str(), EditorColors::Warning);
+        }
+        });
+}
+
 void ModuleEditor::handleShortcuts() {
     if (ImGui::GetIO().WantTextInput) return;
     ImGuiIO& io = ImGui::GetIO();
@@ -547,6 +724,7 @@ void ModuleEditor::handleShortcuts() {
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_S, false)) {
         if (!m_currentScenePath.empty() && m_sceneManager->getActiveScene()) {
             bool ok = m_sceneManager->saveCurrentScene(m_currentScenePath);
+            if (ok) { m_savePointIndex = (int)m_undoStack.size(); m_redoStack.clear(); }
             log(ok ? "Scene saved!" : "Failed to save.", ok ? EditorColors::Success : EditorColors::Danger);
         }
         else m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes");
@@ -554,4 +732,9 @@ void ModuleEditor::handleShortcuts() {
     if (ctrl && shift && ImGui::IsKeyPressed(ImGuiKey_S, false)) m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
     if (ctrl && ImGui::IsKeyPressed(ImGuiKey_O, false)) m_loadDialog->open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
     if (ImGui::IsKeyPressed(ImGuiKey_Delete, false) && m_selection.has()) deleteGameObject(m_selection.object);
+    if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_Z, false)) undoToSavePoint();
+    if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_Y, false)) redo();
+    if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_C, false)) copySelected();
+    if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_V, false)) pasteClipboard();
+    if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_D, false)) duplicateSelected();
 }

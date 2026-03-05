@@ -52,6 +52,9 @@ public:
 
     static bool createVariant(const std::string& srcPrefabName, const std::string& dstPrefabName);
 
+    static std::string serializeGameObject(const GameObject* go);
+    static GameObject* deserializeGameObject(const std::string& data, ModuleScene* scene);
+
     static bool isPrefabInstance(const GameObject* go);
     static std::string getPrefabName(const GameObject* go);
     static uint32_t getPrefabUID(const GameObject* go);

@@ -7,9 +7,16 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <deque>
+#include <functional>
 #include <imgui.h>
 #include <wrl/client.h>
 using Microsoft::WRL::ComPtr;
+
+struct EditorCommand {
+    std::function<void()> execute;
+    std::function<void()> undo;
+};
 
 struct ID3D12Device;
 struct ID3D12GraphicsCommandList;
@@ -61,6 +68,15 @@ public:
     void drawComponentCamera(ComponentCamera* cam);
     void drawComponentMesh(ComponentMesh* mesh);
 
+    void pushCommand(EditorCommand cmd);
+    void undoToSavePoint();
+    void redo();
+    void copySelected();
+    void pasteClipboard();
+    void duplicateSelected();
+    bool canUndo() const;
+    bool canRedo() const;
+
 private:
     std::unique_ptr<ImGuiPass> m_imguiPass;
     std::unique_ptr<DebugDrawPass> m_debugDraw;
@@ -101,6 +117,17 @@ private:
     EditorSelection m_selection;
     int m_samplerType = 0;
     bool m_firstFrame = true;
+
+    static constexpr int kMaxUndoSteps = 200;
+    std::deque<EditorCommand> m_undoStack;
+    std::deque<EditorCommand> m_redoStack;
+    int m_savePointIndex = 0;
+
+    struct ClipboardEntry {
+        std::string name;
+        std::string serialized;
+    };
+    ClipboardEntry m_clipboard;
 
     std::unique_ptr<FileDialog> m_saveDialog;
     std::unique_ptr<FileDialog> m_loadDialog;
