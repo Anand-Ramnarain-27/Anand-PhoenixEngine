@@ -3,8 +3,7 @@
 #include "AssetBrowserPanel.h"
 #include <ImGuizmo.h>
 
-class SceneViewPanel : public ViewportPanel
-{
+class SceneViewPanel : public ViewportPanel {
 public:
     explicit SceneViewPanel(ModuleEditor* editor);
     const char* getName() const override { return "Scene View"; }
@@ -24,8 +23,8 @@ private:
     void drawOverlay();
 
     ImGuizmo::OPERATION m_gizmoOp = ImGuizmo::TRANSLATE;
-    ImGuizmo::MODE      m_gizmoMode = ImGuizmo::LOCAL;
-    bool  m_useSnap = false;
+    ImGuizmo::MODE m_gizmoMode = ImGuizmo::LOCAL;
+    bool m_useSnap = false;
     float m_snapT[3] = { 0.5f, 0.5f, 0.5f };
     float m_snapR = 15.0f;
     float m_snapS = 0.1f;

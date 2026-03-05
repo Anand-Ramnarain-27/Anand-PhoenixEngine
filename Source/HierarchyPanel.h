@@ -3,8 +3,7 @@
 
 class GameObject;
 
-class HierarchyPanel : public EditorPanel
-{
+class HierarchyPanel : public EditorPanel {
 public:
     explicit HierarchyPanel(ModuleEditor* editor) : EditorPanel(editor) {}
     const char* getName() const override { return "Hierarchy"; }

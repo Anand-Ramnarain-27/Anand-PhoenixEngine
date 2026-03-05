@@ -1,8 +1,7 @@
 #pragma once
 #include "ViewportPanel.h"
 
-class GameViewPanel : public ViewportPanel
-{
+class GameViewPanel : public ViewportPanel {
 public:
     explicit GameViewPanel(ModuleEditor* editor);
     void draw() override;

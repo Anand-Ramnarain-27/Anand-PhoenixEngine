@@ -3,14 +3,15 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-#include <d3d12.h>
-#include <wrl/client.h>
-using Microsoft::WRL::ComPtr;
+#include <memory>
+
+struct ID3D12Resource;
+struct D3D12_GPU_DESCRIPTOR_HANDLE;
+namespace Microsoft::WRL { template<typename T> class ComPtr; }
 
 static constexpr const char* kDragAsset = "ASSET_PATH";
 
-class AssetBrowserPanel : public EditorPanel
-{
+class AssetBrowserPanel : public EditorPanel {
 public:
     explicit AssetBrowserPanel(ModuleEditor* editor) : EditorPanel(editor) {}
     const char* getName() const override { return "Asset Browser"; }
@@ -58,7 +59,11 @@ private:
 
     char m_searchBuf[128] = {};
 
-    struct ThumbEntry { ComPtr<ID3D12Resource> tex; D3D12_GPU_DESCRIPTOR_HANDLE srv = {}; bool attempted = false; };
+    struct ThumbEntry {
+        Microsoft::WRL::ComPtr<ID3D12Resource> tex;
+        D3D12_GPU_DESCRIPTOR_HANDLE srv = {};
+        bool attempted = false;
+    };
     std::unordered_map<std::string, ThumbEntry> m_thumbCache;
 
     bool m_showVariantModal = false;

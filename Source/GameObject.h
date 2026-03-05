@@ -1,14 +1,13 @@
 #pragma once
-
 #include "Component.h"
 #include <string>
 #include <vector>
 #include <memory>
 
 class ComponentTransform;
+struct ID3D12GraphicsCommandList;
 
-class GameObject
-{
+class GameObject {
 public:
     explicit GameObject(const std::string& name);
     ~GameObject();
@@ -16,8 +15,8 @@ public:
     void update(float deltaTime);
     void render(ID3D12GraphicsCommandList* cmd);
 
-    void        setParent(GameObject* newParent);
-    GameObject* getParent()   const { return parent; }
+    void setParent(GameObject* newParent);
+    GameObject* getParent() const { return parent; }
     const std::vector<GameObject*>& getChildren() const { return children; }
     void clearChildren() { children.clear(); }
 
@@ -40,24 +39,21 @@ public:
     const std::string& getName() const { return name; }
     void setName(const std::string& newName) { name = newName; }
 
-    uint32_t getUID()   const { return uid; }
-    bool isActive()     const { return active; }
+    uint32_t getUID() const { return uid; }
+    bool isActive() const { return active; }
     void setActive(bool value) { active = value; }
-
     bool isPendingDestroy() const { return pendingDestroy; }
     void markForDestroy() { pendingDestroy = true; }
 
 private:
     static uint32_t generateUID();
 
-    uint32_t    uid;
+    uint32_t uid;
     std::string name;
-    bool        active = true;
-    bool        pendingDestroy = false;
-
+    bool active = true;
+    bool pendingDestroy = false;
     GameObject* parent = nullptr;
     std::vector<GameObject*> children;
-
     std::vector<std::unique_ptr<Component>> components;
     ComponentTransform* transform = nullptr;
 };

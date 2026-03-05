@@ -151,15 +151,6 @@
     <ClCompile Include="FileDialog.cpp">
       <Filter>engine\resources</Filter>
     </ClCompile>
-    <ClCompile Include="ComponentDirectionalLight.cpp">
-      <Filter>engine\scene\components</Filter>
-    </ClCompile>
-    <ClCompile Include="ComponentPointLight.cpp">
-      <Filter>engine\scene\components</Filter>
-    </ClCompile>
-    <ClCompile Include="ComponentSpotLight.cpp">
-      <Filter>engine\scene\components</Filter>
-    </ClCompile>
     <ClCompile Include="PrimitiveFactory.cpp">
       <Filter>engine\scene\primitives</Filter>
     </ClCompile>
@@ -209,6 +200,15 @@
       <Filter>engine\d3d12</Filter>
     </ClCompile>
     <ClCompile Include="ViewportPanel.cpp">
+      <Filter>engine\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentLights.cpp">
+      <Filter>engine\scene\components</Filter>
+    </ClCompile>
+    <ClCompile Include="EditorPanel.cpp">
+      <Filter>engine\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="EditorPanels.cpp">
       <Filter>engine\editor</Filter>
     </ClCompile>
   </ItemGroup>
@@ -400,15 +400,6 @@
     <ClInclude Include="FileDialog.h">
       <Filter>engine\resources</Filter>
     </ClInclude>
-    <ClInclude Include="ComponentDirectionalLight.h">
-      <Filter>engine\scene\components</Filter>
-    </ClInclude>
-    <ClInclude Include="ComponentPointLight.h">
-      <Filter>engine\scene\components</Filter>
-    </ClInclude>
-    <ClInclude Include="ComponentSpotLight.h">
-      <Filter>engine\scene\components</Filter>
-    </ClInclude>
     <ClInclude Include="EditorSceneSettings.h">
       <Filter>engine\scene</Filter>
     </ClInclude>
@@ -492,6 +483,9 @@
     </ClInclude>
     <ClInclude Include="EditorPanels.h">
       <Filter>engine\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentLights.h">
+      <Filter>engine\scene\components</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

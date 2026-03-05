@@ -175,11 +175,9 @@
     <ClInclude Include="AssetBrowserPanel.h" />
     <ClInclude Include="Component.h" />
     <ClInclude Include="ComponentCamera.h" />
-    <ClInclude Include="ComponentDirectionalLight.h" />
     <ClInclude Include="ComponentFactory.h" />
+    <ClInclude Include="ComponentLights.h" />
     <ClInclude Include="ComponentMesh.h" />
-    <ClInclude Include="ComponentPointLight.h" />
-    <ClInclude Include="ComponentSpotLight.h" />
     <ClInclude Include="ComponentTransform.h" />
     <ClInclude Include="DebugDrawPass.h" />
     <ClInclude Include="debug_draw.hpp" />
@@ -324,17 +322,17 @@
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="AssetBrowserPanel.cpp" />
     <ClCompile Include="ComponentCamera.cpp" />
-    <ClCompile Include="ComponentDirectionalLight.cpp" />
     <ClCompile Include="ComponentFactory.cpp" />
+    <ClCompile Include="ComponentLights.cpp" />
     <ClCompile Include="ComponentMesh.cpp" />
-    <ClCompile Include="ComponentPointLight.cpp" />
-    <ClCompile Include="ComponentSpotLight.cpp" />
     <ClCompile Include="ComponentTransform.cpp" />
     <ClCompile Include="DebugDrawPass.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="DepthStencilDesc.cpp" />
+    <ClCompile Include="EditorPanel.cpp" />
+    <ClCompile Include="EditorPanels.cpp" />
     <ClCompile Include="EnvironmentGenerator.cpp" />
     <ClCompile Include="EnvironmentSystem.cpp" />
     <ClCompile Include="FileDialog.cpp" />

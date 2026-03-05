@@ -4,8 +4,7 @@
 class ComponentCamera;
 class ComponentMesh;
 
-class InspectorPanel : public EditorPanel
-{
+class InspectorPanel : public EditorPanel {
 public:
     explicit InspectorPanel(ModuleEditor* editor) : EditorPanel(editor) {}
     const char* getName() const override { return "Inspector"; }
@@ -18,5 +17,4 @@ private:
     void drawComponentCamera(ComponentCamera* cam);
     void drawComponentMesh(ComponentMesh* mesh);
     void drawAddComponentMenu();
-
 };

@@ -1,15 +1,12 @@
 #pragma once
-
 #include <string>
 
 struct ID3D12GraphicsCommandList;
 class GameObject;
 
-class Component
-{
+class Component {
 public:
-    enum class Type
-    {
+    enum class Type {
         Transform = 0,
         Mesh = 1,
         Camera = 2,

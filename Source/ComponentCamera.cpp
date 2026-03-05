@@ -11,112 +11,70 @@
 
 using namespace rapidjson;
 
-ComponentCamera::ComponentCamera(GameObject* owner)
-    : Component(owner)
-{
-}
+ComponentCamera::ComponentCamera(GameObject* owner) : Component(owner) {}
 
-void ComponentCamera::update(float /*dt*/)
-{
+void ComponentCamera::update(float) {
     rebuildFrustum();
-
-    if (m_isMainCamera)
-        app->getCamera()->setGameCameraFrustum(m_frustum);
+    if (m_isMainCamera) app->getCamera()->setGameCameraFrustum(m_frustum);
 }
 
-void ComponentCamera::rebuildFrustum()
-{
+void ComponentCamera::rebuildFrustum() {
     auto* t = owner->getTransform();
     if (!t) return;
-
     const Matrix& world = t->getGlobalMatrix();
-
     Vector3 right(world._11, world._12, world._13);
     Vector3 up(world._21, world._22, world._23);
-    Vector3 forward(world._31, world._32, world._33); 
-
-    right.Normalize();
-    up.Normalize();
-    forward.Normalize();
-
-    const Vector3 pos = world.Translation();
-
-    const float aspect = app->getCamera()->aspectRatio;
-
-    m_frustum = Frustum::fromCamera(pos, forward, right, up,
-        m_fov, aspect,
-        m_nearPlane, m_farPlane);
+    Vector3 forward(world._31, world._32, world._33);
+    right.Normalize(); up.Normalize(); forward.Normalize();
+    m_frustum = Frustum::fromCamera(world.Translation(), forward, right, up, m_fov, app->getCamera()->aspectRatio, m_nearPlane, m_farPlane);
 }
 
-void ComponentCamera::onEditor()
-{
+void ComponentCamera::onEditor() {
     if (!ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) return;
-
     if (ImGui::Checkbox("Main Camera", &m_isMainCamera))
-    {
-        if (!m_isMainCamera)
-            app->getCamera()->clearGameCameraFrustum();
-    }
-
+        if (!m_isMainCamera) app->getCamera()->clearGameCameraFrustum();
     float fovDeg = m_fov * 57.2957795f;
-    if (ImGui::SliderFloat("FOV", &fovDeg, 30.0f, 120.0f))
-        m_fov = fovDeg * 0.0174532925f;
-
+    if (ImGui::SliderFloat("FOV", &fovDeg, 30.0f, 120.0f)) m_fov = fovDeg * 0.0174532925f;
     ImGui::DragFloat("Near Plane", &m_nearPlane, 0.01f, 0.01f, 10.0f);
     ImGui::DragFloat("Far Plane", &m_farPlane, 1.0f, 10.0f, 1000.0f);
     ImGui::ColorEdit4("Background Color", &m_backgroundColor.x);
     ImGui::Separator();
-
-    if (auto* t = owner->getTransform())
-        ImGui::Text("Position: %.2f, %.2f, %.2f",
-            t->position.x, t->position.y, t->position.z);
-
+    if (auto* t = owner->getTransform()) ImGui::Text("Position: %.2f, %.2f, %.2f", t->position.x, t->position.y, t->position.z);
     ImGui::Separator();
     ImGui::TextDisabled("Frustum drawn in viewport when 'Debug Draw Camera Frustums' is on.");
 }
 
-void ComponentCamera::onSave(std::string& outJson) const
-{
+void ComponentCamera::onSave(std::string& outJson) const {
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
-
     Value bg(kArrayType);
-    bg.PushBack(m_backgroundColor.x, a).PushBack(m_backgroundColor.y, a)
-        .PushBack(m_backgroundColor.z, a).PushBack(m_backgroundColor.w, a);
-
+    bg.PushBack(m_backgroundColor.x, a).PushBack(m_backgroundColor.y, a).PushBack(m_backgroundColor.z, a).PushBack(m_backgroundColor.w, a);
     doc.AddMember("FOV", m_fov, a);
     doc.AddMember("NearPlane", m_nearPlane, a);
     doc.AddMember("FarPlane", m_farPlane, a);
     doc.AddMember("IsMainCamera", m_isMainCamera, a);
     doc.AddMember("BackgroundColor", bg, a);
-
     StringBuffer buf; Writer<StringBuffer> w(buf); doc.Accept(w);
     outJson = buf.GetString();
 }
 
-void ComponentCamera::onLoad(const std::string& jsonStr)
-{
+void ComponentCamera::onLoad(const std::string& jsonStr) {
     Document doc; doc.Parse(jsonStr.c_str());
     if (doc.HasParseError()) { LOG("ComponentCamera: JSON parse error"); return; }
-
-    if (doc.HasMember("FOV"))           m_fov = doc["FOV"].GetFloat();
-    if (doc.HasMember("NearPlane"))     m_nearPlane = doc["NearPlane"].GetFloat();
-    if (doc.HasMember("FarPlane"))      m_farPlane = doc["FarPlane"].GetFloat();
-    if (doc.HasMember("IsMainCamera"))  m_isMainCamera = doc["IsMainCamera"].GetBool();
-    if (doc.HasMember("BackgroundColor"))
-    {
+    if (doc.HasMember("FOV")) m_fov = doc["FOV"].GetFloat();
+    if (doc.HasMember("NearPlane")) m_nearPlane = doc["NearPlane"].GetFloat();
+    if (doc.HasMember("FarPlane")) m_farPlane = doc["FarPlane"].GetFloat();
+    if (doc.HasMember("IsMainCamera")) m_isMainCamera = doc["IsMainCamera"].GetBool();
+    if (doc.HasMember("BackgroundColor")) {
         const auto& c = doc["BackgroundColor"];
-        m_backgroundColor = { c[0].GetFloat(), c[1].GetFloat(),
-                               c[2].GetFloat(), c[3].GetFloat() };
+        m_backgroundColor = { c[0].GetFloat(), c[1].GetFloat(), c[2].GetFloat(), c[3].GetFloat() };
     }
 }
 
-Matrix ComponentCamera::getViewMatrix() const
-{
+Matrix ComponentCamera::getViewMatrix() const {
     auto* t = owner->getTransform();
     return t ? t->getGlobalMatrix().Invert() : Matrix::Identity;
 }
 
-Matrix ComponentCamera::getProjectionMatrix(float aspectRatio) const
-{
+Matrix ComponentCamera::getProjectionMatrix(float aspectRatio) const {
     return Matrix::CreatePerspectiveFieldOfView(m_fov, aspectRatio, m_nearPlane, m_farPlane);
 }

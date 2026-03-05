@@ -1,8 +1,7 @@
 #pragma once
 #include <imgui.h>
 
-namespace EditorColors
-{
+namespace EditorColors {
     inline constexpr ImVec4 Active{ 0.26f, 0.59f, 0.98f, 1.00f };
     inline constexpr ImVec4 Success{ 0.40f, 0.85f, 0.40f, 1.00f };
     inline constexpr ImVec4 Warning{ 0.95f, 0.75f, 0.20f, 1.00f };

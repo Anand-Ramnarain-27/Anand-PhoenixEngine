@@ -10,13 +10,17 @@
 #include "DebugDrawPass.h"
 #include "EmptyScene.h"
 #include "ModuleScene.h"
+#include "SceneManager.h"
+#include "ShaderTableDesc.h"
+#include "MeshPipeline.h"
+#include "FileDialog.h"
+#include "EditorSceneSettings.h"
+#include "EnvironmentSystem.h"
 #include "GameObject.h"
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
 #include "ComponentCamera.h"
-#include "ComponentDirectionalLight.h"
-#include "ComponentPointLight.h"
-#include "ComponentSpotLight.h"
+#include "ComponentLights.h"
 #include "ComponentFactory.h"
 #include "PrimitiveFactory.h"
 #include "ModuleCamera.h"
@@ -39,8 +43,7 @@ static constexpr float kDeg2Rad = 0.0174532925f;
 ModuleEditor::ModuleEditor() = default;
 ModuleEditor::~ModuleEditor() = default;
 
-ComPtr<ID3D12Resource> ModuleEditor::createUploadBuffer(ID3D12Device* device, SIZE_T size, const wchar_t* name)
-{
+ComPtr<ID3D12Resource> ModuleEditor::createUploadBuffer(ID3D12Device* device, SIZE_T size, const wchar_t* name) {
     auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     auto bd = CD3DX12_RESOURCE_DESC::Buffer((size + 255) & ~255);
     ComPtr<ID3D12Resource> buf;
@@ -49,12 +52,10 @@ ComPtr<ID3D12Resource> ModuleEditor::createUploadBuffer(ID3D12Device* device, SI
     return buf;
 }
 
-bool ModuleEditor::init()
-{
+bool ModuleEditor::init() {
     ModuleD3D12* d3d12 = app->getD3D12();
     ModuleShaderDescriptors* descs = app->getShaderDescriptors();
     ID3D12Device* device = d3d12->getDevice();
-
     m_descTable = descs->allocTable();
 
     ComPtr<ID3D12Device2> device2; ComPtr<ID3D12Device4> device4;
@@ -82,8 +83,10 @@ bool ModuleEditor::init()
     m_objectCB = createUploadBuffer(device, sizeof(ObjectConstants), L"ObjectCB");
     m_lightCB = createUploadBuffer(device, sizeof(MeshPipeline::LightCB), L"LightCB");
 
-    m_saveDialog.setExtensionFilter(".json");
-    m_loadDialog.setExtensionFilter(".json");
+    m_saveDialog = std::make_unique<FileDialog>();
+    m_loadDialog = std::make_unique<FileDialog>();
+    m_saveDialog->setExtensionFilter(".json");
+    m_loadDialog->setExtensionFilter(".json");
 
     m_sceneView = addPanel<SceneViewPanel>(this);
     m_gameView = addPanel<GameViewPanel>(this);
@@ -99,8 +102,7 @@ bool ModuleEditor::init()
     return true;
 }
 
-bool ModuleEditor::cleanUp()
-{
+bool ModuleEditor::cleanUp() {
     m_ownedPanels.clear();
     m_panels.clear();
     m_envSystem.reset();
@@ -112,19 +114,16 @@ bool ModuleEditor::cleanUp()
     return true;
 }
 
-ModuleScene* ModuleEditor::getActiveModuleScene() const
-{
+ModuleScene* ModuleEditor::getActiveModuleScene() const {
     IScene* s = m_sceneManager ? m_sceneManager->getActiveScene() : nullptr;
     return s ? s->getModuleScene() : nullptr;
 }
 
-void ModuleEditor::log(const char* text, const ImVec4& color)
-{
+void ModuleEditor::log(const char* text, const ImVec4& color) {
     if (m_console) m_console->add(text, color);
 }
 
-void ModuleEditor::preRender()
-{
+void ModuleEditor::preRender() {
     m_sceneView->handleResize();
     m_gameView->handleResize();
     m_imguiPass->startFrame();
@@ -138,8 +137,7 @@ void ModuleEditor::preRender()
     handleDialogs();
 }
 
-void ModuleEditor::render()
-{
+void ModuleEditor::render() {
     ModuleD3D12* d3d12 = app->getD3D12();
     ModuleShaderDescriptors* descs = app->getShaderDescriptors();
     ID3D12GraphicsCommandList* cmd = d3d12->getCommandList();
@@ -149,21 +147,18 @@ void ModuleEditor::render()
 
     ID3D12DescriptorHeap* heaps[] = { descs->getHeap(), app->getSamplerHeap()->getHeap() };
     cmd->SetDescriptorHeaps(2, heaps);
-
     handleNewScenePopup(cmd);
 
     if (m_sceneView->viewport.isReady()) m_sceneView->renderToTexture(cmd);
-    if (m_gameView->viewport.isReady())  m_gameView->renderToTexture(cmd);
+    if (m_gameView->viewport.isReady()) m_gameView->renderToTexture(cmd);
 
     auto toRT = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     cmd->ResourceBarrier(1, &toRT);
-
     auto rtv = d3d12->getRenderTargetDescriptor();
     cmd->OMSetRenderTargets(1, &rtv, false, nullptr);
     float clear[] = { 0, 0, 0, 1 };
     cmd->ClearRenderTargetView(rtv, clear, 0, nullptr);
     m_imguiPass->record(cmd);
-
     auto toPresent = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     cmd->ResourceBarrier(1, &toPresent);
 
@@ -175,8 +170,7 @@ void ModuleEditor::render()
     d3d12->getDrawCommandQueue()->ExecuteCommandLists(1, lists);
 
     UINT64* data = nullptr;
-    if (SUCCEEDED(m_gpuReadback->Map(0, nullptr, (void**)&data)) && data)
-    {
+    if (SUCCEEDED(m_gpuReadback->Map(0, nullptr, (void**)&data)) && data) {
         UINT64 freq = 0;
         d3d12->getDrawCommandQueue()->GetTimestampFrequency(&freq);
         m_gpuFrameTimeMs = double(data[1] - data[0]) / double(freq) * 1000.0;
@@ -189,8 +183,7 @@ void ModuleEditor::render()
     if (m_memoryUpdateTimer >= 1000.0f) { m_memoryUpdateTimer = 0.0f; updateMemory(); }
 }
 
-void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras)
-{
+void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras) {
     ModuleCamera* camera = app->getCamera();
     ModuleScene* moduleScene = getActiveModuleScene();
     const EditorSceneSettings& s = m_sceneManager->getSettings();
@@ -220,47 +213,38 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     cmd->SetGraphicsRoot32BitConstants(1, 16, &identity, 0);
 
     if (sky.enabled && m_envSystem) m_meshPipeline->bindIBL(cmd, m_envSystem.get());
-    if (m_sceneManager)             m_sceneManager->render(cmd, *camera, w, h);
+    if (m_sceneManager) m_sceneManager->render(cmd, *camera, w, h);
 
-    if (sky.enabled && m_envSystem)
-    {
+    if (sky.enabled && m_envSystem) {
         m_envSystem->render(cmd, view, proj);
         cmd->SetPipelineState(m_meshPipeline->getPSO());
         cmd->SetGraphicsRootSignature(m_meshPipeline->getRootSig());
     }
 
-    if (editorExtras)
-    {
-        if (s.showGrid)  dd::xzSquareGrid(-100.f, 100.f, 0.f, 1.f, dd::colors::Gray);
+    if (editorExtras) {
+        if (s.showGrid) dd::xzSquareGrid(-100.f, 100.f, 0.f, 1.f, dd::colors::Gray);
         if (s.showAxis) { Matrix id = Matrix::Identity; dd::axisTriad(id.m[0], 0.f, 2.f, 2.f); }
         if (s.debugDrawLights && moduleScene) debugDrawLights(moduleScene, s.debugLightSize);
 
         FrustumDebugDraw fdd;
         camera->buildDebugLines(fdd);
-        for (const auto& line : fdd.lines)
-        {
+        for (const auto& line : fdd.lines) {
             ddVec3 f = { line.from.x, line.from.y, line.from.z };
-            ddVec3 t = { line.to.x,   line.to.y,   line.to.z };
+            ddVec3 t = { line.to.x, line.to.y, line.to.z };
             const Vector3& c = line.color;
             if (c.x > .5f && c.y > .5f && c.z < .5f) dd::line(f, t, dd::colors::Yellow);
             else if (c.x < .5f && c.y > .5f && c.z < .5f) dd::line(f, t, dd::colors::Green);
             else if (c.x < .5f && c.y > .5f && c.z > .5f) dd::line(f, t, dd::colors::Cyan);
             else if (c.x > .5f && c.y < .5f && c.z < .5f) dd::line(f, t, dd::colors::Red);
             else if (c.x < .5f && c.y < .5f && c.z > .5f) dd::line(f, t, dd::colors::Blue);
-            else                                            dd::line(f, t, dd::colors::White);
+            else dd::line(f, t, dd::colors::White);
         }
         m_debugDraw->record(cmd, w, h, view, proj);
     }
 }
 
-void ModuleEditor::drawDockspace()
-{
-    constexpr ImGuiWindowFlags kF =
-        ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking |
-        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
-        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoBringToFrontOnFocus;
-
+void ModuleEditor::drawDockspace() {
+    constexpr ImGuiWindowFlags kF = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus;
     const ImGuiViewport* vp = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(vp->Pos);
     ImGui::SetNextWindowSize(vp->Size);
@@ -273,18 +257,15 @@ void ModuleEditor::drawDockspace()
     ImGuiID dock = ImGui::GetID("DS");
     ImGui::DockSpace(dock, ImVec2(0, 0));
 
-    if (m_firstFrame)
-    {
+    if (m_firstFrame) {
         m_firstFrame = false;
         ImGui::DockBuilderRemoveNode(dock);
         ImGui::DockBuilderAddNode(dock, ImGuiDockNodeFlags_DockSpace | ImGuiDockNodeFlags_PassthruCentralNode);
         ImGui::DockBuilderSetNodeSize(dock, vp->Size);
-
         ImGuiID left, right, bottom, center, rightPanel;
         ImGui::DockBuilderSplitNode(dock, ImGuiDir_Left, 0.20f, &left, &right);
         ImGui::DockBuilderSplitNode(right, ImGuiDir_Down, 0.25f, &bottom, &right);
         ImGui::DockBuilderSplitNode(right, ImGuiDir_Right, 0.28f, &rightPanel, &center);
-
         ImGui::DockBuilderDockWindow("Hierarchy", left);
         ImGui::DockBuilderDockWindow("Inspector", rightPanel);
         ImGui::DockBuilderDockWindow("Scene Settings", rightPanel);
@@ -299,55 +280,43 @@ void ModuleEditor::drawDockspace()
     ImGui::End();
 }
 
-void ModuleEditor::drawMenuBar()
-{
+void ModuleEditor::drawMenuBar() {
     if (!ImGui::BeginMainMenuBar()) return;
 
-    auto saveScene = [&]()
-        {
-            if (!m_currentScenePath.empty() && m_sceneManager->getActiveScene())
-            {
-                bool ok = m_sceneManager->saveCurrentScene(m_currentScenePath);
-                log(ok ? "Scene saved!" : "Failed to save.", ok ? EditorColors::Success : EditorColors::Danger);
-            }
-            else m_saveDialog.open(FileDialog::Type::Save, "Save Scene", "Library/Scenes");
+    auto saveScene = [&]() {
+        if (!m_currentScenePath.empty() && m_sceneManager->getActiveScene()) {
+            bool ok = m_sceneManager->saveCurrentScene(m_currentScenePath);
+            log(ok ? "Scene saved!" : "Failed to save.", ok ? EditorColors::Success : EditorColors::Danger);
+        }
+        else m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes");
         };
 
-    if (ImGui::BeginMenu("File"))
-    {
-        if (ImGui::MenuItem("New Scene", "Ctrl+N"))       m_showNewSceneConfirm = true;
+    if (ImGui::BeginMenu("File")) {
+        if (ImGui::MenuItem("New Scene", "Ctrl+N")) m_showNewSceneConfirm = true;
         ImGui::Separator();
-        if (ImGui::MenuItem("Save Scene", "Ctrl+S"))       saveScene();
-        if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) m_saveDialog.open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
-        if (ImGui::MenuItem("Load Scene...", "Ctrl+O"))       m_loadDialog.open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
+        if (ImGui::MenuItem("Save Scene", "Ctrl+S")) saveScene();
+        if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
+        if (ImGui::MenuItem("Load Scene...", "Ctrl+O")) m_loadDialog->open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
         ImGui::Separator();
         if (ImGui::MenuItem("Quit", "Alt+F4")) {}
         ImGui::EndMenu();
     }
-
-    if (ImGui::BeginMenu("Edit"))
-    {
+    if (ImGui::BeginMenu("Edit")) {
         if (ImGui::MenuItem("Create Empty", "Ctrl+Shift+N")) createEmptyGameObject();
         ImGui::EndMenu();
     }
-
-    if (ImGui::BeginMenu("View"))
-    {
+    if (ImGui::BeginMenu("View")) {
         for (EditorPanel* p : m_panels) ImGui::MenuItem(p->getName(), nullptr, &p->open);
         ImGui::EndMenu();
     }
-
-    if (ImGui::BeginMenu("GameObject"))
-    {
+    if (ImGui::BeginMenu("GameObject")) {
         if (ImGui::MenuItem("Create Empty")) createEmptyGameObject();
         if (ImGui::MenuItem("Create Empty Child") && m_selection.has()) createEmptyGameObject("Empty", m_selection.object);
         ImGui::EndMenu();
     }
-
-    if (ImGui::BeginMenu("Scene"))
-    {
-        if (ImGui::MenuItem("Play", nullptr, false, m_sceneManager && !m_sceneManager->isPlaying()))                                   m_sceneManager->play();
-        if (ImGui::MenuItem("Pause", nullptr, false, m_sceneManager && m_sceneManager->isPlaying()))                                   m_sceneManager->pause();
+    if (ImGui::BeginMenu("Scene")) {
+        if (ImGui::MenuItem("Play", nullptr, false, m_sceneManager && !m_sceneManager->isPlaying())) m_sceneManager->play();
+        if (ImGui::MenuItem("Pause", nullptr, false, m_sceneManager && m_sceneManager->isPlaying())) m_sceneManager->pause();
         if (ImGui::MenuItem("Stop", nullptr, false, m_sceneManager && m_sceneManager->getState() != SceneManager::PlayState::Stopped)) m_sceneManager->stop();
         ImGui::EndMenu();
     }
@@ -358,53 +327,41 @@ void ModuleEditor::drawMenuBar()
         const float btnW = 70.0f;
         const float total = btnW * 3 + ImGui::GetStyle().ItemSpacing.x * 2;
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (ImGui::GetContentRegionAvail().x - total) * 0.5f);
-
         if (playing) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1));
         if (ImGui::Button("  Play  ", ImVec2(btnW, 0)) && m_sceneManager && !playing) m_sceneManager->play();
         if (playing) ImGui::PopStyleColor();
         ImGui::SameLine();
-
         if (paused) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.7f, 0.1f, 1));
         if (ImGui::Button(" Pause  ", ImVec2(btnW, 0)) && m_sceneManager && playing) m_sceneManager->pause();
         if (paused) ImGui::PopStyleColor();
         ImGui::SameLine();
-
         if (ImGui::Button("  Stop  ", ImVec2(btnW, 0)) && m_sceneManager) m_sceneManager->stop();
     }
-
     ImGui::EndMainMenuBar();
 }
 
-void ModuleEditor::handleDialogs()
-{
+void ModuleEditor::handleDialogs() {
     auto tryScene = [&](bool ok, const char* good, const char* bad) { log(ok ? good : bad, ok ? EditorColors::Success : EditorColors::Danger); };
-
-    if (m_saveDialog.draw() && m_sceneManager->getActiveScene())
-    {
-        const std::string& p = m_saveDialog.getSelectedPath();
+    if (m_saveDialog->draw() && m_sceneManager->getActiveScene()) {
+        const std::string& p = m_saveDialog->getSelectedPath();
         if (m_sceneManager->saveCurrentScene(p)) { m_currentScenePath = p; tryScene(true, "Scene saved!", ""); }
-        else                                        tryScene(false, "", "Failed to save scene.");
+        else tryScene(false, "", "Failed to save scene.");
     }
-    if (m_loadDialog.draw() && m_sceneManager->getActiveScene())
-    {
-        const std::string& p = m_loadDialog.getSelectedPath();
+    if (m_loadDialog->draw() && m_sceneManager->getActiveScene()) {
+        const std::string& p = m_loadDialog->getSelectedPath();
         if (m_sceneManager->loadScene(p)) { m_currentScenePath = p; tryScene(true, "Scene loaded!", ""); }
-        else                                tryScene(false, "", "Failed to load scene.");
+        else tryScene(false, "", "Failed to load scene.");
     }
 }
 
-void ModuleEditor::handleNewScenePopup(ID3D12GraphicsCommandList*)
-{
+void ModuleEditor::handleNewScenePopup(ID3D12GraphicsCommandList*) {
     if (m_showNewSceneConfirm) { ImGui::OpenPopup("New Scene?"); m_showNewSceneConfirm = false; }
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     if (!ImGui::BeginPopupModal("New Scene?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
-
     ImGui::Text("This will clear the current scene.");
     ImGui::TextColored(EditorColors::Warning, "Unsaved changes will be lost!");
     ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
-
-    if (ImGui::Button("Create New Scene", ImVec2(160, 0)))
-    {
+    if (ImGui::Button("Create New Scene", ImVec2(160, 0))) {
         app->getD3D12()->flush();
         m_sceneManager->setScene(std::make_unique<EmptyScene>(), app->getD3D12()->getDevice());
         m_selection.clear();
@@ -417,8 +374,7 @@ void ModuleEditor::handleNewScenePopup(ID3D12GraphicsCommandList*)
     ImGui::EndPopup();
 }
 
-GameObject* ModuleEditor::createEmptyGameObject(const char* name, GameObject* parent)
-{
+GameObject* ModuleEditor::createEmptyGameObject(const char* name, GameObject* parent) {
     ModuleScene* scene = getActiveModuleScene();
     if (!scene) return nullptr;
     GameObject* go = scene->createGameObject(name);
@@ -428,8 +384,7 @@ GameObject* ModuleEditor::createEmptyGameObject(const char* name, GameObject* pa
     return go;
 }
 
-void ModuleEditor::deleteGameObject(GameObject* go)
-{
+void ModuleEditor::deleteGameObject(GameObject* go) {
     if (!go) return;
     if (m_selection.object == go || isChildOf(go, m_selection.object)) m_selection.clear();
     ModuleScene* scene = getActiveModuleScene();
@@ -441,16 +396,12 @@ void ModuleEditor::deleteGameObject(GameObject* go)
     log(("Deleted: " + name).c_str(), EditorColors::Warning);
 }
 
-void ModuleEditor::spawnAssetAtPath(const std::string& path)
-{
+void ModuleEditor::spawnAssetAtPath(const std::string& path) {
     if (path.empty() || !fs::exists(path) || fs::is_directory(path)) return;
     std::string ext = fs::path(path).extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-
     ModuleScene* scene = getActiveModuleScene();
-
-    if (ext == ".gltf" || ext == ".fbx" || ext == ".obj")
-    {
+    if (ext == ".gltf" || ext == ".fbx" || ext == ".obj") {
         if (!scene) return;
         std::string stem = fs::path(path).stem().string();
         GameObject* go = scene->createGameObject(stem.c_str());
@@ -458,13 +409,10 @@ void ModuleEditor::spawnAssetAtPath(const std::string& path)
         log(ok ? ("Added: " + stem).c_str() : ("Failed: " + path).c_str(), ok ? EditorColors::Success : EditorColors::Danger);
         if (ok) m_selection.object = go;
     }
-    else if (ext == ".json")
-    {
-        if (m_sceneManager && m_sceneManager->loadScene(path))
-            log(("Loaded scene: " + path).c_str(), EditorColors::Success);
+    else if (ext == ".json") {
+        if (m_sceneManager && m_sceneManager->loadScene(path)) log(("Loaded scene: " + path).c_str(), EditorColors::Success);
     }
-    else if (ext == ".prefab")
-    {
+    else if (ext == ".prefab") {
         if (!scene) return;
         std::string stem = fs::path(path).stem().string();
         PrefabManager::instantiatePrefab(stem, scene);
@@ -472,32 +420,26 @@ void ModuleEditor::spawnAssetAtPath(const std::string& path)
     }
 }
 
-bool ModuleEditor::isChildOf(const GameObject* root, const GameObject* needle)
-{
+bool ModuleEditor::isChildOf(const GameObject* root, const GameObject* needle) {
     if (!root || !needle) return false;
-    if (root == needle)   return true;
+    if (root == needle) return true;
     for (const auto* c : root->getChildren()) if (isChildOf(c, needle)) return true;
     return false;
 }
 
-void ModuleEditor::gatherLights(GameObject* node, MeshPipeline::LightCB& out) const
-{
+void ModuleEditor::gatherLights(GameObject* node, MeshPipeline::LightCB& out) const {
     if (!node || !node->isActive()) return;
-
-    if (auto* dl = node->getComponent<ComponentDirectionalLight>(); dl && dl->enabled && out.numDirLights < 2)
-    {
+    if (auto* dl = node->getComponent<ComponentDirectionalLight>(); dl && dl->enabled && out.numDirLights < 2) {
         auto& g = out.dirLights[out.numDirLights++];
         g.direction = dl->direction; g.color = dl->color; g.intensity = dl->intensity;
     }
-    if (auto* pl = node->getComponent<ComponentPointLight>(); pl && pl->enabled && out.numPointLights == 0)
-    {
+    if (auto* pl = node->getComponent<ComponentPointLight>(); pl && pl->enabled && out.numPointLights == 0) {
         out.numPointLights = 1;
         out.pointLight.position = node->getTransform()->getGlobalMatrix().Translation();
         out.pointLight.color = pl->color; out.pointLight.intensity = pl->intensity;
         out.pointLight.sqRadius = pl->radius * pl->radius;
     }
-    if (auto* sl = node->getComponent<ComponentSpotLight>(); sl && sl->enabled && out.numSpotLights == 0)
-    {
+    if (auto* sl = node->getComponent<ComponentSpotLight>(); sl && sl->enabled && out.numSpotLights == 0) {
         out.numSpotLights = 1;
         out.spotLight.position = node->getTransform()->getGlobalMatrix().Translation();
         out.spotLight.direction = sl->direction; out.spotLight.color = sl->color;
@@ -508,19 +450,15 @@ void ModuleEditor::gatherLights(GameObject* node, MeshPipeline::LightCB& out) co
     for (auto* c : node->getChildren()) gatherLights(c, out);
 }
 
-void ModuleEditor::updateMemory()
-{
+void ModuleEditor::updateMemory() {
     uint64_t gpuMB = 0, ramMB = 0;
-    if (ID3D12Device* device = app->getD3D12()->getDevice())
-    {
+    if (ID3D12Device* device = app->getD3D12()->getDevice()) {
         ComPtr<IDXGIDevice> dxgiDev; ComPtr<IDXGIAdapter> adapter; ComPtr<IDXGIAdapter3> adapter3;
         if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&dxgiDev))) && dxgiDev)
             if (SUCCEEDED(dxgiDev->GetAdapter(&adapter)) && adapter)
-                if (SUCCEEDED(adapter.As(&adapter3)) && adapter3)
-                {
+                if (SUCCEEDED(adapter.As(&adapter3)) && adapter3) {
                     DXGI_QUERY_VIDEO_MEMORY_INFO info = {};
-                    if (SUCCEEDED(adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info)))
-                        gpuMB = info.CurrentUsage / (1024 * 1024);
+                    if (SUCCEEDED(adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info))) gpuMB = info.CurrentUsage / (1024 * 1024);
                 }
     }
     MEMORYSTATUSEX mem = { sizeof(mem) };
@@ -529,88 +467,74 @@ void ModuleEditor::updateMemory()
     m_performance->setMemory(gpuMB, ramMB);
 }
 
-void ModuleEditor::debugDrawLights(ModuleScene* scene, float sz)
-{
+void ModuleEditor::debugDrawLights(ModuleScene* scene, float sz) {
     if (!scene) return;
     auto v = [](const Vector3& x) -> const float* { return &x.x; };
-
-    std::function<void(GameObject*)> visit = [&](GameObject* node)
-        {
-            if (!node || !node->isActive()) return;
-
-            if (auto* dl = node->getComponent<ComponentDirectionalLight>(); dl && dl->enabled)
-            {
-                Vector3 p = node->getTransform()->getGlobalMatrix().Translation();
-                Vector3 d = dl->direction; d.Normalize();
-                float h = sz * .2f;
-                dd::line(v(p), v(p + d * sz * 2.f), dd::colors::Yellow);
-                dd::line(v(p - Vector3(h, 0, 0)), v(p + Vector3(h, 0, 0)), dd::colors::Yellow);
-                dd::line(v(p - Vector3(0, h, 0)), v(p + Vector3(0, h, 0)), dd::colors::Yellow);
-                dd::line(v(p - Vector3(0, 0, h)), v(p + Vector3(0, 0, h)), dd::colors::Yellow);
+    std::function<void(GameObject*)> visit = [&](GameObject* node) {
+        if (!node || !node->isActive()) return;
+        if (auto* dl = node->getComponent<ComponentDirectionalLight>(); dl && dl->enabled) {
+            Vector3 p = node->getTransform()->getGlobalMatrix().Translation();
+            Vector3 d = dl->direction; d.Normalize();
+            float h = sz * .2f;
+            dd::line(v(p), v(p + d * sz * 2.f), dd::colors::Yellow);
+            dd::line(v(p - Vector3(h, 0, 0)), v(p + Vector3(h, 0, 0)), dd::colors::Yellow);
+            dd::line(v(p - Vector3(0, h, 0)), v(p + Vector3(0, h, 0)), dd::colors::Yellow);
+            dd::line(v(p - Vector3(0, 0, h)), v(p + Vector3(0, 0, h)), dd::colors::Yellow);
+        }
+        if (auto* pl = node->getComponent<ComponentPointLight>(); pl && pl->enabled) {
+            Vector3 p = node->getTransform()->getGlobalMatrix().Translation();
+            float h = sz * .2f;
+            dd::sphere(v(p), dd::colors::Cyan, pl->radius);
+            dd::line(v(p - Vector3(h, 0, 0)), v(p + Vector3(h, 0, 0)), dd::colors::Cyan);
+            dd::line(v(p - Vector3(0, h, 0)), v(p + Vector3(0, h, 0)), dd::colors::Cyan);
+            dd::line(v(p - Vector3(0, 0, h)), v(p + Vector3(0, 0, h)), dd::colors::Cyan);
+        }
+        if (auto* sl = node->getComponent<ComponentSpotLight>(); sl && sl->enabled) {
+            Vector3 p = node->getTransform()->getGlobalMatrix().Translation();
+            Vector3 dir = sl->direction; dir.Normalize();
+            float outerR = tanf(sl->outerAngle * kDeg2Rad) * sl->radius;
+            Vector3 tip = p + dir * sl->radius;
+            Vector3 up = (fabsf(dir.y) < .99f) ? Vector3(0, 1, 0) : Vector3(1, 0, 0);
+            Vector3 right = dir.Cross(up); right.Normalize();
+            up = right.Cross(dir); up.Normalize();
+            const int segs = 8;
+            for (int i = 0; i < segs; ++i) {
+                float a0 = float(i) / segs * 6.28318530f;
+                float a1 = float(i + 1) / segs * 6.28318530f;
+                Vector3 o0 = tip + (right * cosf(a0) + up * sinf(a0)) * outerR;
+                Vector3 o1 = tip + (right * cosf(a1) + up * sinf(a1)) * outerR;
+                dd::line(v(p), v(o0), dd::colors::Orange);
+                dd::line(v(o0), v(o1), dd::colors::Orange);
             }
-            if (auto* pl = node->getComponent<ComponentPointLight>(); pl && pl->enabled)
-            {
-                Vector3 p = node->getTransform()->getGlobalMatrix().Translation();
-                float h = sz * .2f;
-                dd::sphere(v(p), dd::colors::Cyan, pl->radius);
-                dd::line(v(p - Vector3(h, 0, 0)), v(p + Vector3(h, 0, 0)), dd::colors::Cyan);
-                dd::line(v(p - Vector3(0, h, 0)), v(p + Vector3(0, h, 0)), dd::colors::Cyan);
-                dd::line(v(p - Vector3(0, 0, h)), v(p + Vector3(0, 0, h)), dd::colors::Cyan);
-            }
-            if (auto* sl = node->getComponent<ComponentSpotLight>(); sl && sl->enabled)
-            {
-                Vector3 p = node->getTransform()->getGlobalMatrix().Translation();
-                Vector3 dir = sl->direction; dir.Normalize();
-                float outerR = tanf(sl->outerAngle * kDeg2Rad) * sl->radius;
-                Vector3 tip = p + dir * sl->radius;
-                Vector3 up = (fabsf(dir.y) < .99f) ? Vector3(0, 1, 0) : Vector3(1, 0, 0);
-                Vector3 right = dir.Cross(up); right.Normalize();
-                up = right.Cross(dir); up.Normalize();
-                const int segs = 8;
-                for (int i = 0; i < segs; ++i)
-                {
-                    float a0 = float(i) / segs * 6.28318530f;
-                    float a1 = float(i + 1) / segs * 6.28318530f;
-                    Vector3 o0 = tip + (right * cosf(a0) + up * sinf(a0)) * outerR;
-                    Vector3 o1 = tip + (right * cosf(a1) + up * sinf(a1)) * outerR;
-                    dd::line(v(p), v(o0), dd::colors::Orange);
-                    dd::line(v(o0), v(o1), dd::colors::Orange);
-                }
-                float h = sz * .2f;
-                dd::line(v(p - Vector3(h, 0, 0)), v(p + Vector3(h, 0, 0)), dd::colors::Orange);
-                dd::line(v(p - Vector3(0, h, 0)), v(p + Vector3(0, h, 0)), dd::colors::Orange);
-                dd::line(v(p - Vector3(0, 0, h)), v(p + Vector3(0, 0, h)), dd::colors::Orange);
-            }
-            for (auto* c : node->getChildren()) visit(c);
+            float h = sz * .2f;
+            dd::line(v(p - Vector3(h, 0, 0)), v(p + Vector3(h, 0, 0)), dd::colors::Orange);
+            dd::line(v(p - Vector3(0, h, 0)), v(p + Vector3(0, h, 0)), dd::colors::Orange);
+            dd::line(v(p - Vector3(0, 0, h)), v(p + Vector3(0, 0, h)), dd::colors::Orange);
+        }
+        for (auto* c : node->getChildren()) visit(c);
         };
     visit(scene->getRoot());
 }
 
-ImVec2 ModuleEditor::getSceneViewSize() const
-{
+ImVec2 ModuleEditor::getSceneViewSize() const {
     return m_sceneView ? m_sceneView->viewport.size : ImVec2(0, 0);
 }
 
-void ModuleEditor::handleShortcuts()
-{
+void ModuleEditor::handleShortcuts() {
     if (ImGui::GetIO().WantTextInput) return;
     ImGuiIO& io = ImGui::GetIO();
     bool ctrl = io.KeyCtrl;
     bool shift = io.KeyShift;
-
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_N, false)) m_showNewSceneConfirm = true;
     if (ctrl && shift && ImGui::IsKeyPressed(ImGuiKey_N, false)) createEmptyGameObject();
-
-    if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_S, false))
-    {
-        if (!m_currentScenePath.empty() && m_sceneManager->getActiveScene())
-        {
+    if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_S, false)) {
+        if (!m_currentScenePath.empty() && m_sceneManager->getActiveScene()) {
             bool ok = m_sceneManager->saveCurrentScene(m_currentScenePath);
             log(ok ? "Scene saved!" : "Failed to save.", ok ? EditorColors::Success : EditorColors::Danger);
         }
-        else m_saveDialog.open(FileDialog::Type::Save, "Save Scene", "Library/Scenes");
+        else m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes");
     }
-    if (ctrl && shift && ImGui::IsKeyPressed(ImGuiKey_S, false)) m_saveDialog.open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
-    if (ctrl && ImGui::IsKeyPressed(ImGuiKey_O, false)) m_loadDialog.open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
+    if (ctrl && shift && ImGui::IsKeyPressed(ImGuiKey_S, false)) m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
+    if (ctrl && ImGui::IsKeyPressed(ImGuiKey_O, false)) m_loadDialog->open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
     if (ImGui::IsKeyPressed(ImGuiKey_Delete, false) && m_selection.has()) deleteGameObject(m_selection.object);
 }
