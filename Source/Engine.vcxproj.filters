@@ -469,9 +469,6 @@
     <ClInclude Include="ResourcesPanel.h">
       <Filter>engine\editor</Filter>
     </ClInclude>
-    <ClInclude Include="MetaFileManager.h">
-      <Filter>engine\resources</Filter>
-    </ClInclude>
     <ClInclude Include="ResourceTexture.h">
       <Filter>engine\resources</Filter>
     </ClInclude>
@@ -487,11 +484,11 @@
     <ClInclude Include="MeshEntry.h">
       <Filter>engine\resources</Filter>
     </ClInclude>
-    <ClInclude Include="ResourceBase.h">
-      <Filter>engine\resources</Filter>
-    </ClInclude>
     <ClInclude Include="EditorColors.h">
       <Filter>engine\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="ResourceCommon.h">
+      <Filter>engine\resources</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

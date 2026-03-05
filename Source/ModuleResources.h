@@ -1,6 +1,6 @@
 #pragma once
 #include "Module.h"
-#include "ResourceBase.h"
+#include "ResourceCommon.h"
 #include <unordered_map>
 #include <filesystem>
 #include <thread>

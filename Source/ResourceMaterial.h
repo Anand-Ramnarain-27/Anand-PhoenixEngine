@@ -1,15 +1,14 @@
 #pragma once
-#include "ResourceBase.h"
+#include "ResourceCommon.h"
 #include "Material.h"
 #include <memory>
 
-class ResourceMaterial : public ResourceBase
-{
+class ResourceMaterial : public ResourceBase {
 public:
     ResourceMaterial(UID uid);
     ~ResourceMaterial() override;
 
-    bool LoadInMemory()     override;
+    bool LoadInMemory() override;
     void UnloadFromMemory() override;
 
     Material* getMaterial() { return m_material.get(); }

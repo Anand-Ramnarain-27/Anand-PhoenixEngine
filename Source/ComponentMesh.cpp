@@ -11,7 +11,7 @@
 #include "ModuleCamera.h"
 #include "ResourceMesh.h"
 #include "ResourceMaterial.h"
-#include "MetaFileManager.h"
+#include "ResourceCommon.h"
 
 #include "3rdParty/rapidjson/document.h"
 #include "3rdParty/rapidjson/writer.h"

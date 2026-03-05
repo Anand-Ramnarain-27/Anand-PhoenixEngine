@@ -211,7 +211,6 @@
     <ClInclude Include="MeshEntry.h" />
     <ClInclude Include="MeshImporter.h" />
     <ClInclude Include="MeshPipeline.h" />
-    <ClInclude Include="MetaFileManager.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="ModuleAssets.h" />
     <ClInclude Include="ModuleDescriptorsBase.h" />
@@ -245,7 +244,7 @@
     <ClInclude Include="RenderTargetDesc.h" />
     <ClInclude Include="RenderTexture.h" />
     <ClInclude Include="Resource.h" />
-    <ClInclude Include="ResourceBase.h" />
+    <ClInclude Include="ResourceCommon.h" />
     <ClInclude Include="ResourceMaterial.h" />
     <ClInclude Include="ResourceMesh.h" />
     <ClInclude Include="ResourcesPanel.h" />

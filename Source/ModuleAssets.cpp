@@ -3,7 +3,6 @@
 #include "Application.h"
 #include "ModuleFileSystem.h"
 #include "ModuleResources.h"
-#include "MetaFileManager.h"
 #include "SceneImporter.h"
 #include "TextureImporter.h"
 #include "tiny_gltf.h"

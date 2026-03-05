@@ -3,7 +3,7 @@
 #include "ResourceMesh.h"
 #include "ResourceMaterial.h"
 #include "ResourceTexture.h"
-#include "MetaFileManager.h"
+#include "ResourceCommon.h"
 #include "ModuleAssets.h"
 #include "Application.h"
 #include <algorithm>

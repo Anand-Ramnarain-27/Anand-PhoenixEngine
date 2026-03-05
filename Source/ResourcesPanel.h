@@ -3,7 +3,7 @@
 #include "Application.h"
 #include "ModuleResources.h"
 #include "ModuleAssets.h"
-#include "ResourceBase.h"
+#include "ResourceCommon.h"
 #include <string>
 
 class ResourcesPanel : public EditorPanel

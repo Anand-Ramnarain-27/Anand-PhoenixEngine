@@ -1,6 +1,6 @@
 #pragma once
 #include "Module.h"
-#include "MetaFileManager.h"
+#include "ResourceCommon.h"
 #include <string>
 #include <vector>
 #include <unordered_map>
