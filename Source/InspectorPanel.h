@@ -8,8 +8,10 @@ class InspectorPanel : public EditorPanel
 {
 public:
     explicit InspectorPanel(ModuleEditor* editor) : EditorPanel(editor) {}
-    void draw() override;
     const char* getName() const override { return "Inspector"; }
+
+protected:
+    void drawContent() override;
 
 private:
     void drawTransform();

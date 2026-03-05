@@ -32,8 +32,10 @@
 #include "AssetBrowserPanel.h"
 #include "SceneSettingsPanel.h"
 #include "ResourcesPanel.h"
-#include "PrefabPanel.h"
+#include "PrefabManager.h"
 #include <d3dx12.h>
+#include <filesystem>
+#include <algorithm>
 
 ModuleEditor::ModuleEditor() = default;
 ModuleEditor::~ModuleEditor() = default;
@@ -90,16 +92,15 @@ bool ModuleEditor::init()
     m_saveDialog.setExtensionFilter(".json");
     m_loadDialog.setExtensionFilter(".json");
 
-    m_sceneView = std::make_unique<SceneViewPanel>(this);
-    m_gameView = std::make_unique<GameViewPanel>(this);
-    m_hierarchy = std::make_unique<HierarchyPanel>(this);
-    m_inspector = std::make_unique<InspectorPanel>(this);
-    m_console = std::make_unique<ConsolePanel>(this);
-    m_performance = std::make_unique<PerformancePanel>(this);
-    m_assetBrowser = std::make_unique<AssetBrowserPanel>(this);
-    m_sceneSettings = std::make_unique<SceneSettingsPanel>(this);
-    m_resources = std::make_unique<ResourcesPanel>(this);
-    m_prefabs = std::make_unique<PrefabPanel>(this);
+    m_sceneView = addPanel<SceneViewPanel>(this);
+    m_gameView = addPanel<GameViewPanel>(this);
+    addPanel<HierarchyPanel>(this);
+    addPanel<InspectorPanel>(this);
+    m_console = addPanel<ConsolePanel>(this);
+    m_performance = addPanel<PerformancePanel>(this);
+    addPanel<AssetBrowserPanel>(this);
+    addPanel<SceneSettingsPanel>(this);
+    addPanel<ResourcesPanel>(this);
 
     log("[Editor] Initialized", ImVec4(0.6f, 1, 0.6f, 1));
     return true;
@@ -107,16 +108,8 @@ bool ModuleEditor::init()
 
 bool ModuleEditor::cleanUp()
 {
-    m_sceneView.reset();
-    m_gameView.reset();
-    m_hierarchy.reset();
-    m_inspector.reset();
-    m_console.reset();
-    m_performance.reset();
-    m_assetBrowser.reset();
-    m_sceneSettings.reset();
-    m_resources.reset();
-    m_prefabs.reset();
+    m_ownedPanels.clear();
+    m_panels.clear();
 
     m_envSystem.reset();
     m_imguiPass.reset();
@@ -155,16 +148,8 @@ void ModuleEditor::preRender()
     drawDockspace();
     drawMenuBar();
 
-    if (m_sceneView->open)   m_sceneView->draw();
-    if (m_gameView->open)    m_gameView->draw();
-    if (m_hierarchy->open)   m_hierarchy->draw();
-    if (m_inspector->open)   m_inspector->draw();
-    if (m_console->open)     m_console->draw();
-    if (m_performance->open) m_performance->draw();
-    if (m_assetBrowser->open) m_assetBrowser->draw();
-    if (m_sceneSettings->open) m_sceneSettings->draw();
-    if (m_resources->open) m_resources->draw();
-    if (m_prefabs->open) m_prefabs->draw();
+    for (EditorPanel* p : m_panels)
+        if (p->open) p->draw();
 
     handleDialogs();
 }
@@ -374,15 +359,8 @@ void ModuleEditor::drawMenuBar()
 
     if (ImGui::BeginMenu("View"))
     {
-        ImGui::MenuItem("Hierarchy", nullptr, &m_hierarchy->open);
-        ImGui::MenuItem("Inspector", nullptr, &m_inspector->open);
-        ImGui::MenuItem("Console", nullptr, &m_console->open);
-        ImGui::MenuItem("Scene View", nullptr, &m_sceneView->open);
-        ImGui::MenuItem("Game View", nullptr, &m_gameView->open);
-        ImGui::MenuItem("Performance", nullptr, &m_performance->open);
-        ImGui::MenuItem("Asset Browser", nullptr, &m_assetBrowser->open);
-        ImGui::MenuItem("Scene Settings", nullptr, &m_sceneSettings->open);
-        ImGui::MenuItem("Prefabs", nullptr, &m_prefabs->open);
+        for (EditorPanel* p : m_panels)
+            ImGui::MenuItem(p->getName(), nullptr, &p->open);
         ImGui::EndMenu();
     }
 
@@ -401,8 +379,6 @@ void ModuleEditor::drawMenuBar()
         if (ImGui::MenuItem("Stop", nullptr, false, m_sceneManager && m_sceneManager->getState() != SceneManager::PlayState::Stopped)) m_sceneManager->stop();
         ImGui::EndMenu();
     }
-
-    ImGui::MenuItem("Resources", nullptr, &m_resources->open);
 
     {
         const float btnW = 70.0f;
@@ -495,6 +471,40 @@ void ModuleEditor::deleteGameObject(GameObject* go)
     std::string name = go->getName();
     scene->destroyGameObject(go);
     log(("Deleted: " + name).c_str(), ImVec4(1, 0.7f, 0.4f, 1));
+}
+
+void ModuleEditor::spawnAssetAtPath(const std::string& path)
+{
+    namespace fs = std::filesystem;
+    if (path.empty() || !fs::exists(path) || fs::is_directory(path)) return;
+
+    std::string ext = fs::path(path).extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+    ModuleScene* scene = getActiveModuleScene();
+    EditorSelection& sel = m_selection;
+
+    if (ext == ".gltf" || ext == ".fbx" || ext == ".obj")
+    {
+        if (!scene) return;
+        std::string stem = fs::path(path).stem().string();
+        GameObject* go = scene->createGameObject(stem.c_str());
+        bool ok = go->createComponent<ComponentMesh>()->loadModel(path.c_str());
+        log(ok ? ("Added: " + stem).c_str() : ("Failed: " + path).c_str(),
+            ok ? ImVec4(0.6f, 1, 0.6f, 1) : ImVec4(1, 0.4f, 0.4f, 1));
+        if (ok) sel.object = go;
+    }
+    else if (ext == ".json")
+    {
+        if (m_sceneManager && m_sceneManager->loadScene(path))
+            log(("Loaded scene: " + path).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
+    }
+    else if (ext == ".prefab")
+    {
+        if (!scene) return;
+        PrefabManager::instantiatePrefab(fs::path(path).stem().string(), scene);
+        log(("Instantiated: " + fs::path(path).stem().string()).c_str(), ImVec4(0.6f, 1, 0.6f, 1));
+    }
 }
 
 bool ModuleEditor::isChildOf(const GameObject* root, const GameObject* needle)

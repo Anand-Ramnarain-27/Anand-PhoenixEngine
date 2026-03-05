@@ -13,25 +13,25 @@
 #include "EditorSelection.h"
 #include "PrefabManager.h"
 
-void HierarchyPanel::draw()
+void HierarchyPanel::drawContent()
 {
-    ImGui::Begin("Hierarchy", &open);
     ModuleScene* scene = m_editor->getActiveModuleScene();
-    if (!scene) { ImGui::End(); return; }
+    if (!scene) return;
 
     EditorSelection& sel = m_editor->getSelection();
 
     if (ImGui::Button("+ Empty")) m_editor->createEmptyGameObject();
     ImGui::SameLine();
-    if (ImGui::Button("+ Child") && sel.has()) m_editor->createEmptyGameObject("Empty", sel.object);
+    if (ImGui::Button("+ Child") && sel.has())
+        m_editor->createEmptyGameObject("Empty", sel.object);
     ImGui::Separator();
 
     drawNode(scene->getRoot());
 
-    if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right) && !ImGui::IsAnyItemHovered())
+    if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right)
+        && !ImGui::IsAnyItemHovered())
         ImGui::OpenPopup("##HierBlank");
     blankContextMenu();
-    ImGui::End();
 }
 
 void HierarchyPanel::drawNode(GameObject* go)
@@ -42,7 +42,7 @@ void HierarchyPanel::drawNode(GameObject* go)
 
     ImGuiTreeNodeFlags flags =
         ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
-    if (go == sel.object)        flags |= ImGuiTreeNodeFlags_Selected;
+    if (go == sel.object)          flags |= ImGuiTreeNodeFlags_Selected;
     if (go->getChildren().empty()) flags |= ImGuiTreeNodeFlags_Leaf;
 
     if (sel.renaming == go)
@@ -59,10 +59,10 @@ void HierarchyPanel::drawNode(GameObject* go)
         return;
     }
 
-    bool open = ImGui::TreeNodeEx((void*)(uintptr_t)go->getUID(), flags, go->getName().c_str());
+    bool nodeOpen = ImGui::TreeNodeEx((void*)(uintptr_t)go->getUID(), flags, go->getName().c_str());
 
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) sel.object = go;
-    if (ImGui::IsItemClicked(ImGuiMouseButton_Right))           sel.object = go;
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Right))          sel.object = go;
     if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
     {
         sel.renaming = go;
@@ -81,13 +81,13 @@ void HierarchyPanel::drawNode(GameObject* go)
     {
         if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("GO_PTR"))
         {
-            GameObject* dragged = *(GameObject**)p->Data;
-            if (dragged && dragged != go) dragged->setParent(go);
+            if (auto* dragged = *(GameObject**)p->Data; dragged && dragged != go)
+                dragged->setParent(go);
         }
         ImGui::EndDragDropTarget();
     }
 
-    if (open)
+    if (nodeOpen)
     {
         for (auto* c : go->getChildren()) drawNode(c);
         ImGui::TreePop();
@@ -97,7 +97,7 @@ void HierarchyPanel::drawNode(GameObject* go)
 void HierarchyPanel::itemContextMenu(GameObject* go)
 {
     EditorSelection& sel = m_editor->getSelection();
-    ImGui::TextDisabled("%s", go->getName().c_str());
+    textMuted("%s", go->getName().c_str());
     ImGui::Separator();
 
     if (ImGui::MenuItem("Rename"))
@@ -111,9 +111,9 @@ void HierarchyPanel::itemContextMenu(GameObject* go)
     ImGui::Separator();
     if (ImGui::BeginMenu("Add Component"))
     {
-        auto addIf = [&](const char* label, Component::Type type, bool hasIt)
+        auto addIf = [&](const char* label, Component::Type type, bool has)
             {
-                if (ImGui::MenuItem(label) && !hasIt)
+                if (ImGui::MenuItem(label) && !has)
                     go->addComponent(ComponentFactory::CreateComponent(type, go));
             };
         addIf("Camera", Component::Type::Camera, go->getComponent<ComponentCamera>() != nullptr);
@@ -128,23 +128,22 @@ void HierarchyPanel::itemContextMenu(GameObject* go)
     if (ImGui::MenuItem("Create Empty Child")) m_editor->createEmptyGameObject("Empty", go);
     ImGui::Separator();
 
-    ImGui::Separator();
     if (ImGui::BeginMenu("Prefab"))
     {
-        static char pfNameBuf[128] = "";
+        static char pfBuf[128] = "";
         ImGui::SetNextItemWidth(140.0f);
-        ImGui::InputTextWithHint("##pfn", go->getName().c_str(), pfNameBuf, sizeof(pfNameBuf));
+        ImGui::InputTextWithHint("##pfn", go->getName().c_str(), pfBuf, sizeof(pfBuf));
         ImGui::SameLine();
         if (ImGui::Button("Save"))
         {
-            std::string name = strlen(pfNameBuf) > 0 ? pfNameBuf : go->getName();
+            std::string name = strlen(pfBuf) > 0 ? pfBuf : go->getName();
             if (PrefabManager::createPrefab(go, name))
             {
                 PrefabInstanceData d; d.prefabName = name;
                 PrefabManager::linkInstance(go, d);
-                m_editor->log(("Prefab saved: " + name).c_str(), ImVec4(0.4f, 0.85f, 0.4f, 1));
+                m_editor->log(("Prefab saved: " + name).c_str(), EditorColors::Success);
             }
-            memset(pfNameBuf, 0, sizeof(pfNameBuf));
+            memset(pfBuf, 0, sizeof(pfBuf));
         }
 
         if (PrefabManager::isPrefabInstance(go))
@@ -153,24 +152,24 @@ void HierarchyPanel::itemContextMenu(GameObject* go)
             if (ImGui::MenuItem("Apply to Prefab"))
             {
                 PrefabManager::applyToPrefab(go);
-                m_editor->log("Applied to prefab.", ImVec4(0.4f, 0.85f, 0.4f, 1));
+                m_editor->log("Applied to prefab.", EditorColors::Success);
             }
             if (ImGui::MenuItem("Revert to Prefab"))
             {
                 PrefabManager::revertToPrefab(go, m_editor->getActiveModuleScene());
-                m_editor->log("Reverted from prefab.", ImVec4(0.95f, 0.75f, 0.20f, 1));
+                m_editor->log("Reverted from prefab.", EditorColors::Warning);
             }
             ImGui::Separator();
             if (ImGui::MenuItem("Unpack (Unlink)"))
             {
                 PrefabManager::unlinkInstance(go);
-                m_editor->log("Prefab unlinked.", ImVec4(0.95f, 0.75f, 0.20f, 1));
+                m_editor->log("Prefab unlinked.", EditorColors::Warning);
             }
         }
         ImGui::EndMenu();
     }
 
-    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0.4f, 0.4f, 1));
+    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Danger);
     if (ImGui::MenuItem("Delete")) m_editor->deleteGameObject(go);
     ImGui::PopStyleColor();
 }
@@ -179,7 +178,7 @@ void HierarchyPanel::blankContextMenu()
 {
     if (!ImGui::BeginPopup("##HierBlank")) return;
     EditorSelection& sel = m_editor->getSelection();
-    if (ImGui::MenuItem("Create Empty"))       m_editor->createEmptyGameObject();
+    if (ImGui::MenuItem("Create Empty")) m_editor->createEmptyGameObject();
     if (ImGui::MenuItem("Create Empty Child") && sel.has())
         m_editor->createEmptyGameObject("Empty", sel.object);
     ImGui::EndPopup();

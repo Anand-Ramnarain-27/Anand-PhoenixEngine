@@ -26,15 +26,12 @@
 #include <filesystem>
 #include <algorithm>
 
-void InspectorPanel::draw()
+void InspectorPanel::drawContent()
 {
-    ImGui::Begin("Inspector", &open);
-
     EditorSelection& sel = m_editor->getSelection();
     if (!sel.has())
     {
-        ImGui::TextDisabled("No GameObject selected.");
-        ImGui::End();
+        textMuted("No GameObject selected.");
         return;
     }
 
@@ -142,8 +139,6 @@ void InspectorPanel::draw()
             prefabBuf[0] = '\0';
         }
     }
-
-    ImGui::End();
 }
 
 void InspectorPanel::drawTransform()

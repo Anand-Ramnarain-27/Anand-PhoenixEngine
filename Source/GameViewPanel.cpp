@@ -1,12 +1,12 @@
 #include "Globals.h"
 #include "GameViewPanel.h"
 #include "ModuleEditor.h"
+#include "ModuleDSDescriptors.h"
+#include "ModuleRTDescriptors.h"
 #include "Application.h"
 #include "ModuleD3D12.h"
 #include "ModuleCamera.h"
 #include "ModuleScene.h"
-#include "ModuleDSDescriptors.h"
-#include "ModuleRTDescriptors.h"
 #include "RenderTexture.h"
 #include "SceneManager.h"
 #include "ComponentCamera.h"
@@ -29,29 +29,28 @@ void GameViewPanel::draw()
     if (playing)
         ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.05f, 0.12f, 0.05f, 1.0f));
 
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    if (ImGui::Begin("Game View", &open,
-        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+    EditorPanel::draw();  
+
+    if (playing)
+        ImGui::PopStyleColor();
+}
+
+void GameViewPanel::drawContent()
+{
+    viewport.size = ImGui::GetContentRegionAvail();
+    viewport.checkResize();
+
+    if (viewport.isReady())
     {
-        viewport.size = ImGui::GetContentRegionAvail();
-        viewport.checkResize();
-
-        if (viewport.isReady())
-        {
-            ImGui::Image((ImTextureID)viewport.rt->getSrvHandle().ptr, viewport.size);
-            viewport.pos = ImGui::GetItemRectMin();
-        }
-        else
-        {
-            ImGui::TextDisabled("Game View not ready...");
-        }
-
-        drawPlaymodeOverlay();
+        ImGui::Image((ImTextureID)viewport.rt->getSrvHandle().ptr, viewport.size);
+        viewport.pos = ImGui::GetItemRectMin();
     }
-    ImGui::End();
-    ImGui::PopStyleVar();
+    else
+    {
+        textMuted("Game View not ready...");
+    }
 
-    if (playing) ImGui::PopStyleColor();
+    drawPlaymodeOverlay();
 }
 
 void GameViewPanel::handleResize()
@@ -98,7 +97,7 @@ void GameViewPanel::renderToTexture(ID3D12GraphicsCommandList* cmd)
                 auto* t = go->getTransform();
                 if (t)
                 {
-                    Matrix world = t->getGlobalMatrix();
+                    Matrix  world = t->getGlobalMatrix();
                     Vector3 pos = world.Translation();
                     Vector3 fwd = Vector3::TransformNormal(-Vector3::UnitZ, world); fwd.Normalize();
                     Vector3 up = Vector3::TransformNormal(Vector3::UnitY, world); up.Normalize();
@@ -111,8 +110,7 @@ void GameViewPanel::renderToTexture(ID3D12GraphicsCommandList* cmd)
                 for (auto* child : go->getChildren()) findCam(child);
         };
     findCam(scene->getRoot());
-
-    if (!mainCam) return; 
+    if (!mainCam) return;
 
     viewport.rt->beginRender(cmd);
     m_editor->renderSceneWithCamera(cmd, camView, camProj, w, h, false);

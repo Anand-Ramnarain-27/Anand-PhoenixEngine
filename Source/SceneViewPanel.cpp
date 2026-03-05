@@ -1,10 +1,10 @@
 #include "Globals.h"
 #include "SceneViewPanel.h"
+#include "ModuleDSDescriptors.h"
+#include "ModuleRTDescriptors.h"
 #include "ModuleEditor.h"
 #include "Application.h"
 #include "ModuleD3D12.h"
-#include "ModuleDSDescriptors.h"
-#include "ModuleRTDescriptors.h"
 #include "ModuleCamera.h"
 #include "ModuleScene.h"
 #include "RenderTexture.h"
@@ -53,7 +53,6 @@ void SceneViewPanel::renderToTexture(ID3D12GraphicsCommandList* cmd)
                         Vector3 fwd = Vector3::TransformNormal(-Vector3::UnitZ, world); fwd.Normalize();
                         Vector3 right = Vector3::TransformNormal(Vector3::UnitX, world); right.Normalize();
                         Vector3 up = Vector3::TransformNormal(Vector3::UnitY, world); up.Normalize();
-
                         camera->setGameCameraFrustum(Frustum::fromCamera(
                             pos, fwd, right, up,
                             cam->getFOV(), aspect,
@@ -72,31 +71,35 @@ void SceneViewPanel::renderToTexture(ID3D12GraphicsCommandList* cmd)
     viewport.rt->endRender(cmd);
 }
 
-void SceneViewPanel::draw()
+void SceneViewPanel::drawContent()
 {
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    if (ImGui::Begin("Scene View", &open,
-        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+    viewport.size = ImGui::GetContentRegionAvail();
+    viewport.checkResize();
+
+    if (viewport.isReady())
     {
-        viewport.size = ImGui::GetContentRegionAvail();
-        viewport.checkResize();
+        ImGui::Image((ImTextureID)viewport.rt->getSrvHandle().ptr, viewport.size);
+        viewport.pos = ImGui::GetItemRectMin();
 
-        if (viewport.isReady())
+        if (ImGui::BeginDragDropTarget())
         {
-            ImGui::Image((ImTextureID)viewport.rt->getSrvHandle().ptr, viewport.size);
-            viewport.pos = ImGui::GetItemRectMin();
-            drawGizmo();
-        }
-        else
-        {
-            ImGui::TextDisabled("Scene View not ready...");
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kDragAsset))
+            {
+                std::string path(static_cast<const char*>(payload->Data), payload->DataSize - 1);
+                m_editor->spawnAssetAtPath(path);
+            }
+            ImGui::EndDragDropTarget();
         }
 
-        drawGizmoToolbar();
-        drawOverlay();
+        drawGizmo();
     }
-    ImGui::End();
-    ImGui::PopStyleVar();
+    else
+    {
+        textMuted("Scene View not ready...");
+    }
+
+    drawGizmoToolbar();
+    drawOverlay();
 }
 
 void SceneViewPanel::handleResize()
@@ -119,8 +122,8 @@ void SceneViewPanel::drawGizmoToolbar()
         if (ImGui::IsKeyPressed(ImGuiKey_T)) m_gizmoOp = ImGuizmo::TRANSLATE;
         if (ImGui::IsKeyPressed(ImGuiKey_R)) m_gizmoOp = ImGuizmo::ROTATE;
         if (ImGui::IsKeyPressed(ImGuiKey_S)) m_gizmoOp = ImGuizmo::SCALE;
-        if (ImGui::IsKeyPressed(ImGuiKey_G))
-            m_gizmoMode = (m_gizmoMode == ImGuizmo::LOCAL) ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
+        if (ImGui::IsKeyPressed(ImGuiKey_G)) m_gizmoMode =
+            (m_gizmoMode == ImGuizmo::LOCAL) ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
     }
 
     ImGuiWindow* win = ImGui::FindWindowByName("Scene View");
@@ -138,7 +141,7 @@ void SceneViewPanel::drawGizmoToolbar()
     auto btn = [&](const char* label, ImGuizmo::OPERATION op)
         {
             bool active = (m_gizmoOp == op);
-            if (active) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.26f, 0.59f, 0.98f, 1));
+            if (active) ImGui::PushStyleColor(ImGuiCol_Button, EditorColors::Active);
             if (ImGui::Button(label, ImVec2(40, 22))) m_gizmoOp = op;
             if (active) ImGui::PopStyleColor();
             ImGui::SameLine(0, 2);

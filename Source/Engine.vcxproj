@@ -186,6 +186,7 @@
     <ClInclude Include="debug_draw.hpp" />
     <ClInclude Include="DepthStencilDesc.h" />
     <ClInclude Include="DescriptorBase.h" />
+    <ClInclude Include="EditorColors.h" />
     <ClInclude Include="EditorPanel.h" />
     <ClInclude Include="EditorSceneSettings.h" />
     <ClInclude Include="EditorSelection.h" />
@@ -239,7 +240,6 @@
     <ClInclude Include="Mouse.h" />
     <ClInclude Include="PlatformHelpers.h" />
     <ClInclude Include="PrefabManager.h" />
-    <ClInclude Include="PrefabPanel.h" />
     <ClInclude Include="PrimitiveFactory.h" />
     <ClInclude Include="ReadData.h" />
     <ClInclude Include="RenderTargetDesc.h" />
@@ -331,7 +331,6 @@
     <ClCompile Include="ComponentPointLight.cpp" />
     <ClCompile Include="ComponentSpotLight.cpp" />
     <ClCompile Include="ComponentTransform.cpp" />
-    <ClCompile Include="ConsolePanel.cpp" />
     <ClCompile Include="DebugDrawPass.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
@@ -364,7 +363,6 @@
     <ClCompile Include="ModuleD3D12.cpp" />
     <ClCompile Include="ModuleEditor.cpp" />
     <ClCompile Include="ModuleGPUResources.cpp" />
-    <ClCompile Include="PerformancePanel.cpp" />
     <ClCompile Include="PhoenixEngine.cpp" />
     <ClCompile Include="GamePad.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -383,13 +381,11 @@
     <ClCompile Include="ModuleInput.cpp" />
     <ClCompile Include="Mouse.cpp" />
     <ClCompile Include="PrefabManager.cpp" />
-    <ClCompile Include="PrefabPanel.cpp" />
     <ClCompile Include="PrimitiveFactory.cpp" />
     <ClCompile Include="RenderTargetDesc.cpp" />
     <ClCompile Include="RenderTexture.cpp" />
     <ClCompile Include="ResourceMaterial.cpp" />
     <ClCompile Include="ResourceMesh.cpp" />
-    <ClCompile Include="ResourcesPanel.cpp" />
     <ClCompile Include="ResourceTexture.cpp" />
     <ClCompile Include="SceneImporter.cpp" />
     <ClCompile Include="SceneManager.cpp" />

@@ -7,14 +7,21 @@ class GameViewPanel : public EditorPanel
 {
 public:
     explicit GameViewPanel(ModuleEditor* editor);
-
-    void draw() override;
+    void draw() override;     
     const char* getName() const override { return "Game View"; }
 
     void renderToTexture(ID3D12GraphicsCommandList* cmd);
     void handleResize();
 
     EditorViewport viewport;
+
+protected:
+    void drawContent() override;
+    ImGuiWindowFlags windowFlags() const override
+    {
+        return ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+    }
+    bool noPadding() const override { return true; }
 
 private:
     void drawPlaymodeOverlay();

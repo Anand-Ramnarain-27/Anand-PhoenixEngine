@@ -7,8 +7,10 @@ class SceneSettingsPanel : public EditorPanel
 {
 public:
     explicit SceneSettingsPanel(ModuleEditor* editor) : EditorPanel(editor) {}
-    void draw() override;
     const char* getName() const override { return "Scene Settings"; }
+
+protected:
+    void drawContent() override;
 
 private:
     void drawDisplaySection();
@@ -17,6 +19,6 @@ private:
     void drawSkyboxSection();
 
     std::vector<std::string> m_skyboxFiles;
-    int                      m_selectedSkybox = -1;
-    bool                     m_scanned = false;
+    int  m_selectedSkybox = -1;
+    bool m_scanned = false;
 };

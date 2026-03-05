@@ -178,9 +178,6 @@
     <ClCompile Include="AssetBrowserPanel.cpp">
       <Filter>engine\editor</Filter>
     </ClCompile>
-    <ClCompile Include="ConsolePanel.cpp">
-      <Filter>engine\editor</Filter>
-    </ClCompile>
     <ClCompile Include="GameViewPanel.cpp">
       <Filter>engine\editor</Filter>
     </ClCompile>
@@ -190,16 +187,10 @@
     <ClCompile Include="InspectorPanel.cpp">
       <Filter>engine\editor</Filter>
     </ClCompile>
-    <ClCompile Include="PerformancePanel.cpp">
-      <Filter>engine\editor</Filter>
-    </ClCompile>
     <ClCompile Include="SceneSettingsPanel.cpp">
       <Filter>engine\editor</Filter>
     </ClCompile>
     <ClCompile Include="SceneViewPanel.cpp">
-      <Filter>engine\editor</Filter>
-    </ClCompile>
-    <ClCompile Include="ResourcesPanel.cpp">
       <Filter>engine\editor</Filter>
     </ClCompile>
     <ClCompile Include="MetaFileManager.cpp">
@@ -216,9 +207,6 @@
     </ClCompile>
     <ClCompile Include="ModuleResources.cpp">
       <Filter>engine\d3d12</Filter>
-    </ClCompile>
-    <ClCompile Include="PrefabPanel.cpp">
-      <Filter>engine\editor</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -502,7 +490,7 @@
     <ClInclude Include="ResourceBase.h">
       <Filter>engine\resources</Filter>
     </ClInclude>
-    <ClInclude Include="PrefabPanel.h">
+    <ClInclude Include="EditorColors.h">
       <Filter>engine\editor</Filter>
     </ClInclude>
   </ItemGroup>
