@@ -194,7 +194,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     lightData.ambientIntensity = s.ambient.intensity;
     lightData.viewPos = camera->getPos();
     lightData.iblEnabled = (sky.enabled && m_envSystem && m_envSystem->hasIBL()) ? 1u : 0u;
-    lightData.spotLight.numRoughnessLevels = float(EnvironmentMap::NUM_ROUGHNESS_LEVELS);
+    //lightData.spotLight.numRoughnessLevels = float(EnvironmentMap::NUM_ROUGHNESS_LEVELS);
     if (moduleScene) gatherLights(moduleScene->getRoot(), lightData);
 
     void* mapped = nullptr;
@@ -429,23 +429,40 @@ bool ModuleEditor::isChildOf(const GameObject* root, const GameObject* needle) {
 
 void ModuleEditor::gatherLights(GameObject* node, MeshPipeline::LightCB& out) const {
     if (!node || !node->isActive()) return;
-    if (auto* dl = node->getComponent<ComponentDirectionalLight>(); dl && dl->enabled && out.numDirLights < 2) {
-        auto& g = out.dirLights[out.numDirLights++];
-        g.direction = dl->direction; g.color = dl->color; g.intensity = dl->intensity;
+    if (auto* dl = node->getComponent<ComponentDirectionalLight>(); dl && dl->enabled)
+    {
+        if (out.numDirLights < MeshPipeline::MAX_DIR_LIGHTS)
+        {
+            auto& g = out.dirLights[out.numDirLights++];
+            g.direction = dl->direction;
+            g.color = dl->color;
+            g.intensity = dl->intensity;
+        }
     }
-    if (auto* pl = node->getComponent<ComponentPointLight>(); pl && pl->enabled && out.numPointLights == 0) {
-        out.numPointLights = 1;
-        out.pointLight.position = node->getTransform()->getGlobalMatrix().Translation();
-        out.pointLight.color = pl->color; out.pointLight.intensity = pl->intensity;
-        out.pointLight.sqRadius = pl->radius * pl->radius;
+    if (auto* pl = node->getComponent<ComponentPointLight>(); pl && pl->enabled)
+    {
+        if (out.numPointLights < MeshPipeline::MAX_POINT_LIGHTS)
+        {
+            auto& p = out.pointLights[out.numPointLights++];
+            p.position = node->getTransform()->getGlobalMatrix().Translation();
+            p.color = pl->color;
+            p.intensity = pl->intensity;
+            p.sqRadius = pl->radius * pl->radius;
+        }
     }
-    if (auto* sl = node->getComponent<ComponentSpotLight>(); sl && sl->enabled && out.numSpotLights == 0) {
-        out.numSpotLights = 1;
-        out.spotLight.position = node->getTransform()->getGlobalMatrix().Translation();
-        out.spotLight.direction = sl->direction; out.spotLight.color = sl->color;
-        out.spotLight.intensity = sl->intensity; out.spotLight.sqRadius = sl->radius * sl->radius;
-        out.spotLight.innerCos = cosf(sl->innerAngle * kDeg2Rad);
-        out.spotLight.outerCos = cosf(sl->outerAngle * kDeg2Rad);
+    if (auto* sl = node->getComponent<ComponentSpotLight>(); sl && sl->enabled)
+    {
+        if (out.numSpotLights < MeshPipeline::MAX_SPOT_LIGHTS)
+        {
+            auto& s = out.spotLights[out.numSpotLights++];
+            s.position = node->getTransform()->getGlobalMatrix().Translation();
+            s.direction = sl->direction;
+            s.color = sl->color;
+            s.intensity = sl->intensity;
+            s.sqRadius = sl->radius * sl->radius;
+            s.innerCos = cosf(sl->innerAngle * kDeg2Rad);
+            s.outerCos = cosf(sl->outerAngle * kDeg2Rad);
+        }
     }
     for (auto* c : node->getChildren()) gatherLights(c, out);
 }

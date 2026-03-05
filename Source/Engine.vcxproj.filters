@@ -166,24 +166,6 @@
     <ClCompile Include="SkyboxRenderer.cpp">
       <Filter>engine\graphics\environment</Filter>
     </ClCompile>
-    <ClCompile Include="AssetBrowserPanel.cpp">
-      <Filter>engine\editor</Filter>
-    </ClCompile>
-    <ClCompile Include="GameViewPanel.cpp">
-      <Filter>engine\editor</Filter>
-    </ClCompile>
-    <ClCompile Include="HierarchyPanel.cpp">
-      <Filter>engine\editor</Filter>
-    </ClCompile>
-    <ClCompile Include="InspectorPanel.cpp">
-      <Filter>engine\editor</Filter>
-    </ClCompile>
-    <ClCompile Include="SceneSettingsPanel.cpp">
-      <Filter>engine\editor</Filter>
-    </ClCompile>
-    <ClCompile Include="SceneViewPanel.cpp">
-      <Filter>engine\editor</Filter>
-    </ClCompile>
     <ClCompile Include="MetaFileManager.cpp">
       <Filter>engine\resources</Filter>
     </ClCompile>
@@ -199,17 +181,35 @@
     <ClCompile Include="ModuleResources.cpp">
       <Filter>engine\d3d12</Filter>
     </ClCompile>
-    <ClCompile Include="ViewportPanel.cpp">
-      <Filter>engine\editor</Filter>
-    </ClCompile>
     <ClCompile Include="ComponentLights.cpp">
       <Filter>engine\scene\components</Filter>
     </ClCompile>
+    <ClCompile Include="AssetBrowserPanel.cpp">
+      <Filter>engine\editor\panels</Filter>
+    </ClCompile>
     <ClCompile Include="EditorPanel.cpp">
-      <Filter>engine\editor</Filter>
+      <Filter>engine\editor\panels</Filter>
     </ClCompile>
     <ClCompile Include="EditorPanels.cpp">
-      <Filter>engine\editor</Filter>
+      <Filter>engine\editor\panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HierarchyPanel.cpp">
+      <Filter>engine\editor\panels</Filter>
+    </ClCompile>
+    <ClCompile Include="InspectorPanel.cpp">
+      <Filter>engine\editor\panels</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneSettingsPanel.cpp">
+      <Filter>engine\editor\panels</Filter>
+    </ClCompile>
+    <ClCompile Include="GameViewPanel.cpp">
+      <Filter>engine\editor\panels\viewports</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneViewPanel.cpp">
+      <Filter>engine\editor\panels\viewports</Filter>
+    </ClCompile>
+    <ClCompile Include="ViewportPanel.cpp">
+      <Filter>engine\editor\panels\viewports</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -427,31 +427,10 @@
     <ClInclude Include="SkyboxRenderer.h">
       <Filter>engine\graphics\environment</Filter>
     </ClInclude>
-    <ClInclude Include="AssetBrowserPanel.h">
-      <Filter>engine\editor</Filter>
-    </ClInclude>
-    <ClInclude Include="EditorPanel.h">
-      <Filter>engine\editor</Filter>
-    </ClInclude>
     <ClInclude Include="EditorSelection.h">
       <Filter>engine\editor</Filter>
     </ClInclude>
     <ClInclude Include="EditorViewport.h">
-      <Filter>engine\editor</Filter>
-    </ClInclude>
-    <ClInclude Include="GameViewPanel.h">
-      <Filter>engine\editor</Filter>
-    </ClInclude>
-    <ClInclude Include="HierarchyPanel.h">
-      <Filter>engine\editor</Filter>
-    </ClInclude>
-    <ClInclude Include="InspectorPanel.h">
-      <Filter>engine\editor</Filter>
-    </ClInclude>
-    <ClInclude Include="SceneSettingsPanel.h">
-      <Filter>engine\editor</Filter>
-    </ClInclude>
-    <ClInclude Include="SceneViewPanel.h">
       <Filter>engine\editor</Filter>
     </ClInclude>
     <ClInclude Include="ResourceTexture.h">
@@ -478,14 +457,35 @@
     <ClInclude Include="ImporterUtils.h">
       <Filter>engine\resources\importers</Filter>
     </ClInclude>
-    <ClInclude Include="ViewportPanel.h">
-      <Filter>engine\editor</Filter>
-    </ClInclude>
-    <ClInclude Include="EditorPanels.h">
-      <Filter>engine\editor</Filter>
-    </ClInclude>
     <ClInclude Include="ComponentLights.h">
       <Filter>engine\scene\components</Filter>
+    </ClInclude>
+    <ClInclude Include="AssetBrowserPanel.h">
+      <Filter>engine\editor\panels</Filter>
+    </ClInclude>
+    <ClInclude Include="EditorPanel.h">
+      <Filter>engine\editor\panels</Filter>
+    </ClInclude>
+    <ClInclude Include="EditorPanels.h">
+      <Filter>engine\editor\panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HierarchyPanel.h">
+      <Filter>engine\editor\panels</Filter>
+    </ClInclude>
+    <ClInclude Include="InspectorPanel.h">
+      <Filter>engine\editor\panels</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneSettingsPanel.h">
+      <Filter>engine\editor\panels</Filter>
+    </ClInclude>
+    <ClInclude Include="GameViewPanel.h">
+      <Filter>engine\editor\panels\viewports</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneViewPanel.h">
+      <Filter>engine\editor\panels\viewports</Filter>
+    </ClInclude>
+    <ClInclude Include="ViewportPanel.h">
+      <Filter>engine\editor\panels\viewports</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -595,6 +595,12 @@
     </Filter>
     <Filter Include="shaders">
       <UniqueIdentifier>{2763b0bf-8de5-40bd-826e-2f3c6d2bd54a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\editor\panels">
+      <UniqueIdentifier>{b2db993a-5d91-4559-8191-39061d336714}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\editor\panels\viewports">
+      <UniqueIdentifier>{6585ad02-dc91-49eb-ba3f-bdea3c3ebedd}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

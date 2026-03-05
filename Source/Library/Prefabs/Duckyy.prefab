@@ -1,19 +1,19 @@
 {
   "PrefabName": "Duckyy",
   "Version": 2,
-  "PrefabUID": 0,
+  "PrefabUID": 3002901886,
   "GameObject": {
     "Name": "Duck",
-    "UID": 2043517515,
+    "UID": 2513703222,
     "Active": true,
     "PrefabLink": {
       "PrefabName": "Duckyy",
-      "PrefabUID": 0
+      "PrefabUID": 3002901886
     },
     "Transform": {
       "position": [
+        3.8956706523895264,
         0.0,
-        0.12311387062072754,
         0.0
       ],
       "rotation": [
@@ -35,7 +35,7 @@
       },
       {
         "Type": 5,
-        "Data": "{\"direction\":[0.41999998688697815,1.0,-0.11999999731779099],\"color\":[1.0,0.44015443325042725,0.0],\"intensity\":3.3299999237060547,\"innerAngle\":30.0,\"outerAngle\":30.0,\"radius\":10.0,\"enabled\":true}"
+        "Data": "{\"direction\":[0.05999999865889549,0.4300000071525574,-0.18000000715255737],\"color\":[0.9019607901573181,0.12156862765550613,0.05882352963089943],\"intensity\":5.429999828338623,\"innerAngle\":30.0,\"outerAngle\":30.0,\"radius\":10.0,\"enabled\":true}"
       }
     ],
     "Children": []
