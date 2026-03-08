@@ -6,6 +6,7 @@
 
 class IScene;
 class ModuleCamera;
+class ModuleScene;
 
 class SceneManager
 {
@@ -30,9 +31,15 @@ public:
     void onViewportResized(uint32_t width, uint32_t height);
 
     IScene* getActiveScene() const { return activeScene.get(); }
+    ModuleScene* getModuleScene() const;
 
     bool saveCurrentScene(const std::string& filePath);
     bool loadScene(const std::string& filePath);
+
+    void enterPrefabEdit(ModuleScene* prefabScene, const std::string& prefabName);
+    void exitPrefabEdit();
+    bool isEditingPrefab() const { return m_editingPrefab; }
+    const std::string& getPrefabEditName() const { return m_prefabEditName; }
 
     EditorSceneSettings& getSettings() { return settings; }
     const EditorSceneSettings& getSettings() const { return settings; }
@@ -42,4 +49,9 @@ private:
     PlayState state = PlayState::Stopped;
     bool hasSerializedState = false;
     EditorSceneSettings settings;
+
+    bool m_editingPrefab = false;
+    std::string m_prefabEditName;
+    ModuleScene* m_savedScene = nullptr;
+    ModuleScene* m_prefabScene = nullptr;
 };

@@ -12,7 +12,7 @@ protected:
     void drawContent() override;
 
 private:
-    void drawNode(GameObject* go);
+    void drawNode(GameObject* go, bool prefabMode = false, bool isRoot = false);
     void itemContextMenu(GameObject* go);
     void blankContextMenu();
 };

@@ -1,0 +1,78 @@
+{
+  "PrefabName": "Fuck",
+  "Version": 2,
+  "PrefabUID": 0,
+  "OverrideMap": {
+    "ModifiedProperties": {
+      "0": [
+        "position"
+      ]
+    },
+    "AddedComponents": [],
+    "RemovedComponents": []
+  },
+  "GameObject": {
+    "Name": "Ducky",
+    "UID": 2230616763,
+    "Active": true,
+    "PrefabLink": {
+      "PrefabName": "Fuck",
+      "PrefabUID": 0
+    },
+    "Transform": {
+      "position": [
+        -16.54400062561035,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        -0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "Components": [],
+    "Children": [
+      {
+        "Name": "Duck",
+        "UID": 3154620557,
+        "Active": true,
+        "Transform": {
+          "position": [
+            4.800000190734863,
+            1.0714632272720337,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            -0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            0.009999999776482582,
+            0.009999999776482582,
+            0.009999999776482582
+          ]
+        },
+        "Components": [
+          {
+            "Type": 1,
+            "Data": "{\"ModelUID\":9079023424040215934,\"ModelPath\":\"Assets/Models\\\\Duck\\\\Duck.gltf\",\"Entries\":[{\"meshUID\":11601285995846240618,\"materialUID\":11131465992867884635}]}"
+          },
+          {
+            "Type": 3,
+            "Data": "{\"direction\":[-0.5,-1.0,-0.5],\"color\":[0.5791505575180054,0.11826304346323013,0.013416602276265621],\"intensity\":1.0,\"enabled\":true}"
+          }
+        ],
+        "Children": []
+      }
+    ]
+  }
+}

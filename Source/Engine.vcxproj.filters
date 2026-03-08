@@ -487,6 +487,7 @@
     <ClInclude Include="ViewportPanel.h">
       <Filter>engine\editor\panels\viewports</Filter>
     </ClInclude>
+    <ClInclude Include="PrefabEditSession.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

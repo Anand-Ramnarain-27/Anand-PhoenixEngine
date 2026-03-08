@@ -13,6 +13,7 @@
 #include "ModuleDSDescriptors.h"
 #include "ModuleRTDescriptors.h"
 #include "RenderTexture.h"
+#include "PrefabManager.h"
 #include <functional>
 
 static constexpr float kDeg2Rad = 0.0174532925f;
@@ -65,6 +66,7 @@ void SceneViewPanel::onImageDrawn() {
 
 void SceneViewPanel::onDrawOverlays() {
     drawGizmoToolbar();
+    drawPrefabExitButton();
     drawOverlay();
 }
 
@@ -129,13 +131,25 @@ void SceneViewPanel::drawGizmo() {
 
     if (ImGuizmo::Manipulate((const float*)&view, (const float*)&proj, m_gizmoOp, m_gizmoMode, (float*)&world, nullptr, snapPtr)) {
         Matrix local = world;
-        if (GameObject* par = sel.object->getParent()) local = world * par->getTransform()->getGlobalMatrix().Invert();
+        if (GameObject* par = sel.object->getParent())
+            local = par->getTransform()->getGlobalMatrix().Invert() * world;
         float tr[3], rot[3], sc[3];
         ImGuizmo::DecomposeMatrixToComponents((const float*)&local, tr, rot, sc);
         t->position = { tr[0], tr[1], tr[2] };
         t->scale = { sc[0], sc[1], sc[2] };
         t->rotation = Quaternion::CreateFromYawPitchRoll(rot[1] * kDeg2Rad, rot[0] * kDeg2Rad, rot[2] * kDeg2Rad);
         t->markDirty();
+
+        GameObject* cur = sel.object;
+        while (cur) {
+            if (PrefabManager::isPrefabInstance(cur)) {
+                PrefabManager::markPropertyOverride(cur, (int)Component::Type::Transform, "position");
+                PrefabManager::markPropertyOverride(cur, (int)Component::Type::Transform, "rotation");
+                PrefabManager::markPropertyOverride(cur, (int)Component::Type::Transform, "scale");
+                break;
+            }
+            cur = cur->getParent();
+        }
     }
 }
 
@@ -145,4 +159,35 @@ void SceneViewPanel::drawOverlay() {
     char buf[160];
     sprintf_s(buf, "FPS: %.1f  CPU: %.2f ms  GPU: %.2f ms", app->getFPS(), app->getAvgElapsedMs(), m_editor->getGpuFrameTimeMs());
     ImGui::GetForegroundDrawList()->AddText({ win->Pos.x + 10, win->Pos.y + win->Size.y - 24 }, IM_COL32(0, 230, 0, 220), buf);
+}
+void SceneViewPanel::drawPrefabExitButton() {
+    if (!m_editor->getSceneManager() || !m_editor->getSceneManager()->isEditingPrefab()) return;
+    ImGuiWindow* win = ImGui::FindWindowByName("Scene View");
+    if (!win) return;
+
+    constexpr ImGuiWindowFlags kF = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBringToFrontOnFocus |
+        ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoSavedSettings;
+
+    const std::string& name = m_editor->getSceneManager()->getPrefabEditName();
+    const float btnW = 160.f;
+
+    ImGui::SetNextWindowPos({ win->Pos.x + win->Size.x - btnW - 10.f, win->Pos.y + 28.f }, ImGuiCond_Always);
+    ImGui::SetNextWindowBgAlpha(0.88f);
+    if (!ImGui::Begin("##pfExitBtn", nullptr, kF)) { ImGui::End(); return; }
+
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.75f, 0.20f, 1.f));
+    ImGui::Text("Editing: %s", name.c_str());
+    ImGui::PopStyleColor();
+
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 5));
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.55f, 0.12f, 0.12f, 1.f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.80f, 0.18f, 0.18f, 1.f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.38f, 0.07f, 0.07f, 1.f));
+    if (ImGui::Button("Exit Prefab Edit  [Esc]", ImVec2(btnW, 0))) m_editor->exitPrefabEdit();
+    ImGui::PopStyleColor(3);
+    ImGui::PopStyleVar();
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Leave without saving. Use Hierarchy right-click to Apply/Revert.");
+
+    ImGui::End();
 }

@@ -115,8 +115,7 @@ bool ModuleEditor::cleanUp() {
 }
 
 ModuleScene* ModuleEditor::getActiveModuleScene() const {
-    IScene* s = m_sceneManager ? m_sceneManager->getActiveScene() : nullptr;
-    return s ? s->getModuleScene() : nullptr;
+    return m_sceneManager ? m_sceneManager->getModuleScene() : nullptr;
 }
 
 void ModuleEditor::log(const char* text, const ImVec4& color) {
@@ -124,6 +123,7 @@ void ModuleEditor::log(const char* text, const ImVec4& color) {
 }
 
 void ModuleEditor::preRender() {
+    flushExitPrefabEdit();
     m_sceneView->handleResize();
     m_gameView->handleResize();
     m_imguiPass->startFrame();
@@ -732,9 +732,45 @@ void ModuleEditor::handleShortcuts() {
     if (ctrl && shift && ImGui::IsKeyPressed(ImGuiKey_S, false)) m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
     if (ctrl && ImGui::IsKeyPressed(ImGuiKey_O, false)) m_loadDialog->open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
     if (ImGui::IsKeyPressed(ImGuiKey_Delete, false) && m_selection.has()) deleteGameObject(m_selection.object);
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false) && m_sceneManager && m_sceneManager->isEditingPrefab()) { exitPrefabEdit(); return; }
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_Z, false)) undoToSavePoint();
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_Y, false)) redo();
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_C, false)) copySelected();
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_V, false)) pasteClipboard();
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_D, false)) duplicateSelected();
 }
+void ModuleEditor::enterPrefabEdit(const std::string& prefabName) {
+    if (!m_sceneManager) return;
+    app->getD3D12()->flush();
+    if (m_sceneManager->isEditingPrefab()) m_sceneManager->exitPrefabEdit();
+    m_prefabSession.clear();
+    m_prefabSession.isolatedScene = std::make_unique<ModuleScene>();
+    GameObject* loaded = PrefabManager::instantiatePrefab(prefabName, m_prefabSession.isolatedScene.get());
+    if (!loaded) {
+        log(("Failed to open prefab: " + prefabName).c_str(), EditorColors::Danger);
+        m_prefabSession.clear();
+        return;
+    }
+    m_prefabSession.prefabName = prefabName;
+    m_prefabSession.rootObject = loaded;
+    m_prefabSession.active = true;
+    m_selection.object = loaded;
+    m_sceneManager->enterPrefabEdit(m_prefabSession.isolatedScene.get(), prefabName);
+    log(("Editing prefab: " + prefabName).c_str(), EditorColors::Active);
+}
+
+void ModuleEditor::exitPrefabEdit() {
+    if (!m_sceneManager || !m_sceneManager->isEditingPrefab()) return;
+    m_pendingExitPrefab = true;
+}
+
+void ModuleEditor::flushExitPrefabEdit() {
+    if (!m_pendingExitPrefab) return;
+    m_pendingExitPrefab = false;
+    app->getD3D12()->flush();
+    m_selection.clear();
+    m_sceneManager->exitPrefabEdit();
+    m_prefabSession.clear();
+    log("Exited prefab edit.", EditorColors::Muted);
+}
+

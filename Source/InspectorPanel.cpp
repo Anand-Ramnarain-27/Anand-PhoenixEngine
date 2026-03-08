@@ -21,6 +21,8 @@
 #include "MeshEntry.h"
 #include "ResourceMaterial.h"
 #include "EditorSelection.h"
+#include "PrefabEditSession.h"
+#include "SceneManager.h"
 #include <filesystem>
 #include <algorithm>
 
@@ -29,10 +31,38 @@ namespace fs = std::filesystem;
 static constexpr float kDeg2Rad = 0.0174532925f;
 static constexpr float kRad2Deg = 57.2957795f;
 
+static GameObject* findPrefabRoot(GameObject* go) {
+    GameObject* cur = go;
+    while (cur) {
+        if (PrefabManager::isPrefabInstance(cur)) return cur;
+        cur = cur->getParent();
+    }
+    return nullptr;
+}
+
 void InspectorPanel::drawContent() {
     EditorSelection& sel = m_editor->getSelection();
+    bool prefabMode = m_editor->getSceneManager() && m_editor->getSceneManager()->isEditingPrefab();
+
+    if (prefabMode) {
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        ImVec2 p2 = { p.x + ImGui::GetContentRegionAvail().x, p.y + 28.f };
+        ImGui::GetWindowDrawList()->AddRectFilled(p, p2, IM_COL32(25, 80, 25, 210));
+        ImGui::GetWindowDrawList()->AddRect(p, p2, IM_COL32(50, 190, 50, 180));
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5.f);
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.35f, 1.f, 0.35f, 1.f));
+        ImGui::Text("  Prefab: %s", m_editor->getSceneManager()->getPrefabEditName().c_str());
+        ImGui::PopStyleColor();
+        ImGui::Spacing();
+        ImGui::Separator();
+    }
+
     if (!sel.has()) { textMuted("No GameObject selected."); return; }
     GameObject* go = sel.object;
+
+    PrefabEditSession* session = m_editor->getPrefabSession();
+    bool isEditRoot = prefabMode && session && go == session->rootObject;
+    bool isInPrefabEdit = prefabMode && session && session->rootObject;
 
     bool active = go->isActive();
     if (ImGui::Checkbox("##active", &active)) go->setActive(active);
@@ -41,10 +71,69 @@ void InspectorPanel::drawContent() {
     char nameBuf[256];
     strncpy_s(nameBuf, go->getName().c_str(), sizeof(nameBuf) - 1);
     ImGui::SetNextItemWidth(-1);
-    if (ImGui::InputText("##goname", nameBuf, sizeof(nameBuf))) go->setName(nameBuf);
-    ImGui::TextDisabled("UID: %u", go->getUID());
 
-    if (PrefabManager::isPrefabInstance(go)) {
+    if (isEditRoot) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.28f, 0.18f, 0.04f, 1.f));
+    if (ImGui::InputText("##goname", nameBuf, sizeof(nameBuf))) go->setName(nameBuf);
+    if (isEditRoot) ImGui::PopStyleColor();
+
+    if (isInPrefabEdit) {
+        if (isEditRoot) {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.75f, 0.20f, 1.f));
+            ImGui::Text("Root  |  UID: %u", go->getUID());
+            ImGui::PopStyleColor();
+        }
+        else {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.75f, 0.75f, 0.75f, 1.f));
+            ImGui::Text("Child  |  UID: %u", go->getUID());
+            ImGui::PopStyleColor();
+        }
+
+        ImGui::Spacing();
+        const float bw = (ImGui::GetContentRegionAvail().x - 8.f) / 3.f;
+
+        const PrefabInstanceData* instData = PrefabManager::getInstanceData(session->rootObject);
+        bool hasChanges = instData && !instData->overrides.isEmpty();
+
+        ImGui::BeginDisabled(!hasChanges);
+        ImGui::PushStyleColor(ImGuiCol_Button, hasChanges ? ImVec4(0.14f, 0.42f, 0.14f, 1.f) : ImVec4(0.15f, 0.15f, 0.15f, 1.f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.58f, 0.20f, 1.f));
+        if (ImGui::Button("Apply", ImVec2(bw, 0)) && session->rootObject) {
+            PrefabManager::applyToPrefab(session->rootObject);
+            m_editor->log(("Applied prefab: " + session->prefabName).c_str(), EditorColors::Success);
+            m_editor->exitPrefabEdit();
+        }
+        ImGui::PopStyleColor(2);
+        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip(hasChanges ? "Save all changes to the prefab file" : "No changes to apply");
+
+        ImGui::SameLine(0, 4);
+
+        ImGui::BeginDisabled(!hasChanges);
+        if (ImGui::Button("Revert", ImVec2(bw, 0)) && session->rootObject) {
+            PrefabManager::revertToPrefab(session->rootObject, session->isolatedScene.get());
+            m_editor->getSelection().object = session->rootObject;
+            m_editor->log(("Reverted prefab: " + session->prefabName).c_str(), EditorColors::Warning);
+        }
+        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip(hasChanges ? "Discard edits and reload from disk" : "No changes to revert");
+
+        ImGui::SameLine(0, 4);
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.50f, 0.12f, 0.12f, 1.f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.72f, 0.17f, 0.17f, 1.f));
+        if (ImGui::Button("Exit", ImVec2(bw, 0))) m_editor->exitPrefabEdit();
+        ImGui::PopStyleColor(2);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Leave prefab edit without saving  [Esc]");
+
+        ImGui::Spacing();
+    }
+    else {
+        ImGui::TextDisabled("UID: %u", go->getUID());
+    }
+
+    if (!prefabMode && PrefabManager::isPrefabInstance(go)) {
         ImGui::SameLine();
         ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Active);
         ImGui::Text("[Prefab: %s]", PrefabManager::getPrefabName(go).c_str());
@@ -118,7 +207,8 @@ void InspectorPanel::drawTransform() {
     if (!t || !ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) return;
 
     auto markOverride = [&](const char* prop) {
-        if (PrefabManager::isPrefabInstance(go)) PrefabManager::markPropertyOverride(go, (int)Component::Type::Transform, prop);
+        GameObject* root = findPrefabRoot(go);
+        if (root) PrefabManager::markPropertyOverride(root, (int)Component::Type::Transform, prop);
         };
 
     float pos[3] = { t->position.x, t->position.y, t->position.z };
@@ -142,8 +232,9 @@ void InspectorPanel::drawAddComponentMenu() {
     auto addComp = [&](const char* label, Component::Type type, bool hasIt) {
         if (!ImGui::MenuItem(label, nullptr, false, !hasIt)) return;
         go->addComponent(ComponentFactory::CreateComponent(type, go));
-        if (PrefabManager::isPrefabInstance(go))
-            if (PrefabInstanceData* inst = PrefabManager::getInstanceDataMutable(go))
+        GameObject* root = findPrefabRoot(go);
+        if (root)
+            if (PrefabInstanceData* inst = PrefabManager::getInstanceDataMutable(root))
                 inst->overrides.addedComponentTypes.push_back((int)type);
         ImGui::CloseCurrentPopup();
         };

@@ -97,7 +97,7 @@ void AssetBrowserPanel::drawContent() {
 
     EditorSelection& sel = m_editor->getSelection();
     bool isInst = sel.has() && PrefabManager::isPrefabInstance(sel.object);
-    float instanceBarH = isInst ? 28.0f : 0.0f;
+    float instanceBarH = isInst ? 52.0f : 0.0f;
     float mainH = ImGui::GetContentRegionAvail().y - kStatusH - instanceBarH - (isInst ? 4.0f : 0.0f);
 
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.13f, 0.13f, 0.13f, 1.f));
@@ -234,7 +234,11 @@ void AssetBrowserPanel::drawThumbnailGrid() {
 
             if (clicked) {
                 m_selectedPath = e.path;
-                if (ImGui::IsMouseDoubleClicked(0)) { if (e.isDir) navigateTo(e.path); else spawnAsset(e.path); }
+                if (ImGui::IsMouseDoubleClicked(0)) {
+                    if (e.isDir) navigateTo(e.path);
+                    else if (e.ext == ".prefab") m_editor->enterPrefabEdit(fs::path(e.name).stem().string());
+                    else spawnAsset(e.path);
+                }
             }
 
             if (!e.isDir && ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
@@ -306,6 +310,8 @@ void AssetBrowserPanel::drawItemContextMenu(int idx) {
         ImGui::Separator();
         if (e.ext == ".prefab") {
             std::string pfName = fs::path(e.name).stem().string();
+            if (ImGui::MenuItem("Edit Prefab...")) m_editor->enterPrefabEdit(pfName);
+            ImGui::Separator();
             if (ImGui::MenuItem("Instantiate Prefab")) prefabInstantiate(pfName);
             if (ImGui::MenuItem("Create Variant...")) { m_showVariantModal = true; strncpy_s(m_variantSrcBuf, pfName.c_str(), sizeof(m_variantSrcBuf) - 1); snprintf(m_variantDstBuf, sizeof(m_variantDstBuf), "%s_variant", pfName.c_str()); }
             if (ImGui::MenuItem("Rename...")) { m_renamingPrefab = true; strncpy_s(m_renameSrcBuf, pfName.c_str(), sizeof(m_renameSrcBuf) - 1); strncpy_s(m_renameDstBuf, pfName.c_str(), sizeof(m_renameDstBuf) - 1); }
@@ -365,28 +371,49 @@ void AssetBrowserPanel::drawPrefabInstanceBar() {
     bool hasOverrides = inst && !inst->overrides.isEmpty();
 
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.12f, 0.16f, 0.12f, 1.f));
-    ImGui::BeginChild("##instBar", ImVec2(0, 26), false, ImGuiWindowFlags_NoScrollbar);
-    ImGui::SetCursorPos({ 6, 4 });
+    ImGui::BeginChild("##instBar", ImVec2(0, 48), false, ImGuiWindowFlags_NoScrollbar);
+
+    ImGui::SetCursorPos({ 6, 3 });
     ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success);
     ImGui::Text("[P]");
     ImGui::PopStyleColor();
-    ImGui::SameLine(0, 4); ImGui::Text("%s", go->getName().c_str());
-    ImGui::SameLine(0, 4); textMuted("->  %s", pfName.c_str());
-    if (hasOverrides) { ImGui::SameLine(0, 4); textActive("(overrides)"); }
+    ImGui::SameLine(0, 4);
+    ImGui::Text("%s", go->getName().c_str());
+    ImGui::SameLine(0, 4);
+    textMuted("->  %s", pfName.c_str());
+    if (hasOverrides) { ImGui::SameLine(0, 4); textActive("(*)"); }
 
-    const float bw = 64.0f;
-    float rightX = ImGui::GetContentRegionAvail().x - bw * 3 - 14;
-    ImGui::SameLine(0, rightX > 0 ? rightX : 0);
-    if (ImGui::SmallButton("Apply")) prefabApply();
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Push changes back to the prefab file");
-    ImGui::SameLine(0, 4);
-    if (ImGui::SmallButton("Revert")) prefabRevert();
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Restore from prefab file");
-    ImGui::SameLine(0, 4);
+    ImGui::SetCursorPos({ 6, 26 });
+    const float bw = 58.f;
+    const float pad = 4.f;
+
+    ImGui::BeginDisabled(!hasOverrides);
+    ImGui::PushStyleColor(ImGuiCol_Button, hasOverrides ? ImVec4(0.14f, 0.40f, 0.14f, 1.f) : ImVec4(0.15f, 0.15f, 0.15f, 1.f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.56f, 0.20f, 1.f));
+    if (ImGui::SmallButton("Apply##ib")) prefabApply();
+    ImGui::PopStyleColor(2);
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip(hasOverrides ? "Push changes back to the prefab file" : "No overrides to apply");
+
+    ImGui::SameLine(0, pad);
+
+    ImGui::BeginDisabled(!hasOverrides);
+    if (ImGui::SmallButton("Revert##ib")) prefabRevert();
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip(hasOverrides ? "Restore from prefab file" : "No overrides to revert");
+
+    ImGui::SameLine(0, pad);
+
     ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Warning);
-    if (ImGui::SmallButton("Unlink")) { PrefabManager::unlinkInstance(go); m_editor->log(("Unlinked '" + go->getName() + "'").c_str(), EditorColors::Warning); }
+    if (ImGui::SmallButton("Unlink##ib")) {
+        PrefabManager::unlinkInstance(go);
+        m_editor->log(("Unlinked '" + go->getName() + "'").c_str(), EditorColors::Warning);
+    }
     ImGui::PopStyleColor();
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Break prefab connection");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Break prefab connection (always available)");
+
     ImGui::EndChild();
     ImGui::PopStyleColor();
 }
@@ -530,6 +557,7 @@ void AssetBrowserPanel::spawnAsset(const std::string& path) {
         if (scene) { sel.object = PrimitiveFactory::createTexturedQuadObject(scene, stem, th.tex, th.srv); m_editor->log(("Added image: " + stem).c_str(), EditorColors::Success); }
     }
 }
+
 
 void AssetBrowserPanel::prefabSaveSelected(const char* name) {
     EditorSelection& sel = m_editor->getSelection();

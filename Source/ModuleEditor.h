@@ -4,6 +4,7 @@
 #include "EditorPanels.h"
 #include "MeshPipeline.h"
 #include "ShaderTableDesc.h"
+#include "PrefabEditSession.h"
 #include <memory>
 #include <vector>
 #include <string>
@@ -65,9 +66,6 @@ public:
     void spawnAssetAtPath(const std::string& path);
     static bool isChildOf(const GameObject* root, const GameObject* needle);
 
-    void drawComponentCamera(ComponentCamera* cam);
-    void drawComponentMesh(ComponentMesh* mesh);
-
     void pushCommand(EditorCommand cmd);
     void undoToSavePoint();
     void redo();
@@ -76,6 +74,10 @@ public:
     void duplicateSelected();
     bool canUndo() const;
     bool canRedo() const;
+
+    void enterPrefabEdit(const std::string& prefabName);
+    void exitPrefabEdit();
+    PrefabEditSession* getPrefabSession() { return &m_prefabSession; }
 
 private:
     std::unique_ptr<ImGuiPass> m_imguiPass;
@@ -134,6 +136,9 @@ private:
     std::string m_currentScenePath;
     bool m_showNewSceneConfirm = false;
 
+    PrefabEditSession m_prefabSession;
+    bool m_pendingExitPrefab = false;
+
     struct CameraConstants { Matrix viewProj; };
     struct ObjectConstants { Matrix world; };
 
@@ -145,5 +150,6 @@ private:
     void drawDockspace();
     void drawMenuBar();
     void handleDialogs();
+    void flushExitPrefabEdit();
     void handleShortcuts();
 };

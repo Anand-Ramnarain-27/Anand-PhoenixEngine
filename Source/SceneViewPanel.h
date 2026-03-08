@@ -21,6 +21,7 @@ private:
     void drawGizmoToolbar();
     void drawGizmo();
     void drawOverlay();
+    void drawPrefabExitButton();
 
     ImGuizmo::OPERATION m_gizmoOp = ImGuizmo::TRANSLATE;
     ImGuizmo::MODE m_gizmoMode = ImGuizmo::LOCAL;

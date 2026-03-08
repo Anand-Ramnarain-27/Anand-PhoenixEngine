@@ -196,9 +196,30 @@ GameObject* PrefabManager::instantiatePrefab(const std::string& prefabName, Modu
     return go;
 }
 
+static const GameObject* findPrefabRoot(const GameObject* go) {
+    if (!go) return nullptr;
+    const GameObject* root = nullptr;
+    const GameObject* cur = go;
+    while (cur) {
+        if (PrefabManager::isPrefabInstance(cur))
+            root = cur; 
+        cur = cur->getParent();
+    }
+    return root;
+}
+
 bool PrefabManager::applyToPrefab(const GameObject* go, bool respectOverrides) {
     const PrefabInstanceData* inst = getInstanceData(go);
-    if (!inst || inst->prefabName.empty()) { LOG("PrefabManager::applyToPrefab: '%s' is not a prefab instance", go ? go->getName().c_str() : "null"); return false; }
+    if (!inst || inst->prefabName.empty()) {
+        const GameObject* root = findPrefabRoot(go);
+        if (root && root != go) {
+            LOG("PrefabManager::applyToPrefab: '%s' is a child — applying from prefab root '%s'",
+                go ? go->getName().c_str() : "null", root->getName().c_str());
+            return applyToPrefab(root, respectOverrides);
+        }
+        LOG("PrefabManager::applyToPrefab: '%s' is not a prefab instance", go ? go->getName().c_str() : "null");
+        return false;
+    }
     if (!respectOverrides) return createPrefab(go, inst->prefabName);
 
     app->getFileSystem()->CreateDir(kPrefabDir);
@@ -235,8 +256,16 @@ bool PrefabManager::applyToPrefab(const GameObject* go, bool respectOverrides) {
 
 bool PrefabManager::revertToPrefab(GameObject* go, ModuleScene* scene) {
     PrefabInstanceData* inst = getInstanceDataMutable(go);
-    if (!inst || inst->prefabName.empty()) { LOG("PrefabManager::revertToPrefab: '%s' is not a prefab instance", go ? go->getName().c_str() : "null"); return false; }
-
+    if (!inst || inst->prefabName.empty()) {
+        const GameObject* root = findPrefabRoot(go);
+        if (root && root != go) {
+            LOG("PrefabManager::revertToPrefab: '%s' is a child — reverting from prefab root '%s'",
+                go ? go->getName().c_str() : "null", root->getName().c_str());
+            return revertToPrefab(const_cast<GameObject*>(root), scene);
+        }
+        LOG("PrefabManager::revertToPrefab: '%s' is not a prefab instance", go ? go->getName().c_str() : "null");
+        return false;
+    }
     std::string path = getPrefabPath(inst->prefabName);
     if (!app->getFileSystem()->Exists(path.c_str())) { LOG("PrefabManager::revertToPrefab: Prefab file missing: %s", path.c_str()); return false; }
 

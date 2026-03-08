@@ -236,6 +236,7 @@
     <ClInclude Include="ModuleInput.h" />
     <ClInclude Include="Mouse.h" />
     <ClInclude Include="PlatformHelpers.h" />
+    <ClInclude Include="PrefabEditSession.h" />
     <ClInclude Include="PrefabManager.h" />
     <ClInclude Include="PrimitiveFactory.h" />
     <ClInclude Include="ReadData.h" />
