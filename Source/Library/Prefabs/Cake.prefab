@@ -3,19 +3,15 @@
   "Version": 2,
   "PrefabUID": 186045561,
   "OverrideMap": {
-    "ModifiedProperties": {
-      "0": [
-        "position",
-        "rotation",
-        "scale"
-      ]
-    },
-    "AddedComponents": [],
+    "ModifiedProperties": {},
+    "AddedComponents": [
+      2
+    ],
     "RemovedComponents": []
   },
   "GameObject": {
     "Name": "Prefab Ducky",
-    "UID": 2213783235,
+    "UID": 1112450448,
     "Active": true,
     "PrefabLink": {
       "PrefabName": "Cake",
@@ -39,12 +35,21 @@
         1.0
       ]
     },
-    "Components": [],
+    "Components": [
+      {
+        "Type": 2,
+        "Data": "{\"FOV\":0.7853981852531433,\"NearPlane\":0.10000000149011612,\"FarPlane\":200.0,\"IsMainCamera\":false,\"BackgroundColor\":[0.20000000298023224,0.30000001192092896,0.4000000059604645,1.0]}"
+      }
+    ],
     "Children": [
       {
         "Name": "Duck",
-        "UID": 1407269810,
+        "UID": 23710403,
         "Active": true,
+        "PrefabLink": {
+          "PrefabName": "Cake",
+          "PrefabUID": 186045561
+        },
         "Transform": {
           "position": [
             2.630239248275757,
@@ -77,7 +82,7 @@
       },
       {
         "Name": "Empty",
-        "UID": 517406601,
+        "UID": 2076673532,
         "Active": true,
         "Transform": {
           "position": [

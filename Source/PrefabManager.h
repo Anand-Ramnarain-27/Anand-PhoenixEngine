@@ -71,6 +71,9 @@ public:
 
     static uint32_t makePrefabUID(const std::string& name);
 
+    static void markComponentAdded(GameObject* go, int componentType);
+    static void markComponentRemoved(GameObject* go, int componentType);
+
 private:
     static std::string getPrefabPath(const std::string& name);
     static bool writePrefabDocument(rapidjson::Document& doc, const std::string& path);

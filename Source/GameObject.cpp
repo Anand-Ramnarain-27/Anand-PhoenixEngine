@@ -5,6 +5,7 @@
 #include "ComponentMesh.h"
 #include "ComponentCamera.h"
 #include "ComponentLights.h"
+#include "PrefabManager.h"
 #include <algorithm>
 #include <random>
 
@@ -44,10 +45,17 @@ void GameObject::render(ID3D12GraphicsCommandList* cmd) {
 }
 
 template<typename T, typename... Args>
-T* GameObject::createComponent(Args&&... args) {
+T* GameObject::createComponent(Args&&... args)
+{
     auto comp = std::make_unique<T>(this, std::forward<Args>(args)...);
     T* ptr = comp.get();
     components.push_back(std::move(comp));
+
+    if (ptr->getType() != Component::Type::Transform)
+    {
+        PrefabManager::markComponentAdded(this, static_cast<int>(ptr->getType()));
+    }
+
     return ptr;
 }
 
@@ -63,20 +71,32 @@ T* GameObject::getComponent() const {
 }
 
 template<typename T>
-bool GameObject::removeComponent() {
-    for (auto it = components.begin(); it != components.end(); ++it) {
-        if (dynamic_cast<T*>(it->get()) && (*it)->getType() != Component::Type::Transform) {
+bool GameObject::removeComponent()
+{
+    for (auto it = components.begin(); it != components.end(); ++it)
+    {
+        if (dynamic_cast<T*>(it->get()) && (*it)->getType() != Component::Type::Transform)
+        {
+            Component::Type type = (*it)->getType();
             components.erase(it);
+            PrefabManager::markComponentRemoved(this, static_cast<int>(type));
             return true;
         }
     }
     return false;
 }
 
-bool GameObject::removeComponentByType(Component::Type type) {
+bool GameObject::removeComponentByType(Component::Type type)
+{
     if (type == Component::Type::Transform) { LOG("GameObject: Cannot remove Transform component."); return false; }
-    for (auto it = components.begin(); it != components.end(); ++it) {
-        if ((*it)->getType() == type) { components.erase(it); return true; }
+    for (auto it = components.begin(); it != components.end(); ++it)
+    {
+        if ((*it)->getType() == type)
+        {
+            components.erase(it);
+            PrefabManager::markComponentRemoved(this, static_cast<int>(type));
+            return true;
+        }
     }
     return false;
 }

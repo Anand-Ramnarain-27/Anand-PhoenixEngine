@@ -167,9 +167,22 @@ void InspectorPanel::drawContent() {
         bool expanded = ImGui::CollapsingHeader(label, &headerOpen, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_ClipLabelForTrailingButton);
         if (!headerOpen) { toRemove = comp->getType(); wantsRemove = true; }
         if (expanded) {
+            std::string before;
+            comp->onSave(before);
+
             if (comp->getType() == Component::Type::Camera) drawComponentCamera(static_cast<ComponentCamera*>(comp.get()));
             else if (comp->getType() == Component::Type::Mesh) drawComponentMesh(static_cast<ComponentMesh*>(comp.get()));
             else comp->onEditor();
+
+            std::string after;
+            comp->onSave(after);
+
+            if (before != after)
+            {
+                GameObject* root = findPrefabRoot(go);
+                if (root)
+                    PrefabManager::markPropertyOverride(root, static_cast<int>(comp->getType()), "data");
+            }
         }
         if (ImGui::BeginPopupContextItem("##compctx")) {
             ImGui::TextDisabled("%s", label);

@@ -453,6 +453,34 @@ std::vector<std::string> PrefabManager::listPrefabs() {
     return names;
 }
 
+void PrefabManager::markComponentAdded(GameObject* go, int componentType)
+{
+    PrefabInstanceData* inst = getInstanceDataMutable(go);
+    if (!inst) return;
+
+    auto& v = inst->overrides.addedComponentTypes;
+    if (std::find(v.begin(), v.end(), componentType) == v.end())
+        v.push_back(componentType);
+
+    auto& r = inst->overrides.removedComponentTypes;
+    r.erase(std::remove(r.begin(), r.end(), componentType), r.end());
+}
+
+void PrefabManager::markComponentRemoved(GameObject* go, int componentType)
+{
+    PrefabInstanceData* inst = getInstanceDataMutable(go);
+    if (!inst) return;
+
+    auto& v = inst->overrides.removedComponentTypes;
+    if (std::find(v.begin(), v.end(), componentType) == v.end())
+        v.push_back(componentType);
+
+    auto& a = inst->overrides.addedComponentTypes;
+    a.erase(std::remove(a.begin(), a.end(), componentType), a.end());
+
+    inst->overrides.modifiedProperties.erase(componentType);
+}
+
 bool PrefabManager::prefabExists(const std::string& prefabName) { return app->getFileSystem()->Exists(getPrefabPath(prefabName).c_str()); }
 void PrefabManager::linkInstance(GameObject* go, const PrefabInstanceData& data) { if (go) registry()[go] = data; }
 void PrefabManager::unlinkInstance(GameObject* go) { if (go) registry().erase(go); }
