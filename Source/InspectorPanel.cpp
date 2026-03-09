@@ -177,8 +177,7 @@ void InspectorPanel::drawContent() {
             std::string after;
             comp->onSave(after);
 
-            if (before != after)
-            {
+            if (before != after) {
                 GameObject* root = findPrefabRoot(go);
                 if (root)
                     PrefabManager::markPropertyOverride(root, static_cast<int>(comp->getType()), "data");
@@ -334,6 +333,68 @@ void InspectorPanel::drawComponentCamera(ComponentCamera* cam) {
         }
 }
 
+void InspectorPanel::drawTexturePicker(ComponentMesh* mesh, Material* mat, int submeshIdx,
+    const char* label, bool hasTex, const char* tooltip,
+    std::function<void(ComPtr<ID3D12Resource>, D3D12_GPU_DESCRIPTOR_HANDLE)> onApply)
+{
+    std::string popupId = std::string("##TexPick_") + label + std::to_string(submeshIdx);
+    std::string btnLabel = std::string(hasTex ? "Change##" : "Pick##") + label + std::to_string(submeshIdx);
+
+    if (ImGui::SmallButton(btnLabel.c_str())) ImGui::OpenPopup(popupId.c_str());
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", tooltip);
+
+    ImGui::SetNextWindowSize(ImVec2(300, 320), ImGuiCond_Appearing);
+    if (!ImGui::BeginPopupModal(popupId.c_str(), nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings)) return;
+
+    ImGui::TextDisabled("Double-click a texture to apply  [%s]", label);
+    ImGui::Separator();
+    static char texSearch[64] = "";
+    ImGui::SetNextItemWidth(-1);
+    ImGui::InputTextWithHint("##txs", "Search...", texSearch, sizeof(texSearch));
+    ImGui::Separator();
+
+    std::string ts = toLower(texSearch);
+    std::string texDir = app->getFileSystem()->GetLibraryPath() + "Textures/";
+    auto texFiles = app->getFileSystem()->GetFilesInDirectory(texDir.c_str(), ".dds");
+
+    ImGui::BeginChild("##texlist", ImVec2(0, 220));
+    bool anyTex = false;
+    for (const auto& tf : texFiles) {
+        std::string tname = fs::path(tf).stem().string();
+        if (!ts.empty() && toLower(tname).find(ts) == std::string::npos) continue;
+        if (ImGui::Selectable(("  [T]  " + tname).c_str(), false, ImGuiSelectableFlags_AllowDoubleClick)
+            && ImGui::IsMouseDoubleClicked(0))
+        {
+            ComPtr<ID3D12Resource> tex;
+            D3D12_GPU_DESCRIPTOR_HANDLE srv{};
+            if (TextureImporter::Load(tf, tex, srv)) {
+                onApply(tex, srv);
+                mesh->rebuildMaterialBuffers();
+                m_editor->log(("Applied " + std::string(label) + ": " + tname).c_str(), EditorColors::Success);
+            }
+            else m_editor->log(("Failed: " + tf).c_str(), EditorColors::Danger);
+            ImGui::CloseCurrentPopup();
+        }
+        anyTex = true;
+    }
+    if (!anyTex) { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("    No textures imported yet."); ImGui::PopStyleColor(); }
+    ImGui::EndChild();
+
+    ImGui::Separator();
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.5f, 0.12f, 0.12f, 1.f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.72f, 0.17f, 0.17f, 1.f));
+    if (ImGui::Button("Clear", ImVec2(80, 0)) && hasTex) {
+        onApply({}, {});
+        mesh->rebuildMaterialBuffers();
+        m_editor->log((std::string("Cleared ") + label + " map").c_str(), EditorColors::Warning);
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::PopStyleColor(2);
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel", ImVec2(80, 0))) ImGui::CloseCurrentPopup();
+    ImGui::EndPopup();
+}
+
 void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
     bool hasEntries = !mesh->getEntries().empty();
     bool hasProcedural = (mesh->getProceduralModel() != nullptr);
@@ -404,48 +465,77 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
     for (int mi = 0; mi < (int)entries.size(); ++mi) {
         const MeshEntry& e = entries[mi];
         Material* mat = (e.materialRes ? e.materialRes->getMaterial() : nullptr);
-        ImGui::PushID(mi);
-        if (ImGui::CollapsingHeader(("Submesh " + std::to_string(mi)).c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Indent(8.0f);
-            if (mat) { Material::Data& data = mat->getData(); if (ImGui::ColorEdit4("Base Color", &data.baseColor.x)) mesh->rebuildMaterialBuffers(); }
-            if (mat && mat->hasTexture()) { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::Text("Texture: applied"); ImGui::PopStyleColor(); }
-            else ImGui::TextDisabled("Texture: none");
-            ImGui::SameLine();
-            std::string popupId = "TexPickerModal" + std::to_string(mi);
-            if (ImGui::SmallButton(("Pick##tp" + std::to_string(mi)).c_str())) ImGui::OpenPopup(popupId.c_str());
+        if (!mat) { ImGui::PushID(mi); ImGui::TextDisabled("Submesh %d  — no material", mi); ImGui::PopID(); continue; }
+        Material::Data& data = mat->getData();
 
-            ImGui::SetNextWindowSize(ImVec2(300, 280), ImGuiCond_Appearing);
-            if (ImGui::BeginPopupModal(popupId.c_str(), nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings)) {
-                ImGui::TextDisabled("Double-click a texture to apply");
-                ImGui::Separator();
-                static char texSearch[64] = "";
-                ImGui::SetNextItemWidth(-1);
-                ImGui::InputTextWithHint("##txs", "Search...", texSearch, sizeof(texSearch));
-                ImGui::Separator();
-                std::string ts = toLower(texSearch);
-                std::string texDir = app->getFileSystem()->GetLibraryPath() + "Textures/";
-                auto texFiles = app->getFileSystem()->GetFilesInDirectory(texDir.c_str(), ".dds");
-                bool anyTex = false;
-                ImGui::BeginChild("##texlist", ImVec2(0, 190));
-                for (const auto& tf : texFiles) {
-                    std::string tname = fs::path(tf).stem().string();
-                    if (!ts.empty() && toLower(tname).find(ts) == std::string::npos) continue;
-                    if (ImGui::Selectable(("  [T]  " + tname).c_str(), false, ImGuiSelectableFlags_AllowDoubleClick) && ImGui::IsMouseDoubleClicked(0)) {
-                        ComPtr<ID3D12Resource> tex; D3D12_GPU_DESCRIPTOR_HANDLE srv{};
-                        if (TextureImporter::Load(tf, tex, srv) && mat) { mat->setBaseColorTexture(tex, srv); mesh->rebuildMaterialBuffers(); m_editor->log(("Applied: " + tname).c_str(), EditorColors::Success); }
-                        else m_editor->log(("Failed: " + tf).c_str(), EditorColors::Danger);
-                        ImGui::CloseCurrentPopup();
-                    }
-                    anyTex = true;
-                }
-                if (!anyTex) { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("    No textures imported yet."); ImGui::PopStyleColor(); }
-                ImGui::EndChild();
-                ImGui::Separator();
-                if (ImGui::Button("Cancel", ImVec2(-1, 0))) ImGui::CloseCurrentPopup();
-                ImGui::EndPopup();
-            }
-            ImGui::Unindent(8.0f);
+        ImGui::PushID(mi);
+        std::string header = "Submesh " + std::to_string(mi) + "  (" + modelName + ")";
+        if (!ImGui::CollapsingHeader(header.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) { ImGui::PopID(); continue; }
+        ImGui::Indent(8.0f);
+
+        ImGui::SeparatorText("Base Color");
+        if (ImGui::ColorEdit4("Color##bc", &data.baseColor.x)) mesh->rebuildMaterialBuffers();
+        ImGui::Spacing();
+
+        if (mat->hasTexture()) { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::Text("[Albedo] Applied"); ImGui::PopStyleColor(); }
+        else { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("[Albedo] None"); ImGui::PopStyleColor(); }
+        ImGui::SameLine();
+        drawTexturePicker(mesh, mat, mi, "Albedo", mat->hasTexture(), "Base color / albedo texture (.dds)",
+            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv) { mat->setBaseColorTexture(tex, srv); });
+
+        ImGui::SeparatorText("Surface");
+        ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(4, 3));
+        if (ImGui::BeginTable("##pbr", 2, ImGuiTableFlags_SizingFixedFit)) {
+            ImGui::TableSetupColumn("##l", ImGuiTableColumnFlags_WidthFixed, 80.f);
+            ImGui::TableSetupColumn("##v", ImGuiTableColumnFlags_WidthStretch);
+
+            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); textMuted("Metallic");
+            ImGui::TableSetColumnIndex(1); ImGui::SetNextItemWidth(-1);
+            if (ImGui::SliderFloat("##metal", &data.metallic, 0.f, 1.f)) mesh->rebuildMaterialBuffers();
+
+            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); textMuted("Roughness");
+            ImGui::TableSetColumnIndex(1); ImGui::SetNextItemWidth(-1);
+            if (ImGui::SliderFloat("##rough", &data.roughness, 0.f, 1.f)) mesh->rebuildMaterialBuffers();
+
+            ImGui::EndTable();
         }
+        ImGui::PopStyleVar();
+
+        ImGui::SeparatorText("Normal Map");
+        if (mat->hasNormalMap()) { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::Text("[N] Applied"); ImGui::PopStyleColor(); }
+        else { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("[N] None"); ImGui::PopStyleColor(); }
+        ImGui::SameLine();
+        drawTexturePicker(mesh, mat, mi, "Normal", mat->hasNormalMap(), "Tangent-space normal map (.dds)",
+            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv) { mat->setNormalMap(tex, srv); });
+        if (mat->hasNormalMap()) {
+            ImGui::SetNextItemWidth(-1);
+            if (ImGui::SliderFloat("Strength##ns", &data.normalStrength, 0.f, 3.f, "%.2f")) mesh->rebuildMaterialBuffers();
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Scales XY deviation of the normal map.\n1.0 = full strength, 0.0 = flat surface.");
+        }
+
+        ImGui::SeparatorText("Ambient Occlusion");
+        if (mat->hasAOMap()) { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::Text("[AO] Applied"); ImGui::PopStyleColor(); }
+        else { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("[AO] None"); ImGui::PopStyleColor(); }
+        ImGui::SameLine();
+        drawTexturePicker(mesh, mat, mi, "AO", mat->hasAOMap(), "Ambient Occlusion map - single channel (.dds)",
+            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv) { mat->setAOMap(tex, srv); });
+        if (mat->hasAOMap()) {
+            ImGui::SetNextItemWidth(-1);
+            if (ImGui::SliderFloat("Strength##aos", &data.aoStrength, 0.f, 1.f, "%.2f")) mesh->rebuildMaterialBuffers();
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("0 = AO ignored (fully lit)\n1 = Full AO effect applied");
+        }
+
+        ImGui::SeparatorText("Emissive");
+        if (mat->hasEmissive()) { ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.9f, 0.3f, 1.f)); ImGui::Text("[E] Applied"); ImGui::PopStyleColor(); }
+        else { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("[E] None"); ImGui::PopStyleColor(); }
+        ImGui::SameLine();
+        drawTexturePicker(mesh, mat, mi, "Emissive", mat->hasEmissive(), "Emissive color map - additively blended (.dds)",
+            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv) { mat->setEmissiveMap(tex, srv); });
+        if (ImGui::ColorEdit3("Tint##emtint", &data.emissiveFactor.x)) mesh->rebuildMaterialBuffers();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Multiplied with emissive map.\nWhite = use map as-is, Black = no emission.");
+
+        ImGui::Unindent(8.0f);
+        ImGui::Spacing();
         ImGui::PopID();
     }
 }

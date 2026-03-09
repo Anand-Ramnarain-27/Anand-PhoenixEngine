@@ -1,8 +1,14 @@
 #pragma once
 #include "EditorPanel.h"
+#include <functional>
+#include <d3d12.h>
+#include <wrl/client.h>
+using Microsoft::WRL::ComPtr;
 
 class ComponentCamera;
 class ComponentMesh;
+class Material;
+struct ID3D12Resource;
 
 class InspectorPanel : public EditorPanel {
 public:
@@ -17,4 +23,7 @@ private:
     void drawComponentCamera(ComponentCamera* cam);
     void drawComponentMesh(ComponentMesh* mesh);
     void drawAddComponentMenu();
+    void drawTexturePicker(ComponentMesh* mesh, Material* mat, int submeshIdx,
+        const char* label, bool hasTex, const char* tooltip,
+        std::function<void(ComPtr<ID3D12Resource>, D3D12_GPU_DESCRIPTOR_HANDLE)> onApply);
 };
