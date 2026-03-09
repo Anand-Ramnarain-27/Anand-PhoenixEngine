@@ -189,12 +189,18 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     const EditorSceneSettings& s = m_sceneManager->getSettings();
     const EditorSceneSettings::Skybox& sky = s.skybox;
 
+    if (sky.enabled && m_envSystem)
+        m_envSystem->render(cmd, view, proj);
+
+    ID3D12DescriptorHeap* heaps[] = {app->getShaderDescriptors()->getHeap(), app->getSamplerHeap()->getHeap()};
+    cmd->SetDescriptorHeaps(2, heaps);
+
     MeshPipeline::LightCB lightData = {};
     lightData.ambientColor = s.ambient.color;
     lightData.ambientIntensity = s.ambient.intensity;
     lightData.viewPos = camera->getPos();
     lightData.iblEnabled = (sky.enabled && m_envSystem && m_envSystem->hasIBL()) ? 1u : 0u;
-    //lightData.spotLight.numRoughnessLevels = float(EnvironmentMap::NUM_ROUGHNESS_LEVELS);
+    lightData.numRoughnessLevels = float(EnvironmentMap::NUM_ROUGHNESS_LEVELS);
     if (moduleScene) gatherLights(moduleScene->getRoot(), lightData);
 
     void* mapped = nullptr;
@@ -204,22 +210,18 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
 
     cmd->SetPipelineState(m_meshPipeline->getPSO());
     cmd->SetGraphicsRootSignature(m_meshPipeline->getRootSig());
-    cmd->SetGraphicsRootDescriptorTable(5, app->getSamplerHeap()->getGPUHandle(ModuleSamplerHeap::Type(m_samplerType)));
-    cmd->SetGraphicsRootConstantBufferView(2, m_lightCB->GetGPUVirtualAddress());
 
     Matrix vp = (view * proj).Transpose();
     Matrix identity = Matrix::Identity.Transpose();
-    cmd->SetGraphicsRoot32BitConstants(0, 16, &vp, 0);
-    cmd->SetGraphicsRoot32BitConstants(1, 16, &identity, 0);
+    cmd->SetGraphicsRoot32BitConstants(MeshPipeline::SLOT_VP, 16, &vp, 0);
+    cmd->SetGraphicsRoot32BitConstants(MeshPipeline::SLOT_WORLD, 16, &identity, 0);
+    cmd->SetGraphicsRootConstantBufferView(MeshPipeline::SLOT_LIGHT_CB, m_lightCB->GetGPUVirtualAddress());
+    cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_SAMPLER, app->getSamplerHeap()->getGPUHandle(ModuleSamplerHeap::Type(m_samplerType)));
 
-    if (sky.enabled && m_envSystem) m_meshPipeline->bindIBL(cmd, m_envSystem.get());
+    if (sky.enabled && m_envSystem && m_envSystem->hasIBL())
+        m_meshPipeline->bindIBL(cmd, m_envSystem.get());
+
     if (m_sceneManager) m_sceneManager->render(cmd, *camera, w, h);
-
-    if (sky.enabled && m_envSystem) {
-        m_envSystem->render(cmd, view, proj);
-        cmd->SetPipelineState(m_meshPipeline->getPSO());
-        cmd->SetGraphicsRootSignature(m_meshPipeline->getRootSig());
-    }
 
     if (editorExtras) {
         if (s.showGrid) dd::xzSquareGrid(-100.f, 100.f, 0.f, 1.f, dd::colors::Gray);

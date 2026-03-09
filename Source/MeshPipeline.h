@@ -41,7 +41,7 @@ public:
         Vector3 position;  float sqRadius;
         Vector3 direction; float innerCos;
         Vector3 color;     float outerCos;
-        float   intensity; float numRoughnessLevels;
+        float   intensity; float pad0;     
         Vector2 pad;
     };
 
@@ -49,11 +49,15 @@ public:
         Vector3  ambientColor;
         float    ambientIntensity;
         Vector3  viewPos;
+
         float    pad0;
         uint32_t numDirLights;
         uint32_t numPointLights;
         uint32_t numSpotLights;
         uint32_t iblEnabled;
+        float    numRoughnessLevels;  
+        float    pad1[3];
+
         GPUDirectionalLight dirLights[MAX_DIR_LIGHTS];
         GPUPointLight       pointLights[MAX_POINT_LIGHTS];
         GPUSpotLight        spotLights[MAX_SPOT_LIGHTS];

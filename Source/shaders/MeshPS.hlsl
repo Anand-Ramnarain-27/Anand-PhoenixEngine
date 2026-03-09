@@ -27,7 +27,7 @@ struct SpotLight
     float3 color;
     float outerCos;
     float intensity;
-    float numRoughnessLevels;
+    float pad0; 
     float2 pad;
 };
 
@@ -43,6 +43,9 @@ cbuffer LightCB : register(b2)
     uint numPointLights;
     uint numSpotLights;
     uint iblEnabled;
+    
+    float numRoughnessLevels;
+    float3 pad1;
 
     DirectionalLight dirLights[MAX_DIR_LIGHTS];
     PointLight pointLights[MAX_POINT_LIGHTS];
@@ -219,16 +222,19 @@ float4 main(PSInput input) : SV_TARGET
         float3 kD = (1.0f - kS) * (1.0f - metal);
 
         float3 irradiance = irradianceMap.Sample(textureSampler[0], N).rgb;
-        float3 diffuseIBL = kD * albedoLinear * irradiance * diffuseAO; 
-        
+        float3 diffuseIBL = kD * albedoLinear * irradiance * diffuseAO;
+
         float3 R = reflect(-V, N);
-        float mipLevel = rough * spotLights[0].numRoughnessLevels;
+        float mipLevel = rough * numRoughnessLevels;
         float3 prefiltered = prefilteredMap.SampleLevel(textureSampler[0], R, mipLevel).rgb;
         float2 brdf = brdfLUT.Sample(textureSampler[1], float2(NdotV, rough)).rg;
-        float3 specularIBL = prefiltered * (F0 * brdf.x + brdf.y) * specularAO; 
-
-        ambient = diffuseIBL + specularIBL;
+        float3 specularIBL = prefiltered * (F0 * brdf.x + brdf.y) * specularAO;
+        
+        float3 iblAmbient = diffuseIBL + specularIBL;
+        ambient = max(ambient, iblAmbient); 
     }
+    
+    ambient = max(ambient, albedoLinear * 0.03f);
 
     float3 result = ambient + directLight;
     
