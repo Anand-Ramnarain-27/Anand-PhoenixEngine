@@ -9,7 +9,9 @@
 #include <filesystem>
 
 bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const std::string& sceneName) {
-    if (!CreateSceneDirectory(sceneName)) { LOG("SceneImporter: Failed to create scene directory for %s", sceneName.c_str()); return false; }
+    if (!CreateSceneDirectory(sceneName)) {
+        LOG("SceneImporter: Warning: CreateSceneDirectory returned false for %s (may already exist)", sceneName.c_str());
+    }
 
     ModuleFileSystem* fs = app->getFileSystem();
     std::string meshFolder = fs->GetLibraryPath() + "Meshes/" + sceneName;
@@ -42,7 +44,13 @@ bool SceneImporter::LoadScene(const std::string& sceneName, std::unique_ptr<Mode
 bool SceneImporter::CreateSceneDirectory(const std::string& sceneName) {
     ModuleFileSystem* fs = app->getFileSystem();
     std::string lib = fs->GetLibraryPath();
-    return fs->CreateDir((lib + "Meshes/" + sceneName).c_str()) && fs->CreateDir((lib + "Materials/" + sceneName).c_str());
+
+    fs->CreateDir((lib + "Meshes").c_str());
+    fs->CreateDir((lib + "Materials").c_str());
+
+    bool meshOk = fs->CreateDir((lib + "Meshes/" + sceneName).c_str());
+    bool matOk = fs->CreateDir((lib + "Materials/" + sceneName).c_str());
+    return meshOk && matOk;
 }
 
 bool SceneImporter::SaveSceneMetadata(const std::string& sceneName, const tinygltf::Model& gltfModel) {

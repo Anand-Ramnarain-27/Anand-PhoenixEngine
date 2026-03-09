@@ -23,15 +23,16 @@ static size_t accessorStride(const tinygltf::Model& model, const tinygltf::Acces
 template<typename T, typename SetFn>
 static void readAccessor(const tinygltf::Model& model, const tinygltf::Accessor& acc, size_t defaultStride, size_t count, SetFn setFn) {
     const unsigned char* data = accessorData(model, acc);
-    size_t stride = accessorStride(model, acc, defaultStride);
-    for (size_t i = 0; i < count; ++i) setFn(i, reinterpret_cast<const float*>(data + i * stride));
+    size_t               stride = accessorStride(model, acc, defaultStride);
+    for (size_t i = 0; i < count; ++i)
+        setFn(i, reinterpret_cast<const float*>(data + i * stride));
 }
 
 bool MeshImporter::Import(const tinygltf::Primitive& primitive, const tinygltf::Model& model, const std::string& outputFile) {
     if (!primitive.attributes.count("POSITION")) return false;
 
     const auto& posAcc = model.accessors[primitive.attributes.at("POSITION")];
-    size_t vertexCount = posAcc.count;
+    size_t      vertexCount = posAcc.count;
     std::vector<Mesh::Vertex> vertices(vertexCount);
 
     readAccessor<float>(model, posAcc, sizeof(float) * 3, vertexCount, [&](size_t i, const float* e) {
@@ -39,14 +40,23 @@ bool MeshImporter::Import(const tinygltf::Primitive& primitive, const tinygltf::
         });
 
     if (primitive.attributes.count("NORMAL")) {
-        readAccessor<float>(model, model.accessors[primitive.attributes.at("NORMAL")], sizeof(float) * 3, vertexCount, [&](size_t i, const float* e) {
-            vertices[i].normal = { e[0], e[1], e[2] };
+        readAccessor<float>(model, model.accessors[primitive.attributes.at("NORMAL")],
+            sizeof(float) * 3, vertexCount, [&](size_t i, const float* e) {
+                vertices[i].normal = { e[0], e[1], e[2] };
             });
     }
 
     if (primitive.attributes.count("TEXCOORD_0")) {
-        readAccessor<float>(model, model.accessors[primitive.attributes.at("TEXCOORD_0")], sizeof(float) * 2, vertexCount, [&](size_t i, const float* e) {
-            vertices[i].texCoord = { e[0], e[1] };
+        readAccessor<float>(model, model.accessors[primitive.attributes.at("TEXCOORD_0")],
+            sizeof(float) * 2, vertexCount, [&](size_t i, const float* e) {
+                vertices[i].texCoord = { e[0], e[1] };
+            });
+    }
+
+    if (primitive.attributes.count("TANGENT")) {
+        readAccessor<float>(model, model.accessors[primitive.attributes.at("TANGENT")],
+            sizeof(float) * 4, vertexCount, [&](size_t i, const float* e) {
+                vertices[i].tangent = { e[0], e[1], e[2], e[3] };
             });
     }
 
@@ -55,14 +65,14 @@ bool MeshImporter::Import(const tinygltf::Primitive& primitive, const tinygltf::
         const auto& acc = model.accessors[primitive.indices];
         const unsigned char* data = accessorData(model, acc);
         const int type = acc.componentType;
-        size_t stride = acc.ByteStride(model.bufferViews[acc.bufferView]);
+        size_t    stride = acc.ByteStride(model.bufferViews[acc.bufferView]);
         if (!stride) stride = (type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) ? sizeof(uint16_t) : sizeof(uint32_t);
 
         indices.resize(acc.count);
         for (size_t i = 0; i < acc.count; ++i) {
             const unsigned char* e = data + i * stride;
             if (type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) indices[i] = *reinterpret_cast<const uint16_t*>(e);
-            else if (type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT) indices[i] = *reinterpret_cast<const uint32_t*>(e);
+            else if (type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)   indices[i] = *reinterpret_cast<const uint32_t*>(e);
             else { LOG("MeshImporter: Unsupported index format"); return false; }
         }
     }
@@ -75,18 +85,38 @@ bool MeshImporter::Import(const tinygltf::Primitive& primitive, const tinygltf::
 }
 
 bool MeshImporter::Load(const std::string& file, std::unique_ptr<Mesh>& outMesh) {
-    MeshHeader header;
-    std::vector<char> rawBuffer;
-    if (!ImporterUtils::LoadBuffer(file, header, rawBuffer)) return false;
-    if (!ImporterUtils::ValidateHeader(header, 0x4853454D)) return false;
+    MeshHeader           header;
+    std::vector<char>    rawBuffer;
+    if (!ImporterUtils::LoadBuffer(file, header, rawBuffer))          return false;
+    if (!ImporterUtils::ValidateHeader(header, 0x4853454D))           return false;
 
-    uint32_t expected = sizeof(MeshHeader) + header.vertexCount * sizeof(Mesh::Vertex) + header.indexCount * sizeof(uint32_t);
-    if (expected != (uint32_t)rawBuffer.size()) return false;
+    const uint32_t vertexSize = (header.version >= 2) ? sizeof(Mesh::Vertex) : (sizeof(float) * 8);
+    uint32_t expected = sizeof(MeshHeader) + header.vertexCount * vertexSize + header.indexCount * sizeof(uint32_t);
+    if (expected != (uint32_t)rawBuffer.size()) {
+        LOG("MeshImporter: Size mismatch loading %s (expected %u, got %u)", file.c_str(), expected, (uint32_t)rawBuffer.size());
+        return false;
+    }
 
     const char* cursor = rawBuffer.data() + sizeof(MeshHeader);
+
     std::vector<Mesh::Vertex> vertices(header.vertexCount);
+    if (header.version >= 2) {
+        memcpy(vertices.data(), cursor, header.vertexCount * sizeof(Mesh::Vertex));
+        cursor += header.vertexCount * sizeof(Mesh::Vertex);
+    }
+    else {
+        struct OldVertex { Vector3 position; Vector2 texCoord; Vector3 normal; };
+        const OldVertex* old = reinterpret_cast<const OldVertex*>(cursor);
+        for (uint32_t i = 0; i < header.vertexCount; ++i) {
+            vertices[i].position = old[i].position;
+            vertices[i].texCoord = old[i].texCoord;
+            vertices[i].normal = old[i].normal;
+            vertices[i].tangent = { 1.f, 0.f, 0.f, 1.f }; 
+        }
+        cursor += header.vertexCount * sizeof(OldVertex);
+    }
+
     std::vector<uint32_t> indices(header.indexCount);
-    memcpy(vertices.data(), cursor, header.vertexCount * sizeof(Mesh::Vertex)); cursor += header.vertexCount * sizeof(Mesh::Vertex);
     memcpy(indices.data(), cursor, header.indexCount * sizeof(uint32_t));
 
     outMesh = std::make_unique<Mesh>();

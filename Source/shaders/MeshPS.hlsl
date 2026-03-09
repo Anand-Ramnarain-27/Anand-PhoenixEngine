@@ -1,6 +1,6 @@
-#define MAX_DIR_LIGHTS 4
+#define MAX_DIR_LIGHTS   4
 #define MAX_POINT_LIGHTS 32
-#define MAX_SPOT_LIGHTS 16
+#define MAX_SPOT_LIGHTS  16
 
 struct DirectionalLight
 {
@@ -54,7 +54,15 @@ cbuffer MaterialCB : register(b3)
     float4 baseColor;
     float metallic;
     float roughness;
+    float normalStrength; 
+    float aoStrength;
+
     uint hasBaseColorTexture;
+    uint hasNormalMap;
+    uint hasAOMap; 
+    uint hasEmissiveMap;
+
+    float3 emissiveFactor;
     uint samplerIndex;
 };
 
@@ -62,6 +70,9 @@ Texture2D baseColorTexture : register(t0);
 TextureCube irradianceMap : register(t1);
 TextureCube prefilteredMap : register(t2);
 Texture2D brdfLUT : register(t3);
+Texture2D normalMap : register(t4);
+Texture2D aoMap : register(t5); 
+Texture2D emissiveMap : register(t6); 
 
 SamplerState textureSampler[4] : register(s0);
 
@@ -71,9 +82,30 @@ struct PSInput
     float2 uv : TEXCOORD;
     float3 worldPos : POSITION;
     float3 nrm : NORMAL;
+    float4 tangent : TANGENT; 
 };
 
 #define PI 3.14159265359f
+
+float3 applyNormalMap(float3 worldNrm, float4 worldTangent, float2 uv, uint sampIdx)
+{
+    float3 tn = normalMap.Sample(textureSampler[sampIdx], uv).rgb;
+    tn = tn * 2.0f - 1.0f;
+    
+    tn.xy *= normalStrength;
+    tn = normalize(tn);
+
+    float3 N = normalize(worldNrm);
+    float3 T = normalize(worldTangent.xyz);
+    float3 B = cross(N, T) * worldTangent.w; 
+    
+    return normalize(T * tn.x + B * tn.y + N * tn.z);
+}
+
+float computeSpecularAO(float NdotV, float diffuseAO, float rough)
+{
+    return saturate(pow(NdotV + diffuseAO, exp2(-16.0f * rough - 1.0f)) - 1.0f + diffuseAO);
+}
 
 float luminance(float3 c)
 {
@@ -86,31 +118,29 @@ float3 cookTorrance(float3 N, float3 L, float3 V,
 {
     float3 H = normalize(L + V);
 
-    float NdotL = max(dot(N, L), 0.0);
-    float NdotV = max(dot(N, V), 1e-4);
-    float NdotH = max(dot(N, H), 0.0);
-    float VdotH = max(dot(V, H), 0.0);
+    float NdotL = max(dot(N, L), 0.0f);
+    float NdotV = max(dot(N, V), 1e-4f);
+    float NdotH = max(dot(N, H), 0.0f);
+    float VdotH = max(dot(V, H), 0.0f);
 
     if (NdotL <= 0)
         return 0;
 
-    float alpha = max(rough * rough, 0.001);
+    float alpha = max(rough * rough, 0.001f);
 
-    float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedoColor, metal);
+    float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), albedoColor, metal);
 
     float a2 = alpha * alpha;
     float d = NdotH * NdotH * (a2 - 1) + 1;
     float D = a2 / (PI * d * d);
 
-    float k = (alpha + 1) * (alpha + 1) / 8;
+    float k = (alpha + 1) * (alpha + 1) / 8.0f;
     float gV = NdotV / (NdotV * (1 - k) + k);
     float gL = NdotL / (NdotL * (1 - k) + k);
     float Vis = gV * gL;
 
     float3 F = F0 + (1 - F0) * pow(1 - VdotH, 5);
-
     float3 spec = D * Vis * F;
-
     float3 kd = (1 - F) * (1 - metal);
     float3 diff = kd * albedoColor / PI;
 
@@ -119,68 +149,94 @@ float3 cookTorrance(float3 N, float3 L, float3 V,
 
 float4 main(PSInput input) : SV_TARGET
 {
-    float3 N = normalize(input.nrm);
-    float3 V = normalize(viewPos - input.worldPos);
-
+    uint sampIdx = samplerIndex;
+    
     float4 albedo = baseColor;
     if (hasBaseColorTexture)
-        albedo = baseColorTexture.Sample(textureSampler[samplerIndex], input.uv);
+        albedo *= baseColorTexture.Sample(textureSampler[sampIdx], input.uv);
 
     float3 albedoLinear = albedo.rgb;
-
     float metal = metallic;
-    float rough = max(roughness, 0.04);
+    float rough = max(roughness, 0.04f);
+    
+    float3 N = normalize(input.nrm);
+    if (hasNormalMap)
+        N = applyNormalMap(input.nrm, input.tangent, input.uv, sampIdx);
 
+    float3 V = normalize(viewPos - input.worldPos);
+    float NdotV = max(dot(N, V), 1e-4f);
+    
+    float diffuseAO = 1.0f;
+    float specularAO = 1.0f;
+    if (hasAOMap)
+    {
+        diffuseAO = aoMap.Sample(textureSampler[sampIdx], input.uv).r;
+        diffuseAO = lerp(1.0f, diffuseAO, aoStrength); 
+        specularAO = computeSpecularAO(NdotV, diffuseAO, rough);
+        
+        float3 R = reflect(-V, N);
+        float horizon = min(1.0f + dot(R, normalize(input.nrm)), 1.0f);
+        specularAO *= horizon * horizon;
+    }
+    
     float3 directLight = 0;
 
     for (uint i = 0; i < numDirLights; i++)
     {
         float3 L = normalize(-dirLights[i].direction);
-
-        directLight += cookTorrance(
-            N, L, V, albedoLinear, metal, rough,
-            dirLights[i].color, dirLights[i].intensity
-        );
+        directLight += cookTorrance(N, L, V, albedoLinear, metal, rough,
+                                    dirLights[i].color, dirLights[i].intensity);
     }
 
     for (uint i = 0; i < numPointLights; i++)
     {
         float3 toLight = pointLights[i].position - input.worldPos;
         float distSq = dot(toLight, toLight);
-
-        float atten = max(0, 1 - distSq / max(pointLights[i].sqRadius, 1e-6));
-
+        float atten = max(0.0f, 1.0f - distSq / max(pointLights[i].sqRadius, 1e-6f));
         float3 L = normalize(toLight);
-
-        directLight += cookTorrance(
-            N, L, V, albedoLinear, metal, rough,
-            pointLights[i].color, pointLights[i].intensity
-        ) * atten;
+        directLight += cookTorrance(N, L, V, albedoLinear, metal, rough,
+                                    pointLights[i].color, pointLights[i].intensity) * atten;
     }
 
     for (uint i = 0; i < numSpotLights; i++)
     {
         float3 toLight = spotLights[i].position - input.worldPos;
         float distSq = dot(toLight, toLight);
-
-        float atten = max(0, 1 - distSq / max(spotLights[i].sqRadius, 1e-6));
-
+        float atten = max(0.0f, 1.0f - distSq / max(spotLights[i].sqRadius, 1e-6f));
         float3 L = normalize(toLight);
-
         float cosAng = dot(-L, normalize(spotLights[i].direction));
-        float cone = smoothstep(spotLights[i].outerCos,
-                                spotLights[i].innerCos,
-                                cosAng);
-
-        directLight += cookTorrance(
-            N, L, V, albedoLinear, metal, rough,
-            spotLights[i].color, spotLights[i].intensity
-        ) * atten * cone;
+        float cone = smoothstep(spotLights[i].outerCos, spotLights[i].innerCos, cosAng);
+        directLight += cookTorrance(N, L, V, albedoLinear, metal, rough,
+                                    spotLights[i].color, spotLights[i].intensity) * atten * cone;
     }
-
+    
     float3 ambient = ambientColor * ambientIntensity * albedoLinear;
 
+    if (iblEnabled)
+    {
+        float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), albedoLinear, metal);
+        float3 kS = F0 + (1.0f - F0) * pow(1.0f - NdotV, 5.0f);
+        float3 kD = (1.0f - kS) * (1.0f - metal);
+
+        float3 irradiance = irradianceMap.Sample(textureSampler[0], N).rgb;
+        float3 diffuseIBL = kD * albedoLinear * irradiance * diffuseAO; 
+        
+        float3 R = reflect(-V, N);
+        float mipLevel = rough * spotLights[0].numRoughnessLevels;
+        float3 prefiltered = prefilteredMap.SampleLevel(textureSampler[0], R, mipLevel).rgb;
+        float2 brdf = brdfLUT.Sample(textureSampler[1], float2(NdotV, rough)).rg;
+        float3 specularIBL = prefiltered * (F0 * brdf.x + brdf.y) * specularAO; 
+
+        ambient = diffuseIBL + specularIBL;
+    }
+
     float3 result = ambient + directLight;
+    
+    if (hasEmissiveMap)
+    {
+        float3 emissive = emissiveMap.Sample(textureSampler[sampIdx], input.uv).rgb;
+        result += emissive * emissiveFactor;
+    }
 
     return float4(result, albedo.a);
 }

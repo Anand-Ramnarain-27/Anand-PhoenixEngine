@@ -14,34 +14,38 @@ bool MeshPipeline::init(ID3D12Device* device)
 bool MeshPipeline::createRootSignature(ID3D12Device* device)
 {
     CD3DX12_DESCRIPTOR_RANGE albedoRange, samplerRange,
-        irradianceRange, prefilterRange, brdfRange;
+        irradianceRange, prefilterRange, brdfRange,
+        normalRange, aoRange, emissiveRange;
 
-    albedoRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);   
-    samplerRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,
-        ModuleSamplerHeap::COUNT, 0);                 
-    irradianceRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);  
-    prefilterRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2);  
-    brdfRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3);   
+    albedoRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); 
+    samplerRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, ModuleSamplerHeap::COUNT, 0);
+    irradianceRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
+    prefilterRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2); 
+    brdfRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3); 
+    normalRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4); 
+    aoRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 5); 
+    emissiveRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6); 
 
-    CD3DX12_ROOT_PARAMETER params[9];
+    CD3DX12_ROOT_PARAMETER params[12];
     params[SLOT_VP].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-    params[SLOT_WORLD].InitAsConstants(16, 1, 0, D3D12_SHADER_VISIBILITY_VERTEX); 
-    params[SLOT_LIGHT_CB].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_ALL); 
-    params[SLOT_MATERIAL_CB].InitAsConstantBufferView(3, 0, D3D12_SHADER_VISIBILITY_PIXEL); 
+    params[SLOT_WORLD].InitAsConstants(16, 1, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+    params[SLOT_LIGHT_CB].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_ALL);
+    params[SLOT_MATERIAL_CB].InitAsConstantBufferView(3, 0, D3D12_SHADER_VISIBILITY_PIXEL);
     params[SLOT_ALBEDO_TEX].InitAsDescriptorTable(1, &albedoRange, D3D12_SHADER_VISIBILITY_PIXEL);
     params[SLOT_SAMPLER].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
     params[SLOT_IRRADIANCE].InitAsDescriptorTable(1, &irradianceRange, D3D12_SHADER_VISIBILITY_PIXEL);
     params[SLOT_PREFILTER].InitAsDescriptorTable(1, &prefilterRange, D3D12_SHADER_VISIBILITY_PIXEL);
     params[SLOT_BRDF_LUT].InitAsDescriptorTable(1, &brdfRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_NORMAL_TEX].InitAsDescriptorTable(1, &normalRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_AO_TEX].InitAsDescriptorTable(1, &aoRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_EMISSIVE_TEX].InitAsDescriptorTable(1, &emissiveRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
     CD3DX12_ROOT_SIGNATURE_DESC desc;
     desc.Init(_countof(params), params, 0, nullptr,
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     ComPtr<ID3DBlob> blob, error;
-    if (FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1,
-        &blob, &error)))
-    {
+    if (FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error))) {
         if (error) OutputDebugStringA((char*)error->GetBufferPointer());
         return false;
     }
@@ -74,14 +78,10 @@ bool MeshPipeline::createPSO(ID3D12Device* device)
     return SUCCEEDED(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pso)));
 }
 
-void MeshPipeline::bindIBL(
-    ID3D12GraphicsCommandList* cmd,
-    const EnvironmentSystem* env) const
+void MeshPipeline::bindIBL(ID3D12GraphicsCommandList* cmd, const EnvironmentSystem* env) const
 {
     if (!env || !env->hasIBL()) return;
-
     const EnvironmentMap* map = env->getEnvironmentMap();
-
     cmd->SetGraphicsRootDescriptorTable(SLOT_IRRADIANCE, map->getIrradianceGPU());
     cmd->SetGraphicsRootDescriptorTable(SLOT_PREFILTER, map->getPrefilteredGPU());
     cmd->SetGraphicsRootDescriptorTable(SLOT_BRDF_LUT, map->getBRDFLUTGPU());

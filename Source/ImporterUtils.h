@@ -22,7 +22,13 @@ namespace ImporterUtils {
 
     template<typename THeader>
     inline bool ValidateHeader(const THeader& header, uint32_t expectedMagic) {
-        return header.magic == expectedMagic && header.version == 1;
+        if (header.magic != expectedMagic)
+            return false;
+
+        if (header.version == 0)
+            return false;
+
+        return true;
     }
 
     template<typename THeader>

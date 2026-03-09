@@ -3,10 +3,11 @@
 #include "Application.h"
 #include "ModuleGPUResources.h"
 
-const D3D12_INPUT_ELEMENT_DESC Mesh::InputLayout[3] = {
-    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-    { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-    { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+const D3D12_INPUT_ELEMENT_DESC Mesh::InputLayout[4] = {
+    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,        0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 };
 
 void Mesh::setData(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, int materialIndex) {
@@ -33,14 +34,22 @@ void Mesh::createBuffers() {
 
     m_vertexBuffer = gpu->createDefaultBuffer(m_vertices.data(), m_vertices.size() * sizeof(Vertex), "MeshVB");
     if (m_vertexBuffer) {
-        m_vertexBufferView = { m_vertexBuffer->GetGPUVirtualAddress(), (UINT)(m_vertices.size() * sizeof(Vertex)), sizeof(Vertex) };
+        m_vertexBufferView = {
+            m_vertexBuffer->GetGPUVirtualAddress(),
+            (UINT)(m_vertices.size() * sizeof(Vertex)),
+            sizeof(Vertex)
+        };
     }
 
     if (m_indices.empty()) return;
 
     m_indexBuffer = gpu->createDefaultBuffer(m_indices.data(), m_indices.size() * sizeof(uint32_t), "MeshIB");
     if (m_indexBuffer) {
-        m_indexBufferView = { m_indexBuffer->GetGPUVirtualAddress(), (UINT)(m_indices.size() * sizeof(uint32_t)), DXGI_FORMAT_R32_UINT };
+        m_indexBufferView = {
+            m_indexBuffer->GetGPUVirtualAddress(),
+            (UINT)(m_indices.size() * sizeof(uint32_t)),
+            DXGI_FORMAT_R32_UINT
+        };
     }
 }
 

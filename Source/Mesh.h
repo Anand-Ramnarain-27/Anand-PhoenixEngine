@@ -12,10 +12,11 @@ public:
         Vector3 position;
         Vector2 texCoord;
         Vector3 normal;
+        Vector4 tangent; 
     };
 
-    static const D3D12_INPUT_ELEMENT_DESC InputLayout[3];
-    static const UINT InputLayoutCount = 3;
+    static const D3D12_INPUT_ELEMENT_DESC InputLayout[4];
+    static const UINT InputLayoutCount = 4;
 
     Mesh() = default;
     ~Mesh() { cleanup(); }

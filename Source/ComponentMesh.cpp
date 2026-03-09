@@ -10,6 +10,7 @@
 #include "ModuleResources.h"
 #include "ModuleCamera.h"
 #include "ModuleD3D12.h"
+#include "MeshPipeline.h"
 #include "ResourceMesh.h"
 #include "ResourceMaterial.h"
 #include "ResourceCommon.h"
@@ -29,7 +30,7 @@ ComponentMesh::~ComponentMesh() {
 
 void ComponentMesh::releaseEntries() {
     for (auto& e : m_entries) {
-        if (e.meshRes) app->getResources()->ReleaseResource(e.meshRes);
+        if (e.meshRes)     app->getResources()->ReleaseResource(e.meshRes);
         if (e.materialRes) app->getResources()->ReleaseResource(e.materialRes);
         e.meshRes = nullptr;
         e.materialRes = nullptr;
@@ -41,7 +42,9 @@ static ComPtr<ID3D12Resource> makeMaterialCB(const Material::Data& data) {
     auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer((sizeof(Material::Data) + 255) & ~255);
     ComPtr<ID3D12Resource> buf;
-    app->getD3D12()->getDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buf));
+    app->getD3D12()->getDevice()->CreateCommittedResource(
+        &heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buf));
     void* mapped = nullptr;
     buf->Map(0, nullptr, &mapped);
     memcpy(mapped, &data, sizeof(Material::Data));
@@ -52,7 +55,8 @@ static ComPtr<ID3D12Resource> makeMaterialCB(const Material::Data& data) {
 
 void ComponentMesh::rebuildEntry(MeshEntry& e) {
     Material::Data data = {};
-    if (e.materialRes && e.materialRes->getMaterial()) data = e.materialRes->getMaterial()->getData();
+    if (e.materialRes && e.materialRes->getMaterial())
+        data = e.materialRes->getMaterial()->getData();
     e.materialCB = makeMaterialCB(data);
 }
 
@@ -60,7 +64,8 @@ void ComponentMesh::rebuildMaterialBuffers() {
     for (auto& e : m_entries) rebuildEntry(e);
     if (m_proceduralModel) {
         m_proceduralMaterialBuffers.clear();
-        for (const auto& mat : m_proceduralModel->getMaterials()) m_proceduralMaterialBuffers.push_back(makeMaterialCB(mat->getData()));
+        for (const auto& mat : m_proceduralModel->getMaterials())
+            m_proceduralMaterialBuffers.push_back(makeMaterialCB(mat->getData()));
     }
 }
 
@@ -109,7 +114,7 @@ bool ComponentMesh::loadModel(const char* filePath) {
         MeshEntry e;
         e.meshUID = app->getAssets()->findSubUID(canonicalPath, "mesh", i);
         e.materialUID = app->getAssets()->findSubUID(canonicalPath, "mat", i);
-        if (e.meshUID) e.meshRes = app->getResources()->RequestMesh(e.meshUID);
+        if (e.meshUID)     e.meshRes = app->getResources()->RequestMesh(e.meshUID);
         if (e.materialUID) e.materialRes = app->getResources()->RequestMaterial(e.materialUID);
         rebuildEntry(e);
         m_entries.push_back(std::move(e));
@@ -125,7 +130,8 @@ void ComponentMesh::setProceduralModel(std::unique_ptr<Model> model) {
     m_modelUID = 0;
     m_modelPath.clear();
     m_proceduralMaterialBuffers.clear();
-    for (const auto& mat : m_proceduralModel->getMaterials()) m_proceduralMaterialBuffers.push_back(makeMaterialCB(mat->getData()));
+    for (const auto& mat : m_proceduralModel->getMaterials())
+        m_proceduralMaterialBuffers.push_back(makeMaterialCB(mat->getData()));
     computeLocalAABB();
 }
 
@@ -138,6 +144,22 @@ void ComponentMesh::overrideMaterial(int slot, UID materialUID) {
     rebuildEntry(e);
 }
 
+static void bindMaterialTextures(ID3D12GraphicsCommandList* cmd, const Material* mat) {
+    if (!mat) return;
+
+    if (mat->hasTexture())
+        cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_ALBEDO_TEX, mat->getTextureGPUHandle());
+
+    if (mat->hasNormalMap())
+        cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_NORMAL_TEX, mat->getNormalMapGPUHandle());
+
+    if (mat->hasAOMap())
+        cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_AO_TEX, mat->getAOMapGPUHandle());
+
+    if (mat->hasEmissive())
+        cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_EMISSIVE_TEX, mat->getEmissiveGPUHandle());
+}
+
 void ComponentMesh::render(ID3D12GraphicsCommandList* cmd) {
     if (m_proceduralModel) {
         if (m_hasAABB) {
@@ -145,15 +167,18 @@ void ComponentMesh::render(ID3D12GraphicsCommandList* cmd) {
             getWorldAABB(wMin, wMax);
             if (!app->getCamera()->isVisible(wMin, wMax)) return;
         }
+
         Matrix world = (m_proceduralModel->getModelMatrix() * owner->getTransform()->getGlobalMatrix()).Transpose();
         cmd->SetGraphicsRoot32BitConstants(1, 16, &world, 0);
+
         const auto& meshes = m_proceduralModel->getMeshes();
         const auto& mats = m_proceduralModel->getMaterials();
         for (size_t i = 0; i < meshes.size(); ++i) {
             int mi = meshes[i]->getMaterialIndex();
             if (mi >= 0 && mi < (int)mats.size()) {
-                if (mi < (int)m_proceduralMaterialBuffers.size()) cmd->SetGraphicsRootConstantBufferView(3, m_proceduralMaterialBuffers[mi]->GetGPUVirtualAddress());
-                if (mats[mi]->hasTexture()) cmd->SetGraphicsRootDescriptorTable(4, mats[mi]->getTextureGPUHandle());
+                if (mi < (int)m_proceduralMaterialBuffers.size())
+                    cmd->SetGraphicsRootConstantBufferView(3, m_proceduralMaterialBuffers[mi]->GetGPUVirtualAddress());
+                bindMaterialTextures(cmd, mats[mi].get());
             }
             meshes[i]->draw(cmd);
         }
@@ -173,8 +198,13 @@ void ComponentMesh::render(ID3D12GraphicsCommandList* cmd) {
 
     for (const auto& e : m_entries) {
         if (!e.meshRes || !e.meshRes->getMesh()) continue;
-        if (e.materialCB) cmd->SetGraphicsRootConstantBufferView(3, e.materialCB->GetGPUVirtualAddress());
-        if (e.materialRes && e.materialRes->getMaterial() && e.materialRes->getMaterial()->hasTexture()) cmd->SetGraphicsRootDescriptorTable(4, e.materialRes->getMaterial()->getTextureGPUHandle());
+
+        if (e.materialCB)
+            cmd->SetGraphicsRootConstantBufferView(3, e.materialCB->GetGPUVirtualAddress());
+
+        if (e.materialRes)
+            bindMaterialTextures(cmd, e.materialRes->getMaterial());
+
         e.meshRes->getMesh()->draw(cmd);
     }
 }
@@ -216,6 +246,7 @@ void ComponentMesh::computeLocalAABB() {
     m_localAABBMin = Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
     m_localAABBMax = Vector3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
     m_hasAABB = false;
+
     for (const auto& e : m_entries) {
         if (!e.meshRes || !e.meshRes->getMesh()) continue;
         Mesh* mesh = e.meshRes->getMesh();
@@ -224,6 +255,7 @@ void ComponentMesh::computeLocalAABB() {
         m_localAABBMax = Vector3::Max(m_localAABBMax, mesh->getAABBMax());
         m_hasAABB = true;
     }
+
     if (m_proceduralModel) {
         for (const auto& mesh : m_proceduralModel->getMeshes()) {
             if (!mesh || !mesh->hasAABB()) continue;

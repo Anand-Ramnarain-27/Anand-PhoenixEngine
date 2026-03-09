@@ -10,10 +10,10 @@ class MeshImporter {
 public:
     struct MeshHeader {
         uint32_t magic = 0x4853454D;
-        uint32_t version = 1;
+        uint32_t version = 2;         
         uint32_t vertexCount = 0;
         uint32_t indexCount = 0;
-        int32_t materialIndex = -1;
+        int32_t  materialIndex = -1;
     };
 
     static bool Import(const tinygltf::Primitive& primitive, const tinygltf::Model& model, const std::string& outputFile);
