@@ -2,16 +2,20 @@
 
 #include "Mesh.h"
 #include "Material.h"
+#include "MeshEntry.h"
 #include <vector>
 #include <memory>
 #include <string>
 
-class Model {
+class Model
+{
 public:
     bool load(const char* fileName);
 
     void draw(ID3D12GraphicsCommandList* cmdList, const Matrix& worldMatrix);
     void draw(ID3D12GraphicsCommandList* cmdList);
+
+    void buildMeshEntries(const Matrix& parentWorld, std::vector<MeshEntry>& out) const;
 
     void setModelMatrix(const Matrix& matrix) { m_modelMatrix = matrix; }
     const Matrix& getModelMatrix() const { return m_modelMatrix; }

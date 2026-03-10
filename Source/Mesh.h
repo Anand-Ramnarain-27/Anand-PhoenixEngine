@@ -2,28 +2,36 @@
 
 #include "Globals.h"
 #include <vector>
-#include <wrl/client.h>
+#include <d3d12.h>
+#include <d3dx12.h>
 
-using Microsoft::WRL::ComPtr;
+class ModuleStaticBuffer;
 
-class Mesh {
+class Mesh
+{
 public:
-    struct Vertex {
+    struct Vertex
+    {
         Vector3 position;
         Vector2 texCoord;
         Vector3 normal;
-        Vector4 tangent; 
+        Vector4 tangent;   
     };
 
     static const D3D12_INPUT_ELEMENT_DESC InputLayout[4];
     static const UINT InputLayoutCount = 4;
 
     Mesh() = default;
-    ~Mesh() { cleanup(); }
+    ~Mesh() = default;
     Mesh(const Mesh&) = delete;
     Mesh& operator=(const Mesh&) = delete;
 
+    void setData(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, int materialIndex);
+
     void setData(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, int materialIndex);
+
+    void uploadToGPU(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer);
+
     void draw(ID3D12GraphicsCommandList* cmdList) const;
 
     uint32_t getVertexCount() const { return (uint32_t)m_vertices.size(); }
@@ -31,25 +39,27 @@ public:
     int getMaterialIndex() const { return m_materialIndex; }
 
     const std::vector<Vertex>& getVertices() const { return m_vertices; }
-    const std::vector<uint32_t>& getIndices() const { return m_indices; }
+    const std::vector<uint32_t>& getIndices()  const { return m_indices; }
 
     const Vector3& getAABBMin() const { return m_aabbMin; }
     const Vector3& getAABBMax() const { return m_aabbMax; }
     bool hasAABB() const { return m_hasAABB; }
 
 private:
-    void createBuffers();
     void computeAABB();
-    void cleanup();
+    void createLegacyBuffers(); 
 
     int m_materialIndex = -1;
     std::vector<Vertex> m_vertices;
     std::vector<uint32_t> m_indices;
 
-    ComPtr<ID3D12Resource> m_vertexBuffer;
     D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView = {};
-    ComPtr<ID3D12Resource> m_indexBuffer;
     D3D12_INDEX_BUFFER_VIEW m_indexBufferView = {};
+    bool m_hasVertexBuffer = false;
+    bool m_hasIndexBuffer = false;
+
+    ComPtr<ID3D12Resource> m_legacyVertexBuffer;
+    ComPtr<ID3D12Resource> m_legacyIndexBuffer;
 
     Vector3 m_aabbMin = {};
     Vector3 m_aabbMax = {};

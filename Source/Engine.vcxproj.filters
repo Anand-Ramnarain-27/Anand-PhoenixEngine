@@ -212,6 +212,7 @@
       <Filter>engine\editor\panels\viewports</Filter>
     </ClCompile>
     <ClCompile Include="ModuleStaticBuffer.cpp" />
+    <ClCompile Include="MeshRenderPass.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -490,6 +491,7 @@
     </ClInclude>
     <ClInclude Include="PrefabEditSession.h" />
     <ClInclude Include="ModuleStaticBuffer.h" />
+    <ClInclude Include="MeshRenderPass.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

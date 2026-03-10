@@ -10,6 +10,7 @@
 #include "Material.h"
 #include "tiny_gltf.h"
 #include <filesystem>
+#include <cstring>
 
 bool Model::load(const char* fileName) {
     m_srcFile = fileName;
@@ -74,4 +75,25 @@ void Model::draw(ID3D12GraphicsCommandList* cmdList, const Matrix& worldMatrix) 
 
 void Model::draw(ID3D12GraphicsCommandList* cmdList) {
     draw(cmdList, Matrix::Identity);
+}
+
+void Model::buildMeshEntries(const Matrix& parentWorld, std::vector<MeshEntry>& out) const{
+    Matrix finalWorld = (m_modelMatrix * parentWorld).Transpose();
+
+    for (size_t i = 0; i < m_meshes.size(); ++i)
+    {
+        Mesh* mesh = m_meshes[i].get();
+        if (!mesh) continue;
+
+        MeshEntry entry;
+
+        entry.mesh = mesh;
+        entry.material = (i < m_materials.size()) ? m_materials[i].get() : nullptr;
+
+        static_assert(sizeof(finalWorld) == sizeof(entry.worldMatrix),
+            "Matrix size mismatch");
+        memcpy(entry.worldMatrix, &finalWorld, sizeof(entry.worldMatrix));
+
+        out.push_back(std::move(entry));
+    }
 }

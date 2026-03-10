@@ -210,6 +210,7 @@
     <ClInclude Include="MeshEntry.h" />
     <ClInclude Include="MeshImporter.h" />
     <ClInclude Include="MeshPipeline.h" />
+    <ClInclude Include="MeshRenderPass.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="ModuleAssets.h" />
     <ClInclude Include="ModuleDescriptorsBase.h" />
@@ -348,6 +349,7 @@
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="MeshImporter.cpp" />
     <ClCompile Include="MeshPipeline.cpp" />
+    <ClCompile Include="MeshRenderPass.cpp" />
     <ClCompile Include="MetaFileManager.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="ModuleAssets.cpp" />

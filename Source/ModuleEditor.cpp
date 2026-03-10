@@ -8,6 +8,7 @@
 #include "ModuleSamplerHeap.h"
 #include "ImGuiPass.h"
 #include "DebugDrawPass.h"
+#include "MeshRenderPass.h"
 #include "EmptyScene.h"
 #include "ModuleScene.h"
 #include "SceneManager.h"
@@ -33,6 +34,8 @@
 #include "AssetBrowserPanel.h"
 #include "SceneSettingsPanel.h"
 #include "PrefabManager.h"
+#include "Model.h"
+#include "MeshEntry.h"
 #include <d3dx12.h>
 #include <filesystem>
 #include <algorithm>
@@ -65,8 +68,8 @@ bool ModuleEditor::init() {
     m_imguiPass = std::make_unique<ImGuiPass>(device2.Get(), d3d12->getHWnd(), m_descTable.getCPUHandle(), m_descTable.getGPUHandle());
     m_debugDraw = std::make_unique<DebugDrawPass>(device4.Get(), d3d12->getDrawCommandQueue(), false);
     m_sceneManager = std::make_unique<SceneManager>();
-    m_meshPipeline = std::make_unique<MeshPipeline>();
-    if (!m_meshPipeline->init(device)) return false;
+    m_meshRenderPass = std::make_unique<MeshRenderPass>();
+    if (!m_meshRenderPass->init(device)) return false;
 
     m_envSystem = std::make_unique<EnvironmentSystem>();
     if (!m_envSystem->init(device, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT, false)) return false;
@@ -192,7 +195,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     if (sky.enabled && m_envSystem)
         m_envSystem->render(cmd, view, proj);
 
-    ID3D12DescriptorHeap* heaps[] = {app->getShaderDescriptors()->getHeap(), app->getSamplerHeap()->getHeap()};
+    ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap(), app->getSamplerHeap()->getHeap() };
     cmd->SetDescriptorHeaps(2, heaps);
 
     MeshPipeline::LightCB lightData = {};
@@ -208,20 +211,55 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     memcpy(mapped, &lightData, sizeof(lightData));
     m_lightCB->Unmap(0, nullptr);
 
-    cmd->SetPipelineState(m_meshPipeline->getPSO());
-    cmd->SetGraphicsRootSignature(m_meshPipeline->getRootSig());
+    std::vector<MeshEntry> ownedEntries; 
+    std::vector<MeshEntry*> visibleMeshes;
+
+    if (moduleScene)
+    {
+        std::function<void(GameObject*)> collectMeshes = [&](GameObject* node){
+            if (!node || !node->isActive()) return; 
+            if (auto* cm = node->getComponent<ComponentMesh>()) {
+
+                Matrix nodeWorld = node->getTransform()->getGlobalMatrix();
+                
+                if (Model* model = cm->getProceduralModel()){
+                    
+                    model->buildMeshEntries(nodeWorld, ownedEntries);
+                }
+                else{
+                    
+                    const auto& entries = cm->getEntries();
+                    Matrix worldT = nodeWorld.Transpose();
+                    for (const auto& src : entries){
+                        MeshEntry e;
+                        e.meshUID = src.meshUID;
+                        e.materialUID = src.materialUID;
+                        e.meshRes = src.meshRes;
+                        e.materialRes = src.materialRes;
+                        e.materialCB = src.materialCB;
+                        static_assert(sizeof(worldT) == sizeof(e.worldMatrix), "Matrix size mismatch");
+                        memcpy(e.worldMatrix, &worldT, sizeof(e.worldMatrix));
+                        ownedEntries.push_back(std::move(e));
+                    }
+                }
+            }
+            
+            for (auto* child : node->getChildren()) collectMeshes(child);
+            };
+        collectMeshes(moduleScene->getRoot());
+        
+        visibleMeshes.reserve(ownedEntries.size());
+        
+        for (auto& e : ownedEntries) visibleMeshes.push_back(&e);
+    }
+
+    m_meshRenderPass->getPipeline().setSamplerType(ModuleSamplerHeap::Type(m_samplerType));
 
     Matrix vp = (view * proj).Transpose();
-    Matrix identity = Matrix::Identity.Transpose();
-    cmd->SetGraphicsRoot32BitConstants(MeshPipeline::SLOT_VP, 16, &vp, 0);
-    cmd->SetGraphicsRoot32BitConstants(MeshPipeline::SLOT_WORLD, 16, &identity, 0);
-    cmd->SetGraphicsRootConstantBufferView(MeshPipeline::SLOT_LIGHT_CB, m_lightCB->GetGPUVirtualAddress());
-    cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_SAMPLER, app->getSamplerHeap()->getGPUHandle(ModuleSamplerHeap::Type(m_samplerType)));
 
-    if (sky.enabled && m_envSystem && m_envSystem->hasIBL())
-        m_meshPipeline->bindIBL(cmd, m_envSystem.get());
+    const EnvironmentSystem* envForIBL = (sky.enabled && m_envSystem) ? m_envSystem.get() : nullptr;
 
-    if (m_sceneManager) m_sceneManager->render(cmd, *camera, w, h);
+    m_meshRenderPass->render(cmd, visibleMeshes, m_lightCB->GetGPUVirtualAddress(), reinterpret_cast<const float*>(&vp), envForIBL, app->getSamplerHeap());
 
     if (editorExtras) {
         if (s.showGrid) dd::xzSquareGrid(-100.f, 100.f, 0.f, 1.f, dd::colors::Gray);
@@ -775,4 +813,3 @@ void ModuleEditor::flushExitPrefabEdit() {
     m_prefabSession.clear();
     log("Exited prefab edit.", EditorColors::Muted);
 }
-

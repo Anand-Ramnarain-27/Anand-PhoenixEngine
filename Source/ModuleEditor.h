@@ -2,9 +2,11 @@
 #include "Module.h"
 #include "EditorSelection.h"
 #include "EditorPanels.h"
+#include "MeshRenderPass.h"
 #include "MeshPipeline.h"
 #include "ShaderTableDesc.h"
 #include "PrefabEditSession.h"
+
 #include <memory>
 #include <vector>
 #include <string>
@@ -12,6 +14,7 @@
 #include <functional>
 #include <imgui.h>
 #include <wrl/client.h>
+
 using Microsoft::WRL::ComPtr;
 
 struct EditorCommand {
@@ -48,7 +51,8 @@ public:
     void render() override;
 
     SceneManager* getSceneManager() const { return m_sceneManager.get(); }
-    MeshPipeline* getMeshPipeline() const { return m_meshPipeline.get(); }
+    MeshRenderPass* getMeshRenderPass() const { return m_meshRenderPass.get(); }
+    MeshPipeline* getMeshPipeline() const { return m_meshRenderPass ? &m_meshRenderPass->getPipeline() : nullptr; }
     EnvironmentSystem* getEnvSystem() const { return m_envSystem.get(); }
     DebugDrawPass* getDebugDraw() const { return m_debugDraw.get(); }
     EditorSelection& getSelection() { return m_selection; }
@@ -83,7 +87,7 @@ private:
     std::unique_ptr<ImGuiPass> m_imguiPass;
     std::unique_ptr<DebugDrawPass> m_debugDraw;
     std::unique_ptr<SceneManager> m_sceneManager;
-    std::unique_ptr<MeshPipeline> m_meshPipeline;
+    std::unique_ptr<MeshRenderPass> m_meshRenderPass;
     std::unique_ptr<EnvironmentSystem> m_envSystem;
 
     struct ShaderTableDescImpl;
