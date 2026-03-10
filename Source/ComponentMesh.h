@@ -25,6 +25,9 @@ public:
     void onLoad(const std::string& json) override;
     Type getType() const override { return Type::Mesh; }
 
+    void flushDeferredReleases(); 
+    void markMaterialsDirty();
+
     Model* getProceduralModel() const { return m_proceduralModel.get(); }
     const std::string& getModelPath() const { return m_modelPath; }
     UID getModelUID() const { return m_modelUID; }
@@ -45,7 +48,9 @@ private:
     std::vector<MeshEntry> m_entries;
     std::shared_ptr<Model> m_proceduralModel;
     std::vector<ComPtr<ID3D12Resource>> m_proceduralMaterialBuffers;
+    std::vector<ComPtr<ID3D12Resource>> m_deferredRelease;
     Vector3 m_localAABBMin = {};
     Vector3 m_localAABBMax = {};
     bool m_hasAABB = false;
+    bool m_materialsDirty = false;
 };

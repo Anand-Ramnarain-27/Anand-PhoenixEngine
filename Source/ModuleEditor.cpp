@@ -145,6 +145,8 @@ void ModuleEditor::render() {
     ModuleShaderDescriptors* descs = app->getShaderDescriptors();
     ID3D12GraphicsCommandList* cmd = d3d12->getCommandList();
 
+    m_frameTransientBuffers.clear();
+
     cmd->Reset(d3d12->getCommandAllocator(), nullptr);
     cmd->EndQuery(m_gpuQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
 
@@ -189,6 +191,17 @@ void ModuleEditor::render() {
 void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras) {
     ModuleCamera* camera = app->getCamera();
     ModuleScene* moduleScene = getActiveModuleScene();
+
+    if (moduleScene) {
+        std::function<void(GameObject*)> flush = [&](GameObject* node) {
+            if (!node) return;
+            if (auto* cm = node->getComponent<ComponentMesh>())
+                cm->flushDeferredReleases();
+            for (auto* child : node->getChildren()) flush(child);
+            };
+        flush(moduleScene->getRoot());
+    }
+
     const EditorSceneSettings& s = m_sceneManager->getSettings();
     const EditorSceneSettings::Skybox& sky = s.skybox;
 
@@ -211,45 +224,44 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     memcpy(mapped, &lightData, sizeof(lightData));
     m_lightCB->Unmap(0, nullptr);
 
-    std::vector<MeshEntry> ownedEntries; 
+    std::vector<MeshEntry> ownedEntries;   
     std::vector<MeshEntry*> visibleMeshes;
 
     if (moduleScene)
     {
-        std::function<void(GameObject*)> collectMeshes = [&](GameObject* node){
-            if (!node || !node->isActive()) return; 
+        std::function<void(GameObject*)> collectMeshes = [&](GameObject* node) {
+            if (!node || !node->isActive()) return;
+            
             if (auto* cm = node->getComponent<ComponentMesh>()) {
-
+                
                 Matrix nodeWorld = node->getTransform()->getGlobalMatrix();
                 
-                if (Model* model = cm->getProceduralModel()){
-                    
+                if (Model* model = cm->getProceduralModel()) {
                     model->buildMeshEntries(nodeWorld, ownedEntries);
-                }
-                else{
-                    
+                } 
+                else {
                     const auto& entries = cm->getEntries();
                     Matrix worldT = nodeWorld.Transpose();
-                    for (const auto& src : entries){
+                    for (const auto& src : entries) {
+                        
                         MeshEntry e;
                         e.meshUID = src.meshUID;
                         e.materialUID = src.materialUID;
                         e.meshRes = src.meshRes;
                         e.materialRes = src.materialRes;
-                        e.materialCB = src.materialCB;
+                        e.materialCB = src.materialCB; 
                         static_assert(sizeof(worldT) == sizeof(e.worldMatrix), "Matrix size mismatch");
-                        memcpy(e.worldMatrix, &worldT, sizeof(e.worldMatrix));
+						memcpy(e.worldMatrix, &worldT, sizeof(worldT));
                         ownedEntries.push_back(std::move(e));
                     }
                 }
             }
             
             for (auto* child : node->getChildren()) collectMeshes(child);
-            };
+        };
+        
         collectMeshes(moduleScene->getRoot());
-        
         visibleMeshes.reserve(ownedEntries.size());
-        
         for (auto& e : ownedEntries) visibleMeshes.push_back(&e);
     }
 

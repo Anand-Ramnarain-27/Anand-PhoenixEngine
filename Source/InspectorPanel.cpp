@@ -1,4 +1,4 @@
-#include "Globals.h"
+ï»¿#include "Globals.h"
 #include "InspectorPanel.h"
 #include "ModuleEditor.h"
 #include "Application.h"
@@ -18,11 +18,11 @@
 #include "TextureImporter.h"
 #include "Material.h"
 #include "Model.h"
+#include "ModuleD3D12.h"
 #include "MeshEntry.h"
 #include "ResourceMaterial.h"
 #include "EditorSelection.h"
 #include "PrefabEditSession.h"
-#include "SceneManager.h"
 #include <filesystem>
 #include <algorithm>
 
@@ -192,7 +192,11 @@ void InspectorPanel::drawContent() {
         ImGui::PopID();
     }
 
-    if (wantsRemove && toRemove != Component::Type::Transform) go->removeComponentByType(toRemove);
+    if (wantsRemove && toRemove != Component::Type::Transform) {
+        if (toRemove == Component::Type::Mesh)
+            app->getD3D12()->flush();
+        go->removeComponentByType(toRemove);
+    }
 
     ImGui::Spacing(); ImGui::Separator();
     drawAddComponentMenu();
@@ -465,7 +469,7 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
     for (int mi = 0; mi < (int)entries.size(); ++mi) {
         const MeshEntry& e = entries[mi];
         Material* mat = (e.materialRes ? e.materialRes->getMaterial() : nullptr);
-        if (!mat) { ImGui::PushID(mi); ImGui::TextDisabled("Submesh %d  — no material", mi); ImGui::PopID(); continue; }
+        if (!mat) { ImGui::PushID(mi); ImGui::TextDisabled("Submesh %d  ï¿½ no material", mi); ImGui::PopID(); continue; }
         Material::Data& data = mat->getData();
 
         ImGui::PushID(mi);

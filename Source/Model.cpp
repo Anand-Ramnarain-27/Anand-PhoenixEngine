@@ -1,6 +1,7 @@
 #include "Globals.h"
 #include "Model.h"
 #include "Application.h"
+#include "ModuleD3D12.h"
 #include "ModuleFileSystem.h"
 #include "SceneImporter.h"
 #include "MeshImporter.h"
@@ -11,6 +12,7 @@
 #include "tiny_gltf.h"
 #include <filesystem>
 #include <cstring>
+#include <d3dx12.h>
 
 bool Model::load(const char* fileName) {
     m_srcFile = fileName;
@@ -77,21 +79,52 @@ void Model::draw(ID3D12GraphicsCommandList* cmdList) {
     draw(cmdList, Matrix::Identity);
 }
 
-void Model::buildMeshEntries(const Matrix& parentWorld, std::vector<MeshEntry>& out) const{
+void Model::rebuildMaterialCBs() const{
+
+    m_materialCBs.resize(m_materials.size());
+
+    for (size_t i = 0; i < m_materials.size(); ++i){
+
+        Material::Data data = {};
+        if (m_materials[i]) data = m_materials[i]->getData();
+
+        auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer((sizeof(Material::Data) + 255) & ~255);
+        m_materialCBs[i].Reset();
+        app->getD3D12()->getDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_materialCBs[i]));
+
+        if (m_materialCBs[i]) {
+            void* mapped = nullptr;
+            m_materialCBs[i]->Map(0, nullptr, &mapped);
+            memcpy(mapped, &data, sizeof(data));
+            m_materialCBs[i]->Unmap(0, nullptr);
+            m_materialCBs[i]->SetName(L"ModelMaterialCB");
+        }
+    }
+
+    m_materialCBsDirty = false;
+}
+
+void Model::buildMeshEntries(const Matrix& parentWorld, std::vector<MeshEntry>& out) const {
+
+    if (m_materialCBsDirty || m_materialCBs.size() != m_materials.size())
+        rebuildMaterialCBs();
+
     Matrix finalWorld = (m_modelMatrix * parentWorld).Transpose();
 
-    for (size_t i = 0; i < m_meshes.size(); ++i)
-    {
+    for (size_t i = 0; i < m_meshes.size(); ++i){
+
         Mesh* mesh = m_meshes[i].get();
         if (!mesh) continue;
 
+        Material* mat = (i < m_materials.size()) ? m_materials[i].get() : nullptr;
+
         MeshEntry entry;
-
         entry.mesh = mesh;
-        entry.material = (i < m_materials.size()) ? m_materials[i].get() : nullptr;
+        entry.material = mat;
+        entry.materialCB = (i < m_materialCBs.size()) ? m_materialCBs[i] : nullptr;
 
-        static_assert(sizeof(finalWorld) == sizeof(entry.worldMatrix),
-            "Matrix size mismatch");
+        static_assert(sizeof(finalWorld) == sizeof(entry.worldMatrix), "Matrix size mismatch");
         memcpy(entry.worldMatrix, &finalWorld, sizeof(entry.worldMatrix));
 
         out.push_back(std::move(entry));

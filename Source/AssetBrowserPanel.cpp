@@ -546,14 +546,6 @@ void AssetBrowserPanel::spawnAsset(const std::string& path) {
         if (!th.attempted) { th.attempted = true; TextureImporter::Load(path, th.tex, th.srv); }
         if (!th.tex) { m_editor->log("Failed to load texture.", EditorColors::Danger); return; }
         std::string stem = fs::path(path).stem().string();
-        if (sel.has())
-            if (auto* cm = sel.object->getComponent<ComponentMesh>(); cm && !cm->getEntries().empty()) {
-                for (const auto& e : cm->getEntries())
-                    if (e.materialRes && e.materialRes->getMaterial()) e.materialRes->getMaterial()->setBaseColorTexture(th.tex, th.srv);
-                cm->rebuildMaterialBuffers();
-                m_editor->log(("Texture -> " + sel.object->getName()).c_str(), EditorColors::Success);
-                return;
-            }
         if (scene) { sel.object = PrimitiveFactory::createTexturedQuadObject(scene, stem, th.tex, th.srv); m_editor->log(("Added image: " + stem).c_str(), EditorColors::Success); }
     }
 }

@@ -156,4 +156,6 @@ private:
     void handleDialogs();
     void flushExitPrefabEdit();
     void handleShortcuts();
+
+    std::vector<ComPtr<ID3D12Resource>> m_frameTransientBuffers;
 };

@@ -57,7 +57,24 @@ void ComponentMesh::rebuildEntry(MeshEntry& e) {
     Material::Data data = {};
     if (e.materialRes && e.materialRes->getMaterial())
         data = e.materialRes->getMaterial()->getData();
+
+    if (e.materialCB)
+        m_deferredRelease.push_back(std::move(e.materialCB));
+
     e.materialCB = makeMaterialCB(data);
+}
+
+void ComponentMesh::markMaterialsDirty() {
+    m_materialsDirty = true;
+}
+
+void ComponentMesh::flushDeferredReleases() {
+     m_deferredRelease.clear();
+
+    if (m_materialsDirty) {
+        m_materialsDirty = false;
+        rebuildMaterialBuffers();
+    }
 }
 
 void ComponentMesh::rebuildMaterialBuffers() {
