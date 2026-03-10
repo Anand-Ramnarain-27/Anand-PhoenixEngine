@@ -373,7 +373,7 @@ void InspectorPanel::drawTexturePicker(ComponentMesh* mesh, Material* mat, int s
             D3D12_GPU_DESCRIPTOR_HANDLE srv{};
             if (TextureImporter::Load(tf, tex, srv)) {
                 onApply(tex, srv);
-                mesh->rebuildMaterialBuffers();
+                app->getD3D12()->flush(); mesh->rebuildMaterialBuffers();
                 m_editor->log(("Applied " + std::string(label) + ": " + tname).c_str(), EditorColors::Success);
             }
             else m_editor->log(("Failed: " + tf).c_str(), EditorColors::Danger);
@@ -389,7 +389,7 @@ void InspectorPanel::drawTexturePicker(ComponentMesh* mesh, Material* mat, int s
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.72f, 0.17f, 0.17f, 1.f));
     if (ImGui::Button("Clear", ImVec2(80, 0)) && hasTex) {
         onApply({}, {});
-        mesh->rebuildMaterialBuffers();
+        app->getD3D12()->flush(); mesh->rebuildMaterialBuffers();
         m_editor->log((std::string("Cleared ") + label + " map").c_str(), EditorColors::Warning);
         ImGui::CloseCurrentPopup();
     }
@@ -478,7 +478,7 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
         ImGui::Indent(8.0f);
 
         ImGui::SeparatorText("Base Color");
-        if (ImGui::ColorEdit4("Color##bc", &data.baseColor.x)) mesh->rebuildMaterialBuffers();
+        if (ImGui::ColorEdit4("Color##bc", &data.baseColor.x)) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
         ImGui::Spacing();
 
         if (mat->hasTexture()) { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::Text("[Albedo] Applied"); ImGui::PopStyleColor(); }
@@ -495,11 +495,11 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
 
             ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); textMuted("Metallic");
             ImGui::TableSetColumnIndex(1); ImGui::SetNextItemWidth(-1);
-            if (ImGui::SliderFloat("##metal", &data.metallic, 0.f, 1.f)) mesh->rebuildMaterialBuffers();
+            if (ImGui::SliderFloat("##metal", &data.metallic, 0.f, 1.f)) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
 
             ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); textMuted("Roughness");
             ImGui::TableSetColumnIndex(1); ImGui::SetNextItemWidth(-1);
-            if (ImGui::SliderFloat("##rough", &data.roughness, 0.f, 1.f)) mesh->rebuildMaterialBuffers();
+            if (ImGui::SliderFloat("##rough", &data.roughness, 0.f, 1.f)) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
 
             ImGui::EndTable();
         }
@@ -513,7 +513,7 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
             [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv) { mat->setNormalMap(tex, srv); });
         if (mat->hasNormalMap()) {
             ImGui::SetNextItemWidth(-1);
-            if (ImGui::SliderFloat("Strength##ns", &data.normalStrength, 0.f, 3.f, "%.2f")) mesh->rebuildMaterialBuffers();
+            if (ImGui::SliderFloat("Strength##ns", &data.normalStrength, 0.f, 3.f, "%.2f")) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Scales XY deviation of the normal map.\n1.0 = full strength, 0.0 = flat surface.");
         }
 
@@ -525,7 +525,7 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
             [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv) { mat->setAOMap(tex, srv); });
         if (mat->hasAOMap()) {
             ImGui::SetNextItemWidth(-1);
-            if (ImGui::SliderFloat("Strength##aos", &data.aoStrength, 0.f, 1.f, "%.2f")) mesh->rebuildMaterialBuffers();
+            if (ImGui::SliderFloat("Strength##aos", &data.aoStrength, 0.f, 1.f, "%.2f")) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("0 = AO ignored (fully lit)\n1 = Full AO effect applied");
         }
 
@@ -535,7 +535,7 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
         ImGui::SameLine();
         drawTexturePicker(mesh, mat, mi, "Emissive", mat->hasEmissive(), "Emissive color map - additively blended (.dds)",
             [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv) { mat->setEmissiveMap(tex, srv); });
-        if (ImGui::ColorEdit3("Tint##emtint", &data.emissiveFactor.x)) mesh->rebuildMaterialBuffers();
+        if (ImGui::ColorEdit3("Tint##emtint", &data.emissiveFactor.x)) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Multiplied with emissive map.\nWhite = use map as-is, Black = no emission.");
 
         ImGui::Unindent(8.0f);
