@@ -8,10 +8,9 @@
 #include "Mesh.h"
 #include "Application.h"
 
-bool MeshRenderPass::init(ID3D12Device* device){
-
+bool MeshRenderPass::init(ID3D12Device* device)
+{
     if (!m_pipeline.init(device)) {
-
         LOG("MeshRenderPass: failed to initialise MeshPipeline");
         return false;
     }
@@ -19,8 +18,14 @@ bool MeshRenderPass::init(ID3D12Device* device){
     return true;
 }
 
-void MeshRenderPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes, D3D12_GPU_VIRTUAL_ADDRESS lightCBAddr, const float viewProj[16], const EnvironmentSystem* env, ModuleSamplerHeap* samplerHeap){
-
+void MeshRenderPass::render(
+    ID3D12GraphicsCommandList* cmd,
+    const std::vector<MeshEntry*>& meshes,
+    D3D12_GPU_VIRTUAL_ADDRESS       lightCBAddr,
+    const float                     viewProj[16],
+    const EnvironmentSystem* env,
+    ModuleSamplerHeap* samplerHeap)
+{
     if (meshes.empty()) return;
 
     cmd->SetPipelineState(m_pipeline.getPSO());
@@ -30,50 +35,58 @@ void MeshRenderPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<Me
     cmd->SetGraphicsRootConstantBufferView(MeshPipeline::SLOT_LIGHT_CB, lightCBAddr);
 
     if (samplerHeap)
-        cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_SAMPLER, samplerHeap->getGPUHandle(m_pipeline.getSamplerType()));
+        cmd->SetGraphicsRootDescriptorTable(
+            MeshPipeline::SLOT_SAMPLER,
+            samplerHeap->getGPUHandle(m_pipeline.getSamplerType()));
 
     m_pipeline.bindIBL(cmd, env);
 
-    for (MeshEntry* entry : meshes){
-
+    for (MeshEntry* entry : meshes)
+    {
         if (!entry) continue;
 
         Mesh* mesh = nullptr;
-        if (entry->meshRes)
-            mesh = entry->meshRes->getMesh();  
-        else
-            mesh = entry->mesh;               
-
+        if (entry->meshRes) mesh = entry->meshRes->getMesh();
+        else                mesh = entry->mesh;
         if (!mesh) continue;
 
         cmd->SetGraphicsRoot32BitConstants(MeshPipeline::SLOT_WORLD, 16, entry->worldMatrix, 0);
 
-        if (entry->materialCB){
-
+        if (entry->materialCB)
             cmd->SetGraphicsRootConstantBufferView(
                 MeshPipeline::SLOT_MATERIAL_CB,
                 entry->materialCB->GetGPUVirtualAddress());
-        }
 
         const Material* mat = nullptr;
-        if (entry->materialRes)
-            mat = entry->materialRes->getMaterial(); 
-        else if (entry->material)
-            mat = entry->material;                 
+        if (entry->materialRes) mat = entry->materialRes->getMaterial();
+        else if (entry->material) mat = entry->material;
 
-        if (mat) {
-
+        if (mat)
+        {
             if (mat->hasTexture())
-                cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_ALBEDO_TEX, mat->getTextureGPUHandle());
+                cmd->SetGraphicsRootDescriptorTable(
+                    MeshPipeline::SLOT_ALBEDO_TEX,
+                    mat->getTextureGPUHandle());
 
             if (mat->hasNormalMap())
-                cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_NORMAL_TEX, mat->getNormalMapGPUHandle());
+                cmd->SetGraphicsRootDescriptorTable(
+                    MeshPipeline::SLOT_NORMAL_TEX,
+                    mat->getNormalMapGPUHandle());
 
             if (mat->hasAOMap())
-                cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_AO_TEX, mat->getAOMapGPUHandle());
+                cmd->SetGraphicsRootDescriptorTable(
+                    MeshPipeline::SLOT_AO_TEX,
+                    mat->getAOMapGPUHandle());
 
             if (mat->hasEmissive())
-                cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_EMISSIVE_TEX, mat->getEmissiveGPUHandle());
+                cmd->SetGraphicsRootDescriptorTable(
+                    MeshPipeline::SLOT_EMISSIVE_TEX,
+                    mat->getEmissiveGPUHandle());
+
+            if (mat->hasMetalRoughMap())
+                cmd->SetGraphicsRootDescriptorTable(
+                    MeshPipeline::SLOT_METALROUGH_TEX,
+                    mat->getMetalRoughGPUHandle());
         }
 
         mesh->draw(cmd);

@@ -28,3 +28,10 @@ void Material::setEmissiveMap(ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_H
     m_hasEmissive = true;
     m_data.hasEmissiveMap = 1;
 }
+
+void Material::setMetalRoughMap(ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv) {
+    m_metalRoughTex = tex;
+    m_metalRoughSRV = srv;
+    m_hasMetalRough = true;
+    m_data.hasMetalRoughMap = 1;
+}

@@ -20,14 +20,15 @@ public:
     static constexpr UINT SLOT_WORLD = 1;
     static constexpr UINT SLOT_LIGHT_CB = 2;
     static constexpr UINT SLOT_MATERIAL_CB = 3;
-    static constexpr UINT SLOT_ALBEDO_TEX = 4; 
+    static constexpr UINT SLOT_ALBEDO_TEX = 4;  
     static constexpr UINT SLOT_SAMPLER = 5;
-    static constexpr UINT SLOT_IRRADIANCE = 6; 
-    static constexpr UINT SLOT_PREFILTER = 7; 
+    static constexpr UINT SLOT_IRRADIANCE = 6;   
+    static constexpr UINT SLOT_PREFILTER = 7;   
     static constexpr UINT SLOT_BRDF_LUT = 8;  
-    static constexpr UINT SLOT_NORMAL_TEX = 9; 
+    static constexpr UINT SLOT_NORMAL_TEX = 9;  
     static constexpr UINT SLOT_AO_TEX = 10; 
-    static constexpr UINT SLOT_EMISSIVE_TEX = 11; 
+    static constexpr UINT SLOT_EMISSIVE_TEX = 11;  
+    static constexpr UINT SLOT_METALROUGH_TEX = 12; 
 
     struct GPUDirectionalLight {
         Vector3 direction; float intensity;
@@ -41,7 +42,7 @@ public:
         Vector3 position;  float sqRadius;
         Vector3 direction; float innerCos;
         Vector3 color;     float outerCos;
-        float   intensity; float pad0;     
+        float   intensity; float pad0;
         Vector2 pad;
     };
 
@@ -55,7 +56,7 @@ public:
         uint32_t numPointLights;
         uint32_t numSpotLights;
         uint32_t iblEnabled;
-        float    numRoughnessLevels;  
+        float    numRoughnessLevels;
         float    pad1[3];
 
         GPUDirectionalLight dirLights[MAX_DIR_LIGHTS];

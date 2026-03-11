@@ -13,15 +13,17 @@ public:
         Vector4  baseColor = Vector4(1.f, 1.f, 1.f, 1.f);
         float    metallic = 0.f;
         float    roughness = 0.5f;
-        float    normalStrength = 1.f;  
-        float    aoStrength = 1.f;   
+        float    normalStrength = 1.f;
+        float    aoStrength = 1.f;
 
         uint32_t hasBaseColorTexture = 0;
         uint32_t hasNormalMap = 0;
         uint32_t hasAOMap = 0;
         uint32_t hasEmissiveMap = 0;
 
+        uint32_t hasMetalRoughMap = 0;  
         Vector3  emissiveFactor = Vector3(1.f, 1.f, 1.f);
+
         uint32_t samplerIndex = 0;
     };
 
@@ -36,15 +38,19 @@ public:
     void setAOMap(ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv);
     void setEmissiveMap(ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv);
 
-    bool hasTexture()    const { return m_hasBaseColor; }
-    bool hasNormalMap()  const { return m_hasNormal; }
-    bool hasAOMap()      const { return m_hasAO; }
-    bool hasEmissive()   const { return m_hasEmissive; }
+    void setMetalRoughMap(ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv);
 
-    D3D12_GPU_DESCRIPTOR_HANDLE getTextureGPUHandle()  const { return m_baseColorSRV; }
-    D3D12_GPU_DESCRIPTOR_HANDLE getNormalMapGPUHandle() const { return m_normalSRV; }
-    D3D12_GPU_DESCRIPTOR_HANDLE getAOMapGPUHandle()     const { return m_aoSRV; }
-    D3D12_GPU_DESCRIPTOR_HANDLE getEmissiveGPUHandle()  const { return m_emissiveSRV; }
+    bool hasTexture()       const { return m_hasBaseColor; }
+    bool hasNormalMap()     const { return m_hasNormal; }
+    bool hasAOMap()         const { return m_hasAO; }
+    bool hasEmissive()      const { return m_hasEmissive; }
+    bool hasMetalRoughMap() const { return m_hasMetalRough; } 
+
+    D3D12_GPU_DESCRIPTOR_HANDLE getTextureGPUHandle()      const { return m_baseColorSRV; }
+    D3D12_GPU_DESCRIPTOR_HANDLE getNormalMapGPUHandle()    const { return m_normalSRV; }
+    D3D12_GPU_DESCRIPTOR_HANDLE getAOMapGPUHandle()        const { return m_aoSRV; }
+    D3D12_GPU_DESCRIPTOR_HANDLE getEmissiveGPUHandle()     const { return m_emissiveSRV; }
+    D3D12_GPU_DESCRIPTOR_HANDLE getMetalRoughGPUHandle()   const { return m_metalRoughSRV; } 
 
 private:
     Data m_data;
@@ -64,4 +70,8 @@ private:
     ComPtr<ID3D12Resource>      m_emissiveTex;
     D3D12_GPU_DESCRIPTOR_HANDLE m_emissiveSRV = {};
     bool                        m_hasEmissive = false;
+
+    ComPtr<ID3D12Resource>      m_metalRoughTex;
+    D3D12_GPU_DESCRIPTOR_HANDLE m_metalRoughSRV = {};
+    bool                        m_hasMetalRough = false;
 };

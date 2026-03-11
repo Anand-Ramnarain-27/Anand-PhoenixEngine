@@ -15,18 +15,20 @@ bool MeshPipeline::createRootSignature(ID3D12Device* device)
 {
     CD3DX12_DESCRIPTOR_RANGE albedoRange, samplerRange,
         irradianceRange, prefilterRange, brdfRange,
-        normalRange, aoRange, emissiveRange;
+        normalRange, aoRange, emissiveRange,
+        metalRoughRange;  
 
     albedoRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); 
     samplerRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, ModuleSamplerHeap::COUNT, 0);
-    irradianceRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
-    prefilterRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2); 
-    brdfRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3); 
-    normalRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4); 
-    aoRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 5); 
+    irradianceRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);  
+    prefilterRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2);  
+    brdfRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3);  
+    normalRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4);  
+    aoRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 5);  
     emissiveRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6); 
+    metalRoughRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 7);  
 
-    CD3DX12_ROOT_PARAMETER params[12];
+    CD3DX12_ROOT_PARAMETER params[13];
     params[SLOT_VP].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
     params[SLOT_WORLD].InitAsConstants(16, 1, 0, D3D12_SHADER_VISIBILITY_VERTEX);
     params[SLOT_LIGHT_CB].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_ALL);
@@ -39,6 +41,7 @@ bool MeshPipeline::createRootSignature(ID3D12Device* device)
     params[SLOT_NORMAL_TEX].InitAsDescriptorTable(1, &normalRange, D3D12_SHADER_VISIBILITY_PIXEL);
     params[SLOT_AO_TEX].InitAsDescriptorTable(1, &aoRange, D3D12_SHADER_VISIBILITY_PIXEL);
     params[SLOT_EMISSIVE_TEX].InitAsDescriptorTable(1, &emissiveRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_METALROUGH_TEX].InitAsDescriptorTable(1, &metalRoughRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
     CD3DX12_ROOT_SIGNATURE_DESC desc;
     desc.Init(_countof(params), params, 0, nullptr,

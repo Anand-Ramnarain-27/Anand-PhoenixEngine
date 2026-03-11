@@ -1,6 +1,9 @@
+// MeshPS.hlsl
 #define MAX_DIR_LIGHTS   4
 #define MAX_POINT_LIGHTS 32
 #define MAX_SPOT_LIGHTS  16
+
+#define PI 3.14159265359f
 
 struct DirectionalLight
 {
@@ -27,7 +30,7 @@ struct SpotLight
     float3 color;
     float outerCos;
     float intensity;
-    float pad0; 
+    float pad0;
     float2 pad;
 };
 
@@ -43,7 +46,7 @@ cbuffer LightCB : register(b2)
     uint numPointLights;
     uint numSpotLights;
     uint iblEnabled;
-    
+
     float numRoughnessLevels;
     float3 pad1;
 
@@ -57,27 +60,30 @@ cbuffer MaterialCB : register(b3)
     float4 baseColor;
     float metallic;
     float roughness;
-    float normalStrength; 
+    float normalStrength;
     float aoStrength;
 
     uint hasBaseColorTexture;
     uint hasNormalMap;
-    uint hasAOMap; 
+    uint hasAOMap;
     uint hasEmissiveMap;
 
+    uint hasMetalRoughMap;
     float3 emissiveFactor;
+
     uint samplerIndex;
 };
 
-Texture2D baseColorTexture : register(t0);
+Texture2D albedoTex : register(t0);
 TextureCube irradianceMap : register(t1);
 TextureCube prefilteredMap : register(t2);
 Texture2D brdfLUT : register(t3);
-Texture2D normalMap : register(t4);
-Texture2D aoMap : register(t5); 
-Texture2D emissiveMap : register(t6); 
+Texture2D normalMapTex : register(t4);
+Texture2D aoTex : register(t5);
+Texture2D emissiveTex : register(t6);
+Texture2D metalRoughTex : register(t7);
 
-SamplerState textureSampler[4] : register(s0);
+SamplerState samplers[4] : register(s0);
 
 struct PSInput
 {
@@ -85,110 +91,168 @@ struct PSInput
     float2 uv : TEXCOORD;
     float3 worldPos : POSITION;
     float3 nrm : NORMAL;
-    float4 tangent : TANGENT; 
+    float4 tangent : TANGENT;
 };
 
-#define PI 3.14159265359f
+static const float GAMMA = 2.2f;
+static const float INV_GAMMA = 1.0f / GAMMA;
 
-float3 applyNormalMap(float3 worldNrm, float4 worldTangent, float2 uv, uint sampIdx)
+float3 linearToSRGB(float3 c)
 {
-    float3 tn = normalMap.Sample(textureSampler[sampIdx], uv).rgb;
-    tn = tn * 2.0f - 1.0f;
-    
+    return pow(c, INV_GAMMA);
+}
+float3 sRGBToLinear(float3 c)
+{
+    return pow(c, GAMMA);
+}
+
+float3 PBRNeutralToneMapping(float3 color)
+{
+    const float startCompression = 0.8f - 0.04f;
+    const float desaturation = 0.15f;
+
+    float x = min(color.r, min(color.g, color.b));
+    float offset = x < 0.08f ? x - 6.25f * x * x : 0.04f;
+    color -= offset;
+
+    float peak = max(color.r, max(color.g, color.b));
+    if (peak < startCompression)
+        return color;
+
+    const float d = 1.0f - startCompression;
+    float newPeak = 1.0f - d * d / (peak + d - startCompression);
+    color *= newPeak / peak;
+
+    float g = 1.0f - 1.0f / (desaturation * (peak - newPeak) + 1.0f);
+    return lerp(color, newPeak, g);
+}
+
+float3 F_Schlick(float3 f0, float3 f90, float cosTheta)
+{
+    return f0 + (f90 - f0) * pow(1.0f - cosTheta, 5.0f);
+}
+
+float D_GGX(float alphaRoughness, float NdotH)
+{
+    float a2 = alphaRoughness * alphaRoughness;
+    float denom = NdotH * NdotH * (a2 - 1.0f) + 1.0f;
+    return (denom > 0.0f) ? a2 / (PI * denom * denom) : 0.0f;
+}
+
+float V_GGX(float NdotV, float NdotL, float alphaRoughness)
+{
+    float a2 = alphaRoughness * alphaRoughness;
+    float gV = NdotL * sqrt(NdotV * NdotV * (1.0f - a2) + a2);
+    float gL = NdotV * sqrt(NdotL * NdotL * (1.0f - a2) + a2);
+    float denom = gV + gL;
+    return (denom > 0.0f) ? 0.5f / denom : 0.0f;
+}
+
+float3 getDiffuseAmbientLight(float3 N, float3 baseColour)
+{
+    return irradianceMap.Sample(samplers[2], N).rgb * baseColour; 
+}
+
+void getSpecularAmbientLightNoFresnel(float3 R, float NdotV, float rough,
+                                      out float3 firstTerm, out float3 secondTerm)
+{
+    float mip = rough * (numRoughnessLevels - 1.0f);
+    float3 radiance = prefilteredMap.SampleLevel(samplers[2], R, mip).rgb;
+    float2 fab = brdfLUT.Sample(samplers[2], float2(NdotV, rough)).rg;
+
+    firstTerm = radiance * fab.x;
+    secondTerm = radiance * fab.y;
+}
+
+float3 applyNormalMap(float3 N, float4 T, float2 uv)
+{
+    float3 tn = normalMapTex.Sample(samplers[0], uv).rgb * 2.0f - 1.0f;
     tn.xy *= normalStrength;
     tn = normalize(tn);
 
-    float3 N = normalize(worldNrm);
-    float3 T = normalize(worldTangent.xyz);
-    float3 B = cross(N, T) * worldTangent.w; 
-    
-    return normalize(T * tn.x + B * tn.y + N * tn.z);
+    float3 Nt = normalize(N);
+    float3 Tt = normalize(T.xyz);
+    float3 Bt = cross(Nt, Tt) * T.w;
+
+    return normalize(Tt * tn.x + Bt * tn.y + Nt * tn.z);
 }
 
-float computeSpecularAO(float NdotV, float diffuseAO, float rough)
+float computeSpecularAO(float NdotV, float ao, float rough)
 {
-    return saturate(pow(NdotV + diffuseAO, exp2(-16.0f * rough - 1.0f)) - 1.0f + diffuseAO);
+    return saturate(pow(NdotV + ao, exp2(-16.0f * rough - 1.0f)) - 1.0f + ao);
 }
 
-float luminance(float3 c)
-{
-    return dot(c, float3(0.2126f, 0.7152f, 0.0722f));
-}
-
-float3 cookTorrance(float3 N, float3 L, float3 V,
-                    float3 albedoColor, float metal, float rough,
-                    float3 lightColor, float lightIntensity)
+float3 cookTorranceGGX(float3 N, float3 L, float3 V,
+                        float3 albedo, float metal, float alphaRough,
+                        float3 lightColor, float lightIntensity)
 {
     float3 H = normalize(L + V);
+    float NdotL = saturate(dot(N, L));
+    float NdotV = saturate(dot(N, V));
+    float NdotH = saturate(dot(N, H));
+    float VdotH = saturate(dot(V, H));
 
-    float NdotL = max(dot(N, L), 0.0f);
-    float NdotV = max(dot(N, V), 1e-4f);
-    float NdotH = max(dot(N, H), 0.0f);
-    float VdotH = max(dot(V, H), 0.0f);
+    if (NdotL <= 0.0f)
+        return 0.0f;
 
-    if (NdotL <= 0)
-        return 0;
+    float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), albedo, metal);
+    float3 metalF = F_Schlick(F0, 1.0f, VdotH);
+    float dielectricF = F_Schlick(0.04f, 1.0f, VdotH);
 
-    float alpha = max(rough * rough, 0.001f);
+    float D = D_GGX(alphaRough, NdotH);
+    float Vis = V_GGX(NdotV, NdotL, alphaRough);
+    float3 spec = D * Vis * NdotL * lightColor * lightIntensity;
 
-    float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), albedoColor, metal);
+    float3 diff = (albedo / PI) * NdotL * lightColor * lightIntensity;
 
-    float a2 = alpha * alpha;
-    float d = NdotH * NdotH * (a2 - 1) + 1;
-    float D = a2 / (PI * d * d);
+    float3 dielectric = diff * (1.0f - dielectricF) + spec * dielectricF;
+    float3 metallic = spec * metalF;
 
-    float k = (alpha + 1) * (alpha + 1) / 8.0f;
-    float gV = NdotV / (NdotV * (1 - k) + k);
-    float gL = NdotL / (NdotL * (1 - k) + k);
-    float Vis = gV * gL;
-
-    float3 F = F0 + (1 - F0) * pow(1 - VdotH, 5);
-    float3 spec = D * Vis * F;
-    float3 kd = (1 - F) * (1 - metal);
-    float3 diff = kd * albedoColor / PI;
-
-    return (diff + spec) * lightColor * lightIntensity * NdotL;
+    return lerp(dielectric, metallic, metal);
 }
 
 float4 main(PSInput input) : SV_TARGET
 {
-    uint sampIdx = samplerIndex;
-    
-    float4 albedo = baseColor;
+    float3 albedo = baseColor.rgb;
     if (hasBaseColorTexture)
-        albedo *= baseColorTexture.Sample(textureSampler[sampIdx], input.uv);
-
-    float3 albedoLinear = albedo.rgb;
+        albedo *= albedoTex.Sample(samplers[0], input.uv).rgb;
+    
     float metal = metallic;
-    float rough = max(roughness, 0.04f);
+    float rough = roughness;
+    if (hasMetalRoughMap)
+    {
+        float2 mr = metalRoughTex.Sample(samplers[0], input.uv).gb;
+        rough *= mr.x;
+        metal *= mr.y;
+    }
+    rough = max(rough, 0.04f);
+    float alphaRough = rough * rough; 
     
     float3 N = normalize(input.nrm);
     if (hasNormalMap)
-        N = applyNormalMap(input.nrm, input.tangent, input.uv, sampIdx);
+        N = applyNormalMap(input.nrm, input.tangent, input.uv);
 
     float3 V = normalize(viewPos - input.worldPos);
-    float NdotV = max(dot(N, V), 1e-4f);
+    float3 R = reflect(-V, N);
+    float NdotV = saturate(dot(N, V));
+    float NdotR = saturate(dot(N, R));
     
     float diffuseAO = 1.0f;
     float specularAO = 1.0f;
     if (hasAOMap)
     {
-        diffuseAO = aoMap.Sample(textureSampler[sampIdx], input.uv).r;
-        diffuseAO = lerp(1.0f, diffuseAO, aoStrength); 
+        diffuseAO = lerp(1.0f, aoTex.Sample(samplers[0], input.uv).r, aoStrength);
         specularAO = computeSpecularAO(NdotV, diffuseAO, rough);
-        
-        float3 R = reflect(-V, N);
-        float horizon = min(1.0f + dot(R, normalize(input.nrm)), 1.0f);
-        specularAO *= horizon * horizon;
+        specularAO *= max(1.0f + NdotR, 1.0f);
     }
     
-    float3 directLight = 0;
+    float3 directLight = 0.0f;
 
     for (uint i = 0; i < numDirLights; i++)
     {
         float3 L = normalize(-dirLights[i].direction);
-        directLight += cookTorrance(N, L, V, albedoLinear, metal, rough,
-                                    dirLights[i].color, dirLights[i].intensity);
+        directLight += cookTorranceGGX(N, L, V, albedo, metal, alphaRough,
+                                        dirLights[i].color, dirLights[i].intensity);
     }
 
     for (uint i = 0; i < numPointLights; i++)
@@ -197,8 +261,8 @@ float4 main(PSInput input) : SV_TARGET
         float distSq = dot(toLight, toLight);
         float atten = max(0.0f, 1.0f - distSq / max(pointLights[i].sqRadius, 1e-6f));
         float3 L = normalize(toLight);
-        directLight += cookTorrance(N, L, V, albedoLinear, metal, rough,
-                                    pointLights[i].color, pointLights[i].intensity) * atten;
+        directLight += cookTorranceGGX(N, L, V, albedo, metal, alphaRough,
+                                          pointLights[i].color, pointLights[i].intensity) * atten;
     }
 
     for (uint i = 0; i < numSpotLights; i++)
@@ -209,40 +273,36 @@ float4 main(PSInput input) : SV_TARGET
         float3 L = normalize(toLight);
         float cosAng = dot(-L, normalize(spotLights[i].direction));
         float cone = smoothstep(spotLights[i].outerCos, spotLights[i].innerCos, cosAng);
-        directLight += cookTorrance(N, L, V, albedoLinear, metal, rough,
-                                    spotLights[i].color, spotLights[i].intensity) * atten * cone;
+        directLight += cookTorranceGGX(N, L, V, albedo, metal, alphaRough,
+                                          spotLights[i].color, spotLights[i].intensity) * atten * cone;
     }
     
-    float3 ambient = ambientColor * ambientIntensity * albedoLinear;
+    float3 ambient = 0.0f;
 
     if (iblEnabled)
     {
-        float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), albedoLinear, metal);
-        float3 kS = F0 + (1.0f - F0) * pow(1.0f - NdotV, 5.0f);
-        float3 kD = (1.0f - kS) * (1.0f - metal);
-
-        float3 irradiance = irradianceMap.Sample(textureSampler[0], N).rgb;
-        float3 diffuseIBL = kD * albedoLinear * irradiance * diffuseAO;
-
-        float3 R = reflect(-V, N);
-        float mipLevel = rough * numRoughnessLevels;
-        float3 prefiltered = prefilteredMap.SampleLevel(textureSampler[0], R, mipLevel).rgb;
-        float2 brdf = brdfLUT.Sample(textureSampler[1], float2(NdotV, rough)).rg;
-        float3 specularIBL = prefiltered * (F0 * brdf.x + brdf.y) * specularAO;
+        float3 diffuse = getDiffuseAmbientLight(N, albedo) * diffuseAO;
         
-        float3 iblAmbient = diffuseIBL + specularIBL;
-        ambient = max(ambient, iblAmbient); 
+        float3 firstTerm, secondTerm;
+        getSpecularAmbientLightNoFresnel(R, NdotV, rough, firstTerm, secondTerm);
+        
+        float3 metalSpecular = (albedo * firstTerm + secondTerm) * specularAO;
+        float3 dielectricSpecular = (0.04f * firstTerm + secondTerm) * specularAO;
+        
+        ambient = lerp(diffuse + dielectricSpecular, metalSpecular, metal);
     }
-    
-    ambient = max(ambient, albedoLinear * 0.03f);
-
-    float3 result = ambient + directLight;
-    
-    if (hasEmissiveMap)
+    else
     {
-        float3 emissive = emissiveMap.Sample(textureSampler[sampIdx], input.uv).rgb;
-        result += emissive * emissiveFactor;
+        ambient = ambientColor * ambientIntensity * albedo;
+        ambient = max(ambient, albedo * 0.03f);
     }
-
-    return float4(result, albedo.a);
+    
+    float3 emissive = 0.0f;
+    if (hasEmissiveMap)
+        emissive = emissiveTex.Sample(samplers[0], input.uv).rgb * emissiveFactor;
+    
+    float3 colour = emissive + ambient + directLight;
+    
+    float3 ldr = PBRNeutralToneMapping(colour);
+    return float4(linearToSRGB(ldr), baseColor.a);
 }
