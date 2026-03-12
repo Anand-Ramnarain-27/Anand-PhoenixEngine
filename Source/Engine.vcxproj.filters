@@ -506,6 +506,9 @@
     <None Include="SimpleMath.inl">
       <Filter>engine\utils</Filter>
     </None>
+    <None Include="shaders\common.hlsli">
+      <Filter>shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="engine">

@@ -42,7 +42,8 @@ private:
     bool isValidSlot(UINT slot) const;
 
 private:
-    UINT m_handle = 0;
+    static constexpr UINT INVALID_HANDLE = UINT_MAX;
+    UINT m_handle = INVALID_HANDLE;
     UINT* m_refCount = nullptr;
     ModuleShaderDescriptors* m_manager = nullptr;
 };

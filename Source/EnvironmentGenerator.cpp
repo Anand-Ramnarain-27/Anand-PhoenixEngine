@@ -59,6 +59,7 @@ EnvironmentGenerator::loadCubemap(const std::string& file)
 
     if (ok)
     {
+        bakeCmd->Close();
         ID3D12CommandList* lists[] = { bakeCmd.Get() };
         d3d12->getDrawCommandQueue()->ExecuteCommandLists(1, lists);
         d3d12->flush();  

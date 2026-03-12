@@ -6,8 +6,7 @@
 #include "ModuleGPUResources.h"
 #include "ModuleRTDescriptors.h"
 #include "ModuleShaderDescriptors.h"
-#include "ReadData.h" 
-
+#include "ReadData.h"
 #include <array>
 #include <algorithm>
 
@@ -16,7 +15,6 @@ using namespace DirectX;
 namespace
 {
     struct FaceDesc { XMFLOAT3 front; XMFLOAT3 up; };
-
     static const std::array<FaceDesc, 6> kFaces =
     { {
         { {  1,  0,  0 }, {  0,  1,  0 } },   // 0: +X
@@ -31,19 +29,14 @@ namespace
     {
         -1,  1, -1,  -1, -1, -1,   1, -1, -1,
          1, -1, -1,   1,  1, -1,  -1,  1, -1,
-
         -1, -1,  1,  -1, -1, -1,  -1,  1, -1,
         -1,  1, -1,  -1,  1,  1,  -1, -1,  1,
-
          1, -1, -1,   1, -1,  1,   1,  1,  1,
          1,  1,  1,   1,  1, -1,   1, -1, -1,
-
         -1, -1,  1,  -1,  1,  1,   1,  1,  1,
          1,  1,  1,   1, -1,  1,  -1, -1,  1,
-
         -1,  1, -1,   1,  1, -1,   1,  1,  1,
          1,  1,  1,  -1,  1,  1,  -1,  1, -1,
-
         -1, -1, -1,  -1, -1,  1,   1, -1, -1,
          1, -1, -1,  -1, -1,  1,   1, -1,  1
     };
@@ -52,15 +45,12 @@ namespace
 bool IBLGenerator::ensureGeometry(ID3D12Device* device)
 {
     if (m_geometryReady) return true;
-
     auto* resources = app->getGPUResources();
     m_cubeVB = resources->createDefaultBuffer(kCubeVerts, sizeof(kCubeVerts), "IBL_CubeVB");
     if (!m_cubeVB) { LOG("IBLGenerator: failed to create cube VB"); return false; }
-
     m_vbView.BufferLocation = m_cubeVB->GetGPUVirtualAddress();
     m_vbView.StrideInBytes = sizeof(float) * 3;
     m_vbView.SizeInBytes = sizeof(kCubeVerts);
-
     m_geometryReady = true;
     return true;
 }
@@ -68,12 +58,10 @@ bool IBLGenerator::ensureGeometry(ID3D12Device* device)
 bool IBLGenerator::ensureFaceCB(ID3D12Device* device)
 {
     if (m_faceCB) return true;
-
     FaceCB zero{};
     auto* resources = app->getGPUResources();
     m_faceCB = resources->createUploadBuffer(&zero, sizeof(FaceCB), "IBL_FaceCB");
     if (!m_faceCB) { LOG("IBLGenerator: failed to create face CB"); return false; }
-
     m_faceCB->Map(0, nullptr, reinterpret_cast<void**>(&m_faceCBPtr));
     return true;
 }
@@ -85,17 +73,13 @@ bool IBLGenerator::createCubemapResource(
 {
     auto desc = CD3DX12_RESOURCE_DESC::Tex2D(
         fmt, size, size,
-        6,         
-        mips,
-        1, 0,
+        6, mips, 1, 0,
         D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
-
     auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     HRESULT hr = device->CreateCommittedResource(
         &heap, D3D12_HEAP_FLAG_NONE, &desc,
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
         nullptr, IID_PPV_ARGS(&out));
-
     if (FAILED(hr)) { LOG("IBLGenerator: failed to create cubemap resource"); return false; }
     if (name) out->SetName(name);
     return true;
@@ -110,13 +94,11 @@ bool IBLGenerator::create2DResource(
         fmt, size, size,
         1, 1, 1, 0,
         D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
-
     auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     HRESULT hr = device->CreateCommittedResource(
         &heap, D3D12_HEAP_FLAG_NONE, &desc,
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
         nullptr, IID_PPV_ARGS(&out));
-
     if (FAILED(hr)) { LOG("IBLGenerator: failed to create 2D resource"); return false; }
     if (name) out->SetName(name);
     return true;
@@ -124,7 +106,8 @@ bool IBLGenerator::create2DResource(
 
 bool IBLGenerator::createConvPipeline(
     ID3D12Device* device,
-    const wchar_t* psCsoPath, DXGI_FORMAT rtvFmt,
+    const wchar_t* psCsoPath,
+    DXGI_FORMAT                  rtvFmt,
     ComPtr<ID3D12RootSignature>& outRS,
     ComPtr<ID3D12PipelineState>& outPSO)
 {
@@ -188,6 +171,7 @@ bool IBLGenerator::createBRDFPipeline(
     ComPtr<ID3D12RootSignature>& outRS,
     ComPtr<ID3D12PipelineState>& outPSO)
 {
+    // No root parameters — FullScreenTriangleVS uses SV_VertexID, no input or CBVs
     CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
     rsDesc.Init(0, nullptr, 0, nullptr,
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -206,7 +190,7 @@ bool IBLGenerator::createBRDFPipeline(
     psoDesc.pRootSignature = outRS.Get();
     psoDesc.VS = { vs.data(), vs.size() };
     psoDesc.PS = { ps.data(), ps.size() };
-    psoDesc.InputLayout = { nullptr, 0 };   // no vertex buffer
+    psoDesc.InputLayout = { nullptr, 0 };   // no vertex buffer — uses SV_VertexID
     psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     psoDesc.RTVFormats[0] = DXGI_FORMAT_R16G16_FLOAT;
     psoDesc.NumRenderTargets = 1;
@@ -225,18 +209,17 @@ void IBLGenerator::renderCubeFace(
     ID3D12Device* device,
     ID3D12GraphicsCommandList* cmd,
     ID3D12Resource* target,
-    uint32_t                   faceIndex,
-    uint32_t                   mipLevel,
-    uint32_t                   totalMips,
-    uint32_t                   baseFaceSize,
-    float                      roughness,
+    uint32_t                    faceIndex,
+    uint32_t                    mipLevel,
+    uint32_t                    totalMips,
+    uint32_t                    baseFaceSize,
+    float                       roughness,
     ID3D12RootSignature* rs,
     ID3D12PipelineState* pso,
     D3D12_GPU_DESCRIPTOR_HANDLE sourceSRV,
-    DXGI_FORMAT                rtvFmt)
+    DXGI_FORMAT                 rtvFmt)
 {
     auto* rtDescs = app->getRTDescriptors();
-
     uint32_t mipSize = std::max(1u, baseFaceSize >> mipLevel);
 
     RenderTargetDesc rtv = rtDescs->create(target, faceIndex, mipLevel, rtvFmt);
@@ -247,7 +230,6 @@ void IBLGenerator::renderCubeFace(
     }
 
     UINT subRes = D3D12CalcSubresource(mipLevel, faceIndex, 0, totalMips, 6);
-
     auto barrierIn = CD3DX12_RESOURCE_BARRIER::Transition(
         target,
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
@@ -257,7 +239,6 @@ void IBLGenerator::renderCubeFace(
 
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = rtv.getCPUHandle();
     cmd->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
-
     float clearColor[4] = { 0, 0, 0, 1 };
     cmd->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
@@ -270,7 +251,6 @@ void IBLGenerator::renderCubeFace(
     XMVECTOR eye = XMVectorZero();
     XMVECTOR at = XMLoadFloat3(&fd.front);
     XMVECTOR up = XMLoadFloat3(&fd.up);
-
     XMMATRIX view = XMMatrixLookAtRH(eye, at, up);
     XMMATRIX proj = XMMatrixPerspectiveFovRH(XM_PIDIV2, 1.0f, 0.1f, 100.0f);
     XMMATRIX vp_m = view * proj;
@@ -285,7 +265,6 @@ void IBLGenerator::renderCubeFace(
 
     ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap() };
     cmd->SetDescriptorHeaps(1, heaps);
-
     cmd->SetGraphicsRootSignature(rs);
     cmd->SetPipelineState(pso);
     cmd->SetGraphicsRootConstantBufferView(0, m_faceCB->GetGPUVirtualAddress());
@@ -338,6 +317,7 @@ bool IBLGenerator::generate(
         DXGI_FORMAT_R16G16_FLOAT, L"BRDFIntegrationLUT",
         env.brdfLUT)) return false;
 
+    // Build pipelines fresh each bake
     m_irradiancePSO.Reset(); m_irradianceRS.Reset();
     m_prefilterPSO.Reset();  m_prefilterRS.Reset();
     m_brdfPSO.Reset();       m_brdfRS.Reset();
@@ -359,6 +339,7 @@ bool IBLGenerator::generate(
         LOG("IBLGenerator: failed to create BRDF pipeline"); return false;
     }
 
+    // --- Irradiance map ---
     LOG("IBLGenerator: baking irradiance map...");
     for (uint32_t face = 0; face < 6; ++face)
     {
@@ -370,6 +351,7 @@ bool IBLGenerator::generate(
             DXGI_FORMAT_R16G16B16A16_FLOAT);
     }
 
+    // --- Pre-filtered env map ---
     LOG("IBLGenerator: baking pre-filtered env map (%u roughness levels)...", kNumRoughness);
     for (uint32_t mip = 0; mip < kNumRoughness; ++mip)
     {
@@ -388,10 +370,10 @@ bool IBLGenerator::generate(
         }
     }
 
+    // --- BRDF integration LUT ---
     LOG("IBLGenerator: baking BRDF integration LUT...");
     {
         auto* rtDescs = app->getRTDescriptors();
-
         RenderTargetDesc rtv = rtDescs->create(env.brdfLUT.Get());
         if (!rtv) { LOG("IBLGenerator: BRDF LUT RTV alloc failed"); return false; }
 
@@ -415,7 +397,7 @@ bool IBLGenerator::generate(
         cmd->SetPipelineState(m_brdfPSO.Get());
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         cmd->IASetVertexBuffers(0, 0, nullptr);
-        cmd->DrawInstanced(3, 1, 0, 0); 
+        cmd->DrawInstanced(3, 1, 0, 0);  // fullscreen triangle via SV_VertexID
 
         auto barrierOut = CD3DX12_RESOURCE_BARRIER::Transition(
             env.brdfLUT.Get(),
@@ -424,6 +406,7 @@ bool IBLGenerator::generate(
         cmd->ResourceBarrier(1, &barrierOut);
     }
 
+    // --- Create SRVs ---
     env.irradianceSRVTable = shaderDescs->allocTable("IBL_Irradiance");
     if (!env.irradianceSRVTable.isValid())
     {
@@ -471,8 +454,6 @@ bool IBLGenerator::generate(
     }
 
     LOG("IBLGenerator: IBL bake complete.");
-
-    cmd->Close();
-
+    // NOTE: do NOT call cmd->Close() here — EnvironmentGenerator closes and executes the list.
     return true;
 }

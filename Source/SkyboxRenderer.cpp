@@ -61,9 +61,9 @@ bool SkyboxRenderer::createConstantBuffer(ID3D12Device* device)
 {
     auto* resources = app->getGPUResources();
 
-    SkyboxCB zeroCB = {}; 
+    SkyboxCB zeroCB = {};
     constantBuffer = resources->createUploadBuffer(
-        &zeroCB,    
+        &zeroCB,
         (sizeof(SkyboxCB) + 255) & ~255,
         "SkyboxCB");
 
@@ -86,7 +86,7 @@ bool SkyboxRenderer::createRootSignature(ID3D12Device* device)
     params[1].InitAsDescriptorTable(1, &range, D3D12_SHADER_VISIBILITY_PIXEL);
 
     CD3DX12_STATIC_SAMPLER_DESC samplerDesc(
-        0,                      
+        0,
         D3D12_FILTER_MIN_MAG_MIP_LINEAR,
         D3D12_TEXTURE_ADDRESS_MODE_WRAP,
         D3D12_TEXTURE_ADDRESS_MODE_WRAP,
@@ -97,7 +97,7 @@ bool SkyboxRenderer::createRootSignature(ID3D12Device* device)
     desc.Init(
         _countof(params),
         params,
-        1,                         
+        1,
         &samplerDesc,
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
     );

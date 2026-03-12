@@ -1,27 +1,21 @@
-struct VSOut
-{
-    float4 position : SV_POSITION;
-    float2 uv : TEXCOORD0; 
-};
-
-static const float2 kPositions[3] =
+static const float2 positions[3] =
 {
     float2(-1.0f, 1.0f),
-    float2(3.0f, 1.0f),
-    float2(-1.0f, -3.0f)
+                                     float2(3.0f, 1.0f),
+                                     float2(-1.0f, -3.0f)
 };
 
-static const float2 kUVs[3] =
+static const float2 uvs[3] =
 {
     float2(0.0f, 0.0f),
-    float2(2.0f, 0.0f),
-    float2(0.0f, 2.0f)
+                                     float2(2.0f, 0.0f),
+                                     float2(0.0f, 2.0f)
 };
 
-VSOut main(uint vertexID : SV_VertexID)
+void main(uint vertexID : SV_VertexID,
+          out float4 position : SV_Position,
+          out float2 texcoord : TEXCOORD)
 {
-    VSOut o;
-    o.uv = kUVs[vertexID];
-    o.position = float4(kPositions[vertexID], 0.0f, 1.0f);
-    return o;
+    position = float4(positions[vertexID], 0.0f, 1.0f);
+    texcoord = uvs[vertexID];
 }

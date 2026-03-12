@@ -4,7 +4,7 @@
 struct PSIn
 {
     float4 position : SV_POSITION;
-    float2 uv : TEXCOORD0;
+    float2 uv : TEXCOORD;
 };
 
 float radicalInverse_VdC(uint bits)

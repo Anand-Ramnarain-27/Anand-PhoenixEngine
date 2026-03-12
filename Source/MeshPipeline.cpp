@@ -16,21 +16,21 @@ bool MeshPipeline::createRootSignature(ID3D12Device* device)
     CD3DX12_DESCRIPTOR_RANGE albedoRange, samplerRange,
         irradianceRange, prefilterRange, brdfRange,
         normalRange, aoRange, emissiveRange,
-        metalRoughRange;  
+        metalRoughRange;
 
-    albedoRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); 
+    albedoRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
     samplerRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, ModuleSamplerHeap::COUNT, 0);
-    irradianceRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);  
-    prefilterRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2);  
-    brdfRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3);  
-    normalRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4);  
-    aoRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 5);  
-    emissiveRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6); 
-    metalRoughRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 7);  
+    irradianceRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
+    prefilterRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2);
+    brdfRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3);
+    normalRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4);
+    aoRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 5);
+    emissiveRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6);
+    metalRoughRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 7);
 
     CD3DX12_ROOT_PARAMETER params[13];
     params[SLOT_VP].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-    params[SLOT_WORLD].InitAsConstants(16, 1, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+    params[SLOT_WORLD].InitAsConstants(32, 1, 0, D3D12_SHADER_VISIBILITY_VERTEX); // world(16) + normalMat(16)
     params[SLOT_LIGHT_CB].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_ALL);
     params[SLOT_MATERIAL_CB].InitAsConstantBufferView(3, 0, D3D12_SHADER_VISIBILITY_PIXEL);
     params[SLOT_ALBEDO_TEX].InitAsDescriptorTable(1, &albedoRange, D3D12_SHADER_VISIBILITY_PIXEL);

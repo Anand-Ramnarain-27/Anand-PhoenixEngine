@@ -16,20 +16,15 @@ cbuffer FaceCB : register(b0)
 struct PSIn
 {
     float4 position : SV_POSITION;
-    float3 direction : TEXCOORD0; 
+    float3 direction : TEXCOORD0;
 };
-
-float luminance(float3 c)
-{
-    return dot(c, float3(0.2126f, 0.7152f, 0.0722f));
-}
 
 float radicalInverse_VdC(uint bits)
 {
     bits = (bits << 16u) | (bits >> 16u);
     bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
     bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
-    bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+    bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0Fu) >> 4u);
     bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
     return float(bits) * 2.3283064365386963e-10f;
 }
@@ -82,8 +77,6 @@ float4 main(PSIn input) : SV_TARGET
 
     float3 colorSum = 0.0f;
     float weightSum = 0.0f;
-    float totalLum = 0.0f;
-    uint lumCount = 0u;
 
     for (uint i = 0u; i < NUM_SAMPLES; ++i)
     {
@@ -104,25 +97,10 @@ float4 main(PSIn input) : SV_TARGET
             float3 s = environmentMap.SampleLevel(linearWrap, L, lod).rgb;
             colorSum += s * NdotL;
             weightSum += NdotL;
-            totalLum += luminance(s);
-            lumCount++;
         }
     }
 
     float3 result = (weightSum > 1e-6f) ? colorSum / weightSum : float3(0, 0, 0);
-    
-    if (lumCount > 0u)
-    {
-        float avgLum = totalLum / float(lumCount);
-        if (avgLum < 0.1f && avgLum > 1e-6f)
-        {
-            float exposure = 0.5f / avgLum;
-            float resultLum = luminance(result);
-            float3 grey = float3(resultLum, resultLum, resultLum);
-            float desatAmount = saturate((0.1f - avgLum) / 0.1f);
-            result = lerp(result, grey, desatAmount) * exposure;
-        }
-    }
 
     return float4(result, 1.0f);
 }

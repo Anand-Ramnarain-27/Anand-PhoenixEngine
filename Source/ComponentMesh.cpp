@@ -195,9 +195,10 @@ void ComponentMesh::render(ID3D12GraphicsCommandList* cmd)
             if (!app->getCamera()->isVisible(wMin, wMax)) return;
         }
 
-        Matrix world = (m_proceduralModel->getModelMatrix() *
-            owner->getTransform()->getGlobalMatrix()).Transpose();
-        cmd->SetGraphicsRoot32BitConstants(1, 16, &world, 0);
+        Matrix worldMat = (m_proceduralModel->getModelMatrix() *
+            owner->getTransform()->getGlobalMatrix());
+        auto wc = MeshPipeline::makeWorldConstants(worldMat);
+        cmd->SetGraphicsRoot32BitConstants(1, 32, &wc, 0);
 
         const auto& meshes = m_proceduralModel->getMeshes();
         const auto& mats = m_proceduralModel->getMaterials();
@@ -222,8 +223,9 @@ void ComponentMesh::render(ID3D12GraphicsCommandList* cmd)
         if (!app->getCamera()->isVisible(wMin, wMax)) return;
     }
 
-    Matrix world = owner->getTransform()->getGlobalMatrix().Transpose();
-    cmd->SetGraphicsRoot32BitConstants(1, 16, &world, 0);
+    Matrix worldMat = owner->getTransform()->getGlobalMatrix();
+    auto wc = MeshPipeline::makeWorldConstants(worldMat);
+    cmd->SetGraphicsRoot32BitConstants(1, 32, &wc, 0);
 
     for (const auto& e : m_entries) {
         if (!e.meshRes || !e.meshRes->getMesh()) continue;

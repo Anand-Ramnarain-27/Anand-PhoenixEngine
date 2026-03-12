@@ -21,7 +21,10 @@ private:
 
     struct SkyboxCB
     {
-        Matrix vp;
+        Matrix   vp;
+        uint32_t flipX = 0;
+        uint32_t flipZ = 0;
+        uint32_t padding[2] = {};
     };
 
     bool createRootSignature(ID3D12Device* device);

@@ -50,7 +50,10 @@ void MeshRenderPass::render(
         else                mesh = entry->mesh;
         if (!mesh) continue;
 
-        cmd->SetGraphicsRoot32BitConstants(MeshPipeline::SLOT_WORLD, 16, entry->worldMatrix, 0);
+        Matrix worldMat;
+        memcpy(&worldMat, entry->worldMatrix, sizeof(float) * 16);
+        auto wc = MeshPipeline::makeWorldConstants(worldMat);
+        cmd->SetGraphicsRoot32BitConstants(MeshPipeline::SLOT_WORLD, 32, &wc, 0);
 
         if (entry->materialCB)
             cmd->SetGraphicsRootConstantBufferView(
