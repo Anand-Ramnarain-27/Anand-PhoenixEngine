@@ -1,4 +1,4 @@
-#include "Globals.h"
+﻿#include "Globals.h"
 #include "ComponentMesh.h"
 #include "GameObject.h"
 #include "ComponentTransform.h"
@@ -111,8 +111,21 @@ bool ComponentMesh::loadModel(const char* filePath) {
         MeshEntry e;
         e.meshUID = app->getAssets()->findSubUID(canonicalPath, "mesh", i);
         e.materialUID = app->getAssets()->findSubUID(canonicalPath, "mat", i);
-        if (e.meshUID) e.meshRes = app->getResources()->RequestMesh(e.meshUID);
-        if (e.materialUID) e.materialRes = app->getResources()->RequestMaterial(e.materialUID);
+
+        if (e.meshUID)
+            e.meshRes = app->getResources()->RequestMesh(e.meshUID);
+
+        if (e.materialUID == 0 && e.meshRes && e.meshRes->getMesh()) {
+            int matIdx = e.meshRes->getMesh()->getMaterialIndex();
+            if (matIdx >= 0)
+                e.materialUID = app->getAssets()->findSubUID(canonicalPath, "mat", matIdx);
+            LOG("ComponentMesh: submesh %d has no direct mat UID, using materialIndex %d → matUID=%llu",
+                i, matIdx, e.materialUID);
+        }
+
+        if (e.materialUID)
+            e.materialRes = app->getResources()->RequestMaterial(e.materialUID);
+
         rebuildEntry(e);
         m_entries.push_back(std::move(e));
     }
