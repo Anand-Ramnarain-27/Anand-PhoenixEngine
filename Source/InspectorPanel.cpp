@@ -505,6 +505,32 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
         }
         ImGui::PopStyleVar();
 
+        ImGui::SeparatorText("Metallic / Roughness Map");
+
+        if (mat->hasMetalRoughMap())
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success);
+            ImGui::Text("[MR] Applied");
+            ImGui::PopStyleColor();
+        }
+        else
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted);
+            ImGui::Text("[MR] None");
+            ImGui::PopStyleColor();
+        }
+
+        ImGui::SameLine();
+
+        drawTexturePicker(mesh, mat, mi,
+            "MetalRough",
+            mat->hasMetalRoughMap(),
+            "Packed metallic (B) + roughness (G) texture (.dds)",
+            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv)
+            {
+                mat->setMetalRoughMap(tex, srv);
+            });
+
         ImGui::SeparatorText("Normal Map");
         if (mat->hasNormalMap()) { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::Text("[N] Applied"); ImGui::PopStyleColor(); }
         else { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("[N] None"); ImGui::PopStyleColor(); }

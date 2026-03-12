@@ -13,6 +13,8 @@
 #include "MeshPipeline.h"
 #include "ResourceMesh.h"
 #include "ResourceMaterial.h"
+#include "SceneImporter.h"
+#include "ImporterUtils.h"
 #include "ResourceCommon.h"
 #include "3rdParty/rapidjson/document.h"
 #include "3rdParty/rapidjson/writer.h"
@@ -127,10 +129,21 @@ bool ComponentMesh::loadModel(const char* filePath) {
 
     if (meshCount == 0) { LOG("ComponentMesh: No meshes found in Library for '%s'", sceneName.c_str()); return false; }
 
+    std::vector<int32_t> matIndices(meshCount, 0);
+    {
+        SceneImporter::SceneHeader hdr;
+        std::vector<char> raw;
+        std::string metaPath = "Library/Meshes/" + sceneName + "/scene.meta";
+        if (ImporterUtils::LoadBuffer(metaPath, hdr, raw) && hdr.version >= 2) {
+            size_t count = std::min((size_t)hdr.meshCount, (size_t)meshCount);
+            memcpy(matIndices.data(), raw.data() + sizeof(SceneImporter::SceneHeader), count * sizeof(int32_t));
+        }
+    }
+
     for (int i = 0; i < meshCount; ++i) {
         MeshEntry e;
         e.meshUID = app->getAssets()->findSubUID(canonicalPath, "mesh", i);
-        e.materialUID = app->getAssets()->findSubUID(canonicalPath, "mat", i);
+        e.materialUID = app->getAssets()->findSubUID(canonicalPath, "mat", matIndices[i]); 
         if (e.meshUID)     e.meshRes = app->getResources()->RequestMesh(e.meshUID);
         if (e.materialUID) e.materialRes = app->getResources()->RequestMaterial(e.materialUID);
         rebuildEntry(e);

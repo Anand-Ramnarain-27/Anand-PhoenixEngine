@@ -3,6 +3,7 @@
 #include "Application.h"
 #include "ModuleShaderDescriptors.h"
 #include "ModuleGPUResources.h"
+#include "ModuleSamplerHeap.h"
 #include "ReadData.h"
 
 using namespace DirectX;
@@ -163,10 +164,8 @@ void SkyboxRenderer::render(
     cmd->SetGraphicsRootSignature(rootSignature.Get());
     cmd->SetPipelineState(pso.Get());
 
-    ID3D12DescriptorHeap* heaps[] =
-    { app->getShaderDescriptors()->getHeap() };
-
-    cmd->SetDescriptorHeaps(1, heaps);
+    ID3D12DescriptorHeap* heaps[] = {app->getShaderDescriptors()->getHeap(), app->getSamplerHeap()->getHeap()};
+    cmd->SetDescriptorHeaps(2, heaps);
 
     cmd->SetGraphicsRootConstantBufferView(0,
         constantBuffer->GetGPUVirtualAddress());

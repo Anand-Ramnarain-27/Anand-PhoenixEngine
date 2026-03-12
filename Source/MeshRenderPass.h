@@ -9,9 +9,13 @@
 using Microsoft::WRL::ComPtr;
 
 class EnvironmentSystem;
-class ModuleRingBuffer;
 class ModuleSamplerHeap;
 
+// ?????????????????????????????????????????????????????????????????????????????
+// MeshRenderPass
+// Thin wrapper that drives the MeshPipeline for a list of MeshEntry objects.
+// Called once per viewport (scene view, game view) each frame.
+// ?????????????????????????????????????????????????????????????????????????????
 class MeshRenderPass
 {
 public:
@@ -20,7 +24,19 @@ public:
 
     bool init(ID3D12Device* device);
 
-    void render(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes, D3D12_GPU_VIRTUAL_ADDRESS lightCBAddr, const float viewProj[16], const EnvironmentSystem* env, ModuleSamplerHeap* samplerHeap);
+    // Render all entries.
+    //   cmd          – open command list with descriptor heaps already set
+    //   meshes       – list of mesh entries gathered from the scene
+    //   lightCBAddr  – GPU virtual address of the uploaded LightCB
+    //   viewProj     – column-major (already transposed) VP matrix, 16 floats
+    //   env          – environment system; may be nullptr (IBL disabled)
+    //   samplerHeap  – sampler heap; may be nullptr (samplers not bound)
+    void render(ID3D12GraphicsCommandList* cmd,
+        const std::vector<MeshEntry*>& meshes,
+        D3D12_GPU_VIRTUAL_ADDRESS       lightCBAddr,
+        const float                     viewProj[16],
+        const EnvironmentSystem* env,
+        ModuleSamplerHeap* samplerHeap);
 
     MeshPipeline& getPipeline() { return m_pipeline; }
 
