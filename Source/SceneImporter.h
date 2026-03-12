@@ -10,7 +10,7 @@ class SceneImporter {
 public:
     struct SceneHeader {
         uint32_t magic = 0x53434E45;
-        uint32_t version = 2;
+        uint32_t version = 1;
         uint32_t meshCount = 0;
         uint32_t materialCount = 0;
     };

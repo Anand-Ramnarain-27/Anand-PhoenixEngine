@@ -58,7 +58,7 @@ ShaderTableDesc ModuleShaderDescriptors::allocTable(const char* name)
     m_freeHandles.pop();
 
     auto& t = m_tables[handle];
-    t.refCount = 0;
+    t.refCount = 1;
     t.frameFreed = 0;
     t.name = name ? name : "Table_" + std::to_string(handle);
 

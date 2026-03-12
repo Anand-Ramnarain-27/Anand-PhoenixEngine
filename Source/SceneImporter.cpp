@@ -55,21 +55,10 @@ bool SceneImporter::CreateSceneDirectory(const std::string& sceneName) {
 
 bool SceneImporter::SaveSceneMetadata(const std::string& sceneName, const tinygltf::Model& gltfModel) {
     SceneHeader header;
-    std::vector<int32_t> matIndices;
-
-    for (const auto& mesh : gltfModel.meshes)
-        for (const auto& prim : mesh.primitives) {
-            header.meshCount++;
-            matIndices.push_back(prim.material); 
-        }
+    for (const auto& mesh : gltfModel.meshes) header.meshCount += (uint32_t)mesh.primitives.size();
     header.materialCount = (uint32_t)gltfModel.materials.size();
-
-    std::vector<char> payload(matIndices.size() * sizeof(int32_t));
-    memcpy(payload.data(), matIndices.data(), payload.size());
-
     ModuleFileSystem* fs = app->getFileSystem();
-    return ImporterUtils::SaveBuffer(
-        fs->GetLibraryPath() + "Meshes/" + sceneName + "/scene.meta", header, payload);
+    return ImporterUtils::SaveBuffer(fs->GetLibraryPath() + "Meshes/" + sceneName + "/scene.meta", header);
 }
 
 bool SceneImporter::LoadSceneMetadata(const std::string& sceneName, SceneHeader& header) {

@@ -19,7 +19,7 @@ ShaderTableDesc::ShaderTableDesc(const ShaderTableDesc& other)
 ShaderTableDesc::ShaderTableDesc(ShaderTableDesc&& other) noexcept
     : m_handle(other.m_handle), m_refCount(other.m_refCount), m_manager(other.m_manager)
 {
-    other.m_handle = INVALID_HANDLE;
+    other.m_handle = 0;
     other.m_refCount = nullptr;
     other.m_manager = nullptr;
 }
@@ -50,7 +50,7 @@ ShaderTableDesc& ShaderTableDesc::operator=(ShaderTableDesc&& other) noexcept
         m_handle = other.m_handle;
         m_refCount = other.m_refCount;
         m_manager = other.m_manager;
-        other.m_handle = INVALID_HANDLE;
+        other.m_handle = 0;
         other.m_refCount = nullptr;
         other.m_manager = nullptr;
     }
@@ -67,7 +67,7 @@ void ShaderTableDesc::release()
     if (!m_refCount) return;
     if (--(*m_refCount) == 0 && m_manager)
         m_manager->releaseTable(m_handle);
-    m_handle = INVALID_HANDLE;
+    m_handle = 0;
     m_refCount = nullptr;
     m_manager = nullptr;
 }

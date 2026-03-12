@@ -9,87 +9,53 @@ using Microsoft::WRL::ComPtr;
 
 class EnvironmentSystem;
 
-// ?????????????????????????????????????????????????????????????????????????????
-// MeshPipeline
-// Owns the root signature and PSO for the PBR mesh pass.
-// Root-parameter layout:
-//
-//   Slot  Type              Register  Visibility   Content
-//   ????  ????????????????  ????????  ???????????  ???????????????????????????
-//   0     32-bit constants  b0        VS           ViewProj matrix (16 floats)
-//   1     32-bit constants  b1        VS           World   matrix  (16 floats)
-//   2     CBV               b2        ALL          LightCB
-//   3     CBV               b3        PS           MaterialCB
-//   4     Table (1 SRV)     t0        PS           Albedo texture
-//   5     Table (samplers)  s0        PS           Sampler heap
-//   6     Table (1 SRV)     t1        PS           Irradiance cube
-//   7     Table (1 SRV)     t2        PS           Pre-filtered cube
-//   8     Table (1 SRV)     t3        PS           BRDF LUT
-//   9     Table (1 SRV)     t4        PS           Normal map
-//   10    Table (1 SRV)     t5        PS           AO map
-//   11    Table (1 SRV)     t6        PS           Emissive map
-//   12    Table (1 SRV)     t7        PS           Metallic-roughness map
-// ?????????????????????????????????????????????????????????????????????????????
 class MeshPipeline
 {
 public:
-    // ?? Light array limits ????????????????????????????????????????????????
     static constexpr UINT MAX_DIR_LIGHTS = 4;
     static constexpr UINT MAX_POINT_LIGHTS = 32;
     static constexpr UINT MAX_SPOT_LIGHTS = 16;
 
-    // ?? Root-parameter slot indices ???????????????????????????????????????
     static constexpr UINT SLOT_VP = 0;
     static constexpr UINT SLOT_WORLD = 1;
     static constexpr UINT SLOT_LIGHT_CB = 2;
     static constexpr UINT SLOT_MATERIAL_CB = 3;
-    static constexpr UINT SLOT_ALBEDO_TEX = 4;
+    static constexpr UINT SLOT_ALBEDO_TEX = 4;  
     static constexpr UINT SLOT_SAMPLER = 5;
-    static constexpr UINT SLOT_IRRADIANCE = 6;
-    static constexpr UINT SLOT_PREFILTER = 7;
-    static constexpr UINT SLOT_BRDF_LUT = 8;
-    static constexpr UINT SLOT_NORMAL_TEX = 9;
-    static constexpr UINT SLOT_AO_TEX = 10;
-    static constexpr UINT SLOT_EMISSIVE_TEX = 11;
-    static constexpr UINT SLOT_METALROUGH_TEX = 12;
+    static constexpr UINT SLOT_IRRADIANCE = 6;   
+    static constexpr UINT SLOT_PREFILTER = 7;   
+    static constexpr UINT SLOT_BRDF_LUT = 8;  
+    static constexpr UINT SLOT_NORMAL_TEX = 9;  
+    static constexpr UINT SLOT_AO_TEX = 10; 
+    static constexpr UINT SLOT_EMISSIVE_TEX = 11;  
+    static constexpr UINT SLOT_METALROUGH_TEX = 12; 
 
-    // ?? GPU-side light structs (byte-identical to shader structs) ?????????
-    struct GPUDirectionalLight
-    {
-        Vector3 direction;  float intensity;
-        Vector3 color;      float pad;
+    struct GPUDirectionalLight {
+        Vector3 direction; float intensity;
+        Vector3 color;     float pad;
     };
-
-    struct GPUPointLight
-    {
-        Vector3 position;   float sqRadius;
-        Vector3 color;      float intensity;
+    struct GPUPointLight {
+        Vector3 position;  float sqRadius;
+        Vector3 color;     float intensity;
     };
-
-    struct GPUSpotLight
-    {
-        Vector3 position;   float sqRadius;
-        Vector3 direction;  float innerCos;
-        Vector3 color;      float outerCos;
-        float   intensity;  float pad0;
+    struct GPUSpotLight {
+        Vector3 position;  float sqRadius;
+        Vector3 direction; float innerCos;
+        Vector3 color;     float outerCos;
+        float   intensity; float pad0;
         Vector2 pad;
     };
 
-    // ?? Per-frame light constant buffer ???????????????????????????????????
-    // Uploaded once per frame by ModuleEditor::renderSceneWithCamera.
-    struct LightCB
-    {
+    struct LightCB {
         Vector3  ambientColor;
         float    ambientIntensity;
-
         Vector3  viewPos;
-        float    pad0;
 
+        float    pad0;
         uint32_t numDirLights;
         uint32_t numPointLights;
         uint32_t numSpotLights;
-        uint32_t iblEnabled;        // 1 when an env-map is bound
-
+        uint32_t iblEnabled;
         float    numRoughnessLevels;
         float    pad1[3];
 
@@ -98,28 +64,21 @@ public:
         GPUSpotLight        spotLights[MAX_SPOT_LIGHTS];
     };
 
-    // ?? Lifecycle ?????????????????????????????????????????????????????????
     bool init(ID3D12Device* device);
 
-    // ?? Helpers called each frame ?????????????????????????????????????????
+    void bindIBL(ID3D12GraphicsCommandList* cmd, const EnvironmentSystem* env) const;
 
-    // Binds the three IBL textures (irradiance, prefilter, BRDF LUT).
-    // Safe to call even when env is nullptr – simply does nothing.
-    void bindIBL(ID3D12GraphicsCommandList* cmd,
-        const EnvironmentSystem* env) const;
+    ID3D12PipelineState* getPSO()     const { return pso.Get(); }
+    ID3D12RootSignature* getRootSig() const { return rootSig.Get(); }
 
-    // ?? Accessors ?????????????????????????????????????????????????????????
-    ID3D12PipelineState* getPSO()     const { return m_pso.Get(); }
-    ID3D12RootSignature* getRootSig() const { return m_rootSig.Get(); }
-
-    void                    setSamplerType(ModuleSamplerHeap::Type t) { m_samplerType = t; }
-    ModuleSamplerHeap::Type getSamplerType()                    const { return m_samplerType; }
+    void setSamplerType(ModuleSamplerHeap::Type type) { m_samplerType = type; }
+    ModuleSamplerHeap::Type getSamplerType() const { return m_samplerType; }
 
 private:
     bool createRootSignature(ID3D12Device* device);
     bool createPSO(ID3D12Device* device);
 
-    ComPtr<ID3D12RootSignature> m_rootSig;
-    ComPtr<ID3D12PipelineState> m_pso;
+    ComPtr<ID3D12RootSignature> rootSig;
+    ComPtr<ID3D12PipelineState> pso;
     ModuleSamplerHeap::Type     m_samplerType = ModuleSamplerHeap::LINEAR_WRAP;
 };
