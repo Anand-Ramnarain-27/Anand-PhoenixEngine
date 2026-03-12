@@ -3,19 +3,19 @@
 #include "Globals.h"
 #include <vector>
 #include <d3d12.h>
-#include <d3dx12.h>
+#include <wrl/client.h>
+
+using Microsoft::WRL::ComPtr;
 
 class ModuleStaticBuffer;
 
-class Mesh
-{
+class Mesh {
 public:
-    struct Vertex
-    {
+    struct Vertex {
         Vector3 position;
         Vector2 texCoord;
         Vector3 normal;
-        Vector4 tangent;   
+        Vector4 tangent;
     };
 
     static const D3D12_INPUT_ELEMENT_DESC InputLayout[4];
@@ -27,11 +27,8 @@ public:
     Mesh& operator=(const Mesh&) = delete;
 
     void setData(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, int materialIndex);
-
     void setData(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, int materialIndex);
-
     void uploadToGPU(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer);
-
     void draw(ID3D12GraphicsCommandList* cmdList) const;
 
     uint32_t getVertexCount() const { return (uint32_t)m_vertices.size(); }
@@ -39,15 +36,16 @@ public:
     int getMaterialIndex() const { return m_materialIndex; }
 
     const std::vector<Vertex>& getVertices() const { return m_vertices; }
-    const std::vector<uint32_t>& getIndices()  const { return m_indices; }
+    const std::vector<uint32_t>& getIndices() const { return m_indices; }
 
     const Vector3& getAABBMin() const { return m_aabbMin; }
     const Vector3& getAABBMax() const { return m_aabbMax; }
     bool hasAABB() const { return m_hasAABB; }
+    bool isOnGPU() const { return m_hasVertexBuffer; }
 
 private:
     void computeAABB();
-    void createLegacyBuffers(); 
+    void createLegacyBuffers();
 
     int m_materialIndex = -1;
     std::vector<Vertex> m_vertices;

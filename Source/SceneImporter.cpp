@@ -7,27 +7,20 @@
 #include "ModuleFileSystem.h"
 #include "tiny_gltf.h"
 #include <filesystem>
+#include <cstring>
 
 bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const std::string& sceneName) {
-    if (!CreateSceneDirectory(sceneName)) {
-        LOG("SceneImporter: Warning: CreateSceneDirectory returned false for %s (may already exist)", sceneName.c_str());
-    }
-
+    if (!CreateSceneDirectory(sceneName)) LOG("SceneImporter: Warning: CreateSceneDirectory returned false for %s (may already exist)", sceneName.c_str());
     ModuleFileSystem* fs = app->getFileSystem();
     std::string meshFolder = fs->GetLibraryPath() + "Meshes/" + sceneName;
     std::string basePath = "Assets/Models/" + sceneName + "/";
     std::string matFolder = fs->GetLibraryPath() + "Materials/" + sceneName;
-
     int meshIndex = 0;
     for (const auto& mesh : gltfModel.meshes)
         for (const auto& prim : mesh.primitives)
-            if (!MeshImporter::Import(prim, gltfModel, ImporterUtils::IndexedPath(meshFolder, meshIndex++, ".mesh")))
-                LOG("SceneImporter: Failed to import mesh %d", meshIndex - 1);
-
+            if (!MeshImporter::Import(prim, gltfModel, ImporterUtils::IndexedPath(meshFolder, meshIndex++, ".mesh"))) LOG("SceneImporter: Failed to import mesh %d", meshIndex - 1);
     int matIndex = 0;
-    for (const auto& mat : gltfModel.materials)
-        MaterialImporter::Import(mat, gltfModel, sceneName, ImporterUtils::IndexedPath(matFolder, matIndex++, ".mat"), matIndex - 1, basePath);
-
+    for (const auto& mat : gltfModel.materials) MaterialImporter::Import(mat, gltfModel, sceneName, ImporterUtils::IndexedPath(matFolder, matIndex++, ".mat"), matIndex - 1, basePath);
     if (!SaveSceneMetadata(sceneName, gltfModel)) { LOG("SceneImporter: Failed to save scene metadata"); return false; }
     return true;
 }
@@ -44,31 +37,20 @@ bool SceneImporter::LoadScene(const std::string& sceneName, std::unique_ptr<Mode
 bool SceneImporter::CreateSceneDirectory(const std::string& sceneName) {
     ModuleFileSystem* fs = app->getFileSystem();
     std::string lib = fs->GetLibraryPath();
-
     fs->CreateDir((lib + "Meshes").c_str());
     fs->CreateDir((lib + "Materials").c_str());
-
-    bool meshOk = fs->CreateDir((lib + "Meshes/" + sceneName).c_str());
-    bool matOk = fs->CreateDir((lib + "Materials/" + sceneName).c_str());
-    return meshOk && matOk;
+    return fs->CreateDir((lib + "Meshes/" + sceneName).c_str()) & fs->CreateDir((lib + "Materials/" + sceneName).c_str());
 }
 
 bool SceneImporter::SaveSceneMetadata(const std::string& sceneName, const tinygltf::Model& gltfModel) {
     SceneHeader header;
     std::vector<int32_t> matIndices;
-
     for (const auto& mesh : gltfModel.meshes)
-        for (const auto& prim : mesh.primitives) {
-            header.meshCount++;
-            matIndices.push_back(prim.material);
-        }
-
+        for (const auto& prim : mesh.primitives) { header.meshCount++; matIndices.push_back(prim.material); }
     header.materialCount = (uint32_t)gltfModel.materials.size();
-
     std::vector<char> payload(matIndices.size() * sizeof(int32_t));
     memcpy(payload.data(), matIndices.data(), payload.size());
-    ModuleFileSystem* fs = app->getFileSystem();
-    return ImporterUtils::SaveBuffer(fs->GetLibraryPath() + "Meshes/" + sceneName + "/scene.meta", header, payload);
+    return ImporterUtils::SaveBuffer(app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/scene.meta", header, payload);
 }
 
 bool SceneImporter::LoadSceneMetadata(const std::string& sceneName, SceneHeader& header) {

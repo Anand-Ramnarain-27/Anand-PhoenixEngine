@@ -2,6 +2,7 @@
 #include "ResourceMaterial.h"
 #include "MaterialImporter.h"
 #include "ResourceTexture.h"
+#include "Material.h"
 #include "Application.h"
 #include "ModuleResources.h"
 
@@ -22,7 +23,7 @@ bool ResourceMaterial::LoadInMemory() {
 
 void ResourceMaterial::UnloadFromMemory() {
     if (textureUID != 0) {
-        auto& loaded = app->getResources()->getLoadedResources();
+        const auto& loaded = app->getResources()->getLoadedResources();
         auto it = loaded.find(textureUID);
         if (it != loaded.end()) app->getResources()->ReleaseResource(static_cast<ResourceTexture*>(it->second));
     }

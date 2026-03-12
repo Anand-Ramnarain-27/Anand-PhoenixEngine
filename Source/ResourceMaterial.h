@@ -1,11 +1,12 @@
 #pragma once
 #include "ResourceCommon.h"
-#include "Material.h"
 #include <memory>
+
+class Material;
 
 class ResourceMaterial : public ResourceBase {
 public:
-    ResourceMaterial(UID uid);
+    explicit ResourceMaterial(UID uid);
     ~ResourceMaterial() override;
 
     bool LoadInMemory() override;

@@ -3,6 +3,7 @@
 #include "GameObject.h"
 #include "ComponentTransform.h"
 #include "Material.h"
+#include "Mesh.h"
 #include "Model.h"
 #include "Application.h"
 #include "ModuleGPUResources.h"
@@ -13,7 +14,6 @@
 #include "MeshPipeline.h"
 #include "ResourceMesh.h"
 #include "ResourceMaterial.h"
-#include "ResourceCommon.h"
 #include "3rdParty/rapidjson/document.h"
 #include "3rdParty/rapidjson/writer.h"
 #include "3rdParty/rapidjson/stringbuffer.h"
@@ -23,14 +23,11 @@
 using namespace rapidjson;
 
 ComponentMesh::ComponentMesh(GameObject* owner) : Component(owner) {}
-
-ComponentMesh::~ComponentMesh() {
-    releaseEntries();
-}
+ComponentMesh::~ComponentMesh() { releaseEntries(); }
 
 void ComponentMesh::releaseEntries() {
     for (auto& e : m_entries) {
-        if (e.meshRes)     app->getResources()->ReleaseResource(e.meshRes);
+        if (e.meshRes) app->getResources()->ReleaseResource(e.meshRes);
         if (e.materialRes) app->getResources()->ReleaseResource(e.materialRes);
         e.meshRes = nullptr;
         e.materialRes = nullptr;
@@ -42,9 +39,7 @@ static ComPtr<ID3D12Resource> makeMaterialCB(const Material::Data& data) {
     auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer((sizeof(Material::Data) + 255) & ~255);
     ComPtr<ID3D12Resource> buf;
-    app->getD3D12()->getDevice()->CreateCommittedResource(
-        &heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buf));
+    app->getD3D12()->getDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buf));
     void* mapped = nullptr;
     buf->Map(0, nullptr, &mapped);
     memcpy(mapped, &data, sizeof(Material::Data));
@@ -55,34 +50,23 @@ static ComPtr<ID3D12Resource> makeMaterialCB(const Material::Data& data) {
 
 void ComponentMesh::rebuildEntry(MeshEntry& e) {
     Material::Data data = {};
-    if (e.materialRes && e.materialRes->getMaterial())
-        data = e.materialRes->getMaterial()->getData();
-
-    if (e.materialCB)
-        m_deferredRelease.push_back(std::move(e.materialCB));
-
+    if (e.materialRes && e.materialRes->getMaterial()) data = e.materialRes->getMaterial()->getData();
+    if (e.materialCB) m_deferredRelease.push_back(std::move(e.materialCB));
     e.materialCB = makeMaterialCB(data);
 }
 
-void ComponentMesh::markMaterialsDirty() {
-    m_materialsDirty = true;
-}
+void ComponentMesh::markMaterialsDirty() { m_materialsDirty = true; }
 
 void ComponentMesh::flushDeferredReleases() {
     m_deferredRelease.clear();
-
-    if (m_materialsDirty) {
-        m_materialsDirty = false;
-        rebuildMaterialBuffers();
-    }
+    if (m_materialsDirty) { m_materialsDirty = false; rebuildMaterialBuffers(); }
 }
 
 void ComponentMesh::rebuildMaterialBuffers() {
     for (auto& e : m_entries) rebuildEntry(e);
     if (m_proceduralModel) {
         m_proceduralMaterialBuffers.clear();
-        for (const auto& mat : m_proceduralModel->getMaterials())
-            m_proceduralMaterialBuffers.push_back(makeMaterialCB(mat->getData()));
+        for (const auto& mat : m_proceduralModel->getMaterials()) m_proceduralMaterialBuffers.push_back(makeMaterialCB(mat->getData()));
     }
 }
 
@@ -95,16 +79,14 @@ bool ComponentMesh::loadModel(const char* filePath) {
 
     std::string normPath = filePath;
     for (char& c : normPath) if (c == '\\') c = '/';
-
-    namespace fs = std::filesystem;
-    std::string sceneName = fs::path(normPath).stem().string();
+    std::string sceneName = std::filesystem::path(normPath).stem().string();
 
     if (normPath.find("Library/") == 0 || normPath.find("Library\\") == 0) {
         std::string resolved = app->getAssets()->getAssetPathForScene(sceneName);
         if (resolved.empty()) { LOG("ComponentMesh: Cannot resolve asset path for scene '%s'", sceneName.c_str()); return false; }
         normPath = resolved;
         for (char& c : normPath) if (c == '\\') c = '/';
-        sceneName = fs::path(normPath).stem().string();
+        sceneName = std::filesystem::path(normPath).stem().string();
     }
 
     UID sceneUID = app->getAssets()->findUID(normPath);
@@ -117,21 +99,19 @@ bool ComponentMesh::loadModel(const char* filePath) {
 
     std::string canonicalPath = app->getAssets()->getPathFromUID(sceneUID);
     if (canonicalPath.empty()) canonicalPath = normPath;
-
     m_modelUID = sceneUID;
     m_modelPath = canonicalPath;
 
     std::string meshFolder = "Library/Meshes/" + sceneName + "/";
     int meshCount = 0;
     while (app->getFileSystem()->Exists((meshFolder + std::to_string(meshCount) + ".mesh").c_str())) ++meshCount;
-
     if (meshCount == 0) { LOG("ComponentMesh: No meshes found in Library for '%s'", sceneName.c_str()); return false; }
 
     for (int i = 0; i < meshCount; ++i) {
         MeshEntry e;
         e.meshUID = app->getAssets()->findSubUID(canonicalPath, "mesh", i);
         e.materialUID = app->getAssets()->findSubUID(canonicalPath, "mat", i);
-        if (e.meshUID)     e.meshRes = app->getResources()->RequestMesh(e.meshUID);
+        if (e.meshUID) e.meshRes = app->getResources()->RequestMesh(e.meshUID);
         if (e.materialUID) e.materialRes = app->getResources()->RequestMaterial(e.materialUID);
         rebuildEntry(e);
         m_entries.push_back(std::move(e));
@@ -147,8 +127,7 @@ void ComponentMesh::setProceduralModel(std::unique_ptr<Model> model) {
     m_modelUID = 0;
     m_modelPath.clear();
     m_proceduralMaterialBuffers.clear();
-    for (const auto& mat : m_proceduralModel->getMaterials())
-        m_proceduralMaterialBuffers.push_back(makeMaterialCB(mat->getData()));
+    for (const auto& mat : m_proceduralModel->getMaterials()) m_proceduralMaterialBuffers.push_back(makeMaterialCB(mat->getData()));
     computeLocalAABB();
 }
 
@@ -161,53 +140,27 @@ void ComponentMesh::overrideMaterial(int slot, UID materialUID) {
     rebuildEntry(e);
 }
 
-static void bindMaterialTextures(ID3D12GraphicsCommandList* cmd, const Material* mat)
-{
+static void bindMaterialTextures(ID3D12GraphicsCommandList* cmd, const Material* mat) {
     if (!mat) return;
-
-    if (mat->hasTexture())
-        cmd->SetGraphicsRootDescriptorTable(
-            MeshPipeline::SLOT_ALBEDO_TEX, mat->getTextureGPUHandle());
-
-    if (mat->hasNormalMap())
-        cmd->SetGraphicsRootDescriptorTable(
-            MeshPipeline::SLOT_NORMAL_TEX, mat->getNormalMapGPUHandle());
-
-    if (mat->hasAOMap())
-        cmd->SetGraphicsRootDescriptorTable(
-            MeshPipeline::SLOT_AO_TEX, mat->getAOMapGPUHandle());
-
-    if (mat->hasEmissive())
-        cmd->SetGraphicsRootDescriptorTable(
-            MeshPipeline::SLOT_EMISSIVE_TEX, mat->getEmissiveGPUHandle());
-
-    if (mat->hasMetalRoughMap())
-        cmd->SetGraphicsRootDescriptorTable(
-            MeshPipeline::SLOT_METALROUGH_TEX, mat->getMetalRoughGPUHandle());
+    if (mat->hasTexture()) cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_ALBEDO_TEX, mat->getTextureGPUHandle());
+    if (mat->hasNormalMap()) cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_NORMAL_TEX, mat->getNormalMapGPUHandle());
+    if (mat->hasAOMap()) cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_AO_TEX, mat->getAOMapGPUHandle());
+    if (mat->hasEmissive()) cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_EMISSIVE_TEX, mat->getEmissiveGPUHandle());
+    if (mat->hasMetalRoughMap()) cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_METALROUGH_TEX, mat->getMetalRoughGPUHandle());
 }
 
-void ComponentMesh::render(ID3D12GraphicsCommandList* cmd)
-{
+void ComponentMesh::render(ID3D12GraphicsCommandList* cmd) {
     if (m_proceduralModel) {
-        if (m_hasAABB) {
-            Vector3 wMin, wMax;
-            getWorldAABB(wMin, wMax);
-            if (!app->getCamera()->isVisible(wMin, wMax)) return;
-        }
-
-        Matrix worldMat = (m_proceduralModel->getModelMatrix() *
-            owner->getTransform()->getGlobalMatrix());
+        if (m_hasAABB) { Vector3 wMin, wMax; getWorldAABB(wMin, wMax); if (!app->getCamera()->isVisible(wMin, wMax)) return; }
+        Matrix worldMat = m_proceduralModel->getModelMatrix() * owner->getTransform()->getGlobalMatrix();
         auto wc = MeshPipeline::makeWorldConstants(worldMat);
         cmd->SetGraphicsRoot32BitConstants(1, 32, &wc, 0);
-
         const auto& meshes = m_proceduralModel->getMeshes();
         const auto& mats = m_proceduralModel->getMaterials();
         for (size_t i = 0; i < meshes.size(); ++i) {
             int mi = meshes[i]->getMaterialIndex();
             if (mi >= 0 && mi < (int)mats.size()) {
-                if (mi < (int)m_proceduralMaterialBuffers.size())
-                    cmd->SetGraphicsRootConstantBufferView(
-                        3, m_proceduralMaterialBuffers[mi]->GetGPUVirtualAddress());
+                if (mi < (int)m_proceduralMaterialBuffers.size()) cmd->SetGraphicsRootConstantBufferView(3, m_proceduralMaterialBuffers[mi]->GetGPUVirtualAddress());
                 bindMaterialTextures(cmd, mats[mi].get());
             }
             meshes[i]->draw(cmd);
@@ -216,27 +169,14 @@ void ComponentMesh::render(ID3D12GraphicsCommandList* cmd)
     }
 
     if (m_entries.empty()) return;
-
-    if (m_hasAABB) {
-        Vector3 wMin, wMax;
-        getWorldAABB(wMin, wMax);
-        if (!app->getCamera()->isVisible(wMin, wMax)) return;
-    }
-
+    if (m_hasAABB) { Vector3 wMin, wMax; getWorldAABB(wMin, wMax); if (!app->getCamera()->isVisible(wMin, wMax)) return; }
     Matrix worldMat = owner->getTransform()->getGlobalMatrix();
     auto wc = MeshPipeline::makeWorldConstants(worldMat);
     cmd->SetGraphicsRoot32BitConstants(1, 32, &wc, 0);
-
     for (const auto& e : m_entries) {
         if (!e.meshRes || !e.meshRes->getMesh()) continue;
-
-        if (e.materialCB)
-            cmd->SetGraphicsRootConstantBufferView(
-                3, e.materialCB->GetGPUVirtualAddress());
-
-        if (e.materialRes)
-            bindMaterialTextures(cmd, e.materialRes->getMaterial());
-
+        if (e.materialCB) cmd->SetGraphicsRootConstantBufferView(3, e.materialCB->GetGPUVirtualAddress());
+        if (e.materialRes) bindMaterialTextures(cmd, e.materialRes->getMaterial());
         e.meshRes->getMesh()->draw(cmd);
     }
 }
@@ -247,12 +187,7 @@ void ComponentMesh::onSave(std::string& outJson) const {
     Value pathVal; pathVal.SetString(m_modelPath.c_str(), a);
     doc.AddMember("ModelPath", pathVal, a);
     Value entries(kArrayType);
-    for (const auto& e : m_entries) {
-        Value ev(kObjectType);
-        ev.AddMember("meshUID", e.meshUID, a);
-        ev.AddMember("materialUID", e.materialUID, a);
-        entries.PushBack(ev, a);
-    }
+    for (const auto& e : m_entries) { Value ev(kObjectType); ev.AddMember("meshUID", e.meshUID, a); ev.AddMember("materialUID", e.materialUID, a); entries.PushBack(ev, a); }
     doc.AddMember("Entries", entries, a);
     StringBuffer buf; Writer<StringBuffer> w(buf); doc.Accept(w);
     outJson = buf.GetString();
@@ -261,16 +196,10 @@ void ComponentMesh::onSave(std::string& outJson) const {
 void ComponentMesh::onLoad(const std::string& jsonStr) {
     Document doc; doc.Parse(jsonStr.c_str());
     if (doc.HasParseError()) return;
-    if (doc.HasMember("ModelPath") && doc["ModelPath"].IsString()) {
-        std::string path = doc["ModelPath"].GetString();
-        if (!path.empty()) loadModel(path.c_str());
-    }
+    if (doc.HasMember("ModelPath") && doc["ModelPath"].IsString()) { std::string path = doc["ModelPath"].GetString(); if (!path.empty()) loadModel(path.c_str()); }
     if (doc.HasMember("Entries") && doc["Entries"].IsArray()) {
         const auto& arr = doc["Entries"].GetArray();
-        for (int i = 0; i < (int)arr.Size() && i < (int)m_entries.size(); ++i) {
-            UID savedMat = arr[i]["materialUID"].GetUint64();
-            if (savedMat != m_entries[i].materialUID) overrideMaterial(i, savedMat);
-        }
+        for (int i = 0; i < (int)arr.Size() && i < (int)m_entries.size(); ++i) { UID savedMat = arr[i]["materialUID"].GetUint64(); if (savedMat != m_entries[i].materialUID) overrideMaterial(i, savedMat); }
     }
 }
 
@@ -278,16 +207,14 @@ void ComponentMesh::computeLocalAABB() {
     m_localAABBMin = Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
     m_localAABBMax = Vector3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
     m_hasAABB = false;
-
     for (const auto& e : m_entries) {
         if (!e.meshRes || !e.meshRes->getMesh()) continue;
-        Mesh* mesh = e.meshRes->getMesh();
+        const Mesh* mesh = e.meshRes->getMesh();
         if (!mesh->hasAABB()) continue;
         m_localAABBMin = Vector3::Min(m_localAABBMin, mesh->getAABBMin());
         m_localAABBMax = Vector3::Max(m_localAABBMax, mesh->getAABBMax());
         m_hasAABB = true;
     }
-
     if (m_proceduralModel) {
         for (const auto& mesh : m_proceduralModel->getMeshes()) {
             if (!mesh || !mesh->hasAABB()) continue;
@@ -309,7 +236,7 @@ void ComponentMesh::getWorldAABB(Vector3& outMin, Vector3& outMax) const {
     };
     outMin = Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
     outMax = Vector3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-    for (auto& c : corners) {
+    for (const auto& c : corners) {
         Vector3 wc = Vector3::Transform(c, world);
         outMin = Vector3::Min(outMin, wc);
         outMax = Vector3::Max(outMax, wc);

@@ -1,14 +1,18 @@
 #pragma once
 #include "Component.h"
 #include "MeshEntry.h"
-#include "ModuleD3D12.h"
 #include <vector>
 #include <string>
 #include <memory>
+#include <d3d12.h>
+#include <wrl/client.h>
+
+using Microsoft::WRL::ComPtr;
 
 class ResourceMesh;
 class ResourceMaterial;
 class Model;
+class Material;
 
 class ComponentMesh : public Component {
 public:
@@ -19,14 +23,13 @@ public:
     void setProceduralModel(std::unique_ptr<Model> model);
     void overrideMaterial(int slot, UID materialUID);
     void rebuildMaterialBuffers();
+    void flushDeferredReleases();
+    void markMaterialsDirty();
 
     void render(ID3D12GraphicsCommandList* cmd) override;
     void onSave(std::string& outJson) const override;
     void onLoad(const std::string& json) override;
     Type getType() const override { return Type::Mesh; }
-
-    void flushDeferredReleases(); 
-    void markMaterialsDirty();
 
     Model* getProceduralModel() const { return m_proceduralModel.get(); }
     const std::string& getModelPath() const { return m_modelPath; }

@@ -19,68 +19,68 @@ class ModuleRingBuffer;
 class ModuleRTDescriptors;
 class ModuleDSDescriptors;
 class ModuleAssets;
+class ModuleStaticBuffer;
 
-class Application
-{
+class Application {
 public:
+    Application(int argc, wchar_t** argv, void* hWnd);
+    ~Application();
 
-	Application(int argc, wchar_t** argv, void* hWnd);
-	~Application();
-
-	bool         init();
-	void         update();
-	bool         cleanUp();
+    bool init();
+    void update();
+    bool cleanUp();
 
     ModuleD3D12* getD3D12() { return d3d12Module; }
     ModuleGPUResources* getGPUResources() { return gpuresources; }
-	ModuleResources* getResources() { return resources; }
+    ModuleResources* getResources() { return resources; }
     ModuleSamplerHeap* getSamplerHeap() { return samplerHeaps; }
     ModuleFileSystem* getFileSystem() { return fileSystem; }
-	ModuleCamera* getCamera() { return camera; }
+    ModuleCamera* getCamera() { return camera; }
     ModuleEditor* getEditor() { return editor; }
     ModuleShaderDescriptors* getShaderDescriptors() { return shaderDescriptors; }
-	ModuleRingBuffer* getRingBuffer() { return ringBuffer; }
+    ModuleRingBuffer* getRingBuffer() { return ringBuffer; }
     ModuleRTDescriptors* getRTDescriptors() { return rtDescriptors; }
     ModuleDSDescriptors* getDSDescriptors() { return dsDescriptors; }
-	ModuleAssets* getAssets() { return assets; }
+    ModuleAssets* getAssets() { return assets; }
+    ModuleStaticBuffer* getStaticBuffer() { return staticBuffer; }
 
-    void                        swapModule(Module* from, Module* to) { swapModules.push_back(std::make_pair(from, to)); }
-    
-    float                       getFPS() const { return 1000.0f * float(MAX_FPS_TICKS) / tickSum; }
-    float                       getAvgElapsedMs() const { return tickSum / float(MAX_FPS_TICKS); }
-    uint64_t                    getElapsedMilis() const { return elapsedMilis; }
+    void swapModule(Module* from, Module* to) { swapModules.push_back(std::make_pair(from, to)); }
 
-    bool                        isPaused() const { return paused; }
-    bool                        setPaused(bool p) { paused = p; return paused; }
+    float getFPS() const { return 1000.0f * float(MAX_FPS_TICKS) / float(tickSum); }
+    float getAvgElapsedMs() const { return float(tickSum) / float(MAX_FPS_TICKS); }
+    uint64_t getElapsedMilis() const { return elapsedMilis; }
+
+    bool isPaused() const { return paused; }
+    bool setPaused(bool p) { paused = p; return paused; }
 
 private:
     enum { MAX_FPS_TICKS = 30 };
     typedef std::array<uint64_t, MAX_FPS_TICKS> TickList;
 
     std::vector<Module*> modules;
-    std::vector<std::pair<Module*, Module*> > swapModules;
+    std::vector<std::pair<Module*, Module*>> swapModules;
 
     ModuleD3D12* d3d12Module = nullptr;
     ModuleGPUResources* gpuresources = nullptr;
-	ModuleResources* resources = nullptr;
+    ModuleResources* resources = nullptr;
     ModuleSamplerHeap* samplerHeaps = nullptr;
     ModuleFileSystem* fileSystem = nullptr;
     ModuleCamera* camera = nullptr;
     ModuleShaderDescriptors* shaderDescriptors = nullptr;
-	ModuleRingBuffer* ringBuffer = nullptr;
+    ModuleRingBuffer* ringBuffer = nullptr;
     ModuleRTDescriptors* rtDescriptors = nullptr;
     ModuleDSDescriptors* dsDescriptors = nullptr;
-	ModuleAssets* assets = nullptr;
-
+    ModuleAssets* assets = nullptr;
     ModuleEditor* editor = nullptr;
+    ModuleStaticBuffer* staticBuffer = nullptr;
 
-    uint64_t  lastMilis = 0;
-    TickList  tickList;
-    uint64_t  tickIndex;
-    uint64_t  tickSum = 0;
-    uint64_t  elapsedMilis = 0;
-    bool      paused = false;
-    bool      updating = false;
+    uint64_t lastMilis = 0;
+    TickList tickList = {};
+    uint64_t tickIndex = 0;
+    uint64_t tickSum = 0;
+    uint64_t elapsedMilis = 0;
+    bool paused = false;
+    bool updating = false;
 };
 
 extern Application* app;

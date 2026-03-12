@@ -2,11 +2,12 @@
 #include "ResourceCommon.h"
 #include <d3d12.h>
 #include <wrl/client.h>
+
 using Microsoft::WRL::ComPtr;
 
 class ResourceTexture : public ResourceBase {
 public:
-    ResourceTexture(UID uid);
+    explicit ResourceTexture(UID uid);
     ~ResourceTexture() override;
 
     bool LoadInMemory() override;

@@ -90,7 +90,7 @@ struct PSInput
     float2 uv : TEXCOORD;
     float3 worldPos : POSITION;
     float3 nrm : NORMAL;
-    float3 tangent : TANGENT;
+    float4 tangent : TANGENT;
 };
 
 static const float GAMMA = 2.2f;
@@ -167,14 +167,13 @@ float V_GGX(float NdotV, float NdotL, float alphaRoughness)
     return (denom > 0.0f) ? 0.5f / denom : 0.0f;
 }
 
-float3 applyNormalMap(float3 N, float3 T, float2 uv)
+float3 applyNormalMap(float3 N, float4 T, float2 uv)
 {
     float3 tn = normalMapTex.Sample(samplers[0], uv).rgb * 2.0f - 1.0f;
     tn.xy *= normalStrength;
     tn = normalize(tn);
-
-    float3 B = normalize(cross(N, T));
-    float3x3 TBN = float3x3(T, B, N);
+    float3 B = normalize(cross(N, T.xyz)) * T.w; 
+    float3x3 TBN = float3x3(T.xyz, B, N);
     return normalize(mul(tn, TBN));
 }
 
@@ -270,7 +269,7 @@ float4 main(PSInput input) : SV_TARGET
     
     float3 N = Ngeom;
     if (hasNormalMap)
-        N = applyNormalMap(normalize(input.nrm), normalize(input.tangent), input.uv);
+        N = applyNormalMap(normalize(input.nrm), float4(normalize(input.tangent.xyz), input.tangent.w), input.uv);
 
     float3 V = normalize(viewPos - input.worldPos);
     float3 R = reflect(-V, N);

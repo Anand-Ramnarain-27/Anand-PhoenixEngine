@@ -2,6 +2,7 @@
 
 #include <string>
 #include <memory>
+#include <cstdint>
 
 class Model;
 namespace tinygltf { class Model; struct Primitive; }

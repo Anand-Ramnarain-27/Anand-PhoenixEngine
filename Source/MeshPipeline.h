@@ -25,7 +25,7 @@ public:
     static WorldConstants makeWorldConstants(const Matrix& world)
     {
         WorldConstants wc;
-        wc.world = world;
+        wc.world = world.Transpose();
         Matrix inv;
         world.Invert(inv);
         wc.normalMat = inv;

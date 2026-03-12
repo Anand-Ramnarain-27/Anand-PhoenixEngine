@@ -1,7 +1,6 @@
 #include "Globals.h"
 #include "Application.h"
 #include "ModuleInput.h"
-
 #include "ModuleD3D12.h"
 #include "ModuleFileSystem.h"
 #include "ModuleGPUResources.h"
@@ -13,14 +12,9 @@
 #include "ModuleRingBuffer.h"
 #include "ModuleRTDescriptors.h"
 #include "ModuleDSDescriptors.h"
-#include "RenderTexture.h"
+#include "ModuleStaticBuffer.h"
 #include "ModuleAssets.h"
-
-//#include "ModuleTextureSampler.h"
-//#include "BasicModelScene.h"
-//#include "LightingDemo.h"
-//#include "RenderToTextureDemo.h"
-//#include "ViewportDemo.h"
+#include <algorithm>
 
 Application::Application(int argc, wchar_t** argv, void* hWnd)
 {
@@ -28,15 +22,17 @@ Application::Application(int argc, wchar_t** argv, void* hWnd)
     modules.push_back(new ModuleInput((HWND)hWnd));
     modules.push_back(d3d12Module = new ModuleD3D12((HWND)hWnd));
     modules.push_back(gpuresources = new ModuleGPUResources());
-	modules.push_back(resources = new ModuleResources());
+    modules.push_back(resources = new ModuleResources());
     modules.push_back(samplerHeaps = new ModuleSamplerHeap());
-	modules.push_back(camera = new ModuleCamera());
+    modules.push_back(camera = new ModuleCamera());
     modules.push_back(shaderDescriptors = new ModuleShaderDescriptors());
     modules.push_back(rtDescriptors = new ModuleRTDescriptors());
     modules.push_back(dsDescriptors = new ModuleDSDescriptors());
-	modules.push_back(ringBuffer = new ModuleRingBuffer());
-	modules.push_back(assets = new ModuleAssets());
+    modules.push_back(ringBuffer = new ModuleRingBuffer());
+    modules.push_back(assets = new ModuleAssets());
     modules.push_back(editor = new ModuleEditor());
+
+    staticBuffer = new ModuleStaticBuffer();
 }
 
 Application::~Application()

@@ -241,7 +241,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                 } 
                 else {
                     const auto& entries = cm->getEntries();
-                    Matrix worldT = nodeWorld.Transpose();
+                    Matrix worldT = nodeWorld;
                     for (const auto& src : entries) {
                         
                         MeshEntry e;
@@ -251,7 +251,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                         e.materialRes = src.materialRes;
                         e.materialCB = src.materialCB; 
                         static_assert(sizeof(worldT) == sizeof(e.worldMatrix), "Matrix size mismatch");
-						memcpy(e.worldMatrix, &worldT, sizeof(worldT));
+                        memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));
                         ownedEntries.push_back(std::move(e));
                     }
                 }

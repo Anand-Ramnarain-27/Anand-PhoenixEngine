@@ -1,11 +1,10 @@
 #pragma once
-
-#include "Globals.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
 #include <vector>
 #include <string>
 #include <cstring>
+#include <cstdint>
 
 namespace ImporterUtils {
 
@@ -22,13 +21,7 @@ namespace ImporterUtils {
 
     template<typename THeader>
     inline bool ValidateHeader(const THeader& header, uint32_t expectedMagic) {
-        if (header.magic != expectedMagic)
-            return false;
-
-        if (header.version == 0)
-            return false;
-
-        return true;
+        return header.magic == expectedMagic && header.version != 0;
     }
 
     template<typename THeader>

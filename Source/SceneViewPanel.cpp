@@ -1,5 +1,7 @@
 #include "Globals.h"
 #include "SceneViewPanel.h"
+#include "ModuleDSDescriptors.h"
+#include "ModuleRTDescriptors.h"
 #include "ModuleEditor.h"
 #include "Application.h"
 #include "ModuleCamera.h"
@@ -10,8 +12,6 @@
 #include "ComponentTransform.h"
 #include "EditorSelection.h"
 #include "Frustum.h"
-#include "ModuleDSDescriptors.h"
-#include "ModuleRTDescriptors.h"
 #include "RenderTexture.h"
 #include "PrefabManager.h"
 #include <functional>
@@ -83,7 +83,6 @@ void SceneViewPanel::drawGizmoToolbar() {
     ImGui::SetNextWindowBgAlpha(0.75f);
     constexpr ImGuiWindowFlags kF = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoSavedSettings;
     if (!ImGui::Begin("##SceneGizmoBar", nullptr, kF)) { ImGui::End(); return; }
-
     auto btn = [&](const char* label, ImGuizmo::OPERATION op) {
         bool active = (m_gizmoOp == op);
         if (active) ImGui::PushStyleColor(ImGuiCol_Button, EditorColors::Active);
@@ -91,7 +90,6 @@ void SceneViewPanel::drawGizmoToolbar() {
         if (active) ImGui::PopStyleColor();
         ImGui::SameLine(0, 2);
         };
-
     btn("T", ImGuizmo::TRANSLATE);
     btn("R", ImGuizmo::ROTATE);
     btn("S", ImGuizmo::SCALE);
@@ -111,15 +109,12 @@ void SceneViewPanel::drawGizmo() {
     ModuleCamera* cam = app->getCamera();
     const float w = viewport.size.x, h = viewport.size.y;
     if (w <= 0 || h <= 0 || !cam) return;
-
     Matrix view = cam->getView();
     Matrix proj = ModuleCamera::getPerspectiveProj(w / h);
     Matrix world = t->getGlobalMatrix();
-
     ImGuizmo::SetOrthographic(false);
     ImGuizmo::SetDrawlist();
     ImGuizmo::SetRect(viewport.pos.x, viewport.pos.y, w, h);
-
     float snap[3] = {};
     float* snapPtr = nullptr;
     if (m_useSnap) {
@@ -128,18 +123,15 @@ void SceneViewPanel::drawGizmo() {
         else { snap[0] = m_snapS; }
         snapPtr = snap;
     }
-
     if (ImGuizmo::Manipulate((const float*)&view, (const float*)&proj, m_gizmoOp, m_gizmoMode, (float*)&world, nullptr, snapPtr)) {
         Matrix local = world;
-        if (GameObject* par = sel.object->getParent())
-            local = par->getTransform()->getGlobalMatrix().Invert() * world;
+        if (GameObject* par = sel.object->getParent()) local = par->getTransform()->getGlobalMatrix().Invert() * world;
         float tr[3], rot[3], sc[3];
         ImGuizmo::DecomposeMatrixToComponents((const float*)&local, tr, rot, sc);
         t->position = { tr[0], tr[1], tr[2] };
         t->scale = { sc[0], sc[1], sc[2] };
         t->rotation = Quaternion::CreateFromYawPitchRoll(rot[1] * kDeg2Rad, rot[0] * kDeg2Rad, rot[2] * kDeg2Rad);
         t->markDirty();
-
         GameObject* cur = sel.object;
         while (cur) {
             if (PrefabManager::isPrefabInstance(cur)) {
@@ -160,26 +152,20 @@ void SceneViewPanel::drawOverlay() {
     sprintf_s(buf, "FPS: %.1f  CPU: %.2f ms  GPU: %.2f ms", app->getFPS(), app->getAvgElapsedMs(), m_editor->getGpuFrameTimeMs());
     ImGui::GetForegroundDrawList()->AddText({ win->Pos.x + 10, win->Pos.y + win->Size.y - 24 }, IM_COL32(0, 230, 0, 220), buf);
 }
+
 void SceneViewPanel::drawPrefabExitButton() {
     if (!m_editor->getSceneManager() || !m_editor->getSceneManager()->isEditingPrefab()) return;
     ImGuiWindow* win = ImGui::FindWindowByName("Scene View");
     if (!win) return;
-
-    constexpr ImGuiWindowFlags kF = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBringToFrontOnFocus |
-        ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoSavedSettings;
-
+    constexpr ImGuiWindowFlags kF = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoSavedSettings;
     const std::string& name = m_editor->getSceneManager()->getPrefabEditName();
     const float btnW = 160.f;
-
     ImGui::SetNextWindowPos({ win->Pos.x + win->Size.x - btnW - 10.f, win->Pos.y + 28.f }, ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.88f);
     if (!ImGui::Begin("##pfExitBtn", nullptr, kF)) { ImGui::End(); return; }
-
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.75f, 0.20f, 1.f));
     ImGui::Text("Editing: %s", name.c_str());
     ImGui::PopStyleColor();
-
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 5));
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.55f, 0.12f, 0.12f, 1.f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.80f, 0.18f, 0.18f, 1.f));
@@ -188,6 +174,5 @@ void SceneViewPanel::drawPrefabExitButton() {
     ImGui::PopStyleColor(3);
     ImGui::PopStyleVar();
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Leave without saving. Use Hierarchy right-click to Apply/Revert.");
-
     ImGui::End();
 }

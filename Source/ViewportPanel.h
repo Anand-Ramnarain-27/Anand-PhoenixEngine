@@ -3,8 +3,7 @@
 #include "EditorViewport.h"
 #include <d3d12.h>
 
-class ViewportPanel : public EditorPanel
-{
+class ViewportPanel : public EditorPanel {
 public:
     explicit ViewportPanel(ModuleEditor* editor) : EditorPanel(editor) {}
 

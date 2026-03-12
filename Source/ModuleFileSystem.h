@@ -3,8 +3,7 @@
 #include <string>
 #include <vector>
 
-class ModuleFileSystem : public Module
-{
+class ModuleFileSystem : public Module {
 public:
     ModuleFileSystem();
     ~ModuleFileSystem() override;
@@ -26,7 +25,6 @@ public:
 
 private:
     void CreateProjectDirectories();
-
     std::string assetsPath;
     std::string libraryPath;
 };

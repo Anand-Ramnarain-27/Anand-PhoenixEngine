@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Globals.h"
 #include <string>
+#include <cstdint>
 #include <d3d12.h>
-#include <wrl.h>
+#include <wrl/client.h>
 
 using Microsoft::WRL::ComPtr;
 

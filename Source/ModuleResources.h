@@ -2,19 +2,19 @@
 #include "Module.h"
 #include "ResourceCommon.h"
 #include <unordered_map>
-#include <filesystem>
+#include <string>
 #include <thread>
 #include <atomic>
 #include <mutex>
-#include <string>
 
 class ResourceBase;
 class ResourceMesh;
 class ResourceMaterial;
 class ResourceTexture;
+struct ID3D12GraphicsCommandList;
+class ModuleStaticBuffer;
 
-class ModuleResources : public Module
-{
+class ModuleResources : public Module {
 public:
     ModuleResources();
     ~ModuleResources();
@@ -33,29 +33,26 @@ public:
     void registerMaterial(UID uid, const std::string& libraryPath, UID textureUID = 0);
     void registerTexture(UID uid, const std::string& libraryPath);
 
+    void uploadPendingMeshes(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer);
+
     const std::unordered_map<UID, ResourceBase*>& getLoadedResources() const { return m_resources; }
     std::string getLibraryPath(UID uid) const;
 
 private:
-    ResourceBase* CreateResourceFromUID(UID uid);
-    void StartAssetWatcher();
-    void StopAssetWatcher();
-    void AssetWatcherLoop();
-
-    struct ResourceRecord
-    {
+    struct ResourceRecord {
         std::string libraryPath;
         ResourceBase::Type type = ResourceBase::Type::Unknown;
         UID textureUID = 0;
     };
 
+    ResourceBase* CreateResourceFromUID(UID uid);
+    void StartAssetWatcher();
+    void StopAssetWatcher();
+    void AssetWatcherLoop();
+
     std::unordered_map<UID, ResourceBase*> m_resources;
     std::unordered_map<UID, ResourceRecord> m_registry;
     std::mutex m_resourceMutex;
-
-    std::filesystem::path m_assetsPath = "Assets";
-    std::filesystem::path m_libraryPath = "Library";
-
     std::thread m_watcherThread;
     std::atomic<bool> m_watcherRunning = false;
 };

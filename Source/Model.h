@@ -6,20 +6,18 @@
 #include <vector>
 #include <memory>
 #include <string>
-#include <wrl/client.h>
 #include <d3d12.h>
+#include <wrl/client.h>
+
 using Microsoft::WRL::ComPtr;
 
-class Model
-{
+class Model {
 public:
     bool load(const char* fileName);
 
     void draw(ID3D12GraphicsCommandList* cmdList, const Matrix& worldMatrix);
     void draw(ID3D12GraphicsCommandList* cmdList);
-
     void buildMeshEntries(const Matrix& parentWorld, std::vector<MeshEntry>& out) const;
-
     void markMaterialsDirty() { m_materialCBsDirty = true; }
 
     void setModelMatrix(const Matrix& matrix) { m_modelMatrix = matrix; }
