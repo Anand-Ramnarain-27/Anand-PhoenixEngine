@@ -72,7 +72,7 @@ bool MeshPipeline::createPSO(ID3D12Device* device)
     desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
     desc.NumRenderTargets = 1;
     desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-    desc.SampleDesc.Count = 1;
+    desc.SampleDesc = { 1, 0 };
     desc.SampleMask = UINT_MAX;
     desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     desc.RasterizerState.FrontCounterClockwise = TRUE;
