@@ -6,6 +6,7 @@ cbuffer CameraCB : register(b0)
 cbuffer ObjectCB : register(b1)
 {
     float4x4 world;
+    float4x4 normalMat;
 };
 
 struct VSInput
@@ -34,10 +35,8 @@ VSOutput main(VSInput input)
     output.pos = mul(worldPos, viewProj);
     output.uv = input.uv;
     
-    float3x3 worldRot = (float3x3) world;
-    output.nrm = normalize(mul(input.nrm, worldRot));
-    output.tangent = float4(normalize(mul(input.tangent.xyz, worldRot)),
-                               input.tangent.w); 
+    output.nrm = normalize(mul(input.nrm, (float3x3) normalMat));
+    output.tangent = float4(normalize(mul(input.tangent.xyz, (float3x3) normalMat)), input.tangent.w);
 
     return output;
 }

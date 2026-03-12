@@ -93,8 +93,6 @@ struct PSInput
     float3 tangent : TANGENT;
 };
 
-// ---------- Tone mapping & gamma ----------
-
 static const float GAMMA = 2.2f;
 static const float INV_GAMMA = 1.0f / GAMMA;
 
@@ -128,8 +126,6 @@ float3 PBRNeutralToneMapping(float3 color)
     return lerp(color, newPeak, g);
 }
 
-// ---------- Geometric Specular AA ----------
-
 #define VARIANCE  0.3f
 #define THRESHOLD 0.2f
 
@@ -144,8 +140,6 @@ float getGeometricSpecularAA(float3 N, float roughness)
 
     return saturate(roughness + geomRoughnessOffset);
 }
-
-// ---------- BRDF helpers ----------
 
 float3 F_Schlick(float3 f0, float3 f90, float cosTheta)
 {
@@ -173,8 +167,6 @@ float V_GGX(float NdotV, float NdotL, float alphaRoughness)
     return (denom > 0.0f) ? 0.5f / denom : 0.0f;
 }
 
-// ---------- Normal mapping ----------
-
 float3 applyNormalMap(float3 N, float3 T, float2 uv)
 {
     float3 tn = normalMapTex.Sample(samplers[0], uv).rgb * 2.0f - 1.0f;
@@ -186,14 +178,10 @@ float3 applyNormalMap(float3 N, float3 T, float2 uv)
     return normalize(mul(tn, TBN));
 }
 
-// ---------- AO ----------
-
 float computeSpecularAO(float NdotV, float ao, float rough)
 {
     return saturate(pow(NdotV + ao, exp2(-16.0f * rough - 1.0f)) - 1.0f + ao);
 }
-
-// ---------- IBL ----------
 
 float3 getDiffuseAmbientLight(float3 N, float3 baseColour)
 {
@@ -206,11 +194,9 @@ void getSpecularAmbientLightNoFresnel(float3 R, float NdotV, float rough,
     float mip = rough * (numRoughnessLevels - 1.0f);
     float3 radiance = prefilteredMap.SampleLevel(samplers[2], R, mip).rgb;
     float2 fab = brdfLUT.Sample(samplers[2], float2(NdotV, rough)).rg;
-
-    // fab.x = scale (multiply by F0), fab.y = bias (add directly)
-    // Keep radiance and fab separate so caller can apply correct F0
-    firstTerm = radiance * fab.x; // caller multiplies by F0
-    secondTerm = radiance * fab.y; // caller adds as bias
+    
+    firstTerm = radiance * fab.x; 
+    secondTerm = radiance * fab.y; 
 }
 
 float3 computeIBL(float3 N, float3 V, float3 R,
@@ -223,9 +209,7 @@ float3 computeIBL(float3 N, float3 V, float3 R,
 
     float3 firstTerm, secondTerm;
     getSpecularAmbientLightNoFresnel(R, NdotV, rough, firstTerm, secondTerm);
-
-    // Split-sum: specular = radiance * (F0 * fab.x + fab.y)
-    // Metal F0 = baseColour, dielectric F0 = 0.04
+    
     float3 metalF0 = baseColour;
     float3 dielectricF0 = float3(0.04f, 0.04f, 0.04f);
 
@@ -234,8 +218,6 @@ float3 computeIBL(float3 N, float3 V, float3 R,
 
     return lerp(diffuse + dielectricSpecular, metalSpecular, metal);
 }
-
-// ---------- Direct lighting ----------
 
 float3 cookTorranceGGX(float3 N, float3 L, float3 V,
                         float3 albedo, float metal, float alphaRough,
@@ -266,16 +248,12 @@ float3 cookTorranceGGX(float3 N, float3 L, float3 V,
     return lerp(dielectric, metallic, metal);
 }
 
-// ---------- Main ----------
-
 float4 main(PSInput input) : SV_TARGET
 {
-    // Base colour
     float3 albedo = baseColor.rgb;
     if (hasBaseColorTexture)
         albedo *= sRGBToLinear(albedoTex.Sample(samplers[0], input.uv).rgb);
-
-    // Metallic / roughness  (glTF: green = roughness, blue = metallic)
+    
     float metal = metallic;
     float rough = roughness;
     if (hasMetalRoughMap)
@@ -285,13 +263,11 @@ float4 main(PSInput input) : SV_TARGET
         metal *= mr.y;
     }
     rough = max(rough, 0.04f);
-
-    // Geometric specular AA before squaring
+    
     float3 Ngeom = normalize(input.nrm);
     rough = getGeometricSpecularAA(Ngeom, rough);
     float alphaRough = rough * rough;
-
-    // Normal (with optional normal map)
+    
     float3 N = Ngeom;
     if (hasNormalMap)
         N = applyNormalMap(normalize(input.nrm), normalize(input.tangent), input.uv);
@@ -300,19 +276,16 @@ float4 main(PSInput input) : SV_TARGET
     float3 R = reflect(-V, N);
     float NdotV = saturate(dot(N, V));
     float NdotR = saturate(dot(N, R));
-
-    // AO
+    
     float diffuseAO = 1.0f;
     float specularAO = 1.0f;
     if (hasAOMap)
     {
         diffuseAO = lerp(1.0f, aoTex.Sample(samplers[0], input.uv).r, aoStrength);
         specularAO = computeSpecularAO(NdotV, diffuseAO, rough);
-        // Horizon fade
         specularAO *= max(1.0f + NdotR, 1.0f);
     }
-
-    // --- Direct lighting ---
+    
     float3 directLight = 0.0f;
 
     for (uint i = 0; i < numDirLights; i++)
@@ -348,8 +321,7 @@ float4 main(PSInput input) : SV_TARGET
         directLight += cookTorranceGGX(N, L, V, albedo, metal, alphaRough,
                                        spotLights[i].color, spotLights[i].intensity) * atten;
     }
-
-    // --- Ambient / IBL ---
+    
     float3 ambient = 0.0f;
     if (iblEnabled)
     {
@@ -360,8 +332,7 @@ float4 main(PSInput input) : SV_TARGET
         ambient = ambientColor * ambientIntensity * albedo;
         ambient = max(ambient, albedo * 0.03f);
     }
-
-    // --- Emissive ---
+    
     float3 emissive = 0.0f;
     if (hasEmissiveMap)
         emissive = sRGBToLinear(emissiveTex.Sample(samplers[0], input.uv).rgb) * emissiveFactor;

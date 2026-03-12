@@ -171,7 +171,6 @@ bool IBLGenerator::createBRDFPipeline(
     ComPtr<ID3D12RootSignature>& outRS,
     ComPtr<ID3D12PipelineState>& outPSO)
 {
-    // No root parameters — FullScreenTriangleVS uses SV_VertexID, no input or CBVs
     CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
     rsDesc.Init(0, nullptr, 0, nullptr,
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -190,7 +189,7 @@ bool IBLGenerator::createBRDFPipeline(
     psoDesc.pRootSignature = outRS.Get();
     psoDesc.VS = { vs.data(), vs.size() };
     psoDesc.PS = { ps.data(), ps.size() };
-    psoDesc.InputLayout = { nullptr, 0 };   // no vertex buffer — uses SV_VertexID
+    psoDesc.InputLayout = { nullptr, 0 };  
     psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     psoDesc.RTVFormats[0] = DXGI_FORMAT_R16G16_FLOAT;
     psoDesc.NumRenderTargets = 1;
@@ -317,7 +316,6 @@ bool IBLGenerator::generate(
         DXGI_FORMAT_R16G16_FLOAT, L"BRDFIntegrationLUT",
         env.brdfLUT)) return false;
 
-    // Build pipelines fresh each bake
     m_irradiancePSO.Reset(); m_irradianceRS.Reset();
     m_prefilterPSO.Reset();  m_prefilterRS.Reset();
     m_brdfPSO.Reset();       m_brdfRS.Reset();
@@ -339,7 +337,6 @@ bool IBLGenerator::generate(
         LOG("IBLGenerator: failed to create BRDF pipeline"); return false;
     }
 
-    // --- Irradiance map ---
     LOG("IBLGenerator: baking irradiance map...");
     for (uint32_t face = 0; face < 6; ++face)
     {
@@ -351,7 +348,6 @@ bool IBLGenerator::generate(
             DXGI_FORMAT_R16G16B16A16_FLOAT);
     }
 
-    // --- Pre-filtered env map ---
     LOG("IBLGenerator: baking pre-filtered env map (%u roughness levels)...", kNumRoughness);
     for (uint32_t mip = 0; mip < kNumRoughness; ++mip)
     {
@@ -370,7 +366,6 @@ bool IBLGenerator::generate(
         }
     }
 
-    // --- BRDF integration LUT ---
     LOG("IBLGenerator: baking BRDF integration LUT...");
     {
         auto* rtDescs = app->getRTDescriptors();
@@ -397,7 +392,7 @@ bool IBLGenerator::generate(
         cmd->SetPipelineState(m_brdfPSO.Get());
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         cmd->IASetVertexBuffers(0, 0, nullptr);
-        cmd->DrawInstanced(3, 1, 0, 0);  // fullscreen triangle via SV_VertexID
+        cmd->DrawInstanced(3, 1, 0, 0);  
 
         auto barrierOut = CD3DX12_RESOURCE_BARRIER::Transition(
             env.brdfLUT.Get(),
@@ -406,7 +401,6 @@ bool IBLGenerator::generate(
         cmd->ResourceBarrier(1, &barrierOut);
     }
 
-    // --- Create SRVs ---
     env.irradianceSRVTable = shaderDescs->allocTable("IBL_Irradiance");
     if (!env.irradianceSRVTable.isValid())
     {
@@ -454,6 +448,5 @@ bool IBLGenerator::generate(
     }
 
     LOG("IBLGenerator: IBL bake complete.");
-    // NOTE: do NOT call cmd->Close() here — EnvironmentGenerator closes and executes the list.
     return true;
 }
