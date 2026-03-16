@@ -199,6 +199,7 @@
     <ClInclude Include="GameViewPanel.h" />
     <ClInclude Include="gltf_utils.h" />
     <ClInclude Include="HandleManager.h" />
+    <ClInclude Include="HDRToCubemapPass.h" />
     <ClInclude Include="HierarchyPanel.h" />
     <ClInclude Include="IBLGenerator.h" />
     <ClInclude Include="ImporterUtils.h" />
@@ -341,6 +342,7 @@
     <ClCompile Include="FileDialog.cpp" />
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="GameViewPanel.cpp" />
+    <ClCompile Include="HDRToCubemapPass.cpp" />
     <ClCompile Include="HierarchyPanel.cpp" />
     <ClCompile Include="IBLGenerator.cpp" />
     <ClCompile Include="InspectorPanel.cpp" />
@@ -431,6 +433,11 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
     </FxCompile>
+    <FxCompile Include="shaders\HDRToCubemapPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
     <FxCompile Include="shaders\IrradianceMapPS.hlsl">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
@@ -444,6 +451,11 @@
     <FxCompile Include="shaders\MeshVS.hlsl">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="shaders\MipChainPS.hlsl">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
     </FxCompile>
     <FxCompile Include="shaders\PrefilterEnvMapPS.hlsl">

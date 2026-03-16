@@ -64,9 +64,10 @@ void SceneSettingsPanel::drawSkyboxSection() {
                 if (!entry.is_regular_file()) continue;
                 std::string ext = entry.path().extension().string();
                 std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-                if (ext != ".dds") continue;
+                if (ext != ".dds" && ext != ".hdr") continue;
                 m_skyboxFiles.push_back(entry.path().filename().string());
-                if ("Assets/Skybox/" + m_skyboxFiles.back() == sky.cubemapPath) m_selectedSkybox = (int)m_skyboxFiles.size() - 1;
+                if ("Assets/Skybox/" + m_skyboxFiles.back() == sky.cubemapPath)
+                    m_selectedSkybox = (int)m_skyboxFiles.size() - 1;
             }
         }
         catch (...) { m_editor->log("[Editor] Could not scan Assets/Skybox/"); }
@@ -83,11 +84,20 @@ void SceneSettingsPanel::drawSkyboxSection() {
     if (m_selectedSkybox >= 0 && m_selectedSkybox < (int)m_skyboxFiles.size()) {
         std::string fullPath = "Assets/Skybox/" + m_skyboxFiles[m_selectedSkybox];
         textMuted("Path: %s", fullPath.c_str());
+
         if (ImGui::Button("Load Selected Skybox")) {
             sky.cubemapPath = fullPath;
             if (EnvironmentSystem* env = m_editor->getEnvSystem()) {
-                env->load(sky.cubemapPath);
-                m_editor->log(("Skybox loaded: " + m_skyboxFiles[m_selectedSkybox]).c_str(), EditorColors::Success);
+                std::string ext = fs::path(fullPath).extension().string();
+                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+                if (ext == ".hdr")
+                    env->loadHDR(fullPath);   
+                else
+                    env->load(fullPath);     
+
+                m_editor->log(("Skybox loaded: " + m_skyboxFiles[m_selectedSkybox]).c_str(),
+                    EditorColors::Success);
             }
         }
     }

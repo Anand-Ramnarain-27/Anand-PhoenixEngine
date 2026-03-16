@@ -42,8 +42,7 @@ namespace
     };
 }
 
-bool IBLGenerator::ensureGeometry(ID3D12Device* device)
-{
+bool IBLGenerator::ensureGeometry(ID3D12Device* device){
     if (m_geometryReady) return true;
     auto* resources = app->getGPUResources();
     m_cubeVB = resources->createDefaultBuffer(kCubeVerts, sizeof(kCubeVerts), "IBL_CubeVB");
@@ -55,8 +54,7 @@ bool IBLGenerator::ensureGeometry(ID3D12Device* device)
     return true;
 }
 
-bool IBLGenerator::ensureFaceCB(ID3D12Device* device)
-{
+bool IBLGenerator::ensureFaceCB(ID3D12Device* device){
     if (m_faceCB) return true;
     FaceCB zero{};
     auto* resources = app->getGPUResources();
@@ -66,50 +64,39 @@ bool IBLGenerator::ensureFaceCB(ID3D12Device* device)
     return true;
 }
 
-bool IBLGenerator::createCubemapResource(
-    ID3D12Device* device, uint32_t size, uint32_t mips,
-    DXGI_FORMAT fmt, const wchar_t* name,
-    ComPtr<ID3D12Resource>& out)
-{
-    auto desc = CD3DX12_RESOURCE_DESC::Tex2D(
-        fmt, size, size,
-        6, mips, 1, 0,
-        D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+bool IBLGenerator::createCubemapResource(ID3D12Device* device, uint32_t size, uint32_t mips, DXGI_FORMAT fmt, const wchar_t* name, ComPtr<ID3D12Resource>& out){
+    
+    auto desc = CD3DX12_RESOURCE_DESC::Tex2D(fmt, size, size, 6, mips, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
     auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    HRESULT hr = device->CreateCommittedResource(
-        &heap, D3D12_HEAP_FLAG_NONE, &desc,
-        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-        nullptr, IID_PPV_ARGS(&out));
-    if (FAILED(hr)) { LOG("IBLGenerator: failed to create cubemap resource"); return false; }
+
+    HRESULT hr = device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&out));
+
+    if (FAILED(hr)) { 
+        LOG("IBLGenerator: failed to create cubemap resource"); 
+        return false; 
+    }
+
     if (name) out->SetName(name);
     return true;
 }
 
-bool IBLGenerator::create2DResource(
-    ID3D12Device* device, uint32_t size,
-    DXGI_FORMAT fmt, const wchar_t* name,
-    ComPtr<ID3D12Resource>& out)
-{
-    auto desc = CD3DX12_RESOURCE_DESC::Tex2D(
-        fmt, size, size,
-        1, 1, 1, 0,
-        D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+bool IBLGenerator::create2DResource(ID3D12Device* device, uint32_t size, DXGI_FORMAT fmt, const wchar_t* name, ComPtr<ID3D12Resource>& out) {
+
+    auto desc = CD3DX12_RESOURCE_DESC::Tex2D(fmt, size, size, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
     auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    HRESULT hr = device->CreateCommittedResource(
-        &heap, D3D12_HEAP_FLAG_NONE, &desc,
-        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-        nullptr, IID_PPV_ARGS(&out));
-    if (FAILED(hr)) { LOG("IBLGenerator: failed to create 2D resource"); return false; }
+
+    HRESULT hr = device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&out));
+
+    if (FAILED(hr)) { 
+        LOG("IBLGenerator: failed to create 2D resource"); 
+        return false; 
+    }
+
     if (name) out->SetName(name);
     return true;
 }
 
-bool IBLGenerator::createConvPipeline(
-    ID3D12Device* device,
-    const wchar_t* psCsoPath,
-    DXGI_FORMAT                  rtvFmt,
-    ComPtr<ID3D12RootSignature>& outRS,
-    ComPtr<ID3D12PipelineState>& outPSO)
+bool IBLGenerator::createConvPipeline(ID3D12Device* device, const wchar_t* psCsoPath, DXGI_FORMAT rtvFmt, ComPtr<ID3D12RootSignature>& outRS, ComPtr<ID3D12PipelineState>& outPSO)
 {
     CD3DX12_ROOT_PARAMETER params[2];
     params[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
@@ -118,24 +105,19 @@ bool IBLGenerator::createConvPipeline(
     srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
     params[1].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
-    CD3DX12_STATIC_SAMPLER_DESC sampler(
-        0,
-        D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP);
+    CD3DX12_STATIC_SAMPLER_DESC sampler(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP);
 
     CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
-    rsDesc.Init(2, params, 1, &sampler,
-        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    rsDesc.Init(2, params, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     ComPtr<ID3DBlob> blob, err;
-    if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err)))
-    {
-        LOG("IBLGenerator: RS serialize failed: %s",
-            err ? (char*)err->GetBufferPointer() : "?");
+
+    if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))) {
+
+        LOG("IBLGenerator: RS serialize failed: %s", err ? (char*)err->GetBufferPointer() : "?");
         return false;
     }
+
     if (FAILED(device->CreateRootSignature(0, blob->GetBufferPointer(),
         blob->GetBufferSize(), IID_PPV_ARGS(&outRS))))
         return false;
@@ -166,18 +148,15 @@ bool IBLGenerator::createConvPipeline(
     return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&outPSO)));
 }
 
-bool IBLGenerator::createBRDFPipeline(
-    ID3D12Device* device,
-    ComPtr<ID3D12RootSignature>& outRS,
-    ComPtr<ID3D12PipelineState>& outPSO)
-{
+bool IBLGenerator::createBRDFPipeline(ID3D12Device* device, ComPtr<ID3D12RootSignature>& outRS, ComPtr<ID3D12PipelineState>& outPSO){
+
     CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
-    rsDesc.Init(0, nullptr, 0, nullptr,
-        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    rsDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     ComPtr<ID3DBlob> blob, err;
     if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err)))
         return false;
+
     if (FAILED(device->CreateRootSignature(0, blob->GetBufferPointer(),
         blob->GetBufferSize(), IID_PPV_ARGS(&outRS))))
         return false;
@@ -204,36 +183,21 @@ bool IBLGenerator::createBRDFPipeline(
     return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&outPSO)));
 }
 
-void IBLGenerator::renderCubeFace(
-    ID3D12Device* device,
-    ID3D12GraphicsCommandList* cmd,
-    ID3D12Resource* target,
-    uint32_t                    faceIndex,
-    uint32_t                    mipLevel,
-    uint32_t                    totalMips,
-    uint32_t                    baseFaceSize,
-    float                       roughness,
-    ID3D12RootSignature* rs,
-    ID3D12PipelineState* pso,
-    D3D12_GPU_DESCRIPTOR_HANDLE sourceSRV,
-    DXGI_FORMAT                 rtvFmt)
+void IBLGenerator::renderCubeFace(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, ID3D12Resource* target, uint32_t faceIndex, uint32_t mipLevel, uint32_t totalMips, uint32_t baseFaceSize, float roughness, ID3D12RootSignature* rs, ID3D12PipelineState* pso, D3D12_GPU_DESCRIPTOR_HANDLE sourceSRV, DXGI_FORMAT rtvFmt)
 {
     auto* rtDescs = app->getRTDescriptors();
     uint32_t mipSize = std::max(1u, baseFaceSize >> mipLevel);
 
     RenderTargetDesc rtv = rtDescs->create(target, faceIndex, mipLevel, rtvFmt);
-    if (!rtv)
-    {
+    if (!rtv) {
+
         LOG("IBLGenerator: RTV alloc failed (face %u, mip %u)", faceIndex, mipLevel);
         return;
     }
 
     UINT subRes = D3D12CalcSubresource(mipLevel, faceIndex, 0, totalMips, 6);
-    auto barrierIn = CD3DX12_RESOURCE_BARRIER::Transition(
-        target,
-        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-        D3D12_RESOURCE_STATE_RENDER_TARGET,
-        subRes);
+    auto barrierIn = CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET, subRes);
+
     cmd->ResourceBarrier(1, &barrierIn);
 
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = rtv.getCPUHandle();
@@ -273,18 +237,12 @@ void IBLGenerator::renderCubeFace(
     cmd->IASetVertexBuffers(0, 1, &m_vbView);
     cmd->DrawInstanced(36, 1, 0, 0);
 
-    auto barrierOut = CD3DX12_RESOURCE_BARRIER::Transition(
-        target,
-        D3D12_RESOURCE_STATE_RENDER_TARGET,
-        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-        subRes);
+    auto barrierOut = CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, subRes);
+
     cmd->ResourceBarrier(1, &barrierOut);
 }
 
-bool IBLGenerator::generate(
-    ID3D12Device* device,
-    ID3D12GraphicsCommandList* cmd,
-    EnvironmentMap& env)
+bool IBLGenerator::generate(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env)
 {
     LOG("IBLGenerator: starting IBL bake...");
 
@@ -304,30 +262,25 @@ bool IBLGenerator::generate(
     static constexpr uint32_t kBRDFLUTSize = 512;
     static constexpr uint32_t kNumRoughness = EnvironmentMap::NUM_ROUGHNESS_LEVELS;
 
-    if (!createCubemapResource(device, kIrradianceSize, 1,
-        DXGI_FORMAT_R16G16B16A16_FLOAT, L"IrradianceCubemap",
-        env.irradianceCubemap)) return false;
+    if (!createCubemapResource(device, kIrradianceSize, 1, DXGI_FORMAT_R16G16B16A16_FLOAT, L"IrradianceCubemap", env.irradianceCubemap)) 
+        return false;
 
-    if (!createCubemapResource(device, kPrefilterSize, kNumRoughness,
-        DXGI_FORMAT_R16G16B16A16_FLOAT, L"PrefilteredEnvCubemap",
-        env.prefilteredCubemap)) return false;
+    if (!createCubemapResource(device, kPrefilterSize, kNumRoughness, DXGI_FORMAT_R16G16B16A16_FLOAT, L"PrefilteredEnvCubemap", env.prefilteredCubemap)) 
+        return false;
 
-    if (!create2DResource(device, kBRDFLUTSize,
-        DXGI_FORMAT_R16G16_FLOAT, L"BRDFIntegrationLUT",
-        env.brdfLUT)) return false;
+    if (!create2DResource(device, kBRDFLUTSize, DXGI_FORMAT_R16G16_FLOAT, L"BRDFIntegrationLUT", env.brdfLUT)) 
+        return false;
 
     m_irradiancePSO.Reset(); m_irradianceRS.Reset();
     m_prefilterPSO.Reset();  m_prefilterRS.Reset();
     m_brdfPSO.Reset();       m_brdfRS.Reset();
 
-    if (!createConvPipeline(device, L"IrradianceMapPS.cso",
-        DXGI_FORMAT_R16G16B16A16_FLOAT, m_irradianceRS, m_irradiancePSO))
+    if (!createConvPipeline(device, L"IrradianceMapPS.cso", DXGI_FORMAT_R16G16B16A16_FLOAT, m_irradianceRS, m_irradiancePSO))
     {
         LOG("IBLGenerator: failed to create irradiance pipeline"); return false;
     }
 
-    if (!createConvPipeline(device, L"PrefilterEnvMapPS.cso",
-        DXGI_FORMAT_R16G16B16A16_FLOAT, m_prefilterRS, m_prefilterPSO))
+    if (!createConvPipeline(device, L"PrefilterEnvMapPS.cso", DXGI_FORMAT_R16G16B16A16_FLOAT, m_prefilterRS, m_prefilterPSO))
     {
         LOG("IBLGenerator: failed to create prefilter pipeline"); return false;
     }
@@ -340,12 +293,7 @@ bool IBLGenerator::generate(
     LOG("IBLGenerator: baking irradiance map...");
     for (uint32_t face = 0; face < 6; ++face)
     {
-        renderCubeFace(device, cmd,
-            env.irradianceCubemap.Get(),
-            face, 0, 1, kIrradianceSize, 0.0f,
-            m_irradianceRS.Get(), m_irradiancePSO.Get(),
-            env.srvTable.getGPUHandle(),
-            DXGI_FORMAT_R16G16B16A16_FLOAT);
+        renderCubeFace(device, cmd, env.irradianceCubemap.Get(), face, 0, 1, kIrradianceSize, 0.0f, m_irradianceRS.Get(), m_irradiancePSO.Get(), env.srvTable.getGPUHandle(), DXGI_FORMAT_R16G16B16A16_FLOAT);
     }
 
     LOG("IBLGenerator: baking pre-filtered env map (%u roughness levels)...", kNumRoughness);
@@ -400,6 +348,206 @@ bool IBLGenerator::generate(
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         cmd->ResourceBarrier(1, &barrierOut);
     }
+
+    env.irradianceSRVTable = shaderDescs->allocTable("IBL_Irradiance");
+    if (!env.irradianceSRVTable.isValid())
+    {
+        LOG("IBLGenerator: failed to alloc irradiance SRV table"); return false;
+    }
+    {
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.TextureCube.MipLevels = 1;
+        srvDesc.TextureCube.MostDetailedMip = 0;
+        env.irradianceSRVTable.createSRV(env.irradianceCubemap.Get(), 0, &srvDesc);
+    }
+
+    env.prefilteredSRVTable = shaderDescs->allocTable("IBL_Prefilter");
+    if (!env.prefilteredSRVTable.isValid())
+    {
+        LOG("IBLGenerator: failed to alloc prefilter SRV table"); return false;
+    }
+    {
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.TextureCube.MipLevels = kNumRoughness;
+        srvDesc.TextureCube.MostDetailedMip = 0;
+        env.prefilteredSRVTable.createSRV(env.prefilteredCubemap.Get(), 0, &srvDesc);
+    }
+
+    env.brdfLUTSRVTable = shaderDescs->allocTable("IBL_BRDF_LUT");
+    if (!env.brdfLUTSRVTable.isValid())
+    {
+        LOG("IBLGenerator: failed to alloc BRDF LUT SRV table"); return false;
+    }
+    {
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = DXGI_FORMAT_R16G16_FLOAT;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.Texture2D.MipLevels = 1;
+        srvDesc.Texture2D.MostDetailedMip = 0;
+        srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+        env.brdfLUTSRVTable.createSRV(env.brdfLUT.Get(), 0, &srvDesc);
+    }
+
+    LOG("IBLGenerator: IBL bake complete.");
+    return true;
+}
+
+bool IBLGenerator::prepareResources(ID3D12Device* device, EnvironmentMap& env)
+{
+    if (!env.isValid())
+    {
+        LOG("IBLGenerator: source environment map is not valid");
+        return false;
+    }
+
+    if (!ensureGeometry(device)) return false;
+    if (!ensureFaceCB(device))   return false;
+
+    static constexpr uint32_t kIrradianceSize = 32;
+    static constexpr uint32_t kPrefilterSize = 128;
+    static constexpr uint32_t kBRDFLUTSize = 512;
+    static constexpr uint32_t kNumRoughness = EnvironmentMap::NUM_ROUGHNESS_LEVELS;
+
+    if (!createCubemapResource(device, kIrradianceSize, 1,
+        DXGI_FORMAT_R16G16B16A16_FLOAT, L"IrradianceCubemap",
+        env.irradianceCubemap)) return false;
+
+    if (!createCubemapResource(device, kPrefilterSize, kNumRoughness,
+        DXGI_FORMAT_R16G16B16A16_FLOAT, L"PrefilteredEnvCubemap",
+        env.prefilteredCubemap)) return false;
+
+    if (!create2DResource(device, kBRDFLUTSize,
+        DXGI_FORMAT_R16G16_FLOAT, L"BRDFIntegrationLUT",
+        env.brdfLUT)) return false;
+
+    m_irradiancePSO.Reset(); m_irradianceRS.Reset();
+    m_prefilterPSO.Reset();  m_prefilterRS.Reset();
+    m_brdfPSO.Reset();       m_brdfRS.Reset();
+
+    if (!createConvPipeline(device, L"IrradianceMapPS.cso",
+        DXGI_FORMAT_R16G16B16A16_FLOAT, m_irradianceRS, m_irradiancePSO))
+    {
+        LOG("IBLGenerator: failed to create irradiance pipeline"); return false;
+    }
+    if (!createConvPipeline(device, L"PrefilterEnvMapPS.cso",
+        DXGI_FORMAT_R16G16B16A16_FLOAT, m_prefilterRS, m_prefilterPSO))
+    {
+        LOG("IBLGenerator: failed to create prefilter pipeline"); return false;
+    }
+    if (!createBRDFPipeline(device, m_brdfRS, m_brdfPSO))
+    {
+        LOG("IBLGenerator: failed to create BRDF pipeline"); return false;
+    }
+
+    return true;
+}
+
+bool IBLGenerator::bakeIrradiance(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env)
+{
+    static constexpr uint32_t kIrradianceSize = 32;
+
+    auto* shaderDescs = app->getShaderDescriptors();
+    ID3D12DescriptorHeap* heaps[] = { shaderDescs->getHeap() };
+    cmd->SetDescriptorHeaps(1, heaps);
+
+    LOG("IBLGenerator: baking irradiance map...");
+    for (uint32_t face = 0; face < 6; ++face)
+    {
+        renderCubeFace(device, cmd,
+            env.irradianceCubemap.Get(),
+            face, 0, 1, kIrradianceSize, 0.0f,
+            m_irradianceRS.Get(), m_irradiancePSO.Get(),
+            env.srvTable.getGPUHandle(),
+            DXGI_FORMAT_R16G16B16A16_FLOAT);
+    }
+    return true;
+}
+
+bool IBLGenerator::bakePrefilter(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env, uint32_t mipIndex)
+{
+    static constexpr uint32_t kPrefilterSize = 128;
+    static constexpr uint32_t kNumRoughness = EnvironmentMap::NUM_ROUGHNESS_LEVELS;
+
+    auto* shaderDescs = app->getShaderDescriptors();
+    ID3D12DescriptorHeap* heaps[] = { shaderDescs->getHeap() };
+    cmd->SetDescriptorHeaps(1, heaps);
+
+    float roughness = (kNumRoughness > 1)
+        ? float(mipIndex) / float(kNumRoughness - 1)
+        : 0.0f;
+
+    LOG("IBLGenerator: baking prefilter mip %u (roughness=%.2f)...", mipIndex, roughness);
+
+    for (uint32_t face = 0; face < 6; ++face)
+    {
+        renderCubeFace(device, cmd,
+            env.prefilteredCubemap.Get(),
+            face, mipIndex, kNumRoughness, kPrefilterSize, roughness,
+            m_prefilterRS.Get(), m_prefilterPSO.Get(),
+            env.srvTable.getGPUHandle(),
+            DXGI_FORMAT_R16G16B16A16_FLOAT);
+    }
+    return true;
+}
+
+bool IBLGenerator::bakeBRDFLut(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env)
+{
+    static constexpr uint32_t kBRDFLUTSize = 512;
+
+    auto* shaderDescs = app->getShaderDescriptors();
+    auto* rtDescs = app->getRTDescriptors();
+
+    ID3D12DescriptorHeap* heaps[] = { shaderDescs->getHeap() };
+    cmd->SetDescriptorHeaps(1, heaps);
+
+    LOG("IBLGenerator: baking BRDF integration LUT...");
+
+    RenderTargetDesc rtv = rtDescs->create(env.brdfLUT.Get());
+    if (!rtv) { LOG("IBLGenerator: BRDF LUT RTV alloc failed"); return false; }
+
+    auto barrierIn = CD3DX12_RESOURCE_BARRIER::Transition(
+        env.brdfLUT.Get(),
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+        D3D12_RESOURCE_STATE_RENDER_TARGET);
+    cmd->ResourceBarrier(1, &barrierIn);
+
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = rtv.getCPUHandle();
+    cmd->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+    float clear[4] = { 0, 0, 0, 1 };
+    cmd->ClearRenderTargetView(rtvHandle, clear, 0, nullptr);
+
+    D3D12_VIEWPORT vp = { 0, 0, float(kBRDFLUTSize), float(kBRDFLUTSize), 0, 1 };
+    D3D12_RECT     sc = { 0, 0, LONG(kBRDFLUTSize),  LONG(kBRDFLUTSize) };
+    cmd->RSSetViewports(1, &vp);
+    cmd->RSSetScissorRects(1, &sc);
+
+    cmd->SetGraphicsRootSignature(m_brdfRS.Get());
+    cmd->SetPipelineState(m_brdfPSO.Get());
+    cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    cmd->IASetVertexBuffers(0, 0, nullptr);
+    cmd->DrawInstanced(3, 1, 0, 0);
+
+    auto barrierOut = CD3DX12_RESOURCE_BARRIER::Transition(
+        env.brdfLUT.Get(),
+        D3D12_RESOURCE_STATE_RENDER_TARGET,
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    cmd->ResourceBarrier(1, &barrierOut);
+
+    return true;
+}
+
+bool IBLGenerator::finaliseSRVs(EnvironmentMap& env)
+{
+    static constexpr uint32_t kNumRoughness = EnvironmentMap::NUM_ROUGHNESS_LEVELS;
+
+    auto* shaderDescs = app->getShaderDescriptors();
 
     env.irradianceSRVTable = shaderDescs->allocTable("IBL_Irradiance");
     if (!env.irradianceSRVTable.isValid())

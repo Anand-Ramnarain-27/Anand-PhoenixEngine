@@ -212,7 +212,12 @@
       <Filter>engine\editor\panels\viewports</Filter>
     </ClCompile>
     <ClCompile Include="ModuleStaticBuffer.cpp" />
-    <ClCompile Include="MeshRenderPass.cpp" />
+    <ClCompile Include="HDRToCubemapPass.cpp">
+      <Filter>engine\graphics\environment</Filter>
+    </ClCompile>
+    <ClCompile Include="MeshRenderPass.cpp">
+      <Filter>engine\graphics\pipelines</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -491,7 +496,12 @@
     </ClInclude>
     <ClInclude Include="PrefabEditSession.h" />
     <ClInclude Include="ModuleStaticBuffer.h" />
-    <ClInclude Include="MeshRenderPass.h" />
+    <ClInclude Include="HDRToCubemapPass.h">
+      <Filter>engine\graphics\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="MeshRenderPass.h">
+      <Filter>engine\graphics\pipelines</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -648,6 +658,12 @@
       <Filter>shaders</Filter>
     </FxCompile>
     <FxCompile Include="shaders\TextureSamplerVS.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\HDRToCubemapPS.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\MipChainPS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
   </ItemGroup>
