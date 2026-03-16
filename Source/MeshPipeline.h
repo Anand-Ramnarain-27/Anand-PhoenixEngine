@@ -67,7 +67,7 @@ public:
         float    ambientIntensity;
         Vector3  viewPos;
 
-        float    pad0;
+        float   exposure;
         uint32_t numDirLights;
         uint32_t numPointLights;
         uint32_t numSpotLights;

@@ -14,11 +14,15 @@ public:
         float roughness = 0.5f;
         float normalStrength = 1.f;
         float aoStrength = 1.f;
+
+        float exposure = 1.f;
+
         uint32_t hasBaseColorTexture = 0;
         uint32_t hasNormalMap = 0;
         uint32_t hasAOMap = 0;
         uint32_t hasEmissiveMap = 0;
         uint32_t hasMetalRoughMap = 0;
+
         Vector3 emissiveFactor = Vector3(1.f, 1.f, 1.f);
         uint32_t samplerIndex = 0;
     };

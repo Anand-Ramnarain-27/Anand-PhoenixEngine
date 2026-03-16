@@ -215,6 +215,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     lightData.ambientColor = s.ambient.color;
     lightData.ambientIntensity = s.ambient.intensity;
     lightData.viewPos = camera->getPos();
+    lightData.exposure = 1.0f;
     lightData.iblEnabled = (sky.enabled && m_envSystem && m_envSystem->hasIBL()) ? 1u : 0u;
     lightData.numRoughnessLevels = float(EnvironmentMap::NUM_ROUGHNESS_LEVELS);
     if (moduleScene) gatherLights(moduleScene->getRoot(), lightData);

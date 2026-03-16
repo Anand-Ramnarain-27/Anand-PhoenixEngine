@@ -61,7 +61,8 @@ cbuffer MaterialCB : register(b3)
     float roughness;
     float normalStrength;
     float aoStrength;
-
+    float exposure;
+    
     uint hasBaseColorTexture;
     uint hasNormalMap;
     uint hasAOMap;
@@ -337,6 +338,7 @@ float4 main(PSInput input) : SV_TARGET
         emissive = sRGBToLinear(emissiveTex.Sample(samplers[0], input.uv).rgb) * emissiveFactor;
 
     float3 colour = emissive + ambient + directLight;
+    colour *= exposure;
 
     float3 ldr = PBRNeutralToneMapping(colour);
     return float4(linearToSRGB(ldr), baseColor.a);
