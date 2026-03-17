@@ -218,6 +218,9 @@
     <ClCompile Include="MeshRenderPass.cpp">
       <Filter>engine\graphics\pipelines</Filter>
     </ClCompile>
+    <ClCompile Include="CommandContext.cpp">
+      <Filter>engine\graphics\environment</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -501,6 +504,30 @@
     </ClInclude>
     <ClInclude Include="MeshRenderPass.h">
       <Filter>engine\graphics\pipelines</Filter>
+    </ClInclude>
+    <ClInclude Include="IBLSettings.h">
+      <Filter>engine\graphics\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="FaceProjection.h">
+      <Filter>engine\graphics\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="D3D12ResourceFactory.h">
+      <Filter>engine\graphics\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="CubemapPipelineBuilder.h">
+      <Filter>engine\graphics\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="CommandContext.h">
+      <Filter>engine\graphics\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="CubeGeometry.h">
+      <Filter>engine\graphics\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="CubeFaceRenderer.h">
+      <Filter>engine\graphics\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="FaceCB.h">
+      <Filter>engine\graphics\environment</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -232,32 +232,28 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     {
         std::function<void(GameObject*)> collectMeshes = [&](GameObject* node) {
             if (!node || !node->isActive()) return;
-            
+
             if (auto* cm = node->getComponent<ComponentMesh>()) {
-                
+                cm->flushDeferredReleases();
+
                 Matrix nodeWorld = node->getTransform()->getGlobalMatrix();
-                
                 if (Model* model = cm->getProceduralModel()) {
                     model->buildMeshEntries(nodeWorld, ownedEntries);
-                } 
+                }
                 else {
-                    const auto& entries = cm->getEntries();
-                    Matrix worldT = nodeWorld;
-                    for (const auto& src : entries) {
-                        
+                    for (const auto& src : cm->getEntries()) {
+                        if (!src.meshRes || !src.materialRes) continue;
                         MeshEntry e;
                         e.meshUID = src.meshUID;
                         e.materialUID = src.materialUID;
                         e.meshRes = src.meshRes;
                         e.materialRes = src.materialRes;
-                        e.materialCB = src.materialCB; 
-                        static_assert(sizeof(worldT) == sizeof(e.worldMatrix), "Matrix size mismatch");
+                        e.materialCB = src.materialCB;
                         memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));
                         ownedEntries.push_back(std::move(e));
                     }
                 }
             }
-            
             for (auto* child : node->getChildren()) collectMeshes(child);
         };
         

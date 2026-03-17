@@ -3,28 +3,27 @@
 #include "EnvironmentGenerator.h"
 #include "SkyboxRenderer.h"
 
-class EnvironmentSystem
-{
+class EnvironmentSystem {
 public:
-    bool init(ID3D12Device* device, DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat, bool useMSAA);
-    void load(const std::string& file);
-    void loadHDR(const std::string& hdrFile, uint32_t cubeFaceSize = 2048);
-    void render(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& projection);
+	bool init(ID3D12Device* device, DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat, bool useMSAA);
+	void load(const std::string& file);
+	void loadHDR(const std::string& hdrFile, uint32_t cubeFaceSize = 2048);
+	void render(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& projection);
 
-    const EnvironmentMap* getEnvironmentMap() const { 
-        return m_environment.get(); 
-    }
+	const EnvironmentMap* getEnvironmentMap() const {
+		return m_environment.get();
+	}
 
-    bool hasIBL() const { 
-        return m_environment && m_environment->hasIBL(); 
-    }
+	bool hasIBL() const {
+		return m_environment && m_environment->hasIBL();
+	}
 
-    bool isLoaded() const { 
-        return m_environment && m_environment->isValid(); 
-    }
+	bool isLoaded() const {
+		return m_environment && m_environment->isValid();
+	}
 
 private:
-    EnvironmentGenerator m_generator;
-    SkyboxRenderer m_renderer;
-    std::unique_ptr<EnvironmentMap> m_environment;
+	EnvironmentGenerator m_generator;
+	SkyboxRenderer m_renderer;
+	std::unique_ptr<EnvironmentMap> m_environment;
 };
