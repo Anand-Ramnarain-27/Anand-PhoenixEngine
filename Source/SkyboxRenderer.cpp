@@ -3,19 +3,23 @@
 #include "Application.h"
 #include "ModuleShaderDescriptors.h"
 #include "ModuleGPUResources.h"
-#include "CubeGeometry.h" 
+#include "CubeGeometry.h"
 #include "ReadData.h"
 
 using namespace DirectX;
 
 bool SkyboxRenderer::init(ID3D12Device* device, bool useMSAA) {
-    return createGeometry(device) && createConstantBuffer(device) && createRootSignature(device) && createPipeline(device, useMSAA);
+    return createGeometry(device)
+        && createConstantBuffer(device)
+        && createRootSignature(device)
+        && createPipeline(device, useMSAA);
 }
 
 bool SkyboxRenderer::createGeometry(ID3D12Device* device) {
     auto* resources = app->getGPUResources();
 
-    vertexBuffer = resources->createDefaultBuffer(CubeGeometry::kCubeVerts, CubeGeometry::kCubeVertexSize, "SkyboxVB");
+    vertexBuffer = resources->createDefaultBuffer(
+        CubeGeometry::kCubeVerts, CubeGeometry::kCubeVertexSize, "SkyboxVB");
 
     vertexCount = CubeGeometry::kCubeVertexCount;
 
@@ -23,7 +27,7 @@ bool SkyboxRenderer::createGeometry(ID3D12Device* device) {
     vbView.StrideInBytes = CubeGeometry::kCubeVertexStride;
     vbView.SizeInBytes = CubeGeometry::kCubeVertexSize;
 
-    return true;
+    return vertexBuffer != nullptr;
 }
 
 bool SkyboxRenderer::createConstantBuffer(ID3D12Device* device) {
@@ -41,15 +45,17 @@ bool SkyboxRenderer::createConstantBuffer(ID3D12Device* device) {
 
 bool SkyboxRenderer::createRootSignature(ID3D12Device* device) {
     CD3DX12_ROOT_PARAMETER params[2];
-
     params[0].InitAsConstantBufferView(0);
 
     CD3DX12_DESCRIPTOR_RANGE range;
     range.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-
     params[1].InitAsDescriptorTable(1, &range, D3D12_SHADER_VISIBILITY_PIXEL);
 
-    CD3DX12_STATIC_SAMPLER_DESC samplerDesc(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP);
+    CD3DX12_STATIC_SAMPLER_DESC samplerDesc(0,
+        D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP);
 
     CD3DX12_ROOT_SIGNATURE_DESC desc;
     desc.Init(_countof(params), params, 1, &samplerDesc, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -57,21 +63,22 @@ bool SkyboxRenderer::createRootSignature(ID3D12Device* device) {
     ComPtr<ID3DBlob> blob;
     D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, nullptr);
 
-    return SUCCEEDED(device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
+    return SUCCEEDED(device->CreateRootSignature(0,
+        blob->GetBufferPointer(), blob->GetBufferSize(),
+        IID_PPV_ARGS(&rootSignature)));
 }
 
 bool SkyboxRenderer::createPipeline(ID3D12Device* device, bool useMSAA) {
     auto vs = DX::ReadData(L"SkyboxVS.cso");
     auto ps = DX::ReadData(L"SkyboxPS.cso");
 
+    D3D12_INPUT_ELEMENT_DESC layout = {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
     psoDesc.pRootSignature = rootSignature.Get();
     psoDesc.VS = { vs.data(), vs.size() };
     psoDesc.PS = { ps.data(), ps.size() };
-
-    D3D12_INPUT_ELEMENT_DESC layout = { "POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0 };
-
-    psoDesc.InputLayout = { &layout,1 };
+    psoDesc.InputLayout = { &layout, 1 };
     psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
     psoDesc.NumRenderTargets = 1;
@@ -96,7 +103,9 @@ void SkyboxRenderer::render(ID3D12GraphicsCommandList* cmd, const EnvironmentMap
         return;
 
     Matrix viewNoTranslation = view;
-    viewNoTranslation._41 = viewNoTranslation._42 = viewNoTranslation._43 = 0;
+    viewNoTranslation._41 = 0;
+    viewNoTranslation._42 = 0;
+    viewNoTranslation._43 = 0;
 
     cbData->vp = (viewNoTranslation * projection).Transpose();
 
@@ -104,15 +113,12 @@ void SkyboxRenderer::render(ID3D12GraphicsCommandList* cmd, const EnvironmentMap
     cmd->SetPipelineState(pso.Get());
 
     ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap() };
-
     cmd->SetDescriptorHeaps(1, heaps);
 
     cmd->SetGraphicsRootConstantBufferView(0, constantBuffer->GetGPUVirtualAddress());
-
     cmd->SetGraphicsRootDescriptorTable(1, env.getGPUHandle());
 
     cmd->IASetVertexBuffers(0, 1, &vbView);
     cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
     cmd->DrawInstanced(vertexCount, 1, 0, 0);
 }

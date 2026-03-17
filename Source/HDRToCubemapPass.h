@@ -29,10 +29,9 @@ private:
     bool createConversionPipeline(ID3D12Device* device);
     bool createMipPipeline(ID3D12Device* device);
     bool ensureGeometry(ID3D12Device* device);
-    bool ensureFaceCB(ID3D12Device* device);
 
     void renderFace(ID3D12GraphicsCommandList* cmd, ID3D12Resource* target, uint32_t faceIndex, uint32_t mipLevel, uint32_t totalMips, uint32_t baseFaceSize, D3D12_GPU_DESCRIPTOR_HANDLE sourceSRV, ID3D12RootSignature* rs, ID3D12PipelineState* pso, DXGI_FORMAT rtvFmt);
-    void blitMipFace(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, ID3D12Resource* cubemap, uint32_t faceIndex, uint32_t dstMip, uint32_t totalMips, uint32_t baseFaceSize);
+    void blitMipFace(ID3D12GraphicsCommandList* cmd, ID3D12Resource* cubemap, uint32_t faceIndex, uint32_t dstMip, uint32_t totalMips, uint32_t baseFaceSize, ShaderTableDesc& mipTable);
 
     ComPtr<ID3D12RootSignature> m_convRS;
     ComPtr<ID3D12PipelineState> m_convPSO;
@@ -43,9 +42,6 @@ private:
     ComPtr<ID3D12Resource> m_cubeVB;
     D3D12_VERTEX_BUFFER_VIEW m_vbView = {};
     bool m_geometryReady = false;
-
-    ComPtr<ID3D12Resource> m_faceCB;
-    FaceCB* m_faceCBPtr = nullptr; 
 
     ComPtr<ID3D12Resource> m_hdrTex;
     ShaderTableDesc m_hdrSRVTable;
