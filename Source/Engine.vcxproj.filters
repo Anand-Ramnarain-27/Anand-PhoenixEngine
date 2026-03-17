@@ -543,6 +543,36 @@
     <None Include="SimpleMath.inl">
       <Filter>engine\utils</Filter>
     </None>
+    <None Include="shaders\Common.hlsli">
+      <Filter>shaders\common shaders</Filter>
+    </None>
+    <None Include="shaders\ForwardPass.hlsli">
+      <Filter>shaders\common shaders</Filter>
+    </None>
+    <None Include="shaders\GgxBrdf.hlsli">
+      <Filter>shaders\common shaders</Filter>
+    </None>
+    <None Include="shaders\ImageBasedLighting.hlsli">
+      <Filter>shaders\common shaders</Filter>
+    </None>
+    <None Include="shaders\Lighting.hlsli">
+      <Filter>shaders\common shaders</Filter>
+    </None>
+    <None Include="shaders\Lights.hlsli">
+      <Filter>shaders\common shaders</Filter>
+    </None>
+    <None Include="shaders\Material.hlsli">
+      <Filter>shaders\common shaders</Filter>
+    </None>
+    <None Include="shaders\Samplers.hlsli">
+      <Filter>shaders\common shaders</Filter>
+    </None>
+    <None Include="shaders\Sampling.hlsli">
+      <Filter>shaders\common shaders</Filter>
+    </None>
+    <None Include="shaders\Tonemap.hlsli">
+      <Filter>shaders\common shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="engine">
@@ -644,6 +674,9 @@
     <Filter Include="engine\editor\panels\viewports">
       <UniqueIdentifier>{6585ad02-dc91-49eb-ba3f-bdea3c3ebedd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="shaders\common shaders">
+      <UniqueIdentifier>{5a12279c-8da9-4f04-9c7a-08feed04409a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Engine.rc">
@@ -657,7 +690,7 @@
     <FxCompile Include="shaders\EnvironmentBRDFPS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
-    <FxCompile Include="shaders\FullScreenTriangleVS.hlsl">
+    <FxCompile Include="shaders\FullScreenVS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
     <FxCompile Include="shaders\IrradianceMapPS.hlsl">
@@ -682,6 +715,12 @@
       <Filter>shaders</Filter>
     </FxCompile>
     <FxCompile Include="shaders\MipChainPS.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\PBRForwardPS.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\PBRForwardVS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
   </ItemGroup>

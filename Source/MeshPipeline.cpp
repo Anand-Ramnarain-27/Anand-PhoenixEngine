@@ -6,33 +6,40 @@
 #include "ReadData.h"
 #include <d3dx12.h>
 
-bool MeshPipeline::init(ID3D12Device* device)
+bool MeshPipeline::init(ID3D12Device* device, bool useMSAA)
 {
-    return createRootSignature(device) && createPSO(device);
+    return createRootSignature(device) && createPSO(device, useMSAA);
 }
 
 bool MeshPipeline::createRootSignature(ID3D12Device* device)
 {
     CD3DX12_DESCRIPTOR_RANGE albedoRange, samplerRange,
         irradianceRange, prefilterRange, brdfRange,
-        normalRange, aoRange, emissiveRange,
-        metalRoughRange;
+        normalRange, aoRange, emissiveRange, metalRoughRange;
 
-    albedoRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+    // SRV ranges - each binds a single texture at the register matching MeshPS.hlsl
+    albedoRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0
+    irradianceRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1); // t1
+    prefilterRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2); // t2
+    brdfRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3); // t3
+    normalRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4); // t4
+    aoRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 5); // t5
+    emissiveRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6); // t6
+    metalRoughRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 7); // t7
+
+    // Sampler range - covers all 4 samplers (s0-s3) declared in Samplers.hlsli
     samplerRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, ModuleSamplerHeap::COUNT, 0);
-    irradianceRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
-    prefilterRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2);
-    brdfRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3);
-    normalRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4);
-    aoRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 5);
-    emissiveRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6);
-    metalRoughRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 7);
 
     CD3DX12_ROOT_PARAMETER params[13];
-    params[SLOT_VP].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-    params[SLOT_WORLD].InitAsConstants(32, 1, 0, D3D12_SHADER_VISIBILITY_VERTEX); 
-    params[SLOT_LIGHT_CB].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_ALL);
-    params[SLOT_MATERIAL_CB].InitAsConstantBufferView(3, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+    // Vertex-visible constants
+    params[SLOT_VP].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX); // b0: ViewProj
+    params[SLOT_WORLD].InitAsConstants(32, 1, 0, D3D12_SHADER_VISIBILITY_VERTEX); // b1: World + NormalMat
+
+    // Pixel CBVs
+    params[SLOT_LIGHT_CB].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_PIXEL); // b2
+    params[SLOT_MATERIAL_CB].InitAsConstantBufferView(3, 0, D3D12_SHADER_VISIBILITY_PIXEL); // b3
+
+    // Pixel SRV descriptor tables
     params[SLOT_ALBEDO_TEX].InitAsDescriptorTable(1, &albedoRange, D3D12_SHADER_VISIBILITY_PIXEL);
     params[SLOT_SAMPLER].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
     params[SLOT_IRRADIANCE].InitAsDescriptorTable(1, &irradianceRange, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -48,17 +55,17 @@ bool MeshPipeline::createRootSignature(ID3D12Device* device)
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     ComPtr<ID3DBlob> blob, error;
-    if (FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error))) {
+    if (FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error)))
+    {
         if (error) OutputDebugStringA((char*)error->GetBufferPointer());
         return false;
     }
 
-    return SUCCEEDED(device->CreateRootSignature(0,
-        blob->GetBufferPointer(), blob->GetBufferSize(),
-        IID_PPV_ARGS(&rootSig)));
+    return SUCCEEDED(device->CreateRootSignature(
+        0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&rootSig)));
 }
 
-bool MeshPipeline::createPSO(ID3D12Device* device)
+bool MeshPipeline::createPSO(ID3D12Device* device, bool useMSAA)
 {
     auto vs = DX::ReadData(L"MeshVS.cso");
     auto ps = DX::ReadData(L"MeshPS.cso");
@@ -72,7 +79,8 @@ bool MeshPipeline::createPSO(ID3D12Device* device)
     desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
     desc.NumRenderTargets = 1;
     desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-    desc.SampleDesc = { 1, 0 };
+    // SampleDesc must match the render target - 4x MSAA when enabled, otherwise 1x
+    desc.SampleDesc = { useMSAA ? UINT(4) : UINT(1), 0 };
     desc.SampleMask = UINT_MAX;
     desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     desc.RasterizerState.FrontCounterClockwise = TRUE;

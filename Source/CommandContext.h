@@ -4,12 +4,14 @@
 #include "Globals.h"
 #include "ModuleD3D12.h"
 #include "ModuleShaderDescriptors.h"
+#include "ModuleSamplerHeap.h"
 
 using Microsoft::WRL::ComPtr;
 
 class CommandContext {
 public:
-	CommandContext(ModuleD3D12* d3d12, ModuleShaderDescriptors* shaderDesc) : m_d3d12(d3d12), m_shaderDesc(shaderDesc) {
+	CommandContext(ModuleD3D12* d3d12, ModuleShaderDescriptors* shaderDesc, ModuleSamplerHeap* samplerHeap)
+		: m_d3d12(d3d12), m_shaderDesc(shaderDesc), m_samplerHeap(samplerHeap) {
 		m_valid = init();
 	}
 
@@ -72,8 +74,8 @@ private:
 	}
 
 	void bindHeaps() {
-		ID3D12DescriptorHeap* heaps[] = { m_shaderDesc->getHeap() };
-		m_cmd->SetDescriptorHeaps(1, heaps);
+		ID3D12DescriptorHeap* heaps[] = { m_shaderDesc->getHeap(), m_samplerHeap->getHeap() };
+		m_cmd->SetDescriptorHeaps(2, heaps);
 	}
 
 	ID3D12Device* getDevice();
@@ -82,6 +84,7 @@ private:
 
 	ModuleD3D12* m_d3d12 = nullptr;
 	ModuleShaderDescriptors* m_shaderDesc = nullptr;
+	ModuleSamplerHeap* m_samplerHeap = nullptr;
 	ComPtr<ID3D12CommandAllocator> m_alloc;
 	ComPtr<ID3D12GraphicsCommandList> m_cmd;
 	bool m_valid = false;

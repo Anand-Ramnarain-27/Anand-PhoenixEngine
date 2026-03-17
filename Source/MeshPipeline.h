@@ -19,7 +19,7 @@ public:
     struct WorldConstants
     {
         Matrix world;
-        Matrix normalMat; 
+        Matrix normalMat;
     };
 
     static WorldConstants makeWorldConstants(const Matrix& world)
@@ -32,19 +32,20 @@ public:
         return wc;
     }
 
-    static constexpr UINT SLOT_VP = 0;
-    static constexpr UINT SLOT_WORLD = 1;     
-    static constexpr UINT SLOT_LIGHT_CB = 2;
-    static constexpr UINT SLOT_MATERIAL_CB = 3;
-    static constexpr UINT SLOT_ALBEDO_TEX = 4;
-    static constexpr UINT SLOT_SAMPLER = 5;
-    static constexpr UINT SLOT_IRRADIANCE = 6;
-    static constexpr UINT SLOT_PREFILTER = 7;
-    static constexpr UINT SLOT_BRDF_LUT = 8;
-    static constexpr UINT SLOT_NORMAL_TEX = 9;
-    static constexpr UINT SLOT_AO_TEX = 10;
-    static constexpr UINT SLOT_EMISSIVE_TEX = 11;
-    static constexpr UINT SLOT_METALROUGH_TEX = 12;
+    // Root signature slot indices - must match MeshPS.hlsl register bindings exactly
+    static constexpr UINT SLOT_VP = 0;   // b0: 16 x 32-bit constants (ViewProj)
+    static constexpr UINT SLOT_WORLD = 1;   // b1: 32 x 32-bit constants (World + NormalMat)
+    static constexpr UINT SLOT_LIGHT_CB = 2;   // b2: CBV (LightCB)
+    static constexpr UINT SLOT_MATERIAL_CB = 3;   // b3: CBV (MaterialCB)
+    static constexpr UINT SLOT_ALBEDO_TEX = 4;   // t0: SRV
+    static constexpr UINT SLOT_SAMPLER = 5;   // s0-s3: Sampler table
+    static constexpr UINT SLOT_IRRADIANCE = 6;   // t1: SRV (irradiance cubemap)
+    static constexpr UINT SLOT_PREFILTER = 7;   // t2: SRV (prefiltered env cubemap)
+    static constexpr UINT SLOT_BRDF_LUT = 8;   // t3: SRV (BRDF integration LUT)
+    static constexpr UINT SLOT_NORMAL_TEX = 9;   // t4: SRV
+    static constexpr UINT SLOT_AO_TEX = 10;  // t5: SRV
+    static constexpr UINT SLOT_EMISSIVE_TEX = 11;  // t6: SRV
+    static constexpr UINT SLOT_METALROUGH_TEX = 12; // t7: SRV
 
     struct GPUDirectionalLight {
         Vector3 direction; float intensity;
@@ -66,7 +67,6 @@ public:
         Vector3  ambientColor;
         float    ambientIntensity;
         Vector3  viewPos;
-
         float    pad0;
         uint32_t numDirLights;
         uint32_t numPointLights;
@@ -80,7 +80,8 @@ public:
         GPUSpotLight        spotLights[MAX_SPOT_LIGHTS];
     };
 
-    bool init(ID3D12Device* device);
+    // useMSAA must match the render target this pipeline draws into
+    bool init(ID3D12Device* device, bool useMSAA = false);
 
     void bindIBL(ID3D12GraphicsCommandList* cmd, const EnvironmentSystem* env) const;
 
@@ -92,7 +93,7 @@ public:
 
 private:
     bool createRootSignature(ID3D12Device* device);
-    bool createPSO(ID3D12Device* device);
+    bool createPSO(ID3D12Device* device, bool useMSAA);
 
     ComPtr<ID3D12RootSignature> rootSig;
     ComPtr<ID3D12PipelineState> pso;
