@@ -10,7 +10,6 @@
 #include "ModuleGPUResources.h"
 #include "ModuleRTDescriptors.h"
 #include "ModuleShaderDescriptors.h"
-#include "ModuleSamplerHeap.h"
 #include "CubeGeometry.h"
 #include "ReadData.h"
 #include <algorithm>
@@ -61,7 +60,6 @@ void IBLGenerator::renderCubeFace(
     D3D12_GPU_DESCRIPTOR_HANDLE sourceSRV, DXGI_FORMAT rtvFmt)
 {
     auto* rtDescs = app->getRTDescriptors();
-    auto* samplers = app->getSamplerHeap();
     uint32_t mipSize = std::max(1u, baseFaceSize >> mipLevel);
 
     RenderTargetDesc rtv = rtDescs->create(target, faceIndex, mipLevel, rtvFmt);
@@ -92,13 +90,12 @@ void IBLGenerator::renderCubeFace(
     m_faceCBPtr->flipZ = FaceProjection::needsFlipZ(faceIndex) ? 1 : 0;
     XMStoreFloat4x4(&m_faceCBPtr->vp, XMMatrixTranspose(vp_m));
 
-    ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap(), samplers->getHeap() };
-    cmd->SetDescriptorHeaps(2, heaps);
+    ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap() };
+    cmd->SetDescriptorHeaps(1, heaps);
     cmd->SetGraphicsRootSignature(rs);
     cmd->SetPipelineState(pso);
     cmd->SetGraphicsRootConstantBufferView(0, m_faceCB->GetGPUVirtualAddress());
     cmd->SetGraphicsRootDescriptorTable(1, sourceSRV);
-    cmd->SetGraphicsRootDescriptorTable(2, samplers->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));
     cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     cmd->IASetVertexBuffers(0, 1, &m_vbView);
     cmd->DrawInstanced(36, 1, 0, 0);
@@ -260,10 +257,8 @@ bool IBLGenerator::prepareResources(ID3D12Device* device, EnvironmentMap& env) {
 }
 
 bool IBLGenerator::bakeIrradiance(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env) {
-    auto* samplers = app->getSamplerHeap();
-
-    ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap(), samplers->getHeap() };
-    cmd->SetDescriptorHeaps(2, heaps);
+    ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap() };
+    cmd->SetDescriptorHeaps(1, heaps);
 
     LOG("IBLGenerator: baking irradiance map...");
     for (uint32_t face = 0; face < 6; ++face)
@@ -276,10 +271,8 @@ bool IBLGenerator::bakeIrradiance(ID3D12Device* device, ID3D12GraphicsCommandLis
 }
 
 bool IBLGenerator::bakePrefilter(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env, uint32_t mipIndex) {
-    auto* samplers = app->getSamplerHeap();
-
-    ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap(), samplers->getHeap() };
-    cmd->SetDescriptorHeaps(2, heaps);
+    ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap() };
+    cmd->SetDescriptorHeaps(1, heaps);
 
     float roughness = (IBLSettings::NumRoughnessLevels > 1)
         ? float(mipIndex) / float(IBLSettings::NumRoughnessLevels - 1) : 0.0f;
@@ -297,12 +290,9 @@ bool IBLGenerator::bakePrefilter(ID3D12Device* device, ID3D12GraphicsCommandList
 bool IBLGenerator::bakeBRDFLut(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env) {
     auto* rtDescs = app->getRTDescriptors();
     auto* shaderDescs = app->getShaderDescriptors();
-    auto* samplers = app->getSamplerHeap();
 
-    // BRDF LUT pipeline has no sampler table, but we still bind both heaps
-    // so the command list state stays consistent
-    ID3D12DescriptorHeap* heaps[] = { shaderDescs->getHeap(), samplers->getHeap() };
-    cmd->SetDescriptorHeaps(2, heaps);
+    ID3D12DescriptorHeap* heaps[] = { shaderDescs->getHeap() };
+    cmd->SetDescriptorHeaps(1, heaps);
 
     LOG("IBLGenerator: baking BRDF integration LUT...");
 

@@ -5,7 +5,6 @@
 #include "ModuleD3D12.h"
 #include "ModuleGPUResources.h"
 #include "ModuleShaderDescriptors.h"
-#include "ModuleSamplerHeap.h"
 
 std::unique_ptr<EnvironmentMap> EnvironmentGenerator::loadCubemap(const std::string& file) {
 	auto* d3d12 = app->getD3D12();
@@ -45,27 +44,26 @@ std::unique_ptr<EnvironmentMap> EnvironmentGenerator::loadHDR(const std::string&
 	auto* d3d12 = app->getD3D12();
 	auto* resources = app->getGPUResources();
 	auto* shaderDesc = app->getShaderDescriptors();
-	auto* samplerHeap = app->getSamplerHeap();
 
-	if (!d3d12 || !resources || !shaderDesc || !samplerHeap)
+	if (!d3d12 || !resources || !shaderDesc)
 		return nullptr;
 
 	LOG("EnvironmentGenerator: loading HDR '%s' (faceSize=%u)...", hdrFile.c_str(), cubeFaceSize);
 
-	CommandContext ctx(d3d12, shaderDesc, samplerHeap);
+	CommandContext ctx(d3d12, shaderDesc);
 	if (!ctx.isValid())
 		return nullptr;
 
 	auto env = std::make_unique<EnvironmentMap>();
 	ID3D12Device* device = d3d12->getDevice();
 
-	if (!m_hdrConverter.loadHDRTexture(device, hdrFile, *env))             return nullptr;
+	if (!m_hdrConverter.loadHDRTexture(device, hdrFile, *env))        return nullptr;
 	if (!m_hdrConverter.createCubemapResource(device, *env, cubeFaceSize)) return nullptr;
 
 	const uint32_t numMips = m_hdrConverter.getNumMips();
 
-	if (!m_hdrConverter.recordConversion(ctx.cmd(), *env))  return nullptr;
-	if (!ctx.submitAndReset("HDR conversion mip0"))          return nullptr;
+	if (!m_hdrConverter.recordConversion(ctx.cmd(), *env))            return nullptr;
+	if (!ctx.submitAndReset("HDR conversion mip0"))                   return nullptr;
 	LOG("EnvironmentGenerator: mip 0 done.");
 
 	for (uint32_t mip = 1; mip < numMips; ++mip) {
@@ -106,9 +104,7 @@ std::unique_ptr<EnvironmentMap> EnvironmentGenerator::bakeIBL(
 	ModuleD3D12* d3d12, ModuleShaderDescriptors* shaderDesc,
 	std::unique_ptr<EnvironmentMap> env)
 {
-	auto* samplerHeap = app->getSamplerHeap();
-
-	CommandContext ctx(d3d12, shaderDesc, samplerHeap);
+	CommandContext ctx(d3d12, shaderDesc);
 	if (!ctx.isValid())
 		return nullptr;
 
