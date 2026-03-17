@@ -2,12 +2,12 @@
 #include "HDRToCubemapPass.h"
 #include "FaceProjection.h"
 #include "D3D12ResourceFactory.h"
-#include "CubemapPipelineBuilder.h"
 #include "Application.h"
 #include "ModuleD3D12.h"
 #include "ModuleGPUResources.h"
 #include "ModuleShaderDescriptors.h"
 #include "ModuleRTDescriptors.h"
+#include "ModuleSamplerHeap.h"
 #include "EnvironmentMap.h"
 #include "ShaderTableDesc.h"
 #include "CubeGeometry.h"
@@ -47,9 +47,9 @@ bool HDRToCubemapPass::loadHDRTexture(ID3D12Device* device, const std::string& h
     srvDesc.Texture2D.MostDetailedMip = 0;
     m_hdrSRVTable.createSRV(m_hdrTex.Get(), 0, &srvDesc);
 
-    if (!ensureGeometry(device))        return false;
-    if (!m_convPSO && !createConversionPipeline(device)) return false;
-    if (!m_mipPSO && !createMipPipeline(device))        return false;
+    if (!ensureGeometry(device))                              return false;
+    if (!m_convPSO && !createConversionPipeline(device))     return false;
+    if (!m_mipPSO && !createMipPipeline(device))            return false;
 
     return true;
 }
@@ -70,8 +70,10 @@ bool HDRToCubemapPass::createCubemapResource(ID3D12Device* device, EnvironmentMa
 }
 
 bool HDRToCubemapPass::recordConversion(ID3D12GraphicsCommandList* cmd, EnvironmentMap& env) {
-    ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap() };
-    cmd->SetDescriptorHeaps(1, heaps);
+    auto* samplers = app->getSamplerHeap();
+
+    ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap(), samplers->getHeap() };
+    cmd->SetDescriptorHeaps(2, heaps);
 
     for (uint32_t face = 0; face < 6; ++face)
         renderFace(cmd, env.cubemap.Get(), face, 0, m_numMips, m_cubeFaceSize,
@@ -82,8 +84,10 @@ bool HDRToCubemapPass::recordConversion(ID3D12GraphicsCommandList* cmd, Environm
 }
 
 bool HDRToCubemapPass::recordMipLevel(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env, uint32_t mipIndex) {
-    ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap() };
-    cmd->SetDescriptorHeaps(1, heaps);
+    auto* samplers = app->getSamplerHeap();
+
+    ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap(), samplers->getHeap() };
+    cmd->SetDescriptorHeaps(2, heaps);
 
     ShaderTableDesc mipTable = app->getShaderDescriptors()->allocTable("HDR_MipSrc");
     if (!mipTable.isValid()) {
@@ -144,19 +148,19 @@ bool HDRToCubemapPass::createConversionPipeline(ID3D12Device* device) {
     struct FaceConstants { DirectX::XMFLOAT4X4 vp; int flipX; int flipZ; };
     static constexpr UINT kNumConstants = sizeof(FaceConstants) / sizeof(UINT);
 
-    CD3DX12_ROOT_PARAMETER params[2];
+    CD3DX12_ROOT_PARAMETER params[3];
     params[0].InitAsConstants(kNumConstants, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
 
     CD3DX12_DESCRIPTOR_RANGE srvRange;
     srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
     params[1].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
-    CD3DX12_STATIC_SAMPLER_DESC sampler(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP);
+    CD3DX12_DESCRIPTOR_RANGE sampRange;
+    sampRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, ModuleSamplerHeap::COUNT, 0);
+    params[2].InitAsDescriptorTable(1, &sampRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
     CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
-    rsDesc.Init(2, params, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    rsDesc.Init(3, params, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     ComPtr<ID3DBlob> blob, err;
     if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))) {
@@ -196,19 +200,19 @@ bool HDRToCubemapPass::createConversionPipeline(ID3D12Device* device) {
 }
 
 bool HDRToCubemapPass::createMipPipeline(ID3D12Device* device) {
-    CD3DX12_ROOT_PARAMETER params[2];
+    CD3DX12_ROOT_PARAMETER params[3];
     params[0].InitAsConstants(1, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 
     CD3DX12_DESCRIPTOR_RANGE srvRange;
     srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
     params[1].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
-    CD3DX12_STATIC_SAMPLER_DESC sampler(2, D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
+    CD3DX12_DESCRIPTOR_RANGE sampRange;
+    sampRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, ModuleSamplerHeap::COUNT, 0);
+    params[2].InitAsDescriptorTable(1, &sampRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
     CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
-    rsDesc.Init(2, params, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_NONE);
+    rsDesc.Init(3, params, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
     ComPtr<ID3DBlob> blob, err;
     if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))) {
@@ -251,6 +255,7 @@ void HDRToCubemapPass::renderFace(
     ID3D12PipelineState* pso, DXGI_FORMAT rtvFmt)
 {
     auto* rtDescs = app->getRTDescriptors();
+    auto* samplers = app->getSamplerHeap();
     uint32_t mipSize = std::max(1u, baseFaceSize >> mipLevel);
 
     RenderTargetDesc rtv = rtDescs->create(target, faceIndex, mipLevel, rtvFmt);
@@ -286,6 +291,7 @@ void HDRToCubemapPass::renderFace(
     cmd->SetPipelineState(pso);
     cmd->SetGraphicsRoot32BitConstants(0, sizeof(FaceConstants) / sizeof(UINT), &constants, 0);
     cmd->SetGraphicsRootDescriptorTable(1, sourceSRV);
+    cmd->SetGraphicsRootDescriptorTable(2, samplers->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));
     cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     cmd->IASetVertexBuffers(0, 1, &m_vbView);
     cmd->DrawInstanced(36, 1, 0, 0);
@@ -302,6 +308,7 @@ void HDRToCubemapPass::blitMipFace(
     uint32_t baseFaceSize, ShaderTableDesc& mipTable)
 {
     auto* rtDescs = app->getRTDescriptors();
+    auto* samplers = app->getSamplerHeap();
     uint32_t dstSize = std::max(1u, baseFaceSize >> dstMip);
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -340,6 +347,7 @@ void HDRToCubemapPass::blitMipFace(
     UINT faceSlice = faceIndex;
     cmd->SetGraphicsRoot32BitConstants(0, 1, &faceSlice, 0);
     cmd->SetGraphicsRootDescriptorTable(1, mipTable.getGPUHandle(faceIndex));
+    cmd->SetGraphicsRootDescriptorTable(2, samplers->getGPUHandle(ModuleSamplerHeap::LINEAR_CLAMP));
     cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     cmd->IASetVertexBuffers(0, 0, nullptr);
     cmd->DrawInstanced(3, 1, 0, 0);
