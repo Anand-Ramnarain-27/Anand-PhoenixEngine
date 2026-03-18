@@ -119,7 +119,7 @@ std::unique_ptr<EnvironmentMap> EnvironmentGenerator::bakeIBL(
 		return nullptr;
 	}
 
-	if (!ctx.submit("IBL bake"))
+	if (!ctx.submitAndReset("IBL bake"))
 		return nullptr;
 
 	m_iblGenerator.releasePipelines();

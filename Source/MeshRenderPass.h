@@ -12,36 +12,79 @@ using Microsoft::WRL::ComPtr;
 class EnvironmentSystem;
 class ModuleSamplerHeap;
 
+struct FrameLightData
+{
+    std::vector<MeshPipeline::GPUDirectionalLight> dirLights;
+    std::vector<MeshPipeline::GPUPointLight>       pointLights;
+    std::vector<MeshPipeline::GPUSpotLight>        spotLights;
+};
+
 class MeshRenderPass
 {
 public:
     MeshRenderPass() = default;
     ~MeshRenderPass() = default;
 
-    // useMSAA must match the render target sample count this pass draws into
     bool init(ID3D12Device* device, bool useMSAA = false);
 
     void render(
         ID3D12GraphicsCommandList* cmd,
         const std::vector<MeshEntry*>& meshes,
-        D3D12_GPU_VIRTUAL_ADDRESS       lightCBAddr,
-        const float                     viewProj[16],
+        const FrameLightData& lights,
+        const Vector3& cameraPos,
+        const Matrix& viewProj,
         const EnvironmentSystem* env,
         ModuleSamplerHeap* samplerHeap);
 
     MeshPipeline& getPipeline() { return m_pipeline; }
 
 private:
+    bool createUploadBuffers(ID3D12Device* device);
+    bool createLightSRVs();
+    bool createFallbackTextures(ID3D12Device* device);
+    bool createMatTableRing();
+
+    void uploadLights(const FrameLightData& lights);
+    void uploadPerFrameCB(const FrameLightData& lights, const Vector3& cameraPos, uint32_t envRoughLevels);
+    void writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj, UINT slot,
+        D3D12_GPU_VIRTUAL_ADDRESS& outMvpVA, D3D12_GPU_VIRTUAL_ADDRESS& outInstVA);
+
     MeshPipeline m_pipeline;
 
-    // 1x1 white texture used as a fallback for any optional texture slot that a
-    // mesh doesn't have. D3D12 requires all descriptor tables in the root
-    // signature to point to valid descriptors even if the shader won't read them
-    // (guarded by has* flags). Without this, the debug layer fires a break the
-    // moment a slot is first referenced - which causes the black-mesh symptom
-    // when IBL enables and the shader starts executing more code paths.
-    ComPtr<ID3D12Resource> m_fallbackTex;
-    ShaderTableDesc        m_fallbackTable;
+    static constexpr UINT MAX_INSTANCES = 512;
 
-    bool createFallbackTexture(ID3D12Device* device);
+    ComPtr<ID3D12Resource> m_mvpRing;
+    void* m_mvpMapped = nullptr;
+
+    ComPtr<ID3D12Resource> m_perFrameCB;
+    void* m_perFrameMapped = nullptr;
+
+    ComPtr<ID3D12Resource> m_perInstanceRing;
+    void* m_perInstanceMapped = nullptr;
+
+    ComPtr<ID3D12Resource> m_dirLightBuf;
+    ComPtr<ID3D12Resource> m_pointLightBuf;
+    ComPtr<ID3D12Resource> m_spotLightBuf;
+    void* m_dirLightMapped = nullptr;
+    void* m_pointLightMapped = nullptr;
+    void* m_spotLightMapped = nullptr;
+
+    ShaderTableDesc m_dirLightSRV;
+    ShaderTableDesc m_pointLightSRV;
+    ShaderTableDesc m_spotLightSRV;
+
+    // 1x1 Texture2D — fallback for material texture slots (t6-t10)
+    ComPtr<ID3D12Resource> m_fallbackTex2D;
+
+    // 1x1x6 TextureCube — fallback for IBL cubemap slots (t3, t4).
+    // Must be a TextureCube SRV; using a Texture2D here would cause the
+    // shader to sample the wrong dimension and return black/undefined results.
+    ComPtr<ID3D12Resource> m_fallbackCube;
+    ShaderTableDesc        m_fallbackIrradianceSRV;  // t3
+    ShaderTableDesc        m_fallbackPrefilterSRV;   // t4
+    ShaderTableDesc        m_fallbackBRDFSRV;        // t5 (Texture2D)
+
+    // Per-draw material texture ring — one ShaderTableDesc per draw.
+    // Slots 0-4 within each table cover t6-t10 contiguously.
+    std::vector<ShaderTableDesc> m_matRing;
 };

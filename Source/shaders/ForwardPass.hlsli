@@ -12,12 +12,12 @@ cbuffer CbMVP : register(b0)
 
 cbuffer CbPerFrame : register(b1)
 {
-    uint   DirLightCount;
-    uint   PointLightCount;
-    uint   SpotLightCount;
-    uint   EnvRoughnessLevels;
+    uint DirLightCount;
+    uint PointLightCount;
+    uint SpotLightCount;
+    uint EnvRoughnessLevels;
     float3 CameraPosition;
-    uint   FramePad;
+    uint FramePad;
 };
 
 cbuffer CbPerInstance : register(b2)
@@ -27,18 +27,18 @@ cbuffer CbPerInstance : register(b2)
     Material InstanceMaterial;
 };
 
-StructuredBuffer<DirectionalLight> DirLights   : register(t0);
-StructuredBuffer<PointLight>       PointLights : register(t1);
-StructuredBuffer<SpotLight>        SpotLights  : register(t2);
+StructuredBuffer<DirectionalLight> DirLights : register(t0);
+StructuredBuffer<PointLight> PointLights : register(t1);
+StructuredBuffer<SpotLight> SpotLights : register(t2);
 
-TextureCube IrradianceMap       : register(t3);
-TextureCube PrefilteredEnvMap   : register(t4);
-Texture2D   BrdfLUT             : register(t5);
+TextureCube IrradianceMap : register(t3);
+TextureCube PrefilteredEnvMap : register(t4);
+Texture2D BrdfLUT : register(t5);
 
-Texture2D   BaseColorTex        : register(t6);
-Texture2D   MetallicRoughnessTex: register(t7);
-Texture2D   NormalTex           : register(t8);
-Texture2D   OcclusionTex        : register(t9);
-Texture2D   EmissiveTex         : register(t10);
+Texture2D BaseColorTex : register(t6);
+Texture2D MetallicRoughnessTex : register(t7);
+Texture2D NormalTex : register(t8);
+Texture2D OcclusionTex : register(t9);
+Texture2D EmissiveTex : register(t10);
 
 #endif // _FORWARD_HLSLI_

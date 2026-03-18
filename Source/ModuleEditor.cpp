@@ -61,7 +61,8 @@ bool ModuleEditor::init() {
     ID3D12Device* device = d3d12->getDevice();
     m_descTable = descs->allocTable();
 
-    ComPtr<ID3D12Device2> device2; ComPtr<ID3D12Device4> device4;
+    ComPtr<ID3D12Device2> device2;
+    ComPtr<ID3D12Device4> device4;
     device->QueryInterface(IID_PPV_ARGS(&device2));
     device->QueryInterface(IID_PPV_ARGS(&device4));
 
@@ -81,10 +82,6 @@ bool ModuleEditor::init() {
     auto rbH = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
     auto rbD = CD3DX12_RESOURCE_DESC::Buffer(sizeof(UINT64) * 2);
     device->CreateCommittedResource(&rbH, D3D12_HEAP_FLAG_NONE, &rbD, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_gpuReadback));
-
-    m_cameraCB = createUploadBuffer(device, sizeof(CameraConstants), L"CameraCB");
-    m_objectCB = createUploadBuffer(device, sizeof(ObjectConstants), L"ObjectCB");
-    m_lightCB = createUploadBuffer(device, sizeof(MeshPipeline::LightCB), L"LightCB");
 
     m_saveDialog = std::make_unique<FileDialog>();
     m_loadDialog = std::make_unique<FileDialog>();
@@ -155,7 +152,7 @@ void ModuleEditor::render() {
     handleNewScenePopup(cmd);
 
     if (m_sceneView->viewport.isReady()) m_sceneView->renderToTexture(cmd);
-    if (m_gameView->viewport.isReady()) m_gameView->renderToTexture(cmd);
+    if (m_gameView->viewport.isReady())  m_gameView->renderToTexture(cmd);
 
     auto toRT = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     cmd->ResourceBarrier(1, &toRT);
@@ -195,8 +192,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     if (moduleScene) {
         std::function<void(GameObject*)> flush = [&](GameObject* node) {
             if (!node) return;
-            if (auto* cm = node->getComponent<ComponentMesh>())
-                cm->flushDeferredReleases();
+            if (auto* cm = node->getComponent<ComponentMesh>()) cm->flushDeferredReleases();
             for (auto* child : node->getChildren()) flush(child);
             };
         flush(moduleScene->getRoot());
@@ -211,30 +207,19 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap(), app->getSamplerHeap()->getHeap() };
     cmd->SetDescriptorHeaps(2, heaps);
 
-    MeshPipeline::LightCB lightData = {};
-    lightData.ambientColor = s.ambient.color;
-    lightData.ambientIntensity = s.ambient.intensity;
-    lightData.viewPos = camera->getPos();
-    lightData.iblEnabled = (sky.enabled && m_envSystem && m_envSystem->hasIBL()) ? 1u : 0u;
-    lightData.numRoughnessLevels = float(EnvironmentMap::NUM_ROUGHNESS_LEVELS);
-    if (moduleScene) gatherLights(moduleScene->getRoot(), lightData);
+    m_frameLights.dirLights.clear();
+    m_frameLights.pointLights.clear();
+    m_frameLights.spotLights.clear();
+    if (moduleScene) gatherLights(moduleScene->getRoot(), m_frameLights);
 
-    void* mapped = nullptr;
-    m_lightCB->Map(0, nullptr, &mapped);
-    memcpy(mapped, &lightData, sizeof(lightData));
-    m_lightCB->Unmap(0, nullptr);
-
-    std::vector<MeshEntry> ownedEntries;   
+    std::vector<MeshEntry>  ownedEntries;
     std::vector<MeshEntry*> visibleMeshes;
 
-    if (moduleScene)
-    {
+    if (moduleScene) {
         std::function<void(GameObject*)> collectMeshes = [&](GameObject* node) {
             if (!node || !node->isActive()) return;
-
             if (auto* cm = node->getComponent<ComponentMesh>()) {
                 cm->flushDeferredReleases();
-
                 Matrix nodeWorld = node->getTransform()->getGlobalMatrix();
                 if (Model* model = cm->getProceduralModel()) {
                     model->buildMeshEntries(nodeWorld, ownedEntries);
@@ -254,20 +239,23 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                 }
             }
             for (auto* child : node->getChildren()) collectMeshes(child);
-        };
-        
+            };
         collectMeshes(moduleScene->getRoot());
         visibleMeshes.reserve(ownedEntries.size());
         for (auto& e : ownedEntries) visibleMeshes.push_back(&e);
     }
 
-    m_meshRenderPass->getPipeline().setSamplerType(ModuleSamplerHeap::Type(m_samplerType));
+    const EnvironmentSystem* envForIBL =
+        (sky.enabled && m_envSystem) ? m_envSystem.get() : nullptr;
 
-    Matrix vp = (view * proj).Transpose();
-
-    const EnvironmentSystem* envForIBL = (sky.enabled && m_envSystem) ? m_envSystem.get() : nullptr;
-
-    m_meshRenderPass->render(cmd, visibleMeshes, m_lightCB->GetGPUVirtualAddress(), reinterpret_cast<const float*>(&vp), envForIBL, app->getSamplerHeap());
+    m_meshRenderPass->render(
+        cmd,
+        visibleMeshes,
+        m_frameLights,
+        camera->getPos(),
+        view * proj,
+        envForIBL,
+        app->getSamplerHeap());
 
     if (editorExtras) {
         if (s.showGrid) dd::xzSquareGrid(-100.f, 100.f, 0.f, 1.f, dd::colors::Gray);
@@ -278,17 +266,62 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
         camera->buildDebugLines(fdd);
         for (const auto& line : fdd.lines) {
             ddVec3 f = { line.from.x, line.from.y, line.from.z };
-            ddVec3 t = { line.to.x, line.to.y, line.to.z };
+            ddVec3 t = { line.to.x,   line.to.y,   line.to.z };
             const Vector3& c = line.color;
             if (c.x > .5f && c.y > .5f && c.z < .5f) dd::line(f, t, dd::colors::Yellow);
             else if (c.x < .5f && c.y > .5f && c.z < .5f) dd::line(f, t, dd::colors::Green);
             else if (c.x < .5f && c.y > .5f && c.z > .5f) dd::line(f, t, dd::colors::Cyan);
             else if (c.x > .5f && c.y < .5f && c.z < .5f) dd::line(f, t, dd::colors::Red);
             else if (c.x < .5f && c.y < .5f && c.z > .5f) dd::line(f, t, dd::colors::Blue);
-            else dd::line(f, t, dd::colors::White);
+            else                                             dd::line(f, t, dd::colors::White);
         }
         m_debugDraw->record(cmd, w, h, view, proj);
     }
+}
+
+void ModuleEditor::gatherLights(GameObject* node, FrameLightData& out) const {
+    if (!node || !node->isActive()) return;
+
+    if (auto* dl = node->getComponent<ComponentDirectionalLight>(); dl && dl->enabled) {
+        if (out.dirLights.size() < MeshPipeline::MAX_DIR_LIGHTS) {
+            MeshPipeline::GPUDirectionalLight g;
+            g.direction = dl->direction;
+            g.direction.Normalize();
+            g.color = dl->color;
+            g.intensity = dl->intensity;
+            g._pad = 0.f;
+            out.dirLights.push_back(g);
+        }
+    }
+
+    if (auto* pl = node->getComponent<ComponentPointLight>(); pl && pl->enabled) {
+        if (out.pointLights.size() < MeshPipeline::MAX_POINT_LIGHTS) {
+            MeshPipeline::GPUPointLight p;
+            p.position = node->getTransform()->getGlobalMatrix().Translation();
+            p.squaredRadius = pl->radius * pl->radius;
+            p.color = pl->color;
+            p.intensity = pl->intensity;
+            out.pointLights.push_back(p);
+        }
+    }
+
+    if (auto* sl = node->getComponent<ComponentSpotLight>(); sl && sl->enabled) {
+        if (out.spotLights.size() < MeshPipeline::MAX_SPOT_LIGHTS) {
+            MeshPipeline::GPUSpotLight s;
+            s.position = node->getTransform()->getGlobalMatrix().Translation();
+            s.direction = sl->direction;
+            s.direction.Normalize();
+            s.squaredRadius = sl->radius * sl->radius;
+            s.innerAngle = cosf(sl->innerAngle * kDeg2Rad);
+            s.outerAngle = cosf(sl->outerAngle * kDeg2Rad);
+            s.color = sl->color;
+            s.intensity = sl->intensity;
+            s._pad[0] = s._pad[1] = s._pad[2] = 0.f;
+            out.spotLights.push_back(s);
+        }
+    }
+
+    for (auto* c : node->getChildren()) gatherLights(c, out);
 }
 
 void ModuleEditor::drawDockspace() {
@@ -340,22 +373,22 @@ void ModuleEditor::drawMenuBar() {
         };
 
     if (ImGui::BeginMenu("File")) {
-        if (ImGui::MenuItem("New Scene", "Ctrl+N")) m_showNewSceneConfirm = true;
+        if (ImGui::MenuItem("New Scene", "Ctrl+N"))       m_showNewSceneConfirm = true;
         ImGui::Separator();
-        if (ImGui::MenuItem("Save Scene", "Ctrl+S")) saveScene();
+        if (ImGui::MenuItem("Save Scene", "Ctrl+S"))       saveScene();
         if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
-        if (ImGui::MenuItem("Load Scene...", "Ctrl+O")) m_loadDialog->open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
+        if (ImGui::MenuItem("Load Scene...", "Ctrl+O"))     m_loadDialog->open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
         ImGui::Separator();
         if (ImGui::MenuItem("Quit", "Alt+F4")) {}
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Edit")) {
-        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, canUndo())) undoToSavePoint();
-        if (ImGui::MenuItem("Redo", "Ctrl+Y", false, canRedo())) redo();
+        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, canUndo()))                    undoToSavePoint();
+        if (ImGui::MenuItem("Redo", "Ctrl+Y", false, canRedo()))                    redo();
         ImGui::Separator();
-        if (ImGui::MenuItem("Copy", "Ctrl+C", false, m_selection.has())) copySelected();
+        if (ImGui::MenuItem("Copy", "Ctrl+C", false, m_selection.has()))            copySelected();
         if (ImGui::MenuItem("Paste", "Ctrl+V", false, !m_clipboard.serialized.empty())) pasteClipboard();
-        if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, m_selection.has())) duplicateSelected();
+        if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, m_selection.has()))            duplicateSelected();
         ImGui::Separator();
         if (ImGui::MenuItem("Create Empty", "Ctrl+Shift+N")) createEmptyGameObject();
         ImGui::EndMenu();
@@ -371,7 +404,7 @@ void ModuleEditor::drawMenuBar() {
     }
     if (ImGui::BeginMenu("Scene")) {
         if (ImGui::MenuItem("Play", nullptr, false, m_sceneManager && !m_sceneManager->isPlaying())) m_sceneManager->play();
-        if (ImGui::MenuItem("Pause", nullptr, false, m_sceneManager && m_sceneManager->isPlaying())) m_sceneManager->pause();
+        if (ImGui::MenuItem("Pause", nullptr, false, m_sceneManager && m_sceneManager->isPlaying()))  m_sceneManager->pause();
         if (ImGui::MenuItem("Stop", nullptr, false, m_sceneManager && m_sceneManager->getState() != SceneManager::PlayState::Stopped)) m_sceneManager->stop();
         ImGui::EndMenu();
     }
@@ -545,55 +578,18 @@ bool ModuleEditor::isChildOf(const GameObject* root, const GameObject* needle) {
     return false;
 }
 
-void ModuleEditor::gatherLights(GameObject* node, MeshPipeline::LightCB& out) const {
-    if (!node || !node->isActive()) return;
-    if (auto* dl = node->getComponent<ComponentDirectionalLight>(); dl && dl->enabled)
-    {
-        if (out.numDirLights < MeshPipeline::MAX_DIR_LIGHTS)
-        {
-            auto& g = out.dirLights[out.numDirLights++];
-            g.direction = dl->direction;
-            g.color = dl->color;
-            g.intensity = dl->intensity;
-        }
-    }
-    if (auto* pl = node->getComponent<ComponentPointLight>(); pl && pl->enabled)
-    {
-        if (out.numPointLights < MeshPipeline::MAX_POINT_LIGHTS)
-        {
-            auto& p = out.pointLights[out.numPointLights++];
-            p.position = node->getTransform()->getGlobalMatrix().Translation();
-            p.color = pl->color;
-            p.intensity = pl->intensity;
-            p.sqRadius = pl->radius * pl->radius;
-        }
-    }
-    if (auto* sl = node->getComponent<ComponentSpotLight>(); sl && sl->enabled)
-    {
-        if (out.numSpotLights < MeshPipeline::MAX_SPOT_LIGHTS)
-        {
-            auto& s = out.spotLights[out.numSpotLights++];
-            s.position = node->getTransform()->getGlobalMatrix().Translation();
-            s.direction = sl->direction;
-            s.color = sl->color;
-            s.intensity = sl->intensity;
-            s.sqRadius = sl->radius * sl->radius;
-            s.innerCos = cosf(sl->innerAngle * kDeg2Rad);
-            s.outerCos = cosf(sl->outerAngle * kDeg2Rad);
-        }
-    }
-    for (auto* c : node->getChildren()) gatherLights(c, out);
-}
-
 void ModuleEditor::updateMemory() {
     uint64_t gpuMB = 0, ramMB = 0;
     if (ID3D12Device* device = app->getD3D12()->getDevice()) {
-        ComPtr<IDXGIDevice> dxgiDev; ComPtr<IDXGIAdapter> adapter; ComPtr<IDXGIAdapter3> adapter3;
+        ComPtr<IDXGIDevice>  dxgiDev;
+        ComPtr<IDXGIAdapter> adapter;
+        ComPtr<IDXGIAdapter3> adapter3;
         if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&dxgiDev))) && dxgiDev)
             if (SUCCEEDED(dxgiDev->GetAdapter(&adapter)) && adapter)
                 if (SUCCEEDED(adapter.As(&adapter3)) && adapter3) {
                     DXGI_QUERY_VIDEO_MEMORY_INFO info = {};
-                    if (SUCCEEDED(adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info))) gpuMB = info.CurrentUsage / (1024 * 1024);
+                    if (SUCCEEDED(adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info)))
+                        gpuMB = info.CurrentUsage / (1024 * 1024);
                 }
     }
     MEMORYSTATUSEX mem = { sizeof(mem) };
@@ -664,13 +660,8 @@ void ModuleEditor::pushCommand(EditorCommand cmd) {
     }
 }
 
-bool ModuleEditor::canUndo() const {
-    return (int)m_undoStack.size() > m_savePointIndex;
-}
-
-bool ModuleEditor::canRedo() const {
-    return !m_redoStack.empty();
-}
+bool ModuleEditor::canUndo() const { return (int)m_undoStack.size() > m_savePointIndex; }
+bool ModuleEditor::canRedo() const { return !m_redoStack.empty(); }
 
 void ModuleEditor::undoToSavePoint() {
     if (!canUndo()) return;
@@ -765,8 +756,8 @@ void ModuleEditor::duplicateSelected() {
 void ModuleEditor::handleShortcuts() {
     if (ImGui::GetIO().WantTextInput) return;
     ImGuiIO& io = ImGui::GetIO();
-    bool ctrl = io.KeyCtrl;
-    bool shift = io.KeyShift;
+    bool     ctrl = io.KeyCtrl;
+    bool     shift = io.KeyShift;
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_N, false)) m_showNewSceneConfirm = true;
     if (ctrl && shift && ImGui::IsKeyPressed(ImGuiKey_N, false)) createEmptyGameObject();
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_S, false)) {
@@ -787,6 +778,7 @@ void ModuleEditor::handleShortcuts() {
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_V, false)) pasteClipboard();
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_D, false)) duplicateSelected();
 }
+
 void ModuleEditor::enterPrefabEdit(const std::string& prefabName) {
     if (!m_sceneManager) return;
     app->getD3D12()->flush();

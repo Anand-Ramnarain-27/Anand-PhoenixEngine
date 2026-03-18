@@ -16,92 +16,98 @@ public:
     static constexpr UINT MAX_POINT_LIGHTS = 32;
     static constexpr UINT MAX_SPOT_LIGHTS = 16;
 
-    struct WorldConstants
+    struct CbMVP
     {
-        Matrix world;
-        Matrix normalMat;
+        Matrix mvp;
     };
 
-    // Builds the world + normal matrix constants for the vertex shader (b1).
-    // - world    is transposed because HLSL expects row-major matrices when
-    //            uploaded via 32-bit root constants / memcpy.
-    // - normalMat is the inverse-transpose of world, also transposed for HLSL.
-    //   (inverse-transpose is the correct transform for normals so that they
-    //    stay perpendicular to surfaces under non-uniform scale.)
-    static WorldConstants makeWorldConstants(const Matrix& world)
+    struct CbPerFrame
     {
-        WorldConstants wc;
-        wc.world = world.Transpose();
-        Matrix inv;
-        world.Invert(inv);
-        wc.normalMat = inv.Transpose(); // was: inv — missing the transpose
-        return wc;
-    }
-
-    // Root signature slot indices - must match MeshPS.hlsl register bindings exactly
-    static constexpr UINT SLOT_VP = 0;   // b0: 16 x 32-bit constants (ViewProj)
-    static constexpr UINT SLOT_WORLD = 1;   // b1: 32 x 32-bit constants (World + NormalMat)
-    static constexpr UINT SLOT_LIGHT_CB = 2;   // b2: CBV (LightCB)
-    static constexpr UINT SLOT_MATERIAL_CB = 3;   // b3: CBV (MaterialCB)
-    static constexpr UINT SLOT_ALBEDO_TEX = 4;   // t0: SRV
-    static constexpr UINT SLOT_SAMPLER = 5;   // s0-s3: Sampler table
-    static constexpr UINT SLOT_IRRADIANCE = 6;   // t1: SRV (irradiance cubemap)
-    static constexpr UINT SLOT_PREFILTER = 7;   // t2: SRV (prefiltered env cubemap)
-    static constexpr UINT SLOT_BRDF_LUT = 8;   // t3: SRV (BRDF integration LUT)
-    static constexpr UINT SLOT_NORMAL_TEX = 9;   // t4: SRV
-    static constexpr UINT SLOT_AO_TEX = 10;  // t5: SRV
-    static constexpr UINT SLOT_EMISSIVE_TEX = 11;  // t6: SRV
-    static constexpr UINT SLOT_METALROUGH_TEX = 12; // t7: SRV
-
-    struct GPUDirectionalLight {
-        Vector3 direction; float intensity;
-        Vector3 color;     float pad;
-    };
-    struct GPUPointLight {
-        Vector3 position;  float sqRadius;
-        Vector3 color;     float intensity;
-    };
-    struct GPUSpotLight {
-        Vector3 position;  float sqRadius;
-        Vector3 direction; float innerCos;
-        Vector3 color;     float outerCos;
-        float   intensity; float pad0;
-        Vector2 pad;
+        uint32_t dirLightCount;
+        uint32_t pointLightCount;
+        uint32_t spotLightCount;
+        uint32_t envRoughnessLevels;
+        Vector3  cameraPosition;
+        uint32_t framePad;
     };
 
-    struct LightCB {
-        Vector3  ambientColor;
-        float    ambientIntensity;
-        Vector3  viewPos;
-        float    pad0;
-        uint32_t numDirLights;
-        uint32_t numPointLights;
-        uint32_t numSpotLights;
-        uint32_t iblEnabled;
-        float    numRoughnessLevels;
-        float    pad1[3];
+    static constexpr uint32_t MAT_FLAG_BASECOLOR_TEX = 0x01;
+    static constexpr uint32_t MAT_FLAG_METALROUGH_TEX = 0x02;
+    static constexpr uint32_t MAT_FLAG_NORMAL_TEX = 0x04;
+    static constexpr uint32_t MAT_FLAG_COMPRESSED_NORMS = 0x08;
+    static constexpr uint32_t MAT_FLAG_OCCLUSION_TEX = 0x10;
+    static constexpr uint32_t MAT_FLAG_EMISSIVE_TEX = 0x20;
 
-        GPUDirectionalLight dirLights[MAX_DIR_LIGHTS];
-        GPUPointLight       pointLights[MAX_POINT_LIGHTS];
-        GPUSpotLight        spotLights[MAX_SPOT_LIGHTS];
+    struct GpuMaterial
+    {
+        Vector4  baseColor = { 1.f, 1.f, 1.f, 1.f };
+        float    metallicFactor = 0.f;
+        float    roughnessFactor = 0.5f;
+        float    normalScale = 1.f;
+        float    occlusionStrength = 1.f;
+        Vector3  emissiveFactor = { 0.f, 0.f, 0.f };
+        float    alphaCutoff = 0.f;
+        uint32_t flags = 0;
+        uint32_t padding = 0;
     };
 
-    // useMSAA must match the render target this pipeline draws into
+    struct CbPerInstance
+    {
+        Matrix      modelMatrix;
+        Matrix      normalMatrix;
+        GpuMaterial material;
+    };
+
+    struct GPUDirectionalLight
+    {
+        Vector3 direction;
+        float   intensity;
+        Vector3 color;
+        float   _pad;
+    };
+
+    struct GPUPointLight
+    {
+        Vector3 position;
+        float   squaredRadius;
+        Vector3 color;
+        float   intensity;
+    };
+
+    struct GPUSpotLight
+    {
+        Vector3 direction;
+        float   squaredRadius;
+        Vector3 position;
+        float   innerAngle;
+        Vector3 color;
+        float   outerAngle;
+        float   intensity;
+        float   _pad[3];
+    };
+
+    static constexpr UINT SLOT_MVP_CB = 0;
+    static constexpr UINT SLOT_PERFRAME_CB = 1;
+    static constexpr UINT SLOT_PERINSTANCE_CB = 2;
+    static constexpr UINT SLOT_DIR_LIGHTS = 3;
+    static constexpr UINT SLOT_POINT_LIGHTS = 4;
+    static constexpr UINT SLOT_SPOT_LIGHTS = 5;
+    static constexpr UINT SLOT_IRRADIANCE = 6;   // t3 - IrradianceMap
+    static constexpr UINT SLOT_PREFILTER = 7;    // t4 - PrefilteredEnvMap
+    static constexpr UINT SLOT_BRDF_LUT = 8;     // t5 - BrdfLUT
+    static constexpr UINT SLOT_MAT_TEXTURES = 9;
+    static constexpr UINT SLOT_SAMPLER = 10;
+
     bool init(ID3D12Device* device, bool useMSAA = false);
-
     void bindIBL(ID3D12GraphicsCommandList* cmd, const EnvironmentSystem* env) const;
 
-    ID3D12PipelineState* getPSO()     const { return pso.Get(); }
-    ID3D12RootSignature* getRootSig() const { return rootSig.Get(); }
-
-    void setSamplerType(ModuleSamplerHeap::Type type) { m_samplerType = type; }
-    ModuleSamplerHeap::Type getSamplerType() const { return m_samplerType; }
+    ID3D12PipelineState* getPSO()     const { return m_pso.Get(); }
+    ID3D12RootSignature* getRootSig() const { return m_rootSig.Get(); }
 
 private:
     bool createRootSignature(ID3D12Device* device);
     bool createPSO(ID3D12Device* device, bool useMSAA);
 
-    ComPtr<ID3D12RootSignature> rootSig;
-    ComPtr<ID3D12PipelineState> pso;
-    ModuleSamplerHeap::Type     m_samplerType = ModuleSamplerHeap::LINEAR_WRAP;
+    ComPtr<ID3D12RootSignature> m_rootSig;
+    ComPtr<ID3D12PipelineState> m_pso;
 };

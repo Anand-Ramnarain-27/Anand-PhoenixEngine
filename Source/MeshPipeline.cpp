@@ -13,65 +13,68 @@ bool MeshPipeline::init(ID3D12Device* device, bool useMSAA)
 
 bool MeshPipeline::createRootSignature(ID3D12Device* device)
 {
-    CD3DX12_DESCRIPTOR_RANGE albedoRange, samplerRange,
-        irradianceRange, prefilterRange, brdfRange,
-        normalRange, aoRange, emissiveRange, metalRoughRange;
+    CD3DX12_DESCRIPTOR_RANGE dirRange;
+    dirRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 
-    // SRV ranges - each binds a single texture at the register matching MeshPS.hlsl
-    albedoRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0
-    irradianceRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1); // t1
-    prefilterRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2); // t2
-    brdfRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3); // t3
-    normalRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4); // t4
-    aoRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 5); // t5
-    emissiveRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6); // t6
-    metalRoughRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 7); // t7
+    CD3DX12_DESCRIPTOR_RANGE pointRange;
+    pointRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
 
-    // Sampler range - covers all 4 samplers (s0-s3) declared in Samplers.hlsli
+    CD3DX12_DESCRIPTOR_RANGE spotRange;
+    spotRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2);
+
+    CD3DX12_DESCRIPTOR_RANGE iblIrradianceRange;
+    iblIrradianceRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3); // t3
+
+    CD3DX12_DESCRIPTOR_RANGE iblPrefilterRange;
+    iblPrefilterRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4); // t4
+
+    CD3DX12_DESCRIPTOR_RANGE iblBrdfRange;
+    iblBrdfRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 5); // t5
+
+    CD3DX12_DESCRIPTOR_RANGE matRange;
+    matRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 6); // t6-t10
+
+    CD3DX12_DESCRIPTOR_RANGE samplerRange;
     samplerRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, ModuleSamplerHeap::COUNT, 0);
 
-    CD3DX12_ROOT_PARAMETER params[13];
-    // Vertex-visible constants
-    params[SLOT_VP].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX); // b0: ViewProj
-    params[SLOT_WORLD].InitAsConstants(32, 1, 0, D3D12_SHADER_VISIBILITY_VERTEX); // b1: World + NormalMat
-
-    // Pixel CBVs
-    params[SLOT_LIGHT_CB].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_PIXEL); // b2
-    params[SLOT_MATERIAL_CB].InitAsConstantBufferView(3, 0, D3D12_SHADER_VISIBILITY_PIXEL); // b3
-
-    // Pixel SRV descriptor tables
-    params[SLOT_ALBEDO_TEX].InitAsDescriptorTable(1, &albedoRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    CD3DX12_ROOT_PARAMETER params[11];
+    params[SLOT_MVP_CB].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+    params[SLOT_PERFRAME_CB].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_PERINSTANCE_CB].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_ALL);
+    params[SLOT_DIR_LIGHTS].InitAsDescriptorTable(1, &dirRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_POINT_LIGHTS].InitAsDescriptorTable(1, &pointRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_SPOT_LIGHTS].InitAsDescriptorTable(1, &spotRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_IRRADIANCE].InitAsDescriptorTable(1, &iblIrradianceRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_PREFILTER].InitAsDescriptorTable(1, &iblPrefilterRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_BRDF_LUT].InitAsDescriptorTable(1, &iblBrdfRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_MAT_TEXTURES].InitAsDescriptorTable(1, &matRange, D3D12_SHADER_VISIBILITY_PIXEL);
     params[SLOT_SAMPLER].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_IRRADIANCE].InitAsDescriptorTable(1, &irradianceRange, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_PREFILTER].InitAsDescriptorTable(1, &prefilterRange, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_BRDF_LUT].InitAsDescriptorTable(1, &brdfRange, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_NORMAL_TEX].InitAsDescriptorTable(1, &normalRange, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_AO_TEX].InitAsDescriptorTable(1, &aoRange, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_EMISSIVE_TEX].InitAsDescriptorTable(1, &emissiveRange, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_METALROUGH_TEX].InitAsDescriptorTable(1, &metalRoughRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
     CD3DX12_ROOT_SIGNATURE_DESC desc;
     desc.Init(_countof(params), params, 0, nullptr,
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     ComPtr<ID3DBlob> blob, error;
-    if (FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error)))
+    HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
+    if (FAILED(hr))
     {
-        if (error) OutputDebugStringA((char*)error->GetBufferPointer());
+        if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
+        LOG("MeshPipeline: D3D12SerializeRootSignature failed 0x%08X", hr);
         return false;
     }
 
-    return SUCCEEDED(device->CreateRootSignature(
-        0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&rootSig)));
+    hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&m_rootSig));
+    if (FAILED(hr)) { LOG("MeshPipeline: CreateRootSignature failed 0x%08X", hr); return false; }
+    return true;
 }
 
 bool MeshPipeline::createPSO(ID3D12Device* device, bool useMSAA)
 {
-    auto vs = DX::ReadData(L"MeshVS.cso");
-    auto ps = DX::ReadData(L"MeshPS.cso");
+    auto vs = DX::ReadData(L"PBRForwardVS.cso");
+    auto ps = DX::ReadData(L"PBRForwardPS.cso");
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-    desc.pRootSignature = rootSig.Get();
+    desc.pRootSignature = m_rootSig.Get();
     desc.InputLayout = { Mesh::InputLayout, Mesh::InputLayoutCount };
     desc.VS = { vs.data(), vs.size() };
     desc.PS = { ps.data(), ps.size() };
@@ -79,7 +82,6 @@ bool MeshPipeline::createPSO(ID3D12Device* device, bool useMSAA)
     desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
     desc.NumRenderTargets = 1;
     desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-    // SampleDesc must match the render target - 4x MSAA when enabled, otherwise 1x
     desc.SampleDesc = { useMSAA ? UINT(4) : UINT(1), 0 };
     desc.SampleMask = UINT_MAX;
     desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -87,7 +89,9 @@ bool MeshPipeline::createPSO(ID3D12Device* device, bool useMSAA)
     desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 
-    return SUCCEEDED(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pso)));
+    HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_pso));
+    if (FAILED(hr)) { LOG("MeshPipeline: CreateGraphicsPipelineState failed 0x%08X", hr); return false; }
+    return true;
 }
 
 void MeshPipeline::bindIBL(ID3D12GraphicsCommandList* cmd, const EnvironmentSystem* env) const

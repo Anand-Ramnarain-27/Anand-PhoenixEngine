@@ -11,7 +11,6 @@
 #include "ModuleResources.h"
 #include "ModuleCamera.h"
 #include "ModuleD3D12.h"
-#include "MeshPipeline.h"
 #include "ResourceMesh.h"
 #include "ResourceMaterial.h"
 #include "3rdParty/rapidjson/document.h"
@@ -153,45 +152,9 @@ void ComponentMesh::overrideMaterial(int slot, UID materialUID) {
     rebuildEntry(e);
 }
 
-static void bindMaterialTextures(ID3D12GraphicsCommandList* cmd, const Material* mat) {
-    if (!mat) return;
-    if (mat->hasTexture()) cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_ALBEDO_TEX, mat->getTextureGPUHandle());
-    if (mat->hasNormalMap()) cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_NORMAL_TEX, mat->getNormalMapGPUHandle());
-    if (mat->hasAOMap()) cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_AO_TEX, mat->getAOMapGPUHandle());
-    if (mat->hasEmissive()) cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_EMISSIVE_TEX, mat->getEmissiveGPUHandle());
-    if (mat->hasMetalRoughMap()) cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_METALROUGH_TEX, mat->getMetalRoughGPUHandle());
-}
-
-void ComponentMesh::render(ID3D12GraphicsCommandList* cmd) {
-    if (m_proceduralModel) {
-        if (m_hasAABB) { Vector3 wMin, wMax; getWorldAABB(wMin, wMax); if (!app->getCamera()->isVisible(wMin, wMax)) return; }
-        Matrix worldMat = m_proceduralModel->getModelMatrix() * owner->getTransform()->getGlobalMatrix();
-        auto wc = MeshPipeline::makeWorldConstants(worldMat);
-        cmd->SetGraphicsRoot32BitConstants(1, 32, &wc, 0);
-        const auto& meshes = m_proceduralModel->getMeshes();
-        const auto& mats = m_proceduralModel->getMaterials();
-        for (size_t i = 0; i < meshes.size(); ++i) {
-            int mi = meshes[i]->getMaterialIndex();
-            if (mi >= 0 && mi < (int)mats.size()) {
-                if (mi < (int)m_proceduralMaterialBuffers.size()) cmd->SetGraphicsRootConstantBufferView(3, m_proceduralMaterialBuffers[mi]->GetGPUVirtualAddress());
-                bindMaterialTextures(cmd, mats[mi].get());
-            }
-            meshes[i]->draw(cmd);
-        }
-        return;
-    }
-
-    if (m_entries.empty()) return;
-    if (m_hasAABB) { Vector3 wMin, wMax; getWorldAABB(wMin, wMax); if (!app->getCamera()->isVisible(wMin, wMax)) return; }
-    Matrix worldMat = owner->getTransform()->getGlobalMatrix();
-    auto wc = MeshPipeline::makeWorldConstants(worldMat);
-    cmd->SetGraphicsRoot32BitConstants(1, 32, &wc, 0);
-    for (const auto& e : m_entries) {
-        if (!e.meshRes || !e.meshRes->getMesh()) continue;
-        if (e.materialCB) cmd->SetGraphicsRootConstantBufferView(3, e.materialCB->GetGPUVirtualAddress());
-        if (e.materialRes) bindMaterialTextures(cmd, e.materialRes->getMaterial());
-        e.meshRes->getMesh()->draw(cmd);
-    }
+void ComponentMesh::render(ID3D12GraphicsCommandList* /*cmd*/) {
+    // Rendering is handled by MeshRenderPass via MeshEntry lists built in
+    // ModuleEditor::renderSceneWithCamera. This override is intentionally empty.
 }
 
 void ComponentMesh::onSave(std::string& outJson) const {

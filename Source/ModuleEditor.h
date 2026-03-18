@@ -50,17 +50,17 @@ public:
     void preRender() override;
     void render() override;
 
-    SceneManager* getSceneManager() const { return m_sceneManager.get(); }
-    MeshRenderPass* getMeshRenderPass() const { return m_meshRenderPass.get(); }
-    MeshPipeline* getMeshPipeline() const { return m_meshRenderPass ? &m_meshRenderPass->getPipeline() : nullptr; }
-    EnvironmentSystem* getEnvSystem() const { return m_envSystem.get(); }
-    DebugDrawPass* getDebugDraw() const { return m_debugDraw.get(); }
+    SceneManager* getSceneManager()    const { return m_sceneManager.get(); }
+    MeshRenderPass* getMeshRenderPass()   const { return m_meshRenderPass.get(); }
+    MeshPipeline* getMeshPipeline()     const { return m_meshRenderPass ? &m_meshRenderPass->getPipeline() : nullptr; }
+    EnvironmentSystem* getEnvSystem()        const { return m_envSystem.get(); }
+    DebugDrawPass* getDebugDraw()        const { return m_debugDraw.get(); }
     EditorSelection& getSelection() { return m_selection; }
-    double getGpuFrameTimeMs() const { return m_gpuFrameTimeMs; }
-    int getSamplerType() const { return m_samplerType; }
-    void setSamplerType(int t) { m_samplerType = t; }
-    ModuleScene* getActiveModuleScene() const;
-    ImVec2 getSceneViewSize() const;
+    double             getGpuFrameTimeMs()   const { return m_gpuFrameTimeMs; }
+    int                getSamplerType()      const { return m_samplerType; }
+    void               setSamplerType(int t) { m_samplerType = t; }
+    ModuleScene* getActiveModuleScene()const;
+    ImVec2             getSceneViewSize()    const;
 
     void renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras);
 
@@ -84,27 +84,22 @@ public:
     PrefabEditSession* getPrefabSession() { return &m_prefabSession; }
 
 private:
-    std::unique_ptr<ImGuiPass> m_imguiPass;
-    std::unique_ptr<DebugDrawPass> m_debugDraw;
-    std::unique_ptr<SceneManager> m_sceneManager;
-    std::unique_ptr<MeshRenderPass> m_meshRenderPass;
+    std::unique_ptr<ImGuiPass>       m_imguiPass;
+    std::unique_ptr<DebugDrawPass>   m_debugDraw;
+    std::unique_ptr<SceneManager>    m_sceneManager;
+    std::unique_ptr<MeshRenderPass>  m_meshRenderPass;
     std::unique_ptr<EnvironmentSystem> m_envSystem;
 
-    struct ShaderTableDescImpl;
     ShaderTableDesc m_descTable;
 
     ComPtr<ID3D12QueryHeap> m_gpuQueryHeap;
-    ComPtr<ID3D12Resource> m_gpuReadback;
+    ComPtr<ID3D12Resource>  m_gpuReadback;
     double m_gpuFrameTimeMs = 0.0;
-    bool m_gpuTimerReady = false;
-    float m_memoryUpdateTimer = 0.0f;
-
-    ComPtr<ID3D12Resource> m_cameraCB;
-    ComPtr<ID3D12Resource> m_objectCB;
-    ComPtr<ID3D12Resource> m_lightCB;
+    bool   m_gpuTimerReady = false;
+    float  m_memoryUpdateTimer = 0.0f;
 
     std::vector<std::unique_ptr<EditorPanel>> m_ownedPanels;
-    std::vector<EditorPanel*> m_panels;
+    std::vector<EditorPanel*>                 m_panels;
 
     SceneViewPanel* m_sceneView = nullptr;
     GameViewPanel* m_gameView = nullptr;
@@ -121,7 +116,8 @@ private:
     }
 
     EditorSelection m_selection;
-    int m_samplerType = 0;
+    FrameLightData  m_frameLights;
+    int  m_samplerType = 0;
     bool m_firstFrame = true;
 
     static constexpr int kMaxUndoSteps = 200;
@@ -143,11 +139,8 @@ private:
     PrefabEditSession m_prefabSession;
     bool m_pendingExitPrefab = false;
 
-    struct CameraConstants { Matrix viewProj; };
-    struct ObjectConstants { Matrix world; };
-
     ComPtr<ID3D12Resource> createUploadBuffer(ID3D12Device*, SIZE_T, const wchar_t*);
-    void gatherLights(GameObject* node, MeshPipeline::LightCB& out) const;
+    void gatherLights(GameObject* node, FrameLightData& out) const;
     void debugDrawLights(ModuleScene* scene, float lightSize);
     void updateMemory();
     void handleNewScenePopup(ID3D12GraphicsCommandList* cmd);
