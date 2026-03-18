@@ -27,7 +27,6 @@ public:
     }
 
 private:
-    // Pass constants matching cbuffer Constants : register(b2) in shaders
     struct alignas(256) PassCB {
         float   roughness = 0.0f;
         int     numSamples = 512;

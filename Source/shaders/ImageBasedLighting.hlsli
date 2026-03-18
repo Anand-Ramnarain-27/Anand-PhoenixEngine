@@ -20,8 +20,6 @@ void SampleSpecularIBL(in float3 R, in float NdotV, in float roughness, in float
                        in TextureCube prefilteredEnvMap, in Texture2D brdfLUT,
                        out float3 scaledRadiance, out float3 biasedRadiance)
 {
-    // roughnessLevels - 1 must be >= 0; guard against the no-skybox case where
-    // roughnessLevels == 0 would produce a negative LOD and undefined samples.
     float maxMip = max(roughnessLevels - 1.0, 0.0);
     float3 radiance = prefilteredEnvMap.SampleLevel(BilinearClamp, R, roughness * maxMip).rgb;
     float2 fab      = brdfLUT.Sample(BilinearClamp, float2(NdotV, roughness)).rg;
@@ -34,8 +32,6 @@ float3 ComputeIBLLighting(in float3 V, in float3 N, in TextureCube irradianceMap
                            in Texture2D brdfLUT, in uint roughnessLevels, in float3 baseColor,
                            in float roughness, in float metallic, in float diffuseAO, in float specularAO)
 {
-    // No skybox loaded: EnvRoughnessLevels == 0 means the IBL textures are
-    // black fallbacks. Return zero so direct lights are the only contribution.
     if (roughnessLevels == 0)
         return float3(0.0, 0.0, 0.0);
 

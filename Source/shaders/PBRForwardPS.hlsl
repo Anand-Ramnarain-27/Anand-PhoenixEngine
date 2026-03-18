@@ -53,8 +53,6 @@ float4 main(
                                        baseColour, roughness, metallic,
                                        diffuseAO, specularAO);
 
-    // Minimum ambient so meshes are never completely black when there are
-    // no lights and no skybox loaded yet.
     if (DirLightCount == 0 && PointLightCount == 0 && SpotLightCount == 0 && EnvRoughnessLevels == 0)
         colour = baseColour * 0.03;
 
