@@ -12,8 +12,7 @@ std::unique_ptr<EnvironmentMap> EnvironmentGenerator::loadCubemap(const std::str
 	auto* resources = app->getGPUResources();
 	auto* shaderDesc = app->getShaderDescriptors();
 
-	if (!d3d12 || !resources || !shaderDesc)
-		return nullptr;
+	if (!d3d12 || !resources || !shaderDesc) return nullptr;
 
 	auto env = std::make_unique<EnvironmentMap>();
 	env->cubemap = resources->createTextureFromFile(file, true);
@@ -47,30 +46,28 @@ std::unique_ptr<EnvironmentMap> EnvironmentGenerator::loadHDR(const std::string&
 	auto* shaderDesc = app->getShaderDescriptors();
 	auto* samplerHeap = app->getSamplerHeap();
 
-	if (!d3d12 || !resources || !shaderDesc || !samplerHeap)
-		return nullptr;
+	if (!d3d12 || !resources || !shaderDesc || !samplerHeap) return nullptr;
 
 	LOG("EnvironmentGenerator: loading HDR '%s' (faceSize=%u)...", hdrFile.c_str(), cubeFaceSize);
 
 	CommandContext ctx(d3d12, shaderDesc, samplerHeap);
-	if (!ctx.isValid())
-		return nullptr;
+	if (!ctx.isValid()) return nullptr;
 
 	auto env = std::make_unique<EnvironmentMap>();
 	ID3D12Device* device = d3d12->getDevice();
 
-	if (!m_hdrConverter.loadHDRTexture(device, hdrFile, *env))             return nullptr;
+	if (!m_hdrConverter.loadHDRTexture(device, hdrFile, *env)) return nullptr;
 	if (!m_hdrConverter.createCubemapResource(device, *env, cubeFaceSize)) return nullptr;
 
 	const uint32_t numMips = m_hdrConverter.getNumMips();
 
-	if (!m_hdrConverter.recordConversion(ctx.cmd(), *env))  return nullptr;
-	if (!ctx.submitAndReset("HDR conversion mip0"))          return nullptr;
+	if (!m_hdrConverter.recordConversion(ctx.cmd(), *env)) return nullptr;
+	if (!ctx.submitAndReset("HDR conversion mip0")) return nullptr;
 	LOG("EnvironmentGenerator: mip 0 done.");
 
 	for (uint32_t mip = 1; mip < numMips; ++mip) {
 		if (!m_hdrConverter.recordMipLevel(device, ctx.cmd(), *env, mip)) return nullptr;
-		if (!ctx.submitAndReset("HDR mip blit"))                          return nullptr;
+		if (!ctx.submitAndReset("HDR mip blit")) return nullptr;
 	}
 	LOG("EnvironmentGenerator: mip chain done (%u levels).", numMips);
 
@@ -82,17 +79,17 @@ std::unique_ptr<EnvironmentMap> EnvironmentGenerator::loadHDR(const std::string&
 	}
 
 	if (!m_iblGenerator.bakeIrradiance(device, ctx.cmd(), *env)) return nullptr;
-	if (!ctx.submitAndReset("irradiance"))                        return nullptr;
+	if (!ctx.submitAndReset("irradiance")) return nullptr;
 	LOG("EnvironmentGenerator: irradiance done.");
 
 	for (uint32_t mip = 0; mip < EnvironmentMap::NUM_ROUGHNESS_LEVELS; ++mip) {
 		if (!m_iblGenerator.bakePrefilter(device, ctx.cmd(), *env, mip)) return nullptr;
-		if (!ctx.submitAndReset("prefilter"))                            return nullptr;
+		if (!ctx.submitAndReset("prefilter")) return nullptr;
 	}
 	LOG("EnvironmentGenerator: prefilter done.");
 
 	if (!m_iblGenerator.bakeBRDFLut(device, ctx.cmd(), *env)) return nullptr;
-	if (!ctx.submit("BRDF LUT"))                              return nullptr;
+	if (!ctx.submit("BRDF LUT")) return nullptr;
 	LOG("EnvironmentGenerator: BRDF LUT done.");
 
 	if (!m_iblGenerator.finaliseSRVs(*env)) return nullptr;
@@ -102,15 +99,11 @@ std::unique_ptr<EnvironmentMap> EnvironmentGenerator::loadHDR(const std::string&
 	return env;
 }
 
-std::unique_ptr<EnvironmentMap> EnvironmentGenerator::bakeIBL(
-	ModuleD3D12* d3d12, ModuleShaderDescriptors* shaderDesc,
-	std::unique_ptr<EnvironmentMap> env)
-{
+std::unique_ptr<EnvironmentMap> EnvironmentGenerator::bakeIBL(ModuleD3D12* d3d12, ModuleShaderDescriptors* shaderDesc, std::unique_ptr<EnvironmentMap> env) {
 	auto* samplerHeap = app->getSamplerHeap();
 
 	CommandContext ctx(d3d12, shaderDesc, samplerHeap);
-	if (!ctx.isValid())
-		return nullptr;
+	if (!ctx.isValid()) return nullptr;
 
 	LOG("EnvironmentGenerator: starting IBL pre-computation...");
 
@@ -119,8 +112,7 @@ std::unique_ptr<EnvironmentMap> EnvironmentGenerator::bakeIBL(
 		return nullptr;
 	}
 
-	if (!ctx.submitAndReset("IBL bake"))
-		return nullptr;
+	if (!ctx.submitAndReset("IBL bake")) return nullptr;
 
 	m_iblGenerator.releasePipelines();
 	LOG("EnvironmentGenerator: IBL pre-computation done.");

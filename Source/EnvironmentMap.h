@@ -30,8 +30,19 @@ public:
 		return irradianceCubemap != nullptr && irradianceSRVTable.isValid() && prefilteredCubemap != nullptr && prefilteredSRVTable.isValid() && brdfLUT != nullptr && brdfLUTSRVTable.isValid();
 	}
 
-	D3D12_GPU_DESCRIPTOR_HANDLE getGPUHandle() const { return srvTable.getGPUHandle(); }
-	D3D12_GPU_DESCRIPTOR_HANDLE getIrradianceGPU() const { return irradianceSRVTable.getGPUHandle(); }
-	D3D12_GPU_DESCRIPTOR_HANDLE getPrefilteredGPU() const { return prefilteredSRVTable.getGPUHandle(); }
-	D3D12_GPU_DESCRIPTOR_HANDLE getBRDFLUTGPU() const { return brdfLUTSRVTable.getGPUHandle(); }
+	D3D12_GPU_DESCRIPTOR_HANDLE getGPUHandle() const {
+		return srvTable.getGPUHandle();
+	}
+
+	D3D12_GPU_DESCRIPTOR_HANDLE getIrradianceGPU() const {
+		return irradianceSRVTable.getGPUHandle();
+	}
+
+	D3D12_GPU_DESCRIPTOR_HANDLE getPrefilteredGPU() const {
+		return prefilteredSRVTable.getGPUHandle();
+	}
+
+	D3D12_GPU_DESCRIPTOR_HANDLE getBRDFLUTGPU() const {
+		return brdfLUTSRVTable.getGPUHandle();
+	}
 };

@@ -10,17 +10,20 @@ using Microsoft::WRL::ComPtr;
 
 class CommandContext {
 public:
-	CommandContext(ModuleD3D12* d3d12, ModuleShaderDescriptors* shaderDesc, ModuleSamplerHeap* samplerHeap)
-		: m_d3d12(d3d12), m_shaderDesc(shaderDesc), m_samplerHeap(samplerHeap) {
+	CommandContext(ModuleD3D12* d3d12, ModuleShaderDescriptors* shaderDesc, ModuleSamplerHeap* samplerHeap) : m_d3d12(d3d12), m_shaderDesc(shaderDesc), m_samplerHeap(samplerHeap) {
 		m_valid = init();
 	}
 
-	bool isValid() const { return m_valid; }
-	ID3D12GraphicsCommandList* cmd() const { return m_cmd.Get(); }
+	bool isValid() const {
+		return m_valid;
+	}
+
+	ID3D12GraphicsCommandList* cmd() const {
+		return m_cmd.Get();
+	}
 
 	bool submitAndReset(const char* stage) {
-		if (!closeAndExecute(stage))
-			return false;
+		if (!closeAndExecute(stage)) return false;
 
 		if (FAILED(m_alloc->Reset())) {
 			LOG("CommandContext: alloc Reset() failed after '%s'", stage);
@@ -45,11 +48,9 @@ private:
 		ID3D12Device* device = getDevice();
 		if (!device) return false;
 
-		if (FAILED(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_alloc))))
-			return false;
+		if (FAILED(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_alloc)))) return false;
 
-		if (FAILED(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_alloc.Get(), nullptr, IID_PPV_ARGS(&m_cmd))))
-			return false;
+		if (FAILED(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_alloc.Get(), nullptr, IID_PPV_ARGS(&m_cmd)))) return false;
 
 		bindHeaps();
 		return true;
@@ -80,7 +81,9 @@ private:
 
 	ID3D12Device* getDevice();
 	ID3D12CommandQueue* getDrawQueue();
-	ModuleD3D12* getD3D12() { return m_d3d12; }
+	ModuleD3D12* getD3D12() {
+		return m_d3d12;
+	}
 
 	ModuleD3D12* m_d3d12 = nullptr;
 	ModuleShaderDescriptors* m_shaderDesc = nullptr;
