@@ -684,9 +684,6 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="shaders\CubemapConvVS.hlsl">
-      <Filter>shaders</Filter>
-    </FxCompile>
     <FxCompile Include="shaders\EnvironmentBRDFPS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>

@@ -500,13 +500,6 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
             ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); textMuted("Roughness");
             ImGui::TableSetColumnIndex(1); ImGui::SetNextItemWidth(-1);
             if (ImGui::SliderFloat("##rough", &data.roughness, 0.f, 1.f)) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
-
-            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); textMuted("Exposure");
-            ImGui::TableSetColumnIndex(1); ImGui::SetNextItemWidth(-1);
-            if (ImGui::SliderFloat("##exposure", &data.exposure, 1.0f, 10.0f)) {
-                app->getD3D12()->flush();
-                mesh->rebuildMaterialBuffers();
-            }
             ImGui::EndTable();
         }
         ImGui::PopStyleVar();
