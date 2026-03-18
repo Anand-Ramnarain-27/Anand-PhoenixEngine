@@ -45,7 +45,7 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
 bool TextureImporter::Load(const std::string& file, ComPtr<ID3D12Resource>& outTexture, D3D12_GPU_DESCRIPTOR_HANDLE& outSRV) {
     TextureHeader header;
     std::vector<char> rawBuffer;
-    if (!ImporterUtils::LoadBuffer(file + ".meta", header, rawBuffer)) { LOG("TextureImporter: Missing or invalid metadata for %s", file.c_str()); return false; }
+    if (!ImporterUtils::LoadBuffer(ImporterUtils::MetaPath(file), header, rawBuffer)) { LOG("TextureImporter: Missing or invalid metadata for %s", file.c_str()); return false; }
     if (!ImporterUtils::ValidateHeader(header, 0x54455854)) { LOG("TextureImporter: Bad metadata magic/version"); return false; }
     outTexture = app->getGPUResources()->createTextureFromFile(file, true);
     if (!outTexture) { LOG("TextureImporter: Failed to create texture resource"); return false; }
@@ -60,5 +60,5 @@ std::string TextureImporter::GetTextureName(const char* filePath) { return std::
 bool TextureImporter::SaveMetadata(const std::string& ddsPath, uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t format) {
     TextureHeader header;
     header.width = width; header.height = height; header.mipLevels = mipLevels; header.format = format;
-    return ImporterUtils::SaveBuffer(ddsPath + ".meta", header);
+    return ImporterUtils::SaveBuffer(ImporterUtils::MetaPath(ddsPath), header);
 }

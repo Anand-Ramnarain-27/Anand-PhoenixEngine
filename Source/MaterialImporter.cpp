@@ -24,7 +24,7 @@ std::string MaterialImporter::importTexture(
     fs->CreateDir(matFolder.c_str());
     std::string ddsPath = matFolder + TextureImporter::GetTextureName(uri.c_str()) + ".dds";
 
-    if (!fs->Exists(ddsPath.c_str()) || !fs->Exists((ddsPath + ".meta").c_str())) {
+    if (!fs->Exists(ddsPath.c_str()) || !fs->Exists(ImporterUtils::MetaPath(ddsPath).c_str())) {
         if (!TextureImporter::Import((basePath + uri).c_str(), ddsPath)) {
             LOG("MaterialImporter: Failed to import texture %s", (basePath + uri).c_str());
             return {};

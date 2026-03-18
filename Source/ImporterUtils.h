@@ -5,8 +5,22 @@
 #include <string>
 #include <cstring>
 #include <cstdint>
+#include <filesystem>
 
 namespace ImporterUtils {
+
+    // Returns the path where the .meta file for a given library asset is stored.
+    // All meta files live in a flat "metadata/" folder next to the Library root,
+    // named after the asset's filename (e.g. "Library/metadata/albedo.dds.meta").
+    // This is the single source of truth - use it everywhere instead of
+    // constructing "path + .meta" by hand.
+    inline std::string MetaPath(const std::string& assetPath) {
+        ModuleFileSystem* fs = app->getFileSystem();
+        std::string metaFolder = fs->GetLibraryPath() + "metadata/";
+        fs->CreateDir(metaFolder.c_str());
+        std::string filename = std::filesystem::path(assetPath).filename().string();
+        return metaFolder + filename + ".meta";
+    }
 
     template<typename THeader>
     inline bool LoadBuffer(const std::string& file, THeader& outHeader, std::vector<char>& outBuffer) {

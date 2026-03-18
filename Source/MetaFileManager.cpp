@@ -13,7 +13,13 @@ using namespace rapidjson;
 namespace fs = std::filesystem;
 
 std::string MetaFileManager::getMetaPath(const std::string& assetPath) {
-    return assetPath + ".meta";
+    ModuleFileSystem* fs = app->getFileSystem();
+    std::string metaFolder = fs->GetLibraryPath() + "metadata/";
+    fs->CreateDir(metaFolder.c_str());
+    std::string sanitised = assetPath;
+    for (char& c : sanitised)
+        if (c == '/' || c == '\\') c = '~';
+    return metaFolder + sanitised + ".meta";
 }
 
 bool MetaFileManager::save(const std::string& assetPath, const MetaData& meta) {

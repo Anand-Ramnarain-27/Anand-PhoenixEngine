@@ -22,13 +22,19 @@ public:
         Matrix normalMat;
     };
 
+    // Builds the world + normal matrix constants for the vertex shader (b1).
+    // - world    is transposed because HLSL expects row-major matrices when
+    //            uploaded via 32-bit root constants / memcpy.
+    // - normalMat is the inverse-transpose of world, also transposed for HLSL.
+    //   (inverse-transpose is the correct transform for normals so that they
+    //    stay perpendicular to surfaces under non-uniform scale.)
     static WorldConstants makeWorldConstants(const Matrix& world)
     {
         WorldConstants wc;
         wc.world = world.Transpose();
         Matrix inv;
         world.Invert(inv);
-        wc.normalMat = inv;
+        wc.normalMat = inv.Transpose(); // was: inv — missing the transpose
         return wc;
     }
 
