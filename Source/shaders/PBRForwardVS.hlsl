@@ -18,12 +18,12 @@ VS_OUTPUT main(
     VS_OUTPUT output;
 
     float4 worldPos = mul(float4(position, 1.0), ModelMatrix);
-    output.worldPos = worldPos.xyz;
     output.position = mul(float4(position, 1.0), MVP);
-    output.texCoord = texCoord;
+    output.worldPos = worldPos.xyz;
 
     output.normal = normalize(mul(float4(normal, 0.0), NormalMatrix)).xyz;
     output.tangent = normalize(mul(float4(tangent.xyz, 0.0), NormalMatrix)).xyz;
-
+    
+    output.texCoord = texCoord;
     return output;
 }

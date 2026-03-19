@@ -10,7 +10,6 @@
 using Microsoft::WRL::ComPtr;
 
 class EnvironmentSystem;
-class ModuleSamplerHeap;
 
 struct FrameLightData {
 	std::vector<MeshPipeline::GPUDirectionalLight> dirLights;
@@ -25,7 +24,7 @@ public:
 
 	bool init(ID3D12Device* device, bool useMSAA = false);
 
-	void render(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes, const FrameLightData& lights, const Vector3& cameraPos, const Matrix& viewProj, const EnvironmentSystem* env, ModuleSamplerHeap* samplerHeap);
+	void render(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes, const FrameLightData& lights, const Vector3& cameraPos, const Matrix& viewProj, const EnvironmentSystem* env, int samplerType = 0);
 
 	MeshPipeline& getPipeline() {
 		return m_pipeline;

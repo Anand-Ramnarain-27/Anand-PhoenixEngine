@@ -2,6 +2,7 @@
 #include "MeshPipeline.h"
 #include "EnvironmentSystem.h"
 #include "EnvironmentMap.h"
+#include "ModuleSamplerHeap.h"
 #include "Mesh.h"
 #include "ReadData.h"
 #include <d3dx12.h>

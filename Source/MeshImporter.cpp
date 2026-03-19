@@ -48,8 +48,12 @@ bool MeshImporter::Import(const tinygltf::Primitive& primitive, const tinygltf::
         indices.resize(acc.count);
         for (size_t i = 0; i < acc.count; ++i) {
             const unsigned char* e = data + i * stride;
-            if (type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) indices[i] = *reinterpret_cast<const uint16_t*>(e);
-            else if (type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT) indices[i] = *reinterpret_cast<const uint32_t*>(e);
+            if (type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
+                indices[i] = *reinterpret_cast<const uint8_t*>(e);  
+            else if (type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
+                indices[i] = *reinterpret_cast<const uint16_t*>(e);
+            else if (type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
+                indices[i] = *reinterpret_cast<const uint32_t*>(e);
             else { LOG("MeshImporter: Unsupported index format"); return false; }
         }
     }

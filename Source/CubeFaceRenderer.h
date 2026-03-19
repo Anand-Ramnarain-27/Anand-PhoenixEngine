@@ -4,6 +4,7 @@
 #include "Application.h"
 #include "ModuleRTDescriptors.h"
 #include "ModuleShaderDescriptors.h"
+#include "ModuleSamplerHeap.h"
 
 class CubeFaceRenderer {
 public:
@@ -20,10 +21,12 @@ public:
         D3D12_GPU_DESCRIPTOR_HANDLE sourceSRV;
         DXGI_FORMAT rtvFormat;
         D3D12_GPU_VIRTUAL_ADDRESS cbAddress;
+        D3D12_GPU_DESCRIPTOR_HANDLE samplerHandle;
     };
 
     static void RenderFace(const RenderParams& params) {
         auto* rtDescs = app->getRTDescriptors();
+        auto* samplers = app->getSamplerHeap();
         uint32_t mipSize = std::max(1u, params.baseFaceSize >> params.mipLevel);
 
         RenderTargetDesc rtv = rtDescs->create(params.target, params.faceIndex, params.mipLevel, params.rtvFormat);
@@ -43,12 +46,13 @@ public:
         params.cmd->RSSetViewports(1, &vp);
         params.cmd->RSSetScissorRects(1, &sc);
 
-        ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap() };
-        params.cmd->SetDescriptorHeaps(1, heaps);
+        ID3D12DescriptorHeap* heaps[] = {app->getShaderDescriptors()->getHeap(), samplers->getHeap()};
+        params.cmd->SetDescriptorHeaps(2, heaps);
         params.cmd->SetGraphicsRootSignature(params.rootSig);
         params.cmd->SetPipelineState(params.pso);
         params.cmd->SetGraphicsRootConstantBufferView(0, params.cbAddress);
         params.cmd->SetGraphicsRootDescriptorTable(1, params.sourceSRV);
+        params.cmd->SetGraphicsRootDescriptorTable(2, params.samplerHandle);
 
         auto toSRV = CD3DX12_RESOURCE_BARRIER::Transition(params.target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, subRes);
         params.cmd->ResourceBarrier(1, &toSRV);

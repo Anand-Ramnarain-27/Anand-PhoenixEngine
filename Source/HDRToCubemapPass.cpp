@@ -7,6 +7,7 @@
 #include "ModuleGPUResources.h"
 #include "ModuleShaderDescriptors.h"
 #include "ModuleRTDescriptors.h"
+#include "ModuleSamplerHeap.h"          // ADDED
 #include "EnvironmentMap.h"
 #include "ShaderTableDesc.h"
 #include "CubeGeometry.h"
@@ -29,7 +30,6 @@ bool HDRToCubemapPass::loadHDRTexture(ID3D12Device* device, const std::string& h
     auto* resources = app->getGPUResources();
     auto* shaderDescs = app->getShaderDescriptors();
 
-    // Upload the equirectangular HDR image as a plain Texture2D
     m_hdrTex = resources->createTextureFromFile(hdrFile, false);
     if (!m_hdrTex)
     {
@@ -52,9 +52,9 @@ bool HDRToCubemapPass::loadHDRTexture(ID3D12Device* device, const std::string& h
     srvDesc.Texture2D.MostDetailedMip = 0;
     m_hdrSRVTable.createSRV(m_hdrTex.Get(), 0, &srvDesc);
 
-    if (!ensureGeometry(device))               return false;
-    if (!m_convPSO && !createConversionPipeline(device)) return false;
-    if (!m_mipPSO && !createMipPipeline(device))        return false;
+    if (!ensureGeometry(device))                             return false;
+    if (!m_convPSO && !createConversionPipeline(device))     return false;
+    if (!m_mipPSO && !createMipPipeline(device))            return false;
 
     return true;
 }
@@ -63,7 +63,6 @@ bool HDRToCubemapPass::createCubemapResource(ID3D12Device* device, EnvironmentMa
 {
     m_cubeFaceSize = cubeFaceSize;
 
-    // Compute full mip chain depth: log2(size) + 1
     m_numMips = 1;
     for (uint32_t s = cubeFaceSize; s > 1; s >>= 1)
         ++m_numMips;
@@ -81,7 +80,12 @@ bool HDRToCubemapPass::createCubemapResource(ID3D12Device* device, EnvironmentMa
 
 bool HDRToCubemapPass::recordConversion(ID3D12GraphicsCommandList* cmd, EnvironmentMap& env)
 {
-    // Render mip-0 for all 6 faces by projecting the equirectangular HDR onto each cube face
+    // ADDED: bind both heaps once before all face draws
+    auto* shaderDescs = app->getShaderDescriptors();
+    auto* samplers = app->getSamplerHeap();
+    ID3D12DescriptorHeap* heaps[] = { shaderDescs->getHeap(), samplers->getHeap() };
+    cmd->SetDescriptorHeaps(2, heaps);
+
     for (uint32_t face = 0; face < 6; ++face)
         renderFace(cmd, env.cubemap.Get(), face, 0, m_numMips, m_cubeFaceSize,
             m_hdrSRVTable.getGPUHandle(0), m_convRS.Get(), m_convPSO.Get(),
@@ -93,8 +97,13 @@ bool HDRToCubemapPass::recordConversion(ID3D12GraphicsCommandList* cmd, Environm
 bool HDRToCubemapPass::recordMipLevel(ID3D12Device* device, ID3D12GraphicsCommandList* cmd,
     EnvironmentMap& env, uint32_t mipIndex)
 {
-    // Allocate a fresh SRV table for this mip's 6 source faces
-    ShaderTableDesc mipTable = app->getShaderDescriptors()->allocTable("HDR_MipSrc");
+    // ADDED: bind both heaps once before all face blits
+    auto* shaderDescs = app->getShaderDescriptors();
+    auto* samplers = app->getSamplerHeap();
+    ID3D12DescriptorHeap* heaps[] = { shaderDescs->getHeap(), samplers->getHeap() };
+    cmd->SetDescriptorHeaps(2, heaps);
+
+    ShaderTableDesc mipTable = shaderDescs->allocTable("HDR_MipSrc");
     if (!mipTable.isValid())
     {
         LOG("HDRToCubemapPass: failed to allocate mip SRV table (mip=%u)", mipIndex);
@@ -125,7 +134,6 @@ bool HDRToCubemapPass::finaliseSRV(EnvironmentMap& env)
     srvDesc.TextureCube.MostDetailedMip = 0;
     env.srvTable.createSRV(env.cubemap.Get(), 0, &srvDesc);
 
-    // Release the temporary HDR upload texture and its SRV
     m_hdrTex.Reset();
     m_hdrSRVTable.reset();
 
@@ -139,29 +147,31 @@ bool HDRToCubemapPass::finaliseSRV(EnvironmentMap& env)
 
 bool HDRToCubemapPass::createConversionPipeline(ID3D12Device* device)
 {
-    // Vertex shader constants: FaceConstants { float4x4 vp; int flipX; int flipZ; }
+    // Root layout:
+    //   slot 0: root constants b0  - face VP + flip flags (SkyboxVS)
+    //   slot 1: SRV table t0       - equirectangular HDR texture
+    //   slot 2: Sampler table s0   - ModuleSamplerHeap (LINEAR_WRAP used at draw time)
+    //
+    // CHANGED: removed static sampler, added dynamic sampler descriptor table at slot 2.
+
     struct FaceConstants { XMFLOAT4X4 vp; int flipX; int flipZ; };
     static constexpr UINT kNumConstants = sizeof(FaceConstants) / sizeof(UINT);
 
-    // Root layout:
-    //   slot 0: root constants b0 - face VP + flip flags (read by SkyboxVS)
-    //   slot 1: SRV table t0      - equirectangular HDR texture
-    // A static linear-wrap sampler is baked into the root signature.
-    CD3DX12_ROOT_PARAMETER params[2];
+    CD3DX12_ROOT_PARAMETER params[3];                                                       // was 2
     params[0].InitAsConstants(kNumConstants, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
 
     CD3DX12_DESCRIPTOR_RANGE srvRange;
     srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
     params[1].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
-    CD3DX12_STATIC_SAMPLER_DESC sampler(0,
-        D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP);
+    // ADDED: dynamic sampler table covering all slots in ModuleSamplerHeap
+    CD3DX12_DESCRIPTOR_RANGE sampRange;
+    sampRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, ModuleSamplerHeap::COUNT, 0);
+    params[2].InitAsDescriptorTable(1, &sampRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
     CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
-    rsDesc.Init(2, params, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    // CHANGED: 3 params, 0 static samplers (was 2 params, 1 static sampler)
+    rsDesc.Init(3, params, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     ComPtr<ID3DBlob> blob, err;
     if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err)))
@@ -173,8 +183,6 @@ bool HDRToCubemapPass::createConversionPipeline(ID3D12Device* device)
     if (FAILED(device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&m_convRS))))
         return false;
 
-    // SkyboxVS.cso  - cube vertex shader shared across all cubemap passes
-    // HDRToCubemapPS.cso - equirectangular to cubemap (CartesianToEquirectangular)
     auto vs = DX::ReadData(L"SkyboxVS.cso");
     auto ps = DX::ReadData(L"HDRToCubemapPS.cso");
 
@@ -211,26 +219,27 @@ bool HDRToCubemapPass::createConversionPipeline(ID3D12Device* device)
 bool HDRToCubemapPass::createMipPipeline(ID3D12Device* device)
 {
     // Root layout:
-    //   slot 0: root constant b0 (1 uint) - face array slice index for MipChainPS
-    //   slot 1: SRV table t0              - source mip face (Texture2DArray slice)
-    // A static linear-clamp sampler is baked in.
-    CD3DX12_ROOT_PARAMETER params[2];
+    //   slot 0: root constant b0  - face array slice index (MipChainPS)
+    //   slot 1: SRV table t0      - source mip face (Texture2DArray slice)
+    //   slot 2: Sampler table s0  - ModuleSamplerHeap (LINEAR_CLAMP used at draw time)
+    //
+    // CHANGED: removed static sampler, added dynamic sampler descriptor table at slot 2.
+
+    CD3DX12_ROOT_PARAMETER params[3];                                                       // was 2
     params[0].InitAsConstants(1, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 
     CD3DX12_DESCRIPTOR_RANGE srvRange;
     srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
     params[1].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
-    // MipChainPS.hlsl declares: SamplerState bilinearSampler : register(s0)
-    // so the static sampler must be bound at register 0, not s2.
-    CD3DX12_STATIC_SAMPLER_DESC sampler(0,
-        D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
+    // ADDED: dynamic sampler table
+    CD3DX12_DESCRIPTOR_RANGE sampRange;
+    sampRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, ModuleSamplerHeap::COUNT, 0);
+    params[2].InitAsDescriptorTable(1, &sampRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
     CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
-    rsDesc.Init(2, params, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_NONE);
+    // CHANGED: 3 params, 0 static samplers (was 2 params, 1 static sampler), no input assembler flag needed
+    rsDesc.Init(3, params, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
     ComPtr<ID3DBlob> blob, err;
     if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err)))
@@ -242,8 +251,6 @@ bool HDRToCubemapPass::createMipPipeline(ID3D12Device* device)
     if (FAILED(device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&m_mipRS))))
         return false;
 
-    // FullScreenVS.cso - generates UV + clip position from SV_VertexID (no VB needed)
-    // MipChainPS.cso   - simple bilinear sample of the source mip face
     auto vs = DX::ReadData(L"FullScreenVS.cso");
     auto ps = DX::ReadData(L"MipChainPS.cso");
 
@@ -335,7 +342,6 @@ void HDRToCubemapPass::renderFace(
     cmd->RSSetViewports(1, &vp);
     cmd->RSSetScissorRects(1, &sc);
 
-    // Push face VP + flip flags as root constants — matches SkyboxVS cbuffer SkyboxCB (b0)
     struct FaceConstants { XMFLOAT4X4 vp; int flipX; int flipZ; };
     FaceConstants fc;
     XMStoreFloat4x4(&fc.vp, XMMatrixTranspose(FaceProjection::viewProj(faceIndex)));
@@ -346,6 +352,8 @@ void HDRToCubemapPass::renderFace(
     cmd->SetPipelineState(pso);
     cmd->SetGraphicsRoot32BitConstants(0, sizeof(FaceConstants) / sizeof(UINT), &fc, 0);
     cmd->SetGraphicsRootDescriptorTable(1, sourceSRV);
+    // ADDED: bind LINEAR_WRAP sampler from ModuleSamplerHeap at slot 2
+    cmd->SetGraphicsRootDescriptorTable(2, app->getSamplerHeap()->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));
     cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     cmd->IASetVertexBuffers(0, 1, &m_vbView);
     cmd->DrawInstanced(CubeGeometry::kCubeVertexCount, 1, 0, 0);
@@ -368,7 +376,6 @@ void HDRToCubemapPass::blitMipFace(
     auto* rtDescs = app->getRTDescriptors();
     uint32_t dstSize = std::max(1u, baseFaceSize >> dstMip);
 
-    // Create a Texture2DArray SRV pointing at the previous mip of this face
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
@@ -401,15 +408,16 @@ void HDRToCubemapPass::blitMipFace(
     cmd->RSSetViewports(1, &vp);
     cmd->RSSetScissorRects(1, &sc);
 
-    // Pass the face array-slice index as a root constant so MipChainPS can use it if needed
     UINT faceSlice = faceIndex;
     cmd->SetGraphicsRootSignature(m_mipRS.Get());
     cmd->SetPipelineState(m_mipPSO.Get());
     cmd->SetGraphicsRoot32BitConstants(0, 1, &faceSlice, 0);
     cmd->SetGraphicsRootDescriptorTable(1, mipTable.getGPUHandle(faceIndex));
+    // ADDED: bind LINEAR_CLAMP sampler from ModuleSamplerHeap at slot 2 (avoids edge bleed when downsampling)
+    cmd->SetGraphicsRootDescriptorTable(2, app->getSamplerHeap()->getGPUHandle(ModuleSamplerHeap::LINEAR_CLAMP));
     cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     cmd->IASetVertexBuffers(0, 0, nullptr);
-    cmd->DrawInstanced(3, 1, 0, 0);  // fullscreen triangle via SV_VertexID
+    cmd->DrawInstanced(3, 1, 0, 0);
 
     auto toSRV = CD3DX12_RESOURCE_BARRIER::Transition(cubemap,
         D3D12_RESOURCE_STATE_RENDER_TARGET,

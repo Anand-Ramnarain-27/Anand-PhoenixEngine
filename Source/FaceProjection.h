@@ -27,15 +27,26 @@ namespace FaceProjection
     }
 
     inline DirectX::XMMATRIX viewProj(uint32_t faceIndex) {
-        const FaceDesc& fd = faces()[faceIndex];
-        DirectX::XMVECTOR eye = DirectX::XMVectorZero();
-        DirectX::XMVECTOR at = DirectX::XMLoadFloat3(&fd.front);
-        DirectX::XMVECTOR up = DirectX::XMLoadFloat3(&fd.up);
-        DirectX::XMMATRIX view = DirectX::XMMatrixLookAtRH(eye, at, up);
-        DirectX::XMMATRIX proj = DirectX::XMMatrixPerspectiveFovRH(DirectX::XM_PIDIV2, 1.0f, 0.1f, 100.0f);
+        using namespace DirectX;
+        static const XMFLOAT3 fronts[6] = {
+            { 1, 0, 0}, {-1, 0, 0},
+            { 0, 1, 0}, { 0,-1, 0},
+            { 0, 0, 1}, { 0, 0,-1}
+        };
+        static const XMFLOAT3 ups[6] = {
+            {0, 1, 0}, {0, 1, 0},
+            {0, 0, -1}, {0, 0,1},
+            {0, 1, 0}, {0, 1, 0}
+        };
+
+        XMVECTOR eye = XMVectorZero();
+        XMVECTOR at = XMLoadFloat3(&fronts[faceIndex]);
+        XMVECTOR up = XMLoadFloat3(&ups[faceIndex]);
+        XMMATRIX view = XMMatrixLookAtLH(eye, at, up);
+        XMMATRIX proj = XMMatrixPerspectiveFovLH(XM_PIDIV2, 1.0f, 0.1f, 100.0f);
         return view * proj;
     }
 
-    inline bool needsFlipZ(uint32_t faceIndex) { return faceIndex == 0 || faceIndex == 1; }
-    inline bool needsFlipX(uint32_t faceIndex) { return !needsFlipZ(faceIndex); }
+    inline bool needsFlipZ(uint32_t) { return false; }
+    inline bool needsFlipX(uint32_t) { return false; }
 }

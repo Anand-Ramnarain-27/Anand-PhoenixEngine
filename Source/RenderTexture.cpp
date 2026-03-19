@@ -75,25 +75,39 @@ void RenderTexture::beginRender(ID3D12GraphicsCommandList* cmdList, bool clear)
 {
     if (!isValid()) return;
 
-    auto toRT = CD3DX12_RESOURCE_BARRIER::Transition(m_textures.texture.Get(),
-        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-    cmdList->ResourceBarrier(1, &toRT);
+    std::vector<CD3DX12_RESOURCE_BARRIER> barriers;
+
+    barriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
+        m_textures.texture.Get(),
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+        D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+    const bool hasDepth = m_depthFormat != DXGI_FORMAT_UNKNOWN;
+
+    cmdList->ResourceBarrier((UINT)barriers.size(), barriers.data());
 
     ensureHandles();
 
-    const bool hasDepth = m_depthFormat != DXGI_FORMAT_UNKNOWN;
     cmdList->OMSetRenderTargets(1, &m_cachedRTV, FALSE, hasDepth ? &m_cachedDSV : nullptr);
 
     if (clear)
     {
         cmdList->ClearRenderTargetView(m_cachedRTV, &m_clearColor.x, 0, nullptr);
+
         if (hasDepth)
-            cmdList->ClearDepthStencilView(m_cachedDSV,
-                D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, m_clearDepth, 0, 0, nullptr);
+        {
+            cmdList->ClearDepthStencilView(
+                m_cachedDSV,
+                D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
+                m_clearDepth,
+                0,
+                0,
+                nullptr);
+        }
     }
 
     D3D12_VIEWPORT vp{ 0.f, 0.f, float(m_width), float(m_height), 0.f, 1.f };
-    D3D12_RECT     sc{ 0, 0, LONG(m_width), LONG(m_height) };
+    D3D12_RECT sc{ 0, 0, LONG(m_width), LONG(m_height) };
     cmdList->RSSetViewports(1, &vp);
     cmdList->RSSetScissorRects(1, &sc);
 }
@@ -108,8 +122,11 @@ void RenderTexture::endRender(ID3D12GraphicsCommandList* cmdList)
     }
     else
     {
-        auto toSRV = CD3DX12_RESOURCE_BARRIER::Transition(m_textures.texture.Get(),
-            D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        auto toSRV = CD3DX12_RESOURCE_BARRIER::Transition(
+            m_textures.texture.Get(),
+            D3D12_RESOURCE_STATE_RENDER_TARGET,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
         cmdList->ResourceBarrier(1, &toSRV);
     }
 }

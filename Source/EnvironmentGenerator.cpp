@@ -21,7 +21,7 @@ std::unique_ptr<EnvironmentMap> EnvironmentGenerator::loadCubemap(const std::str
 		LOG("EnvironmentGenerator: failed to load cubemap '%s'", file.c_str());
 		return nullptr;
 	}
-
+	app->getD3D12()->flush();
 	env->srvTable = shaderDesc->allocTable("SkyboxCubemap");
 	if (!env->srvTable.isValid()) {
 		LOG("EnvironmentGenerator: failed to alloc SRV table");

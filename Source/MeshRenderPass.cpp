@@ -274,20 +274,24 @@ void MeshRenderPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewP
 	outInstVA = m_perInstanceRing->GetGPUVirtualAddress() + (UINT64)slot * instSz;
 }
 
-void MeshRenderPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes, const FrameLightData& lights, const Vector3& cameraPos, const Matrix& viewProj, const EnvironmentSystem* env, ModuleSamplerHeap* samplerHeap) {
+
+void MeshRenderPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes, const FrameLightData& lights, const Vector3& cameraPos, const Matrix& viewProj, const EnvironmentSystem* env, int samplerType) {
 	if (meshes.empty()) return;
 
 	uploadLights(lights);
 
 	uint32_t roughLevels = 0;
-	if (env && env->hasIBL()) {
+	if (env && env->hasIBL())
 		roughLevels = EnvironmentMap::NUM_ROUGHNESS_LEVELS;
-	}
 
 	uploadPerFrameCB(lights, cameraPos, roughLevels);
 
 	cmd->SetPipelineState(m_pipeline.getPSO());
 	cmd->SetGraphicsRootSignature(m_pipeline.getRootSig());
+
+	auto* samplerHeap = app->getSamplerHeap();
+	ID3D12DescriptorHeap* heaps[] = {app->getShaderDescriptors()->getHeap(), samplerHeap->getHeap()};
+	cmd->SetDescriptorHeaps(2, heaps);
 
 	cmd->SetGraphicsRootConstantBufferView(MeshPipeline::SLOT_PERFRAME_CB, m_perFrameCB->GetGPUVirtualAddress());
 
@@ -304,9 +308,8 @@ void MeshRenderPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<Me
 		cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_BRDF_LUT, m_fallbackBRDFSRV.getGPUHandle(0));
 	}
 
-	if (samplerHeap) {
-		cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_SAMPLER, samplerHeap->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));
-	}
+	cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_SAMPLER,
+		samplerHeap->getGPUHandle(static_cast<ModuleSamplerHeap::Type>(samplerType)));
 
 	UINT slot = 0;
 

@@ -23,25 +23,31 @@ float4 main(float3 texcoords : TEXCOORD) : SV_Target
     float3x3 tangentSpace = BuildTangentBasis(N);
 
     float alphaRoughness = roughness * roughness;
-
-    alphaRoughness = max(alphaRoughness, 0.001); 
+    alphaRoughness = max(alphaRoughness, 0.001);
 
     for (int i = 0; i < numSamples; ++i)
     {
-        float3 dir = GGXImportanceSample(HammersleySample(i, numSamples), alphaRoughness);
+        float2 rand_value = HammersleySample(i, numSamples);
+        float3 dir = GGXImportanceSample(rand_value, alphaRoughness);
         
-        float pdf = NormalDistributionGGX(alphaRoughness, dir.z) / 4.0;
-        float lod = ComputeEnvMapLOD(pdf, numSamples, cubemapSize);
-
         float3 H = normalize(mul(dir, tangentSpace));
         float3 L = reflect(-V, H);
-        float NdotL = dot(N, L);
-        if (NdotL > 0)
+        float NdotL = saturate(dot(N, L));
+        float NdotH = saturate(dot(N, H));
+        float VdotH = saturate(dot(V, H));
+        
+        if (NdotL > 0.0)
         {
+            // CORRECT PDF: D * NdotH / (4 * VdotH)
+            float D = NormalDistributionGGX(alphaRoughness, NdotH);
+            float pdf = D * NdotH / (4.0 * VdotH + 1e-6);
+            
+            float lod = ComputeEnvMapLOD(pdf, numSamples, cubemapSize);
+            
             color += skybox.SampleLevel(skyboxSampler, L, lod + lodBias).rgb * NdotL;
             weight += NdotL;
         }
     }
 
-    return float4(color / weight, 1.0);
+    return float4(color / max(weight, 1e-6), 1.0);
 }

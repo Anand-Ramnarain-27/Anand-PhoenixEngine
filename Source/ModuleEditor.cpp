@@ -249,13 +249,9 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
         (sky.enabled && m_envSystem) ? m_envSystem.get() : nullptr;
 
     m_meshRenderPass->render(
-        cmd,
-        visibleMeshes,
-        m_frameLights,
-        camera->getPos(),
-        view * proj,
-        envForIBL,
-        app->getSamplerHeap());
+        cmd, visibleMeshes, m_frameLights,
+        camera->getPos(), view * proj, envForIBL,
+        m_samplerType);
 
     if (editorExtras) {
         if (s.showGrid) dd::xzSquareGrid(-100.f, 100.f, 0.f, 1.f, dd::colors::Gray);
