@@ -37,15 +37,19 @@ bool IBLGenerator::ensureGeometry(ID3D12Device* device) {
 bool IBLGenerator::ensureFaceCB(ID3D12Device* device) {
 	if (m_faceCB) return true;
 
-	FaceCB zero{};
+	// Allocate kNumFaces zeroed slots as the initial data
+	FaceCB zero[kNumFaces] = {};
+	const size_t totalSize = kNumFaces * sizeof(FaceCB);
+
 	auto* resources = app->getGPUResources();
-	m_faceCB = resources->createUploadBuffer(&zero, sizeof(FaceCB), "IBL_FaceCB");
+	m_faceCB = resources->createUploadBuffer(zero, totalSize, "IBL_FaceCB");
 
 	if (!m_faceCB) {
 		LOG("IBLGenerator: failed to create face constant buffer");
 		return false;
 	}
 
+	// Keep the buffer persistently mapped for per-face writes during baking
 	m_faceCB->Map(0, nullptr, reinterpret_cast<void**>(&m_faceCBPtr));
 	return true;
 }
@@ -53,9 +57,11 @@ bool IBLGenerator::ensureFaceCB(ID3D12Device* device) {
 bool IBLGenerator::ensurePassCB(ID3D12Device* device) {
 	if (m_passCB) return true;
 
-	PassCB zero{};
+	PassCB zero[kNumFaces] = {};
+	const size_t totalSize = kNumFaces * sizeof(PassCB);
+
 	auto* resources = app->getGPUResources();
-	m_passCB = resources->createUploadBuffer(&zero, sizeof(PassCB), "IBL_PassCB");
+	m_passCB = resources->createUploadBuffer(zero, totalSize, "IBL_PassCB");
 
 	if (!m_passCB) {
 		LOG("IBLGenerator: failed to create pass constant buffer");
@@ -185,23 +191,31 @@ void IBLGenerator::renderCubeFace(ID3D12Device* device, ID3D12GraphicsCommandLis
 	cmd->RSSetViewports(1, &vp);
 	cmd->RSSetScissorRects(1, &sc);
 
+	// FIX: write into this face's dedicated slot so earlier faces are not overwritten
+	// before the GPU executes their draw commands.
+	FaceCB& faceCBSlot = m_faceCBPtr[faceIndex];
 	XMMATRIX vpMatrix = FaceProjection::viewProj(faceIndex);
-	XMStoreFloat4x4(&m_faceCBPtr->vp, XMMatrixTranspose(vpMatrix));
-	m_faceCBPtr->flipX = FaceProjection::needsFlipX(faceIndex) ? 1 : 0;
-	m_faceCBPtr->flipZ = FaceProjection::needsFlipZ(faceIndex) ? 1 : 0;
-	m_faceCBPtr->roughness = roughness;
+	XMStoreFloat4x4(&faceCBSlot.vp, XMMatrixTranspose(vpMatrix));
+	faceCBSlot.flipX = FaceProjection::needsFlipX(faceIndex) ? 1 : 0;
+	faceCBSlot.flipZ = FaceProjection::needsFlipZ(faceIndex) ? 1 : 0;
+	faceCBSlot.roughness = roughness;
 
-	m_passCBPtr->roughness = roughness;
-	m_passCBPtr->numSamples = numSamples;
-	m_passCBPtr->cubemapSize = cubemapSize;
-	m_passCBPtr->lodBias = 0.0f;
+	PassCB& passCBSlot = m_passCBPtr[faceIndex];
+	passCBSlot.roughness = roughness;
+	passCBSlot.numSamples = numSamples;
+	passCBSlot.cubemapSize = cubemapSize;
+	passCBSlot.lodBias = 0.0f;
+
+	// FIX: point the root CBV at this face's slot, not always the base address.
+	D3D12_GPU_VIRTUAL_ADDRESS faceCBAddr = m_faceCB->GetGPUVirtualAddress() + faceIndex * sizeof(FaceCB);
+	D3D12_GPU_VIRTUAL_ADDRESS passCBAddr = m_passCB->GetGPUVirtualAddress() + faceIndex * sizeof(PassCB);
 
 	ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap(), samplers->getHeap() };
 	cmd->SetDescriptorHeaps(2, heaps);
 	cmd->SetGraphicsRootSignature(rs);
 	cmd->SetPipelineState(pso);
-	cmd->SetGraphicsRootConstantBufferView(0, m_faceCB->GetGPUVirtualAddress());
-	cmd->SetGraphicsRootConstantBufferView(1, m_passCB->GetGPUVirtualAddress());
+	cmd->SetGraphicsRootConstantBufferView(0, faceCBAddr);
+	cmd->SetGraphicsRootConstantBufferView(1, passCBAddr);
 	cmd->SetGraphicsRootDescriptorTable(2, sourceSRV);
 	cmd->SetGraphicsRootDescriptorTable(3, samplers->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));
 

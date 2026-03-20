@@ -47,11 +47,16 @@ private:
 	D3D12_VERTEX_BUFFER_VIEW m_vbView = {};
 	bool m_geometryReady = false;
 
-	ComPtr<ID3D12Resource> m_faceCB;
-	FaceCB* m_faceCBPtr = nullptr;
+	// FIX: one slot per face so each draw command reads its own VP matrix.
+	// FaceCB is alignas(256), so slot N is at offset N * sizeof(FaceCB) — always CBV-aligned.
+	static constexpr uint32_t kNumFaces = 6;
+	ComPtr<ID3D12Resource> m_faceCB;           // single buffer, 6 * sizeof(FaceCB) bytes
+	FaceCB* m_faceCBPtr = nullptr;             // base pointer; face N -> m_faceCBPtr[N]
 
-	ComPtr<ID3D12Resource> m_passCB;
-	PassCB* m_passCBPtr = nullptr;
+	// PassCB is the same for all faces within a mip, but allocate 6 slots anyway so
+	// bakePrefilter (called per-mip with submit+reset in between) stays consistent.
+	ComPtr<ID3D12Resource> m_passCB;           // single buffer, 6 * sizeof(PassCB) bytes
+	PassCB* m_passCBPtr = nullptr;             // base pointer; face N -> m_passCBPtr[N]
 
 	ComPtr<ID3D12RootSignature> m_irradianceRS;
 	ComPtr<ID3D12RootSignature> m_prefilterRS;
