@@ -10,13 +10,11 @@ float ComputeEnvMapLOD(float pdf, int sampleCount, int cubemapWidth) {
     } 
 
 float3 SampleDiffuseIBL(float3 N, float3 baseColor, TextureCube irradianceMap) {
-    // BilinearWrap is required for cubemaps - Clamp causes seams at face boundaries 
     return irradianceMap.Sample(BilinearWrap, N).rgb * baseColor;
     } 
 
 void SampleSpecularIBL(in float3 R, in float NdotV, in float roughness, in float roughnessLevels, in TextureCube prefilteredEnvMap, in Texture2D brdfLUT, out float3 scaledRadiance, out float3 biasedRadiance) { 
     float maxMip = max(roughnessLevels - 1.0, 0.0); 
-    // BilinearWrap for cubemap, BilinearClamp for the 2D BRDF LUT 
     float3 radiance = prefilteredEnvMap.SampleLevel(BilinearWrap, R, roughness * maxMip).rgb;
     float2 fab = brdfLUT.Sample(BilinearClamp, float2(NdotV, roughness)).rg; 
     scaledRadiance = radiance * fab.x; 

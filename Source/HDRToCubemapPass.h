@@ -5,7 +5,7 @@
 #include <DirectXMath.h>
 #include <string>
 #include "ShaderTableDesc.h"
-#include "FaceCB.h" 
+#include "FaceCB.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -25,7 +25,6 @@ public:
     uint32_t getNumMips() const { return m_numMips; }
 
 private:
-
     bool createConversionPipeline(ID3D12Device* device);
     bool createMipPipeline(ID3D12Device* device);
     bool ensureGeometry(ID3D12Device* device);

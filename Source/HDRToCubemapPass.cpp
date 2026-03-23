@@ -7,7 +7,7 @@
 #include "ModuleGPUResources.h"
 #include "ModuleShaderDescriptors.h"
 #include "ModuleRTDescriptors.h"
-#include "ModuleSamplerHeap.h"          // ADDED
+#include "ModuleSamplerHeap.h"
 #include "EnvironmentMap.h"
 #include "ShaderTableDesc.h"
 #include "CubeGeometry.h"
@@ -21,25 +21,18 @@ using namespace DirectX;
 HDRToCubemapPass::HDRToCubemapPass() = default;
 HDRToCubemapPass::~HDRToCubemapPass() = default;
 
-// ---------------------------------------------------------------------------
-// Public entry points
-// ---------------------------------------------------------------------------
-
-bool HDRToCubemapPass::loadHDRTexture(ID3D12Device* device, const std::string& hdrFile, EnvironmentMap& env)
-{
+bool HDRToCubemapPass::loadHDRTexture(ID3D12Device* device, const std::string& hdrFile, EnvironmentMap& env) {
     auto* resources = app->getGPUResources();
     auto* shaderDescs = app->getShaderDescriptors();
 
     m_hdrTex = resources->createTextureFromFile(hdrFile, false);
-    if (!m_hdrTex)
-    {
+    if (!m_hdrTex) {
         LOG("HDRToCubemapPass: failed to load HDR texture '%s'", hdrFile.c_str());
         return false;
     }
 
     m_hdrSRVTable = shaderDescs->allocTable("HDR_Equirect");
-    if (!m_hdrSRVTable.isValid())
-    {
+    if (!m_hdrSRVTable.isValid()) {
         LOG("HDRToCubemapPass: failed to allocate HDR SRV table");
         return false;
     }
@@ -52,24 +45,21 @@ bool HDRToCubemapPass::loadHDRTexture(ID3D12Device* device, const std::string& h
     srvDesc.Texture2D.MostDetailedMip = 0;
     m_hdrSRVTable.createSRV(m_hdrTex.Get(), 0, &srvDesc);
 
-    if (!ensureGeometry(device))                             return false;
-    if (!m_convPSO && !createConversionPipeline(device))     return false;
-    if (!m_mipPSO && !createMipPipeline(device))            return false;
+    if (!ensureGeometry(device)) return false;
+    if (!m_convPSO && !createConversionPipeline(device)) return false;
+    if (!m_mipPSO && !createMipPipeline(device)) return false;
 
     return true;
 }
 
-bool HDRToCubemapPass::createCubemapResource(ID3D12Device* device, EnvironmentMap& env, uint32_t cubeFaceSize)
-{
+bool HDRToCubemapPass::createCubemapResource(ID3D12Device* device, EnvironmentMap& env, uint32_t cubeFaceSize) {
     m_cubeFaceSize = cubeFaceSize;
 
     m_numMips = 1;
     for (uint32_t s = cubeFaceSize; s > 1; s >>= 1)
         ++m_numMips;
 
-    if (!D3D12ResourceFactory::createCubemapRT(device, cubeFaceSize, m_numMips,
-        DXGI_FORMAT_R16G16B16A16_FLOAT, L"SkyboxCubemap", env.cubemap))
-    {
+    if (!D3D12ResourceFactory::createCubemapRT(device, cubeFaceSize, m_numMips, DXGI_FORMAT_R16G16B16A16_FLOAT, L"SkyboxCubemap", env.cubemap)) {
         LOG("HDRToCubemapPass: failed to create cubemap resource (size=%u mips=%u)", cubeFaceSize, m_numMips);
         return false;
     }
@@ -78,9 +68,7 @@ bool HDRToCubemapPass::createCubemapResource(ID3D12Device* device, EnvironmentMa
     return true;
 }
 
-bool HDRToCubemapPass::recordConversion(ID3D12GraphicsCommandList* cmd, EnvironmentMap& env)
-{
-    // ADDED: bind both heaps once before all face draws
+bool HDRToCubemapPass::recordConversion(ID3D12GraphicsCommandList* cmd, EnvironmentMap& env) {
     auto* shaderDescs = app->getShaderDescriptors();
     auto* samplers = app->getSamplerHeap();
     ID3D12DescriptorHeap* heaps[] = { shaderDescs->getHeap(), samplers->getHeap() };
@@ -94,18 +82,14 @@ bool HDRToCubemapPass::recordConversion(ID3D12GraphicsCommandList* cmd, Environm
     return true;
 }
 
-bool HDRToCubemapPass::recordMipLevel(ID3D12Device* device, ID3D12GraphicsCommandList* cmd,
-    EnvironmentMap& env, uint32_t mipIndex)
-{
-    // ADDED: bind both heaps once before all face blits
+bool HDRToCubemapPass::recordMipLevel(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env, uint32_t mipIndex) {
     auto* shaderDescs = app->getShaderDescriptors();
     auto* samplers = app->getSamplerHeap();
     ID3D12DescriptorHeap* heaps[] = { shaderDescs->getHeap(), samplers->getHeap() };
     cmd->SetDescriptorHeaps(2, heaps);
 
     ShaderTableDesc mipTable = shaderDescs->allocTable("HDR_MipSrc");
-    if (!mipTable.isValid())
-    {
+    if (!mipTable.isValid()) {
         LOG("HDRToCubemapPass: failed to allocate mip SRV table (mip=%u)", mipIndex);
         return false;
     }
@@ -116,12 +100,10 @@ bool HDRToCubemapPass::recordMipLevel(ID3D12Device* device, ID3D12GraphicsComman
     return true;
 }
 
-bool HDRToCubemapPass::finaliseSRV(EnvironmentMap& env)
-{
+bool HDRToCubemapPass::finaliseSRV(EnvironmentMap& env) {
     auto* shaderDescs = app->getShaderDescriptors();
     env.srvTable = shaderDescs->allocTable("SkyboxCubemap");
-    if (!env.srvTable.isValid())
-    {
+    if (!env.srvTable.isValid()) {
         LOG("HDRToCubemapPass: failed to allocate cubemap SRV table");
         return false;
     }
@@ -141,41 +123,26 @@ bool HDRToCubemapPass::finaliseSRV(EnvironmentMap& env)
     return true;
 }
 
-// ---------------------------------------------------------------------------
-// Pipeline creation
-// ---------------------------------------------------------------------------
-
-bool HDRToCubemapPass::createConversionPipeline(ID3D12Device* device)
-{
-    // Root layout:
-    //   slot 0: root constants b0  - face VP + flip flags (SkyboxVS)
-    //   slot 1: SRV table t0       - equirectangular HDR texture
-    //   slot 2: Sampler table s0   - ModuleSamplerHeap (LINEAR_WRAP used at draw time)
-    //
-    // CHANGED: removed static sampler, added dynamic sampler descriptor table at slot 2.
-
+bool HDRToCubemapPass::createConversionPipeline(ID3D12Device* device) {
     struct FaceConstants { XMFLOAT4X4 vp; int flipX; int flipZ; };
     static constexpr UINT kNumConstants = sizeof(FaceConstants) / sizeof(UINT);
 
-    CD3DX12_ROOT_PARAMETER params[3];                                                       // was 2
+    CD3DX12_ROOT_PARAMETER params[3];
     params[0].InitAsConstants(kNumConstants, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
 
     CD3DX12_DESCRIPTOR_RANGE srvRange;
     srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
     params[1].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
-    // ADDED: dynamic sampler table covering all slots in ModuleSamplerHeap
     CD3DX12_DESCRIPTOR_RANGE sampRange;
     sampRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, ModuleSamplerHeap::COUNT, 0);
     params[2].InitAsDescriptorTable(1, &sampRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
     CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
-    // CHANGED: 3 params, 0 static samplers (was 2 params, 1 static sampler)
     rsDesc.Init(3, params, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     ComPtr<ID3DBlob> blob, err;
-    if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err)))
-    {
+    if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))) {
         LOG("HDRToCubemapPass: conv root signature serialise failed: %s",
             err ? (char*)err->GetBufferPointer() : "unknown error");
         return false;
@@ -208,42 +175,30 @@ bool HDRToCubemapPass::createConversionPipeline(ID3D12Device* device)
     psoDesc.DepthStencilState.DepthEnable = FALSE;
     psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
-    if (FAILED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_convPSO))))
-    {
+    if (FAILED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_convPSO)))) {
         LOG("HDRToCubemapPass: failed to create conversion PSO");
         return false;
     }
     return true;
 }
 
-bool HDRToCubemapPass::createMipPipeline(ID3D12Device* device)
-{
-    // Root layout:
-    //   slot 0: root constant b0  - face array slice index (MipChainPS)
-    //   slot 1: SRV table t0      - source mip face (Texture2DArray slice)
-    //   slot 2: Sampler table s0  - ModuleSamplerHeap (LINEAR_CLAMP used at draw time)
-    //
-    // CHANGED: removed static sampler, added dynamic sampler descriptor table at slot 2.
-
-    CD3DX12_ROOT_PARAMETER params[3];                                                       // was 2
+bool HDRToCubemapPass::createMipPipeline(ID3D12Device* device) {
+    CD3DX12_ROOT_PARAMETER params[3];
     params[0].InitAsConstants(1, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 
     CD3DX12_DESCRIPTOR_RANGE srvRange;
     srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
     params[1].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
-    // ADDED: dynamic sampler table
     CD3DX12_DESCRIPTOR_RANGE sampRange;
     sampRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, ModuleSamplerHeap::COUNT, 0);
     params[2].InitAsDescriptorTable(1, &sampRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
     CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
-    // CHANGED: 3 params, 0 static samplers (was 2 params, 1 static sampler), no input assembler flag needed
     rsDesc.Init(3, params, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
     ComPtr<ID3DBlob> blob, err;
-    if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err)))
-    {
+    if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))) {
         LOG("HDRToCubemapPass: mip root signature serialise failed: %s",
             err ? (char*)err->GetBufferPointer() : "unknown error");
         return false;
@@ -270,16 +225,14 @@ bool HDRToCubemapPass::createMipPipeline(ID3D12Device* device)
     psoDesc.DepthStencilState.DepthEnable = FALSE;
     psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
-    if (FAILED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_mipPSO))))
-    {
+    if (FAILED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_mipPSO)))) {
         LOG("HDRToCubemapPass: failed to create mip PSO");
         return false;
     }
     return true;
 }
 
-bool HDRToCubemapPass::ensureGeometry(ID3D12Device* device)
-{
+bool HDRToCubemapPass::ensureGeometry(ID3D12Device* device) {
     if (m_geometryReady)
         return true;
 
@@ -287,8 +240,7 @@ bool HDRToCubemapPass::ensureGeometry(ID3D12Device* device)
     m_cubeVB = resources->createDefaultBuffer(
         CubeGeometry::kCubeVerts, CubeGeometry::kCubeVertexSize, "HDR_CubeVB");
 
-    if (!m_cubeVB)
-    {
+    if (!m_cubeVB) {
         LOG("HDRToCubemapPass: failed to create cube vertex buffer");
         return false;
     }
@@ -300,36 +252,18 @@ bool HDRToCubemapPass::ensureGeometry(ID3D12Device* device)
     return true;
 }
 
-// ---------------------------------------------------------------------------
-// Rendering helpers
-// ---------------------------------------------------------------------------
-
-void HDRToCubemapPass::renderFace(
-    ID3D12GraphicsCommandList* cmd,
-    ID3D12Resource* target,
-    uint32_t                    faceIndex,
-    uint32_t                    mipLevel,
-    uint32_t                    totalMips,
-    uint32_t                    baseFaceSize,
-    D3D12_GPU_DESCRIPTOR_HANDLE sourceSRV,
-    ID3D12RootSignature* rs,
-    ID3D12PipelineState* pso,
-    DXGI_FORMAT                 rtvFmt)
-{
+void HDRToCubemapPass::renderFace(ID3D12GraphicsCommandList* cmd, ID3D12Resource* target, uint32_t faceIndex, uint32_t mipLevel, uint32_t totalMips, uint32_t baseFaceSize, D3D12_GPU_DESCRIPTOR_HANDLE sourceSRV, ID3D12RootSignature* rs, ID3D12PipelineState* pso, DXGI_FORMAT rtvFmt) {
     auto* rtDescs = app->getRTDescriptors();
     uint32_t mipSize = std::max(1u, baseFaceSize >> mipLevel);
 
     RenderTargetDesc rtv = rtDescs->create(target, faceIndex, mipLevel, rtvFmt);
-    if (!rtv)
-    {
+    if (!rtv) {
         LOG("HDRToCubemapPass: RTV alloc failed (face=%u mip=%u)", faceIndex, mipLevel);
         return;
     }
 
     UINT subRes = D3D12CalcSubresource(mipLevel, faceIndex, 0, totalMips, 6);
-    auto toRT = CD3DX12_RESOURCE_BARRIER::Transition(target,
-        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-        D3D12_RESOURCE_STATE_RENDER_TARGET, subRes);
+    auto toRT = CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET, subRes);
     cmd->ResourceBarrier(1, &toRT);
 
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = rtv.getCPUHandle();
@@ -338,7 +272,7 @@ void HDRToCubemapPass::renderFace(
     cmd->ClearRenderTargetView(rtvHandle, clear, 0, nullptr);
 
     D3D12_VIEWPORT vp = { 0.0f, 0.0f, float(mipSize), float(mipSize), 0.0f, 1.0f };
-    D3D12_RECT     sc = { 0,    0,    LONG(mipSize),  LONG(mipSize) };
+    D3D12_RECT sc = { 0, 0, LONG(mipSize), LONG(mipSize) };
     cmd->RSSetViewports(1, &vp);
     cmd->RSSetScissorRects(1, &sc);
 
@@ -352,27 +286,16 @@ void HDRToCubemapPass::renderFace(
     cmd->SetPipelineState(pso);
     cmd->SetGraphicsRoot32BitConstants(0, sizeof(FaceConstants) / sizeof(UINT), &fc, 0);
     cmd->SetGraphicsRootDescriptorTable(1, sourceSRV);
-    // ADDED: bind LINEAR_WRAP sampler from ModuleSamplerHeap at slot 2
     cmd->SetGraphicsRootDescriptorTable(2, app->getSamplerHeap()->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));
     cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     cmd->IASetVertexBuffers(0, 1, &m_vbView);
     cmd->DrawInstanced(CubeGeometry::kCubeVertexCount, 1, 0, 0);
 
-    auto toSRV = CD3DX12_RESOURCE_BARRIER::Transition(target,
-        D3D12_RESOURCE_STATE_RENDER_TARGET,
-        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, subRes);
+    auto toSRV = CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, subRes);
     cmd->ResourceBarrier(1, &toSRV);
 }
 
-void HDRToCubemapPass::blitMipFace(
-    ID3D12GraphicsCommandList* cmd,
-    ID3D12Resource* cubemap,
-    uint32_t                    faceIndex,
-    uint32_t                    dstMip,
-    uint32_t                    totalMips,
-    uint32_t                    baseFaceSize,
-    ShaderTableDesc& mipTable)
-{
+void HDRToCubemapPass::blitMipFace(ID3D12GraphicsCommandList* cmd, ID3D12Resource* cubemap, uint32_t faceIndex, uint32_t dstMip, uint32_t totalMips, uint32_t baseFaceSize, ShaderTableDesc& mipTable) {
     auto* rtDescs = app->getRTDescriptors();
     uint32_t dstSize = std::max(1u, baseFaceSize >> dstMip);
 
@@ -388,23 +311,20 @@ void HDRToCubemapPass::blitMipFace(
     mipTable.createSRV(cubemap, faceIndex, &srvDesc);
 
     RenderTargetDesc rtv = rtDescs->create(cubemap, faceIndex, dstMip, DXGI_FORMAT_R16G16B16A16_FLOAT);
-    if (!rtv)
-    {
+    if (!rtv) {
         LOG("HDRToCubemapPass: mip RTV alloc failed (face=%u mip=%u)", faceIndex, dstMip);
         return;
     }
 
     UINT subResDst = D3D12CalcSubresource(dstMip, faceIndex, 0, totalMips, 6);
-    auto toRT = CD3DX12_RESOURCE_BARRIER::Transition(cubemap,
-        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-        D3D12_RESOURCE_STATE_RENDER_TARGET, subResDst);
+    auto toRT = CD3DX12_RESOURCE_BARRIER::Transition(cubemap, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET, subResDst);
     cmd->ResourceBarrier(1, &toRT);
 
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = rtv.getCPUHandle();
     cmd->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
     D3D12_VIEWPORT vp = { 0.0f, 0.0f, float(dstSize), float(dstSize), 0.0f, 1.0f };
-    D3D12_RECT     sc = { 0,    0,    LONG(dstSize),  LONG(dstSize) };
+    D3D12_RECT sc = { 0, 0, LONG(dstSize), LONG(dstSize) };
     cmd->RSSetViewports(1, &vp);
     cmd->RSSetScissorRects(1, &sc);
 
@@ -413,14 +333,11 @@ void HDRToCubemapPass::blitMipFace(
     cmd->SetPipelineState(m_mipPSO.Get());
     cmd->SetGraphicsRoot32BitConstants(0, 1, &faceSlice, 0);
     cmd->SetGraphicsRootDescriptorTable(1, mipTable.getGPUHandle(faceIndex));
-    // ADDED: bind LINEAR_CLAMP sampler from ModuleSamplerHeap at slot 2 (avoids edge bleed when downsampling)
     cmd->SetGraphicsRootDescriptorTable(2, app->getSamplerHeap()->getGPUHandle(ModuleSamplerHeap::LINEAR_CLAMP));
     cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     cmd->IASetVertexBuffers(0, 0, nullptr);
     cmd->DrawInstanced(3, 1, 0, 0);
 
-    auto toSRV = CD3DX12_RESOURCE_BARRIER::Transition(cubemap,
-        D3D12_RESOURCE_STATE_RENDER_TARGET,
-        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, subResDst);
+    auto toSRV = CD3DX12_RESOURCE_BARRIER::Transition(cubemap, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, subResDst);
     cmd->ResourceBarrier(1, &toSRV);
 }
