@@ -211,7 +211,6 @@
     <ClCompile Include="ViewportPanel.cpp">
       <Filter>engine\editor\panels\viewports</Filter>
     </ClCompile>
-    <ClCompile Include="ModuleStaticBuffer.cpp" />
     <ClCompile Include="HDRToCubemapPass.cpp">
       <Filter>engine\graphics\environment</Filter>
     </ClCompile>
@@ -220,6 +219,9 @@
     </ClCompile>
     <ClCompile Include="CommandContext.cpp">
       <Filter>engine\graphics\environment</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleStaticBuffer.cpp">
+      <Filter>engine\d3d12</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -497,8 +499,6 @@
     <ClInclude Include="ViewportPanel.h">
       <Filter>engine\editor\panels\viewports</Filter>
     </ClInclude>
-    <ClInclude Include="PrefabEditSession.h" />
-    <ClInclude Include="ModuleStaticBuffer.h" />
     <ClInclude Include="HDRToCubemapPass.h">
       <Filter>engine\graphics\environment</Filter>
     </ClInclude>
@@ -528,6 +528,12 @@
     </ClInclude>
     <ClInclude Include="FaceCB.h">
       <Filter>engine\graphics\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleStaticBuffer.h">
+      <Filter>engine\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="PrefabEditSession.h">
+      <Filter>engine\scene\prefabs</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
