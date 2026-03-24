@@ -20,7 +20,7 @@ float4 main(
     float3 worldPos : POSITION,
     float2 texCoord : TEXCOORD,
     float3 normal : NORMAL0,
-    float3 tangent : TANGENT) : SV_TARGET
+    float4 tangent : TANGENT) : SV_TARGET 
 {
     float3 V = normalize(CameraPosition - worldPos);
     float3 N = normalize(normal);
@@ -35,8 +35,8 @@ float4 main(
     roughness = getGeometricSpecularAA(N, roughness);
     alphaRoughness = roughness * roughness;
 
-    float3 T = normalize(tangent);
-    float3 B = normalize(cross(N, T));
+    float3 T = normalize(tangent.xyz);
+    float3 B = normalize(cross(N, T) * tangent.w);
     N = SampleNormal(InstanceMaterial, NormalTex, texCoord, N, T, B);
 
     float NdotV = saturate(dot(N, V));

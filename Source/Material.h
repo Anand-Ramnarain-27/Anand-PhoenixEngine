@@ -6,6 +6,13 @@
 
 using Microsoft::WRL::ComPtr;
 
+static constexpr uint32_t MAT_FLAG_BASECOLOR_TEX = 0x01;
+static constexpr uint32_t MAT_FLAG_METALROUGH_TEX = 0x02;
+static constexpr uint32_t MAT_FLAG_NORMAL_TEX = 0x04;
+static constexpr uint32_t MAT_FLAG_COMPRESSED_NORMS = 0x08;
+static constexpr uint32_t MAT_FLAG_OCCLUSION_TEX = 0x10;
+static constexpr uint32_t MAT_FLAG_EMISSIVE_TEX = 0x20;
+
 class Material {
 public:
 	struct Data {
@@ -14,14 +21,10 @@ public:
 		float roughness = 0.5f;
 		float normalStrength = 1.f;
 		float aoStrength = 1.f;
-		uint32_t hasBaseColorTexture = 0;
-		uint32_t hasNormalMap = 0;
-		uint32_t hasAOMap = 0;
-		uint32_t hasEmissiveMap = 0;
-		uint32_t hasMetalRoughMap = 0;
-		uint32_t _pad = 0;
 		Vector3 emissiveFactor = Vector3(1.f, 1.f, 1.f);
-		uint32_t samplerIndex = 0;
+		float alphaCutoff = 0.f;
+		uint32_t flags = 0;
+		uint32_t padding = 0;
 	};
 
 	Material() = default;

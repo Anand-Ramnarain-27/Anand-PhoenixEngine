@@ -47,14 +47,9 @@ namespace {
 		gm.normalScale = d.normalStrength;
 		gm.occlusionStrength = d.aoStrength;
 		gm.emissiveFactor = d.emissiveFactor;
-		gm.alphaCutoff = 0.f;
-		gm.flags = 0;
+		gm.alphaCutoff = d.alphaCutoff;
+		gm.flags = d.flags;
 		gm.padding = 0;
-		if (mat->hasTexture()) gm.flags |= MeshPipeline::MAT_FLAG_BASECOLOR_TEX;
-		if (mat->hasNormalMap()) gm.flags |= MeshPipeline::MAT_FLAG_NORMAL_TEX;
-		if (mat->hasAOMap()) gm.flags |= MeshPipeline::MAT_FLAG_OCCLUSION_TEX;
-		if (mat->hasEmissive()) gm.flags |= MeshPipeline::MAT_FLAG_EMISSIVE_TEX;
-		if (mat->hasMetalRoughMap()) gm.flags |= MeshPipeline::MAT_FLAG_METALROUGH_TEX;
 		return gm;
 	}
 
@@ -258,9 +253,10 @@ void MeshRenderPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewP
 	{
 		MeshPipeline::CbPerInstance inst = {};
 		inst.modelMatrix = world.Transpose();
+
 		Matrix inv;
 		world.Invert(inv);
-		inst.normalMatrix = inv.Transpose();
+		inst.normalMatrix = inv;
 
 		const Material* mat = nullptr;
 		if (entry.materialRes) mat = entry.materialRes->getMaterial();
@@ -274,15 +270,13 @@ void MeshRenderPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewP
 	outInstVA = m_perInstanceRing->GetGPUVirtualAddress() + (UINT64)slot * instSz;
 }
 
-
 void MeshRenderPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes, const FrameLightData& lights, const Vector3& cameraPos, const Matrix& viewProj, const EnvironmentSystem* env, int samplerType) {
 	if (meshes.empty()) return;
 
 	uploadLights(lights);
 
 	uint32_t roughLevels = 0;
-	if (env && env->hasIBL())
-		roughLevels = EnvironmentMap::NUM_ROUGHNESS_LEVELS;
+	if (env && env->hasIBL()) roughLevels = EnvironmentMap::NUM_ROUGHNESS_LEVELS;
 
 	uploadPerFrameCB(lights, cameraPos, roughLevels);
 
@@ -290,7 +284,7 @@ void MeshRenderPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<Me
 	cmd->SetGraphicsRootSignature(m_pipeline.getRootSig());
 
 	auto* samplerHeap = app->getSamplerHeap();
-	ID3D12DescriptorHeap* heaps[] = {app->getShaderDescriptors()->getHeap(), samplerHeap->getHeap()};
+	ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap(), samplerHeap->getHeap() };
 	cmd->SetDescriptorHeaps(2, heaps);
 
 	cmd->SetGraphicsRootConstantBufferView(MeshPipeline::SLOT_PERFRAME_CB, m_perFrameCB->GetGPUVirtualAddress());
@@ -308,8 +302,7 @@ void MeshRenderPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<Me
 		cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_BRDF_LUT, m_fallbackBRDFSRV.getGPUHandle(0));
 	}
 
-	cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_SAMPLER,
-		samplerHeap->getGPUHandle(static_cast<ModuleSamplerHeap::Type>(samplerType)));
+	cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_SAMPLER, samplerHeap->getGPUHandle(static_cast<ModuleSamplerHeap::Type>(samplerType)));
 
 	UINT slot = 0;
 
@@ -333,15 +326,15 @@ void MeshRenderPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<Me
 
 		ShaderTableDesc& matTable = m_matRing[slot];
 
+		const Material* mat = nullptr;
+		if (entry->materialRes) mat = entry->materialRes->getMaterial();
+		else if (entry->material) mat = entry->material;
+
 		writeFallbackTex2DSRV(matTable, MAT_SLOT_BASECOLOR, m_fallbackTex2D.Get());
 		writeFallbackTex2DSRV(matTable, MAT_SLOT_METALROUGH, m_fallbackTex2D.Get());
 		writeFallbackTex2DSRV(matTable, MAT_SLOT_NORMAL, m_fallbackTex2D.Get());
 		writeFallbackTex2DSRV(matTable, MAT_SLOT_AO, m_fallbackTex2D.Get());
 		writeFallbackTex2DSRV(matTable, MAT_SLOT_EMISSIVE, m_fallbackTex2D.Get());
-
-		const Material* mat = nullptr;
-		if (entry->materialRes) mat = entry->materialRes->getMaterial();
-		else if (entry->material) mat = entry->material;
 
 		if (mat) {
 			if (mat->hasTexture() && mat->getBaseColorResource()) writeTex2DSRV(matTable, MAT_SLOT_BASECOLOR, mat->getBaseColorResource());
@@ -354,7 +347,6 @@ void MeshRenderPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<Me
 		cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_MAT_TEXTURES, matTable.getGPUHandle(0));
 
 		mesh->draw(cmd);
-
 		++slot;
 	}
 }

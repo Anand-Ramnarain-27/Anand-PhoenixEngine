@@ -35,7 +35,8 @@ void SampleAmbientOcclusion(in Material material, in Texture2D occlusionTex, in 
 {
     if (material.Flags & HAS_OCCLUSION_TEX)
     {
-        diffuseAO  = occlusionTex.Sample(BilinearWrap, uv).r * material.OcclusionStrength;
+        float sampledAO = occlusionTex.Sample(BilinearWrap, uv).r;
+        diffuseAO = lerp(1.0, sampledAO, material.OcclusionStrength);
         specularAO = ComputeSpecularAO(NdotV, diffuseAO, roughness);
     }
     else
