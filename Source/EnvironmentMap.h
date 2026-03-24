@@ -8,7 +8,7 @@ using Microsoft::WRL::ComPtr;
 
 class EnvironmentMap {
 public:
-	static constexpr uint32_t NUM_ROUGHNESS_LEVELS = 5;
+	static constexpr uint32_t NUM_ROUGHNESS_LEVELS = 8;
 
 	ComPtr<ID3D12Resource> cubemap;
 	ShaderTableDesc srvTable;

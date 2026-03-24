@@ -45,7 +45,7 @@ float4 main(
 
     float diffuseAO, specularAO;
     SampleAmbientOcclusion(InstanceMaterial, OcclusionTex, texCoord,
-                           NdotV, NdotR, alphaRoughness, diffuseAO, specularAO);
+                           NdotV, NdotR, roughness, diffuseAO, specularAO);
 
     float3 colour = ComputeIBLLighting(V, N,
                                        IrradianceMap, PrefilteredEnvMap, BrdfLUT,
