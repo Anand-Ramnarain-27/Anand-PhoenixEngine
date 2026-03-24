@@ -11,12 +11,12 @@
 
 using Microsoft::WRL::ComPtr;
 
+class ModuleStaticBuffer;
+
 class Model {
 public:
-    bool load(const char* fileName);
+    bool load(const char* fileName, ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer);
 
-    void draw(ID3D12GraphicsCommandList* cmdList, const Matrix& worldMatrix);
-    void draw(ID3D12GraphicsCommandList* cmdList);
     void buildMeshEntries(const Matrix& parentWorld, std::vector<MeshEntry>& out) const;
     void markMaterialsDirty() { m_materialCBsDirty = true; }
 
@@ -33,7 +33,7 @@ public:
 
 private:
     bool importFromGLTF(const char* fileName);
-    bool loadFromLibrary(const std::string& folder);
+    bool loadFromLibrary(const std::string& folder, ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer);
     void rebuildMaterialCBs() const;
 
     std::string m_srcFile;

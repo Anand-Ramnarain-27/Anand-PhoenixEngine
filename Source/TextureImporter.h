@@ -18,10 +18,21 @@ public:
 		uint32_t format = 0;
 	};
 
-	static bool Import(const char* sourcePath, const std::string& outputPath);
-	static bool Load(const std::string& file, ComPtr<ID3D12Resource>& outTexture, D3D12_GPU_DESCRIPTOR_HANDLE& outSRV);
+	enum class TextureType {
+		Color,            
+		Emissive,         
+		Normal,     
+		OcclusionMetalRough 
+	};
+
+	static bool Import(const char* sourcePath, const std::string& outputPath,
+		TextureType type = TextureType::Color);
+	static bool Load(const std::string& file,
+		ComPtr<ID3D12Resource>& outTexture,
+		D3D12_GPU_DESCRIPTOR_HANDLE& outSRV);
 	static std::string GetTextureName(const char* filePath);
 
 private:
-	static bool SaveMetadata(const std::string& ddsPath, uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t format);
+	static bool SaveMetadata(const std::string& ddsPath, uint32_t width, uint32_t height,
+		uint32_t mipLevels, uint32_t format);
 };

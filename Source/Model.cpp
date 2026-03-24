@@ -5,6 +5,7 @@
 #include "Application.h"
 #include "ModuleD3D12.h"
 #include "ModuleFileSystem.h"
+#include "ModuleStaticBuffer.h"
 #include "SceneImporter.h"
 #include "MeshImporter.h"
 #include "MaterialImporter.h"
@@ -14,11 +15,7 @@
 #include <cstring>
 #include <d3dx12.h>
 
-// Returns true if the cached material files need to be re-imported.
-// Peeks at the first .mat file's version header without fully loading it.
-// Triggers re-import when the version is older than the current format (v3+).
-static bool materialsNeedReimport(const std::string& matFolder, uint32_t materialCount)
-{
+static bool materialsNeedReimport(const std::string& matFolder, uint32_t materialCount) {
     if (materialCount == 0) return false;
 
     std::string firstMat = ImporterUtils::IndexedPath(matFolder, 0, ".mat");
@@ -29,13 +26,10 @@ static bool materialsNeedReimport(const std::string& matFolder, uint32_t materia
     if (!ImporterUtils::LoadBuffer(firstMat, header, buf)) return true;
     if (!ImporterUtils::ValidateHeader(header, 0x4D415452)) return true;
 
-    // Version 3 added the metallic-roughness texture path.
-    // Anything older must be re-imported.
-    return header.version < 3;
+    return header.version < 4;
 }
 
-bool Model::load(const char* fileName)
-{
+bool Model::load(const char* fileName, ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer) {
     m_srcFile = fileName;
     std::string modelName = std::filesystem::path(fileName).stem().string();
     std::string meshFolder = app->getFileSystem()->GetLibraryPath() + "Meshes/" + modelName;
@@ -43,35 +37,24 @@ bool Model::load(const char* fileName)
 
     bool meshFolderExists = app->getFileSystem()->Exists(meshFolder.c_str());
 
-    if (!meshFolderExists)
-    {
-        LOG("Model: Scene not imported yet, importing %s", fileName);
-        if (!importFromGLTF(fileName)) { LOG("Model: Failed to import scene from %s", fileName); return false; }
+    if (!meshFolderExists) {
+        LOG("Model: importing %s", fileName);
+        if (!importFromGLTF(fileName)) { LOG("Model: Failed to import %s", fileName); return false; }
     }
-    else
-    {
-        // Mesh folder exists - check if material files are up to date.
-        // Load the scene header just to know how many materials there are.
+    else {
         SceneImporter::SceneHeader sceneHeader;
-        if (SceneImporter::LoadSceneMetadata(modelName, sceneHeader))
-        {
-            if (materialsNeedReimport(matFolder, sceneHeader.materialCount))
-            {
-                LOG("Model: Material cache is outdated (pre-v3), re-importing %s", fileName);
-                if (!importFromGLTF(fileName))
-                {
-                    LOG("Model: Re-import failed for %s - continuing with stale materials", fileName);
-                    // Don't return false - still try to load what we have
-                }
+        if (SceneImporter::LoadSceneMetadata(modelName, sceneHeader)) {
+            if (materialsNeedReimport(matFolder, sceneHeader.materialCount)) {
+                LOG("Model: Material cache outdated, re-importing %s", fileName);
+                importFromGLTF(fileName);
             }
         }
     }
 
-    return loadFromLibrary(meshFolder);
+    return loadFromLibrary(meshFolder, cmd, staticBuffer);
 }
 
-bool Model::importFromGLTF(const char* fileName)
-{
+bool Model::importFromGLTF(const char* fileName) {
     tinygltf::TinyGLTF loader;
     tinygltf::Model gltfModel;
     std::string error, warning;
@@ -83,8 +66,7 @@ bool Model::importFromGLTF(const char* fileName)
     return SceneImporter::ImportFromLoadedGLTF(gltfModel, std::filesystem::path(fileName).stem().string());
 }
 
-bool Model::loadFromLibrary(const std::string& folder)
-{
+bool Model::loadFromLibrary(const std::string& folder, ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer) {
     ModuleFileSystem* fs = app->getFileSystem();
     if (!fs->Exists(folder.c_str())) { LOG("Model: Folder does not exist: %s", folder.c_str()); return false; }
 
@@ -100,8 +82,8 @@ bool Model::loadFromLibrary(const std::string& folder)
     for (uint32_t i = 0; i < header.meshCount; ++i) {
         std::unique_ptr<Mesh> mesh;
         std::string meshFile = ImporterUtils::IndexedPath(folder, i, ".mesh");
-        if (MeshImporter::Load(meshFile, mesh)) m_meshes.push_back(std::move(mesh));
-        else LOG("  Failed to load mesh: %s", meshFile.c_str());
+        if (MeshImporter::Load(meshFile, cmd, staticBuffer, mesh)) m_meshes.push_back(std::move(mesh));
+        else LOG("Failed to load mesh: %s", meshFile.c_str());
     }
 
     std::string matFolder = fs->GetLibraryPath() + "Materials/" + std::filesystem::path(folder).filename().string();
@@ -109,7 +91,7 @@ bool Model::loadFromLibrary(const std::string& folder)
         std::unique_ptr<Material> material;
         std::string matFile = ImporterUtils::IndexedPath(matFolder, i, ".mat");
         if (MaterialImporter::Load(matFile, material)) m_materials.push_back(std::move(material));
-        else { LOG("  Failed to load material: %s", matFile.c_str()); m_materials.push_back(std::make_unique<Material>()); }
+        else { LOG("Failed to load material: %s", matFile.c_str()); m_materials.push_back(std::make_unique<Material>()); }
     }
 
     while (m_materials.size() < m_meshes.size()) m_materials.push_back(std::make_unique<Material>());
@@ -118,17 +100,7 @@ bool Model::loadFromLibrary(const std::string& folder)
     return !m_meshes.empty();
 }
 
-void Model::draw(ID3D12GraphicsCommandList* cmdList, const Matrix& worldMatrix)
-{
-    Matrix finalWorld = m_modelMatrix * worldMatrix;
-    cmdList->SetGraphicsRoot32BitConstants(1, 16, &finalWorld, 0);
-    for (const auto& mesh : m_meshes) if (mesh) mesh->draw(cmdList);
-}
-
-void Model::draw(ID3D12GraphicsCommandList* cmdList) { draw(cmdList, Matrix::Identity); }
-
-void Model::rebuildMaterialCBs() const
-{
+void Model::rebuildMaterialCBs() const {
     m_materialCBs.resize(m_materials.size());
     auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer((sizeof(Material::Data) + 255) & ~255);
@@ -152,8 +124,7 @@ void Model::rebuildMaterialCBs() const
     m_materialCBsDirty = false;
 }
 
-void Model::buildMeshEntries(const Matrix& parentWorld, std::vector<MeshEntry>& out) const
-{
+void Model::buildMeshEntries(const Matrix& parentWorld, std::vector<MeshEntry>& out) const {
     if (m_materialCBsDirty || m_materialCBs.size() != m_materials.size()) rebuildMaterialCBs();
 
     Matrix finalWorld = m_modelMatrix * parentWorld;
