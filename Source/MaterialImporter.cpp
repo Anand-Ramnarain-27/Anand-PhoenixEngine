@@ -59,6 +59,7 @@ bool MaterialImporter::Import(const tinygltf::Material& gltfMat, const tinygltf:
 		header.normalPathLength = (uint32_t)normalPath.size();
 		header.normalStrength = (float)gltfMat.normalTexture.scale;
 		if (header.normalStrength == 0.f) header.normalStrength = 1.f;
+		header.flags |= MAT_FLAG_COMPRESSED_NORMS;
 	}
 
 	std::string aoPath = importTexture(gltfMat.occlusionTexture.index, model, sceneName, basePath,
@@ -128,6 +129,7 @@ bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& 
 	data.normalStrength = header.normalStrength;
 	data.aoStrength = header.aoStrength;
 	data.emissiveFactor = Vector3(header.emissiveR, header.emissiveG, header.emissiveB);
+	data.flags = header.flags;
 
 	auto loadTex = [&](const std::string& path,
 		void (Material::* setter)(ComPtr<ID3D12Resource>, D3D12_GPU_DESCRIPTOR_HANDLE)) -> bool {

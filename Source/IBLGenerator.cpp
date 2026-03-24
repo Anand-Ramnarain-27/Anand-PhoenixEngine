@@ -232,10 +232,10 @@ bool IBLGenerator::generate(ID3D12Device* device, ID3D12GraphicsCommandList* cmd
         return false;
     }
 
-    {
-        auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(env.cubemap.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        cmd->ResourceBarrier(1, &barrier);
-    }
+    //{
+    //    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(env.cubemap.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    //    cmd->ResourceBarrier(1, &barrier);
+    //}
 
     if (!ensureGeometry(device)) return false;
     if (!ensureFaceCB(device)) return false;

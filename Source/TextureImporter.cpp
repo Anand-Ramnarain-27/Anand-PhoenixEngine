@@ -52,7 +52,7 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
 			break;
 
 		case TextureType::Normal:
-			fmt = DXGI_FORMAT_BC3_UNORM;
+			fmt = DXGI_FORMAT_BC5_UNORM;
 			break;
 
 		case TextureType::OcclusionMetalRough:

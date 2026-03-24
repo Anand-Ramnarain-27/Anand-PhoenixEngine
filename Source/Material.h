@@ -21,7 +21,7 @@ public:
 		float roughness = 0.5f;
 		float normalStrength = 1.f;
 		float aoStrength = 1.f;
-		Vector3 emissiveFactor = Vector3(1.f, 1.f, 1.f);
+		Vector3 emissiveFactor = Vector3(0.f, 0.f, 0.f);
 		float alphaCutoff = 0.f;
 		uint32_t flags = 0;
 		uint32_t padding = 0;

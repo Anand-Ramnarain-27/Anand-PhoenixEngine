@@ -36,7 +36,7 @@ void SampleAmbientOcclusion(in Material material, in Texture2D occlusionTex, in 
     if (material.Flags & HAS_OCCLUSION_TEX)
     {
         float sampledAO = occlusionTex.Sample(BilinearWrap, uv).r;
-        diffuseAO = lerp(1.0, sampledAO, material.OcclusionStrength);
+        diffuseAO = sampledAO * material.OcclusionStrength;
         specularAO = ComputeSpecularAO(NdotV, diffuseAO, roughness);
     }
     else
@@ -45,7 +45,7 @@ void SampleAmbientOcclusion(in Material material, in Texture2D occlusionTex, in 
         specularAO = 1.0;
     }
 
-    specularAO *= max(1.0 + NdotR, 1.0);
+    specularAO *= min(1.0 + NdotR, 1.0);
 }
 
 float3 SampleNormal(in Material material, in Texture2D normalTex, in float2 uv,
@@ -71,7 +71,7 @@ float3 SampleNormal(in Material material, in Texture2D normalTex, in float2 uv,
 float3 SampleEmissive(in Material material, in Texture2D emissiveTex, in float2 uv)
 {
     if (material.Flags & HAS_EMISSIVE_TEX)
-        return emissiveTex.Sample(BilinearClamp, uv).rgb * material.EmissiveFactor;
+        return emissiveTex.Sample(BilinearWrap, uv).rgb * material.EmissiveFactor;
 
     return material.EmissiveFactor;
 }
