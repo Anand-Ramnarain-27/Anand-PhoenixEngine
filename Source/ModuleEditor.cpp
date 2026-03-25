@@ -365,8 +365,7 @@ void ModuleEditor::drawMenuBar() {
             bool ok = m_sceneManager->saveCurrentScene(m_currentScenePath);
             log(ok ? "Scene saved!" : "Failed to save.", ok ? EditorColors::Success : EditorColors::Danger);
         }
-        else m_saveDialog->open(FileDialog::Type::Save, "Save Scene",
-            app->getFileSystem()->GetLibraryPath() + "Scenes/");
+        else m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes");
         };
 
     if (ImGui::BeginMenu("File")) {
@@ -763,8 +762,7 @@ void ModuleEditor::handleShortcuts() {
             if (ok) { m_savePointIndex = (int)m_undoStack.size(); m_redoStack.clear(); }
             log(ok ? "Scene saved!" : "Failed to save.", ok ? EditorColors::Success : EditorColors::Danger);
         }
-        else m_saveDialog->open(FileDialog::Type::Save, "Save Scene",
-            app->getFileSystem()->GetLibraryPath() + "Scenes/");
+        else m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes");
     }
     if (ctrl && shift && ImGui::IsKeyPressed(ImGuiKey_S, false)) m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
     if (ctrl && ImGui::IsKeyPressed(ImGuiKey_O, false)) m_loadDialog->open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");

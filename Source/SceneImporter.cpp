@@ -13,7 +13,7 @@ bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const
     if (!CreateSceneDirectory(sceneName)) LOG("SceneImporter: Warning: CreateSceneDirectory returned false for %s (may already exist)", sceneName.c_str());
     ModuleFileSystem* fs = app->getFileSystem();
     std::string meshFolder = fs->GetLibraryPath() + "Meshes/" + sceneName;
-    std::string basePath = app->getFileSystem()->GetAssetsPath() + "Models/" + sceneName + "/";
+    std::string basePath = "Assets/Models/" + sceneName + "/";
     std::string matFolder = fs->GetLibraryPath() + "Materials/" + sceneName;
     int meshIndex = 0;
     for (const auto& mesh : gltfModel.meshes)

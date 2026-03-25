@@ -23,9 +23,7 @@ using namespace rapidjson;
 namespace fs = std::filesystem;
 
 static constexpr int kPrefabFormatVersion = 2;
-static std::string getPrefabDir() {
-    return app->getFileSystem()->GetLibraryPath() + "Prefabs/";
-}
+static constexpr char kPrefabDir[] = "Library/Prefabs/";
 static constexpr char kPrefabExt[] = ".prefab";
 
 struct PrefabManager::SerialiseCtx {
@@ -45,9 +43,7 @@ uint32_t PrefabManager::makePrefabUID(const std::string& name) {
     return hash ? hash : 1u;
 }
 
-std::string PrefabManager::getPrefabPath(const std::string& name) {
-    return getPrefabDir() + name + kPrefabExt;
-}
+std::string PrefabManager::getPrefabPath(const std::string& name) { return std::string(kPrefabDir) + name + kPrefabExt; }
 
 bool PrefabManager::writePrefabDocument(Document& doc, const std::string& path) {
     FILE* fp = fopen(path.c_str(), "wb");
@@ -161,7 +157,7 @@ GameObject* PrefabManager::deserialiseNode(const Value& node, ModuleScene* scene
 bool PrefabManager::createPrefab(const GameObject* go, const std::string& prefabName) {
     if (!go || prefabName.empty()) { LOG("PrefabManager::createPrefab: null go or empty name"); return false; }
 
-    app->getFileSystem()->CreateDir(getPrefabDir().c_str());
+    app->getFileSystem()->CreateDir(kPrefabDir);
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
     doc.AddMember("PrefabName", Value(prefabName.c_str(), a), a);
     doc.AddMember("Version", kPrefabFormatVersion, a);
@@ -226,7 +222,7 @@ bool PrefabManager::applyToPrefab(const GameObject* go, bool respectOverrides) {
     }
     if (!respectOverrides) return createPrefab(go, inst->prefabName);
 
-    app->getFileSystem()->CreateDir(getPrefabDir().c_str());
+    app->getFileSystem()->CreateDir(kPrefabDir);
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
     doc.AddMember("PrefabName", Value(inst->prefabName.c_str(), a), a);
     doc.AddMember("Version", kPrefabFormatVersion, a);
@@ -363,7 +359,7 @@ bool PrefabManager::createVariant(const std::string& srcPrefabName, const std::s
     std::string srcPath = getPrefabPath(srcPrefabName);
     if (!app->getFileSystem()->Exists(srcPath.c_str())) { LOG("PrefabManager::createVariant: Source not found: %s", srcPath.c_str()); return false; }
 
-    app->getFileSystem()->CreateDir(getPrefabDir().c_str());
+    app->getFileSystem()->CreateDir(kPrefabDir);
     Document doc;
     if (!readPrefabDocument(srcPath, doc)) return false;
 
@@ -399,10 +395,10 @@ PrefabInstanceData* PrefabManager::getInstanceDataMutable(GameObject* go) {
 
 std::vector<PrefabManager::PrefabInfo> PrefabManager::listPrefabsInfo() {
     std::vector<PrefabInfo> results;
-    if (!app->getFileSystem()->Exists(getPrefabDir().c_str())) return results;
+    if (!app->getFileSystem()->Exists(kPrefabDir)) return results;
 
     try {
-        for (const auto& entry : fs::directory_iterator(getPrefabDir())) {
+        for (const auto& entry : fs::directory_iterator(kPrefabDir)) {
             if (!entry.is_regular_file() || entry.path().extension() != kPrefabExt) continue;
             PrefabInfo info;
             info.name = entry.path().stem().string();
@@ -451,8 +447,8 @@ std::vector<PrefabManager::PrefabInfo> PrefabManager::listPrefabsInfo() {
 
 std::vector<std::string> PrefabManager::listPrefabs() {
     std::vector<std::string> names;
-    if (!app->getFileSystem()->Exists(getPrefabDir().c_str())) return names;
-    try { for (const auto& e : fs::directory_iterator(getPrefabDir())) if (e.is_regular_file() && e.path().extension() == kPrefabExt) names.push_back(e.path().stem().string()); }
+    if (!app->getFileSystem()->Exists(kPrefabDir)) return names;
+    try { for (const auto& e : fs::directory_iterator(kPrefabDir)) if (e.is_regular_file() && e.path().extension() == kPrefabExt) names.push_back(e.path().stem().string()); }
     catch (...) {}
     return names;
 }

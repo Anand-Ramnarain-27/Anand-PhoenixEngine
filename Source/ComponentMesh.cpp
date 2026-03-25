@@ -80,8 +80,7 @@ bool ComponentMesh::loadModel(const char* filePath) {
     for (char& c : normPath) if (c == '\\') c = '/';
     std::string sceneName = std::filesystem::path(normPath).stem().string();
 
-    std::string libPath = app->getFileSystem()->GetLibraryPath();
-    if (normPath.find(libPath) == 0) {
+    if (normPath.find("Library/") == 0 || normPath.find("Library\\") == 0) {
         std::string resolved = app->getAssets()->getAssetPathForScene(sceneName);
         if (resolved.empty()) { LOG("ComponentMesh: Cannot resolve asset path for scene '%s'", sceneName.c_str()); return false; }
         normPath = resolved;
@@ -102,7 +101,7 @@ bool ComponentMesh::loadModel(const char* filePath) {
     m_modelUID = sceneUID;
     m_modelPath = canonicalPath;
 
-    std::string meshFolder = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/";
+    std::string meshFolder = "Library/Meshes/" + sceneName + "/";
     int meshCount = 0;
     while (app->getFileSystem()->Exists((meshFolder + std::to_string(meshCount) + ".mesh").c_str())) ++meshCount;
     if (meshCount == 0) { LOG("ComponentMesh: No meshes found in Library for '%s'", sceneName.c_str()); return false; }

@@ -588,8 +588,7 @@ void AssetBrowserPanel::prefabRevert() {
 }
 
 void AssetBrowserPanel::prefabDelete(const std::string& name) {
-    std::string prefabDir = app->getFileSystem()->GetLibraryPath() + "Prefabs/";
-    app->getFileSystem()->Delete((prefabDir + name + ".prefab").c_str());
+    app->getFileSystem()->Delete(("Library/Prefabs/" + name + ".prefab").c_str());
     m_editor->log(("Deleted prefab: " + name).c_str(), EditorColors::Warning);
     m_dirty = true;
 }
@@ -603,9 +602,8 @@ void AssetBrowserPanel::prefabCreateVariant(const std::string& src, const std::s
 
 void AssetBrowserPanel::prefabRename(const std::string& oldName, const std::string& newName) {
     if (newName.empty() || newName == oldName) return;
-    std::string prefabDir = app->getFileSystem()->GetLibraryPath() + "Prefabs/";
-    std::string oldPath = prefabDir + oldName + ".prefab";
-    std::string newPath = prefabDir + newName + ".prefab";
+    std::string oldPath = "Library/Prefabs/" + oldName + ".prefab";
+    std::string newPath = "Library/Prefabs/" + newName + ".prefab";
     app->getFileSystem()->Copy(oldPath.c_str(), newPath.c_str());
     app->getFileSystem()->Delete(oldPath.c_str());
     m_editor->log(("Renamed: " + oldName + " -> " + newName).c_str(), EditorColors::Success);
