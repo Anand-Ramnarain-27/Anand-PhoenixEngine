@@ -16,10 +16,14 @@ std::string MetaFileManager::getMetaPath(const std::string& assetPath) {
 	ModuleFileSystem* fs = app->getFileSystem();
 	std::string metaFolder = fs->GetLibraryPath() + "metadata/";
 	fs->CreateDir(metaFolder.c_str());
-	std::string sanitised = assetPath;
+	std::string canonical = std::filesystem::weakly_canonical(assetPath).string();
+	std::replace(canonical.begin(), canonical.end(), '\\', '/');
+
+	std::string sanitised = canonical;
 	for (char& c : sanitised) {
-		if (c == '/' || c == '\\') c = '~';
+		if (c == '/') c = '~';
 	}
+
 	return metaFolder + sanitised + ".meta";
 }
 

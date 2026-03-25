@@ -13,9 +13,11 @@
 
 using namespace DirectX;
 
-static std::string normalisePath(std::string p) {
-	for (char& c : p) if (c == '\\') c = '/';
-	return p;
+static std::string CanonicalPath(const std::string& p) {
+	std::filesystem::path path = std::filesystem::weakly_canonical(p);
+	std::string s = path.string();
+	std::replace(s.begin(), s.end(), '\\', '/');
+	return s;
 }
 
 bool TextureImporter::Import(const char* sourcePath, const std::string& outputPath, TextureType type) {
@@ -70,7 +72,7 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
 		compressed = std::move(mipChain);
 	}
 
-	std::string normOutput = normalisePath(outputPath);
+	std::string normOutput = CanonicalPath(outputPath);
 
 	std::wstring wOutput = std::filesystem::path(normOutput).wstring();
 	if (FAILED(SaveToDDSFile(compressed.GetImages(), compressed.GetImageCount(), compressed.GetMetadata(), DDS_FLAGS_NONE, wOutput.c_str()))) {
@@ -86,15 +88,42 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
 }
 
 bool TextureImporter::Load(const std::string& file, ComPtr<ID3D12Resource>& outTexture, D3D12_GPU_DESCRIPTOR_HANDLE& outSRV) {
-	std::string normFile = normalisePath(file);
+	std::string normFile = CanonicalPath(file);
 	std::string metaPath = ImporterUtils::MetaPath(normFile);
+
+	LOG("Loading meta for: %s", normFile.c_str());
+	LOG("Meta path: %s", metaPath.c_str());
+
 
 	TextureHeader header;
 	std::vector<char> rawBuffer;
+
 	if (!ImporterUtils::LoadBuffer(metaPath, header, rawBuffer)) {
-		LOG("TextureImporter: Missing or invalid metadata for '%s' (looked at '%s')", normFile.c_str(), metaPath.c_str());
-		return false;
+		LOG("TextureImporter: Missing metadata, regenerating for '%s'", normFile.c_str());
+
+		std::wstring wFile = std::filesystem::path(normFile).wstring();
+		DirectX::ScratchImage img;
+
+		if (FAILED(DirectX::LoadFromDDSFile(wFile.c_str(), DirectX::DDS_FLAGS_NONE, nullptr, img))) {
+			LOG("TextureImporter: Failed to reload DDS for metadata '%s'", normFile.c_str());
+			return false;
+		}
+
+		const DirectX::TexMetadata& meta = img.GetMetadata();
+
+		SaveMetadata(normFile,
+			(uint32_t)meta.width,
+			(uint32_t)meta.height,
+			(uint32_t)meta.mipLevels,
+			(uint32_t)meta.format
+		);
+
+		header.width = (uint32_t)meta.width;
+		header.height = (uint32_t)meta.height;
+		header.mipLevels = (uint32_t)meta.mipLevels;
+		header.format = (uint32_t)meta.format;
 	}
+
 	if (!ImporterUtils::ValidateHeader(header, 0x54455854)) {
 		LOG("TextureImporter: Bad metadata magic/version for '%s'", normFile.c_str());
 		return false;
@@ -117,7 +146,11 @@ std::string TextureImporter::GetTextureName(const char* filePath) {
 }
 
 bool TextureImporter::SaveMetadata(const std::string& ddsPath, uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t format) {
-	std::string normPath = normalisePath(ddsPath);
+	std::string normPath = CanonicalPath(ddsPath);
+
+	LOG("Saving meta for: %s", normPath.c_str());
+	LOG("Meta path: %s", ImporterUtils::MetaPath(normPath).c_str());
+
 	TextureHeader header;
 	header.width = width;
 	header.height = height;
