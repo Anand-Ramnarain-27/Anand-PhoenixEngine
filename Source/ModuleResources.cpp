@@ -14,7 +14,6 @@ ModuleResources::ModuleResources() = default;
 ModuleResources::~ModuleResources() = default;
 
 bool ModuleResources::init() {
-    StartAssetWatcher();
     return true;
 }
 

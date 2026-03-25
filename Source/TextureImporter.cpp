@@ -13,6 +13,11 @@
 
 using namespace DirectX;
 
+static std::string normalisePath(std::string p) {
+	for (char& c : p) if (c == '\\') c = '/';
+	return p;
+}
+
 bool TextureImporter::Import(const char* sourcePath, const std::string& outputPath, TextureType type) {
 	std::wstring wSource = std::filesystem::path(sourcePath).wstring();
 	std::wstring ext = std::filesystem::path(sourcePath).extension().wstring();
@@ -23,7 +28,7 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
 	if (ext == L".dds") hr = LoadFromDDSFile(wSource.c_str(), DDS_FLAGS_NONE, nullptr, image);
 	else if (ext == L".tga") hr = LoadFromTGAFile(wSource.c_str(), nullptr, image);
 	else if (ext == L".hdr") hr = LoadFromHDRFile(wSource.c_str(), nullptr, image);
-	else                     hr = LoadFromWICFile(wSource.c_str(), WIC_FLAGS_NONE, nullptr, image);
+	else hr = LoadFromWICFile(wSource.c_str(), WIC_FLAGS_NONE, nullptr, image);
 
 	if (FAILED(hr)) {
 		LOG("TextureImporter: Failed to load image '%s' 0x%08X", sourcePath, hr);
@@ -32,9 +37,7 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
 
 	ScratchImage mipChain;
 	if (image.GetMetadata().mipLevels == 1) {
-		if (FAILED(GenerateMipMaps(image.GetImages(), image.GetImageCount(),
-			image.GetMetadata(), TEX_FILTER_DEFAULT, 0, mipChain)))
-			mipChain = std::move(image);
+		if (FAILED(GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), TEX_FILTER_DEFAULT, 0, mipChain))) mipChain = std::move(image);
 	}
 	else {
 		mipChain = std::move(image);
@@ -47,69 +50,59 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
 		DXGI_FORMAT fmt;
 		switch (type) {
 		case TextureType::Emissive:
-			fmt = HasAlpha(meta.format) ? DXGI_FORMAT_BC3_UNORM_SRGB
-				: DXGI_FORMAT_BC1_UNORM_SRGB;
+			fmt = HasAlpha(meta.format) ? DXGI_FORMAT_BC3_UNORM_SRGB : DXGI_FORMAT_BC1_UNORM_SRGB;
 			break;
-
 		case TextureType::Normal:
 			fmt = DXGI_FORMAT_BC5_UNORM;
 			break;
-
 		case TextureType::OcclusionMetalRough:
 			fmt = DXGI_FORMAT_BC1_UNORM;
 			break;
-
 		case TextureType::Color:
 		default:
-			fmt = HasAlpha(meta.format) ? DXGI_FORMAT_BC3_UNORM_SRGB
-				: DXGI_FORMAT_BC1_UNORM_SRGB;
+			fmt = HasAlpha(meta.format) ? DXGI_FORMAT_BC3_UNORM_SRGB : DXGI_FORMAT_BC1_UNORM_SRGB;
 			break;
 		}
 
-		if (FAILED(Compress(mipChain.GetImages(), mipChain.GetImageCount(),
-			meta, fmt, TEX_COMPRESS_DEFAULT, 1.0f, compressed)))
-			compressed = std::move(mipChain);
+		if (FAILED(Compress(mipChain.GetImages(), mipChain.GetImageCount(), meta, fmt, TEX_COMPRESS_DEFAULT, 1.0f, compressed))) compressed = std::move(mipChain);
 	}
 	else {
 		compressed = std::move(mipChain);
 	}
 
-	std::wstring wOutput = std::filesystem::path(outputPath).wstring();
-	if (FAILED(SaveToDDSFile(compressed.GetImages(), compressed.GetImageCount(),
-		compressed.GetMetadata(), DDS_FLAGS_NONE, wOutput.c_str()))) {
-		LOG("TextureImporter: Failed to save DDS '%s'", outputPath.c_str());
+	std::string normOutput = normalisePath(outputPath);
+
+	std::wstring wOutput = std::filesystem::path(normOutput).wstring();
+	if (FAILED(SaveToDDSFile(compressed.GetImages(), compressed.GetImageCount(), compressed.GetMetadata(), DDS_FLAGS_NONE, wOutput.c_str()))) {
+		LOG("TextureImporter: Failed to save DDS '%s'", normOutput.c_str());
 		return false;
 	}
 
 	const TexMetadata& finalMeta = compressed.GetMetadata();
-	SaveMetadata(outputPath,
-		(uint32_t)finalMeta.width, (uint32_t)finalMeta.height,
-		(uint32_t)finalMeta.mipLevels, (uint32_t)finalMeta.format);
+	SaveMetadata(normOutput, (uint32_t)finalMeta.width, (uint32_t)finalMeta.height, (uint32_t)finalMeta.mipLevels, (uint32_t)finalMeta.format);
 
-	LOG("TextureImporter: Imported '%s' (%dx%d, %d mips, fmt=%d)",
-		outputPath.c_str(),
-		(int)finalMeta.width, (int)finalMeta.height,
-		(int)finalMeta.mipLevels, (int)finalMeta.format);
+	LOG("TextureImporter: Imported '%s' (%dx%d, %d mips, fmt=%d)", normOutput.c_str(), (int)finalMeta.width, (int)finalMeta.height, (int)finalMeta.mipLevels, (int)finalMeta.format);
 	return true;
 }
 
-bool TextureImporter::Load(const std::string& file,
-	ComPtr<ID3D12Resource>& outTexture,
-	D3D12_GPU_DESCRIPTOR_HANDLE& outSRV) {
+bool TextureImporter::Load(const std::string& file, ComPtr<ID3D12Resource>& outTexture, D3D12_GPU_DESCRIPTOR_HANDLE& outSRV) {
+	std::string normFile = normalisePath(file);
+	std::string metaPath = ImporterUtils::MetaPath(normFile);
+
 	TextureHeader header;
 	std::vector<char> rawBuffer;
-	if (!ImporterUtils::LoadBuffer(ImporterUtils::MetaPath(file), header, rawBuffer)) {
-		LOG("TextureImporter: Missing or invalid metadata for '%s'", file.c_str());
+	if (!ImporterUtils::LoadBuffer(metaPath, header, rawBuffer)) {
+		LOG("TextureImporter: Missing or invalid metadata for '%s' (looked at '%s')", normFile.c_str(), metaPath.c_str());
 		return false;
 	}
 	if (!ImporterUtils::ValidateHeader(header, 0x54455854)) {
-		LOG("TextureImporter: Bad metadata magic/version for '%s'", file.c_str());
+		LOG("TextureImporter: Bad metadata magic/version for '%s'", normFile.c_str());
 		return false;
 	}
 
-	outTexture = app->getGPUResources()->createTextureFromFile(file, true);
+	outTexture = app->getGPUResources()->createTextureFromFile(normFile, true);
 	if (!outTexture) {
-		LOG("TextureImporter: Failed to create texture resource for '%s'", file.c_str());
+		LOG("TextureImporter: Failed to create texture resource for '%s'", normFile.c_str());
 		return false;
 	}
 
@@ -123,13 +116,12 @@ std::string TextureImporter::GetTextureName(const char* filePath) {
 	return std::filesystem::path(filePath).stem().string();
 }
 
-bool TextureImporter::SaveMetadata(const std::string& ddsPath,
-	uint32_t width, uint32_t height,
-	uint32_t mipLevels, uint32_t format) {
+bool TextureImporter::SaveMetadata(const std::string& ddsPath, uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t format) {
+	std::string normPath = normalisePath(ddsPath);
 	TextureHeader header;
 	header.width = width;
 	header.height = height;
 	header.mipLevels = mipLevels;
 	header.format = format;
-	return ImporterUtils::SaveBuffer(ImporterUtils::MetaPath(ddsPath), header);
+	return ImporterUtils::SaveBuffer(ImporterUtils::MetaPath(normPath), header);
 }

@@ -223,6 +223,7 @@
     <ClCompile Include="ModuleStaticBuffer.cpp">
       <Filter>engine\d3d12</Filter>
     </ClCompile>
+    <ClCompile Include="FileWatcher.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -535,6 +536,7 @@
     <ClInclude Include="PrefabEditSession.h">
       <Filter>engine\scene\prefabs</Filter>
     </ClInclude>
+    <ClInclude Include="FileWatcher.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

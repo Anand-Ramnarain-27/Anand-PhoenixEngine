@@ -1,48 +1,56 @@
 #pragma once
 #include "Module.h"
 #include "ResourceCommon.h"
+#include "FileWatcher.h"
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 
-class ModuleAssets : public Module
-{
+class ModuleAssets : public Module {
 public:
-    struct SceneInfo
-    {
-        std::string name;
-        std::string path;
-        uint32_t meshCount = 0;
-        uint32_t materialCount = 0;
-        UID uid = 0;
-    };
+	struct SceneInfo {
+		std::string name;
+		std::string path;
+		uint32_t meshCount = 0;
+		uint32_t materialCount = 0;
+		UID uid = 0;
+	};
 
-    ModuleAssets() = default;
-    ~ModuleAssets() override = default;
+	ModuleAssets() = default;
+	~ModuleAssets() override = default;
 
-    bool init() override;
-    bool cleanUp() override;
+	bool init() override;
+	void update() override;
+	bool cleanUp() override;
 
-    UID importAsset(const char* filePath);
-    void refreshAssets();
-    void deleteAsset(const std::string& assetPath);
+	UID importAsset(const char* filePath);
+	void refreshAssets();
+	void deleteAsset(const std::string& assetPath);
 
-    UID findUID(const std::string& assetPath) const;
-    std::string getPathFromUID(UID uid) const;
-    bool needsReimport(const std::string& assetPath) const;
-    UID findSubUID(const std::string& sceneAssetPath, const std::string& type, int index) const;
-    std::string getAssetPathForScene(const std::string& sceneName) const;
-    bool sceneExists(const std::string& sceneName) const;
-    std::vector<SceneInfo> getImportedScenes() const;
+	UID findUID(const std::string& assetPath) const;
+	std::string getPathFromUID(UID uid) const;
+	bool needsReimport(const std::string& assetPath) const;
+	UID findSubUID(const std::string& sceneAssetPath, const std::string& type, int index) const;
+	std::string getAssetPathForScene(const std::string& sceneName) const;
+	bool sceneExists(const std::string& sceneName) const;
+	std::vector<SceneInfo> getImportedScenes() const;
 
 private:
-    void ensureLibraryDirectories();
-    void registerSceneSubResources(const std::string& filePath, const std::string& sceneName, int meshCount, int materialCount);
-    void importTexture(const std::string& path, const std::string& ext, UID uid);
-    void countLibraryFiles(const std::string& folder, const std::string& ext, int& count) const;
+	void ensureLibraryDirectories();
+	void registerSceneSubResources(const std::string& filePath, const std::string& sceneName, int meshCount, int materialCount);
+	void importTexture(const std::string& path, const std::string& ext, UID uid);
+	void countLibraryFiles(const std::string& folder, const std::string& ext, int& count) const;
 
-    std::unordered_map<std::string, UID> m_pathToUID;
-    std::unordered_map<UID, std::string> m_uidToPath;
-    std::unordered_map<std::string, UID> m_subUIDs;
-    std::unordered_map<std::string, std::string> m_sceneNameToPath;
+	void onAssetFileEvent(const std::string& absPath, FileWatcher::Event ev);
+
+	std::unordered_map<std::string, UID> m_pathToUID;
+	std::unordered_map<UID, std::string> m_uidToPath;
+	std::unordered_map<std::string, UID> m_subUIDs;
+	std::unordered_map<std::string, std::string> m_sceneNameToPath;
+
+	std::unordered_set<std::string> m_inProgressImports;
+	std::mutex m_importMutex;
+
+	FileWatcher m_watcher;
 };

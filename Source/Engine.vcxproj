@@ -200,6 +200,7 @@
     <ClInclude Include="FaceCB.h" />
     <ClInclude Include="FaceProjection.h" />
     <ClInclude Include="FileDialog.h" />
+    <ClInclude Include="FileWatcher.h" />
     <ClInclude Include="Frustum.h" />
     <ClInclude Include="FrustumDebugDraw.h" />
     <ClInclude Include="GameObject.h" />
@@ -349,6 +350,7 @@
     <ClCompile Include="EnvironmentGenerator.cpp" />
     <ClCompile Include="EnvironmentSystem.cpp" />
     <ClCompile Include="FileDialog.cpp" />
+    <ClCompile Include="FileWatcher.cpp" />
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="GameViewPanel.cpp" />
     <ClCompile Include="HDRToCubemapPass.cpp" />
