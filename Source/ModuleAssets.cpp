@@ -42,11 +42,12 @@ bool ModuleAssets::cleanUp()
 void ModuleAssets::ensureLibraryDirectories()
 {
     ModuleFileSystem* fsys = app->getFileSystem();
-    fsys->CreateDir("Library");
-    fsys->CreateDir("Library/Meshes");
-    fsys->CreateDir("Library/Materials");
-    fsys->CreateDir("Library/Textures");
-    fsys->CreateDir("Library/Scenes");
+    std::string lib = fsys->GetLibraryPath();
+    fsys->CreateDir(lib.c_str());
+    fsys->CreateDir((lib + "Meshes").c_str());
+    fsys->CreateDir((lib + "Materials").c_str());
+    fsys->CreateDir((lib + "Textures").c_str());
+    fsys->CreateDir((lib + "Scenes").c_str());
 }
 
 void ModuleAssets::countLibraryFiles(const std::string& folder, const std::string& ext, int& count) const
@@ -300,7 +301,8 @@ std::vector<ModuleAssets::SceneInfo> ModuleAssets::getImportedScenes() const
             SceneInfo info;
             info.name = entry.path().filename().string();
             info.path = entry.path().string();
-            info.uid = findUID("Assets/Models/" + info.name + "/" + info.name + ".gltf");
+            std::string assetsRoot = app->getFileSystem()->GetAssetsPath();
+            info.uid = findUID(assetsRoot + "Models/" + info.name + "/" + info.name + ".gltf");
 
             char* buffer = nullptr;
             uint32_t size = fsys->Load((info.path + "/scene.meta").c_str(), &buffer);

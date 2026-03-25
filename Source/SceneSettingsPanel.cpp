@@ -60,13 +60,14 @@ void SceneSettingsPanel::drawSkyboxSection() {
     if (!m_scanned || ImGui::Button("Refresh")) {
         m_skyboxFiles.clear(); m_selectedSkybox = -1; m_scanned = true;
         try {
-            for (const auto& entry : fs::directory_iterator("Assets/Skybox/")) {
+            std::string skyboxDir = app->getFileSystem()->GetAssetsPath() + "Skybox/";
+            for (const auto& entry : fs::directory_iterator(skyboxDir)) {
                 if (!entry.is_regular_file()) continue;
                 std::string ext = entry.path().extension().string();
                 std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
                 if (ext != ".dds" && ext != ".hdr") continue;
                 m_skyboxFiles.push_back(entry.path().filename().string());
-                if ("Assets/Skybox/" + m_skyboxFiles.back() == sky.cubemapPath)
+                if (skyboxDir + m_skyboxFiles.back() == sky.cubemapPath)
                     m_selectedSkybox = (int)m_skyboxFiles.size() - 1;
             }
         }
@@ -82,7 +83,8 @@ void SceneSettingsPanel::drawSkyboxSection() {
     ImGui::EndChild();
 
     if (m_selectedSkybox >= 0 && m_selectedSkybox < (int)m_skyboxFiles.size()) {
-        std::string fullPath = "Assets/Skybox/" + m_skyboxFiles[m_selectedSkybox];
+        std::string skyboxDir = app->getFileSystem()->GetAssetsPath() + "Skybox/";
+        std::string fullPath = skyboxDir + m_skyboxFiles[m_selectedSkybox];
         textMuted("Path: %s", fullPath.c_str());
 
         if (ImGui::Button("Load Selected Skybox")) {

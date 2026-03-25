@@ -101,7 +101,8 @@ void ModuleResources::AssetWatcherLoop() {
     static constexpr std::string_view kMetaExt = ".meta";
     while (m_watcherRunning) {
         try {
-            for (auto& entry : std::filesystem::recursive_directory_iterator("Assets")) {
+            std::string assetsPath = app->getFileSystem()->GetAssetsPath();
+            for (auto& entry : std::filesystem::recursive_directory_iterator(assetsPath)) {
                 if (!entry.is_regular_file()) continue;
                 std::string ext = entry.path().extension().string();
                 std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
