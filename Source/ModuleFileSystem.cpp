@@ -10,10 +10,15 @@ ModuleFileSystem::ModuleFileSystem() = default;
 ModuleFileSystem::~ModuleFileSystem() = default;
 
 bool ModuleFileSystem::init() {
-    assetsPath = "Assets/";
-    libraryPath = "Library/";
+    char exePath[MAX_PATH];
+    GetModuleFileNameA(nullptr, exePath, MAX_PATH);
+    std::string baseDir = std::filesystem::path(exePath).parent_path().string() + "/";
+
+    assetsPath = baseDir + "Assets/";
+    libraryPath = baseDir + "Library/";
+
     CreateProjectDirectories();
-    std::cout << "[FileSystem] Initialized\n";
+    std::cout << "[FileSystem] Initialized. Base: " << baseDir << "\n";
     return true;
 }
 
@@ -25,12 +30,12 @@ bool ModuleFileSystem::cleanUp() {
 void ModuleFileSystem::CreateProjectDirectories() {
     CreateDir(assetsPath.c_str());
     CreateDir(libraryPath.c_str());
-    CreateDir("Library/Meshes");
-    CreateDir("Library/Materials");
-    CreateDir("Library/Textures");
-    CreateDir("Library/Scenes");
-    CreateDir("Library/Prefabs");
-    CreateDir("Library/metadata");
+    CreateDir((libraryPath + "Meshes").c_str());
+    CreateDir((libraryPath + "Materials").c_str());
+    CreateDir((libraryPath + "Textures").c_str());
+    CreateDir((libraryPath + "Scenes").c_str());
+    CreateDir((libraryPath + "Prefabs").c_str());
+    CreateDir((libraryPath + "metadata").c_str());
 }
 
 bool ModuleFileSystem::CreateDir(const char* path) {
