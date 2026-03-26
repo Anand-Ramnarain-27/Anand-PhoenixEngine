@@ -209,6 +209,7 @@
     <ClInclude Include="HandleManager.h" />
     <ClInclude Include="HDRToCubemapPass.h" />
     <ClInclude Include="HierarchyPanel.h" />
+    <ClInclude Include="HotReloadManager.h" />
     <ClInclude Include="IBLGenerator.h" />
     <ClInclude Include="IBLSettings.h" />
     <ClInclude Include="ImporterUtils.h" />
@@ -358,6 +359,7 @@
     <ClCompile Include="GameViewPanel.cpp" />
     <ClCompile Include="HDRToCubemapPass.cpp" />
     <ClCompile Include="HierarchyPanel.cpp" />
+    <ClCompile Include="HotReloadManager.cpp" />
     <ClCompile Include="IBLGenerator.cpp" />
     <ClCompile Include="InspectorPanel.cpp" />
     <ClCompile Include="Material.cpp" />
