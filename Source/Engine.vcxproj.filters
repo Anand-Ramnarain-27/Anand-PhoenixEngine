@@ -224,7 +224,6 @@
       <Filter>engine\d3d12</Filter>
     </ClCompile>
     <ClCompile Include="FileWatcher.cpp" />
-    <ClCompile Include="HotReloadManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -541,7 +540,6 @@
     <ClInclude Include="IScript.h" />
     <ClInclude Include="ScriptExport.h" />
     <ClInclude Include="IScriptFactory.h" />
-    <ClInclude Include="HotReloadManager.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
