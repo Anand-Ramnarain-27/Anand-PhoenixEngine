@@ -85,8 +85,6 @@ public:
     void exitPrefabEdit();
     PrefabEditSession* getPrefabSession() { return &m_prefabSession; }
 
-    HotReloadManager* getHotReloadManager() const { return m_hotReload.get(); }
-
 private:
     std::unique_ptr<ImGuiPass>       m_imguiPass;
     std::unique_ptr<DebugDrawPass>   m_debugDraw;

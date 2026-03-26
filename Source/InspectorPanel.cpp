@@ -23,9 +23,6 @@
 #include "ResourceMaterial.h"
 #include "EditorSelection.h"
 #include "PrefabEditSession.h"
-#include "ScriptComponent.h"
-#include "HotReloadManager.h"
-
 #include <filesystem>
 #include <algorithm>
 
@@ -163,8 +160,7 @@ void InspectorPanel::drawContent() {
             comp->getType() == Component::Type::Mesh ? "Mesh" :
             comp->getType() == Component::Type::DirectionalLight ? "Directional Light" :
             comp->getType() == Component::Type::PointLight ? "Point Light" :
-            comp->getType() == Component::Type::SpotLight ? "Spot Light" :
-            comp->getType() == Component::Type::Script ? "Script" : "Component";
+            comp->getType() == Component::Type::SpotLight ? "Spot Light" : "Component";
 
         ImGui::PushID((int)comp->getType());
         bool headerOpen = true;
@@ -176,10 +172,6 @@ void InspectorPanel::drawContent() {
 
             if (comp->getType() == Component::Type::Camera) drawComponentCamera(static_cast<ComponentCamera*>(comp.get()));
             else if (comp->getType() == Component::Type::Mesh) drawComponentMesh(static_cast<ComponentMesh*>(comp.get()));
-            else if (comp->getType() == Component::Type::Script) {
-                auto* sc = static_cast<ScriptComponent*>(comp.get());
-                sc->onEditor();
-            }
             else comp->onEditor();
 
             std::string after;

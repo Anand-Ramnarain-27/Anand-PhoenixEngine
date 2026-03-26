@@ -123,12 +123,3 @@ std::string HotReloadManager::versionedPdbPath(const std::string& dllPath) {
     app->getFileSystem()->CreateDir(dir.c_str());
     return dir + "/" + stem + "_v" + std::to_string(++m_pdbVersion) + ".pdb";
 }
-
-std::vector<std::string> HotReloadManager::getRegisteredClassNames() const {
-    std::vector<std::string> names;
-    for (const auto& [k, lib] : m_libraries)
-        for (const auto& [name, fn] : lib.factories)
-            names.push_back(name);
-    return names;
-}
-
