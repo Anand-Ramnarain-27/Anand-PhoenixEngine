@@ -214,8 +214,6 @@
     <ClInclude Include="ImporterUtils.h" />
     <ClInclude Include="InspectorPanel.h" />
     <ClInclude Include="IScene.h" />
-    <ClInclude Include="IScript.h" />
-    <ClInclude Include="IScriptFactory.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="MaterialImporter.h" />
     <ClInclude Include="Mesh.h" />
@@ -266,7 +264,6 @@
     <ClInclude Include="SceneSerializer.h" />
     <ClInclude Include="SceneSettingsPanel.h" />
     <ClInclude Include="SceneViewPanel.h" />
-    <ClInclude Include="ScriptExport.h" />
     <ClInclude Include="ShaderTableDesc.h" />
     <ClInclude Include="SimpleMath.h" />
     <ClInclude Include="SkyboxRenderer.h" />
