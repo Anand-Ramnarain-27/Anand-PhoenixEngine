@@ -11,6 +11,8 @@
 #include "EditorSelection.h"
 #include "PrefabManager.h"
 #include "SceneManager.h"
+#include "ScriptComponent.h"
+#include "HotReloadManager.h"
 
 static GameObject* findPrefabRoot(GameObject* go) {
     GameObject* cur = go;
@@ -183,6 +185,21 @@ void HierarchyPanel::itemContextMenu(GameObject* go) {
         addIf("Directional Light", Component::Type::DirectionalLight, go->getComponent<ComponentDirectionalLight>() != nullptr);
         addIf("Point Light", Component::Type::PointLight, go->getComponent<ComponentPointLight>() != nullptr);
         addIf("Spot Light", Component::Type::SpotLight, go->getComponent<ComponentSpotLight>() != nullptr);
+
+        if (ImGui::BeginMenu("Script")) {
+            auto* hr = m_editor->getHotReloadManager();
+            for (const auto& name : hr->getRegisteredClassNames()) {
+                if (ImGui::MenuItem(name.c_str())) {
+                    auto sc = ComponentFactory::CreateComponent(Component::Type::Script, go);
+                    static_cast<ScriptComponent*>(sc.get())->setScriptClass(name, hr);
+                    go->addComponent(std::move(sc));
+                }
+            }
+            if (hr->getRegisteredClassNames().empty())
+                ImGui::TextDisabled("No DLL loaded");
+            ImGui::EndMenu();
+        }
+
         ImGui::EndMenu();
     }
 

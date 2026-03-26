@@ -32,6 +32,8 @@ public:
 
     bool isLoaded(const std::string& dllPath) const;
 
+    std::vector<std::string> getRegisteredClassNames() const;
+
 private:
     bool loadLibraryInternal(const std::string& dllPath, ScriptLibrary& out);
     std::string versionedPdbPath(const std::string& dllPath);
