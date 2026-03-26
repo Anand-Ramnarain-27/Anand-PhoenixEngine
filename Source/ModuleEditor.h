@@ -6,6 +6,8 @@
 #include "MeshPipeline.h"
 #include "ShaderTableDesc.h"
 #include "PrefabEditSession.h"
+#include "HotReloadManager.h"
+#include "FileWatcher.h"
 
 #include <memory>
 #include <vector>
@@ -89,6 +91,9 @@ private:
     std::unique_ptr<SceneManager>    m_sceneManager;
     std::unique_ptr<MeshRenderPass>  m_meshRenderPass;
     std::unique_ptr<EnvironmentSystem> m_envSystem;
+    std::unique_ptr<HotReloadManager> m_hotReload;
+
+    FileWatcher m_scriptWatcher;
 
     ShaderTableDesc m_descTable;
 
@@ -151,4 +156,8 @@ private:
     void handleShortcuts();
 
     std::vector<ComPtr<ID3D12Resource>> m_frameTransientBuffers;
+
+    void onScriptFileEvent(const std::string& absPath, FileWatcher::Event ev);
+    void notifyScriptComponentsOfReload(const std::string& dllPath);
+
 };

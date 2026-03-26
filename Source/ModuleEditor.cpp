@@ -34,6 +34,7 @@
 #include "AssetBrowserPanel.h"
 #include "SceneSettingsPanel.h"
 #include "PrefabManager.h"
+#include "ScriptComponent.h"
 #include "Model.h"
 #include "MeshEntry.h"
 #include <d3dx12.h>
@@ -70,6 +71,23 @@ bool ModuleEditor::init() {
     m_debugDraw = std::make_unique<DebugDrawPass>(device4.Get(), d3d12->getDrawCommandQueue(), false);
     m_sceneManager = std::make_unique<SceneManager>();
     m_meshRenderPass = std::make_unique<MeshRenderPass>();
+    m_hotReload = std::make_unique<HotReloadManager>();
+
+    m_hotReload->setReloadCallback([this](const std::string& dllPath) {
+        notifyScriptComponentsOfReload(dllPath);
+    });
+
+    std::string scriptDir = app->getFileSystem()->GetAssetsPath() + "Scripts/";
+    app->getFileSystem()->CreateDir(scriptDir.c_str());
+
+    m_scriptWatcher.start(scriptDir, [this](const std::string& absPath, FileWatcher::Event ev) {
+            onScriptFileEvent(absPath, ev);
+    });
+
+    auto existing = app->getFileSystem()->GetFilesInDirectory(scriptDir.c_str(), ".dll");
+    for (const auto& p : existing)
+        m_hotReload->loadLibrary(p);
+
     if (!m_meshRenderPass->init(device)) return false;
 
     m_envSystem = std::make_unique<EnvironmentSystem>();
@@ -111,6 +129,9 @@ bool ModuleEditor::cleanUp() {
     m_sceneManager.reset();
     m_gpuQueryHeap.Reset();
     m_gpuReadback.Reset();
+    m_scriptWatcher.stop();
+    m_hotReload->unloadAll();
+
     return true;
 }
 
@@ -143,6 +164,8 @@ void ModuleEditor::render() {
     ID3D12GraphicsCommandList* cmd = d3d12->getCommandList();
 
     m_frameTransientBuffers.clear();
+
+    m_scriptWatcher.poll();
 
     cmd->Reset(d3d12->getCommandAllocator(), nullptr);
     cmd->EndQuery(m_gpuQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
@@ -808,4 +831,42 @@ void ModuleEditor::flushExitPrefabEdit() {
     m_sceneManager->exitPrefabEdit();
     m_prefabSession.clear();
     log("Exited prefab edit.", EditorColors::Muted);
+}
+
+void ModuleEditor::onScriptFileEvent(const std::string& absPath, FileWatcher::Event ev) {
+    if (absPath.size() < 4) return;
+    std::string ext = absPath.substr(absPath.size() - 4);
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    if (ext != ".dll") return;
+
+    switch (ev) {
+    case FileWatcher::Event::Added:
+        log("ModuleEditor: new script DLL detected: %s", EditorColors::Success);
+        m_hotReload->loadLibrary(absPath);
+        break;
+    case FileWatcher::Event::Modified:
+        log("ModuleEditor: script DLL changed: %s", EditorColors::White);
+        m_hotReload->reloadLibrary(absPath);
+        break;
+    case FileWatcher::Event::Deleted:
+        log("ModuleEditor: script DLL removed: %s", EditorColors::Danger);
+        break;
+    }
+}
+
+void ModuleEditor::notifyScriptComponentsOfReload(const std::string& /*dllPath*/) {
+    auto* ms = getActiveModuleScene();
+    if (!ms) return;
+
+    std::function<void(GameObject*)> visit = [&](GameObject* node) {
+        if (!node) return;
+        for (const auto& comp : node->getComponents()) {
+            if (comp->getType() == Component::Type::Script) {
+                auto* sc = static_cast<ScriptComponent*>(comp.get());
+                sc->onDllReloaded(m_hotReload.get());
+            }
+        }
+        for (auto* child : node->getChildren()) visit(child);
+        };
+    visit(ms->getRoot());
 }
