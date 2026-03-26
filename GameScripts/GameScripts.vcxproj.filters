@@ -13,9 +13,6 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Scripts">
-      <UniqueIdentifier>{8e72d870-93d2-4b3b-a6f2-d0d9af2f2616}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -24,9 +21,6 @@
     <ClInclude Include="pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="PlayerScript.h">
-      <Filter>Scripts</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -34,9 +28,6 @@
     </ClCompile>
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="PlayerScript.cpp">
-      <Filter>Scripts</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

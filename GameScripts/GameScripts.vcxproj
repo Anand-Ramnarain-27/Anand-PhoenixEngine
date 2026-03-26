@@ -110,7 +110,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)3rdParty/WinPixEventRunTime/Include;$(SolutionDir)3rdParty/ImGuizmo;$(SolutionDir)3rdParty/DirectXTex;$(SolutionDir)3rdParty/tinygltf;$(SolutionDir)3rdParty/mikktspace;$(SolutionDir)3rdParty/imgui-docking;$(SolutionDir)3rdParty/directX;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -145,7 +145,6 @@ xcopy "$(TargetDir)$(TargetName).pdb" "$(SolutionDir)..\build\PhoenixEngine\$(Co
   <ItemGroup>
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="PlayerScript.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
@@ -155,7 +154,6 @@ xcopy "$(TargetDir)$(TargetName).pdb" "$(SolutionDir)..\build\PhoenixEngine\$(Co
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="PlayerScript.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
