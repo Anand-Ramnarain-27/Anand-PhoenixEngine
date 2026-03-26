@@ -60,10 +60,7 @@ bool HotReloadManager::isLoaded(const std::string& dllPath) const {
     return m_libraries.count(normalisePath(dllPath)) > 0;
 }
 
-bool HotReloadManager::loadLibraryInternal(const std::string& dllPath,
-    ScriptLibrary& out) {
-    // --- PDB versioning (Phase 5) ---
-    // Copy PDB to a versioned name so VS debugger isn't locked
+bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLibrary& out) {
     std::string pdbSrc = fs::path(dllPath).replace_extension(".pdb").string();
     out.pdbPath = versionedPdbPath(dllPath);
     if (fs::exists(pdbSrc))
@@ -97,12 +94,24 @@ bool HotReloadManager::loadLibraryInternal(const std::string& dllPath,
             auto fn = reinterpret_cast<ScriptFactoryFn>(
                 GetProcAddress(hm, name));
             if (fn) {
-                std::string className = name + 7; 
+                std::string className = name + 7;
                 out.factories[className] = fn;
                 LOG("HotReloadManager: registered '%s'", className.c_str());
             }
         }
     }
+
+    static constexpr int kMaxPdbVersions = 5;
+    if (m_pdbVersion > kMaxPdbVersions) {
+        fs::path p(dllPath);
+        std::string stem = p.stem().string();
+        std::string dir = (fs::path(app->getFileSystem()->GetLibraryPath())
+            / "Scripts").string();
+        std::string oldPath = dir + "/" + stem
+            + "_v" + std::to_string(m_pdbVersion - kMaxPdbVersions) + ".pdb";
+        if (fs::exists(oldPath)) fs::remove(oldPath);
+    }
+
     return true;
 }
 

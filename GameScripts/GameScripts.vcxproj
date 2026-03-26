@@ -121,7 +121,8 @@
     </Link>
     <PostBuildEvent>
       <Command>xcopy "$(TargetDir)$(TargetName).lib" "$(SolutionDir)..\build\libs\" /Y /I
-xcopy "$(TargetDir)$(TargetName).dll" "$(SolutionDir)..\build\PhoenixEngine\$(Configuration)\$(Platform)\Assets\Scripts\" /Y /I</Command>
+xcopy "$(TargetDir)$(TargetName).dll" "$(SolutionDir)..\build\PhoenixEngine\$(Configuration)\$(Platform)\Assets\Scripts\" /Y /I
+xcopy "$(TargetDir)$(TargetName).pdb" "$(SolutionDir)..\build\PhoenixEngine\$(Configuration)\$(Platform)\Assets\Scripts\" /Y /I</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
