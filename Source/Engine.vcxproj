@@ -267,6 +267,7 @@
     <ClInclude Include="SceneSerializer.h" />
     <ClInclude Include="SceneSettingsPanel.h" />
     <ClInclude Include="SceneViewPanel.h" />
+    <ClInclude Include="ScriptComponent.h" />
     <ClInclude Include="ScriptExport.h" />
     <ClInclude Include="ShaderTableDesc.h" />
     <ClInclude Include="SimpleMath.h" />
@@ -412,6 +413,7 @@
     <ClCompile Include="SceneSerializer.cpp" />
     <ClCompile Include="SceneSettingsPanel.cpp" />
     <ClCompile Include="SceneViewPanel.cpp" />
+    <ClCompile Include="ScriptComponent.cpp" />
     <ClCompile Include="ShaderTableDesc.cpp" />
     <ClCompile Include="SimpleMath.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
