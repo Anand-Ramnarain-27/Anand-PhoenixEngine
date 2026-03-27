@@ -34,6 +34,7 @@
 #include "AssetBrowserPanel.h"
 #include "SceneSettingsPanel.h"
 #include "PrefabManager.h"
+#include "FileWatcher.h"
 #include "Model.h"
 #include "MeshEntry.h"
 #include <d3dx12.h>
@@ -70,6 +71,30 @@ bool ModuleEditor::init() {
     m_debugDraw = std::make_unique<DebugDrawPass>(device4.Get(), d3d12->getDrawCommandQueue(), false);
     m_sceneManager = std::make_unique<SceneManager>();
     m_meshRenderPass = std::make_unique<MeshRenderPass>();
+    m_hotReload = std::make_unique<HotReloadManager>();
+
+    // Register the callback. When a DLL reloads, every ScriptComponent in the
+    // scene is told to swap its IScript* for the new version.
+    m_hotReload->setReloadCallback([this](const std::string& dllPath) {
+        notifyScriptComponentsReload(dllPath);
+        });
+
+    // Point the watcher at  build/PhoenixEngine/Debug/x64/Assets/Scripts/
+    // (App->GetFileSystem()->GetAssetsPath() should return that path already.)
+    std::string scriptDir = app->getFileSystem()->GetAssetsPath() + std::string("Scripts/");
+    app->getFileSystem()->CreateDir(scriptDir.c_str());
+
+    m_scriptWatcher.start(scriptDir,
+        [this](const std::string& absPath, FileWatcher::Event ev) {
+            onScriptFileEvent(absPath, ev);
+        });
+
+    // Load any DLLs that are already in Assets/Scripts/ when the engine starts.
+    // This means you don't have to rebuild GameScripts just to get it recognised.
+    auto existing = app->getFileSystem()->GetFilesInDirectory(scriptDir.c_str(), ".dll");
+    for (const auto& path : existing)
+        m_hotReload->loadLibrary(path);
+
     if (!m_meshRenderPass->init(device)) return false;
 
     m_envSystem = std::make_unique<EnvironmentSystem>();
@@ -111,6 +136,10 @@ bool ModuleEditor::cleanUp() {
     m_sceneManager.reset();
     m_gpuQueryHeap.Reset();
     m_gpuReadback.Reset();
+
+    m_scriptWatcher.stop();
+    m_hotReload->unloadAll();
+
     return true;
 }
 
@@ -141,6 +170,8 @@ void ModuleEditor::render() {
     ModuleD3D12* d3d12 = app->getD3D12();
     ModuleShaderDescriptors* descs = app->getShaderDescriptors();
     ID3D12GraphicsCommandList* cmd = d3d12->getCommandList();
+
+    m_scriptWatcher.poll();
 
     m_frameTransientBuffers.clear();
 
@@ -808,4 +839,46 @@ void ModuleEditor::flushExitPrefabEdit() {
     m_sceneManager->exitPrefabEdit();
     m_prefabSession.clear();
     log("Exited prefab edit.", EditorColors::Muted);
+}
+
+void ModuleEditor::onScriptFileEvent(const std::string& absPath,
+    FileWatcher::Event ev) {
+    // Only handle .dll files
+    if (absPath.size() < 4) return;
+    std::string ext = absPath.substr(absPath.size() - 4);
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    if (ext != ".dll") return;
+
+    switch (ev) {
+    case FileWatcher::Event::Added:
+        log("[ScriptWatch] New DLL: %s", EditorColors::Success);
+        m_hotReload->loadLibrary(absPath);
+        break;
+    case FileWatcher::Event::Modified:
+        log("[ScriptWatch] DLL changed: %s — reloading", EditorColors::White);
+        m_hotReload->reloadLibrary(absPath);
+        break;
+    case FileWatcher::Event::Deleted:
+        log("[ScriptWatch] DLL removed: %s", EditorColors::Danger);
+        break;
+    }
+}
+
+void ModuleEditor::notifyScriptComponentsReload(const std::string& /*dllPath*/) {
+    // Adjust getActiveModuleScene() / getRoot() to match your engine's API.
+    auto* scene = getActiveModuleScene();
+    if (!scene) return;
+
+    std::function<void(GameObject*)> visit = [&](GameObject* node) {
+        if (!node) return;
+        for (const auto& comp : node->getComponents()) {
+            if (comp->getType() == Component::Type::Script) {
+                auto* sc = static_cast<ComponentScript*>(comp.get());
+                sc->onDllReloaded(m_hotReload.get());
+            }
+        }
+        for (auto* child : node->getChildren())
+            visit(child);
+        };
+    visit(scene->getRoot());
 }

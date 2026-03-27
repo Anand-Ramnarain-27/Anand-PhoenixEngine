@@ -6,6 +6,9 @@
 #include "MeshPipeline.h"
 #include "ShaderTableDesc.h"
 #include "PrefabEditSession.h"
+#include "HotReloadManager.h"
+#include "ComponentScript.h"
+#include "FileWatcher.h"
 
 #include <memory>
 #include <vector>
@@ -83,12 +86,18 @@ public:
     void exitPrefabEdit();
     PrefabEditSession* getPrefabSession() { return &m_prefabSession; }
 
+    void onScriptFileEvent(const std::string& absPath, FileWatcher::Event ev);
+    void notifyScriptComponentsReload(const std::string& dllPath);
+
 private:
     std::unique_ptr<ImGuiPass>       m_imguiPass;
     std::unique_ptr<DebugDrawPass>   m_debugDraw;
     std::unique_ptr<SceneManager>    m_sceneManager;
     std::unique_ptr<MeshRenderPass>  m_meshRenderPass;
     std::unique_ptr<EnvironmentSystem> m_envSystem;
+    std::unique_ptr<HotReloadManager> m_hotReload;
+
+    FileWatcher m_scriptWatcher;
 
     ShaderTableDesc m_descTable;
 
