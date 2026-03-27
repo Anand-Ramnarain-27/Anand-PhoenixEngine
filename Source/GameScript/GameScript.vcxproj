@@ -123,11 +123,8 @@
       <EnableUAC>false</EnableUAC>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy "$(OutDir)GameScript.dll" ^
-    "$(SolutionDir)..\build\PhoenixEngine\$(Configuration)\$(Platform)\" /Y /I
- 
-xcopy "$(OutDir)GameScript.pdb" ^
-    "$(SolutionDir)..\build\PhoenixEngine\$(Configuration)\$(Platform)\" /Y /I
+      <Command>xcopy "$(OutDir)GameScript.dll" "$(SolutionDir)..\build\PhoenixEngine\$(Configuration)\$(Platform)\Assets\Scripts\" /Y /I
+xcopy "$(OutDir)GameScript.pdb" "$(SolutionDir)..\build\PhoenixEngine\$(Configuration)\$(Platform)\Assets\Scripts\" /Y /I
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>

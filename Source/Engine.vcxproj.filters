@@ -537,6 +537,7 @@
       <Filter>engine\scene\prefabs</Filter>
     </ClInclude>
     <ClInclude Include="FileWatcher.h" />
+    <ClInclude Include="IGameCode.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

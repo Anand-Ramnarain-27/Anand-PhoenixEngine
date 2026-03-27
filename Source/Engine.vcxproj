@@ -211,6 +211,7 @@
     <ClInclude Include="HierarchyPanel.h" />
     <ClInclude Include="IBLGenerator.h" />
     <ClInclude Include="IBLSettings.h" />
+    <ClInclude Include="IGameCode.h" />
     <ClInclude Include="ImporterUtils.h" />
     <ClInclude Include="InspectorPanel.h" />
     <ClInclude Include="IScene.h" />
