@@ -4,6 +4,7 @@
 #include "ComponentMesh.h"
 #include "ComponentCamera.h"
 #include "ComponentLights.h"
+#include "ComponentScript.h"
 
 std::unique_ptr<Component> ComponentFactory::CreateComponent(Component::Type type, GameObject* owner) {
     switch (type) {
@@ -13,6 +14,7 @@ std::unique_ptr<Component> ComponentFactory::CreateComponent(Component::Type typ
     case Component::Type::DirectionalLight: return std::make_unique<ComponentDirectionalLight>(owner);
     case Component::Type::PointLight: return std::make_unique<ComponentPointLight>(owner);
     case Component::Type::SpotLight: return std::make_unique<ComponentSpotLight>(owner);
+	case Component::Type::Script: return std::make_unique<ComponentScript>(owner);
     default: LOG("ComponentFactory: Unknown component type %d", (int)type); return nullptr;
     }
 }

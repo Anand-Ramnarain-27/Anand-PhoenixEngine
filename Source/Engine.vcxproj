@@ -179,6 +179,7 @@
     <ClInclude Include="ComponentFactory.h" />
     <ClInclude Include="ComponentLights.h" />
     <ClInclude Include="ComponentMesh.h" />
+    <ClInclude Include="ComponentScript.h" />
     <ClInclude Include="ComponentTransform.h" />
     <ClInclude Include="CubeFaceRenderer.h" />
     <ClInclude Include="CubeGeometry.h" />
@@ -343,6 +344,7 @@
     <ClCompile Include="ComponentFactory.cpp" />
     <ClCompile Include="ComponentLights.cpp" />
     <ClCompile Include="ComponentMesh.cpp" />
+    <ClCompile Include="ComponentScript.cpp" />
     <ClCompile Include="ComponentTransform.cpp" />
     <ClCompile Include="DebugDrawPass.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>

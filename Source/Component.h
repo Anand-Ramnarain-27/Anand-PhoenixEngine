@@ -13,6 +13,8 @@ public:
         DirectionalLight = 3,
         PointLight = 4,
         SpotLight = 5,
+        Script = 6,
+		// Add new component types here
     };
 
     explicit Component(GameObject* owner) : owner(owner) {}

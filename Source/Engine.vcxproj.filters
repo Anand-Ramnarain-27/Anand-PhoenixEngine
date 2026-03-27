@@ -225,6 +225,9 @@
     </ClCompile>
     <ClCompile Include="FileWatcher.cpp" />
     <ClCompile Include="HotReloadManager.cpp" />
+    <ClCompile Include="ComponentScript.cpp">
+      <Filter>engine\scene\components</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -542,6 +545,9 @@
     <ClInclude Include="ScriptExport.h" />
     <ClInclude Include="IScriptFactory.h" />
     <ClInclude Include="HotReloadManager.h" />
+    <ClInclude Include="ComponentScript.h">
+      <Filter>engine\scene\components</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
