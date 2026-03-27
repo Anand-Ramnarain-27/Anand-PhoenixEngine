@@ -6,12 +6,12 @@ class SCRIPT_API PlayerScript : public IScript {
 public:
     PlayerScript();
 
-    void        onStart(GameObject* owner)         override;
-    void        onUpdate(float dt)                   override;
-    void        onDestroy()                           override;
-    void        onEditor()                           override;
-    std::string onSave() const                     override;
-    void        onLoad(const std::string& json)    override;
+    void        Start(GameObject* owner)         override;
+    void        Update(float dt)                   override;
+    void        Destroy()                           override;
+    void        Editor()                           override;
+    std::string Save() const                     override;
+    void        Load(const std::string& json)    override;
     const char* getTypeName() const override { return "PlayerScript"; }
 
 private:

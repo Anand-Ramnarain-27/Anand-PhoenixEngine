@@ -13,7 +13,7 @@ ComponentScript::ComponentScript(GameObject* owner) : Component(owner) {}
 
 ComponentScript::~ComponentScript() {
     if (m_script) {
-        m_script->onDestroy();
+        m_script->Destroy();
         delete m_script;
     }
 }
@@ -21,7 +21,7 @@ ComponentScript::~ComponentScript() {
 void ComponentScript::setScriptClass(const std::string& className,
     HotReloadManager* mgr) {
     if (m_script) {
-        m_script->onDestroy();
+        m_script->Destroy();
         delete m_script;
         m_script = nullptr;
     }
@@ -38,8 +38,8 @@ void ComponentScript::setScriptClass(const std::string& className,
 void ComponentScript::onDllReloaded(HotReloadManager* mgr) {
     std::string savedState;
     if (m_script) {
-        savedState = m_script->onSave(); 
-        m_script->onDestroy();
+        savedState = m_script->Save(); 
+        m_script->Destroy();
         delete m_script;
         m_script = nullptr;
         m_started = false;
@@ -47,17 +47,17 @@ void ComponentScript::onDllReloaded(HotReloadManager* mgr) {
     if (!m_className.empty() && mgr) {
         m_script = mgr->createScript(m_className);   
         if (m_script && !savedState.empty())
-            m_script->onLoad(savedState);        
+            m_script->Load(savedState);        
     }
 }
 
 void ComponentScript::update(float dt) {
     if (!m_script) return;
     if (!m_started) {
-        m_script->onStart(owner); 
+        m_script->Start(owner); 
         m_started = true;
     }
-    m_script->onUpdate(dt);
+    m_script->Update(dt);
 }
 
 void ComponentScript::onEditor() {
@@ -68,7 +68,7 @@ void ComponentScript::onEditor() {
         return;
     }
     ImGui::Separator();
-    m_script->onEditor();  
+    m_script->Editor();  
 }
 
 void ComponentScript::onSave(std::string& outJson) const {
@@ -76,7 +76,7 @@ void ComponentScript::onSave(std::string& outJson) const {
     Value cn; cn.SetString(m_className.c_str(), a);
     doc.AddMember("ClassName", cn, a);
     if (m_script) {
-        Value sd; sd.SetString(m_script->onSave().c_str(), a);
+        Value sd; sd.SetString(m_script->Save().c_str(), a);
         doc.AddMember("ScriptData", sd, a);
     }
     StringBuffer buf; Writer<StringBuffer> w(buf); doc.Accept(w);
@@ -89,5 +89,5 @@ void ComponentScript::onLoad(const std::string& jsonStr) {
     if (doc.HasMember("ClassName"))
         m_className = doc["ClassName"].GetString();
     if (m_script && doc.HasMember("ScriptData"))
-        m_script->onLoad(doc["ScriptData"].GetString());
+        m_script->Load(doc["ScriptData"].GetString());
 }

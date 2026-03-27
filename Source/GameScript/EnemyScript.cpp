@@ -8,24 +8,24 @@ using namespace rapidjson;
 
 EnemyScript::EnemyScript() = default;
 
-void EnemyScript::onStart(GameObject* owner) {
+void EnemyScript::Start(GameObject* owner) {
     m_owner = owner;
     m_isAggro = false;
 }
 
-void EnemyScript::onUpdate(float dt) {
+void EnemyScript::Update(float dt) {
     (void)dt;
 }
 
-void EnemyScript::onDestroy() {
+void EnemyScript::Destroy() {
 
 }
 
-void EnemyScript::onEditor() {
+void EnemyScript::Editor() {
 
 }
 
-std::string EnemyScript::onSave() const {
+std::string EnemyScript::Save() const {
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
     doc.AddMember("range", m_detectionRange, a);
     doc.AddMember("aggro", m_isAggro, a);
@@ -33,7 +33,7 @@ std::string EnemyScript::onSave() const {
     return buf.GetString();
 }
 
-void EnemyScript::onLoad(const std::string& json) {
+void EnemyScript::Load(const std::string& json) {
     Document doc; doc.Parse(json.c_str());
     if (doc.HasParseError()) return;
     if (doc.HasMember("range")) m_detectionRange = doc["range"].GetFloat();

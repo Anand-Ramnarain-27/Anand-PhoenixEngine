@@ -7,17 +7,17 @@ class IScript {
 public:
     virtual ~IScript() = default;
 
-    virtual void onStart(GameObject* owner) {}
+    virtual void Start(GameObject* owner) {}
 
-    virtual void onUpdate(float dt) {}
+    virtual void Update(float dt) {}
 
-    virtual void onDestroy() {}
+    virtual void Destroy() {}
 
-    virtual void onEditor() {}
+    virtual void Editor() {}
 
-    virtual std::string onSave() const { return "{}"; }
+    virtual std::string Save() const { return "{}"; }
 
-    virtual void onLoad(const std::string& json) {}
+    virtual void Load(const std::string& json) {}
 
     virtual const char* getTypeName() const = 0;
 };

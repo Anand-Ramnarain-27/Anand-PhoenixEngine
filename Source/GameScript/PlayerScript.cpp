@@ -9,24 +9,24 @@ using namespace rapidjson;
 
 PlayerScript::PlayerScript() = default;
 
-void PlayerScript::onStart(GameObject* owner) {
+void PlayerScript::Start(GameObject* owner) {
     m_owner = owner;
     m_timer = 0.0f;
     //LOG("[PlayerScript] onStart — owner: %s", owner ? owner->getName().c_str() : "null");
 }
 
-void PlayerScript::onUpdate(float dt) {
+void PlayerScript::Update(float dt) {
     m_timer += dt;
     // TODO: add real player movement / input here
 }
 
-void PlayerScript::onDestroy() {
+void PlayerScript::Destroy() {
 }
 
-void PlayerScript::onEditor() {
+void PlayerScript::Editor() {
 }
 
-std::string PlayerScript::onSave() const {
+std::string PlayerScript::Save() const {
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
     doc.AddMember("speed", m_speed, a);
     doc.AddMember("timer", m_timer, a);
@@ -34,7 +34,7 @@ std::string PlayerScript::onSave() const {
     return buf.GetString();
 }
 
-void PlayerScript::onLoad(const std::string& json) {
+void PlayerScript::Load(const std::string& json) {
     Document doc; doc.Parse(json.c_str());
     if (doc.HasParseError()) return;
     if (doc.HasMember("speed")) m_speed = doc["speed"].GetFloat();
