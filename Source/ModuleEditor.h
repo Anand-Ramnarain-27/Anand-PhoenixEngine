@@ -86,6 +86,7 @@ public:
     void exitPrefabEdit();
     PrefabEditSession* getPrefabSession() { return &m_prefabSession; }
 
+    HotReloadManager* getHotReloadManager() const { return m_hotReload.get(); }
     void onScriptFileEvent(const std::string& absPath, FileWatcher::Event ev);
     void notifyScriptComponentsReload(const std::string& dllPath);
 

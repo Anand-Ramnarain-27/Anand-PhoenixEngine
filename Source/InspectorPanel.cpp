@@ -23,6 +23,7 @@
 #include "ResourceMaterial.h"
 #include "EditorSelection.h"
 #include "PrefabEditSession.h"
+#include "ComponentScript.h"
 #include <filesystem>
 #include <algorithm>
 
@@ -160,7 +161,9 @@ void InspectorPanel::drawContent() {
             comp->getType() == Component::Type::Mesh ? "Mesh" :
             comp->getType() == Component::Type::DirectionalLight ? "Directional Light" :
             comp->getType() == Component::Type::PointLight ? "Point Light" :
-            comp->getType() == Component::Type::SpotLight ? "Spot Light" : "Component";
+            comp->getType() == Component::Type::SpotLight ? "Spot Light" : 
+            comp->getType() == Component::Type::Script ? "Script" :
+            "Component";
 
         ImGui::PushID((int)comp->getType());
         bool headerOpen = true;
@@ -170,9 +173,17 @@ void InspectorPanel::drawContent() {
             std::string before;
             comp->onSave(before);
 
-            if (comp->getType() == Component::Type::Camera) drawComponentCamera(static_cast<ComponentCamera*>(comp.get()));
-            else if (comp->getType() == Component::Type::Mesh) drawComponentMesh(static_cast<ComponentMesh*>(comp.get()));
-            else comp->onEditor();
+            if (comp->getType() == Component::Type::Camera)
+                drawComponentCamera(static_cast<ComponentCamera*>(comp.get()));
+
+            else if (comp->getType() == Component::Type::Mesh)
+                drawComponentMesh(static_cast<ComponentMesh*>(comp.get()));
+
+            else if (comp->getType() == Component::Type::Script)
+                static_cast<ComponentScript*>(comp.get())->onEditor();
+
+            else
+                comp->onEditor();
 
             std::string after;
             comp->onSave(after);

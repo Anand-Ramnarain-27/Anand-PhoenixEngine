@@ -841,9 +841,7 @@ void ModuleEditor::flushExitPrefabEdit() {
     log("Exited prefab edit.", EditorColors::Muted);
 }
 
-void ModuleEditor::onScriptFileEvent(const std::string& absPath,
-    FileWatcher::Event ev) {
-    // Only handle .dll files
+void ModuleEditor::onScriptFileEvent(const std::string& absPath, FileWatcher::Event ev) {
     if (absPath.size() < 4) return;
     std::string ext = absPath.substr(absPath.size() - 4);
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
@@ -865,7 +863,6 @@ void ModuleEditor::onScriptFileEvent(const std::string& absPath,
 }
 
 void ModuleEditor::notifyScriptComponentsReload(const std::string& /*dllPath*/) {
-    // Adjust getActiveModuleScene() / getRoot() to match your engine's API.
     auto* scene = getActiveModuleScene();
     if (!scene) return;
 

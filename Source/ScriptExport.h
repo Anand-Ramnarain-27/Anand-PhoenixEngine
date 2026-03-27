@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef GAMESCRIPTS_EXPORTS
+#ifdef GAMESCRIPT_EXPORTS
 #define SCRIPT_API __declspec(dllexport)
 #else
 #define SCRIPT_API __declspec(dllimport)
