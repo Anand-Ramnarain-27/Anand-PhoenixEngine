@@ -228,18 +228,6 @@
     <ClCompile Include="ComponentScript.cpp">
       <Filter>engine\scene\components</Filter>
     </ClCompile>
-    <ClCompile Include="ResourceAnimation.cpp">
-      <Filter>engine\resources</Filter>
-    </ClCompile>
-    <ClCompile Include="AnimImporter.cpp">
-      <Filter>engine\scene\animations</Filter>
-    </ClCompile>
-    <ClCompile Include="AnimController.cpp">
-      <Filter>engine\scene\animations</Filter>
-    </ClCompile>
-    <ClCompile Include="ComponentAnimation.cpp">
-      <Filter>engine\scene\components</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -560,18 +548,6 @@
     <ClInclude Include="ComponentScript.h">
       <Filter>engine\scene\components</Filter>
     </ClInclude>
-    <ClInclude Include="ResourceAnimation.h">
-      <Filter>engine\resources</Filter>
-    </ClInclude>
-    <ClInclude Include="AnimImporter.h">
-      <Filter>engine\scene\animations</Filter>
-    </ClInclude>
-    <ClInclude Include="AnimController.h">
-      <Filter>engine\scene\animations</Filter>
-    </ClInclude>
-    <ClInclude Include="ComponentAnimation.h">
-      <Filter>engine\scene\components</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -719,9 +695,6 @@
     </Filter>
     <Filter Include="shaders\common shaders">
       <UniqueIdentifier>{5a12279c-8da9-4f04-9c7a-08feed04409a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="engine\scene\animations">
-      <UniqueIdentifier>{94eb5bb9-6496-4c06-bfd0-228185a6d381}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

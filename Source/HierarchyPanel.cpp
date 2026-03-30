@@ -13,7 +13,6 @@
 #include "SceneManager.h"
 #include "ComponentScript.h"
 #include "HotReloadManager.h"
-#include "ComponentAnimation.h"
 
 static GameObject* findPrefabRoot(GameObject* go) {
     GameObject* cur = go;
@@ -186,7 +185,7 @@ void HierarchyPanel::itemContextMenu(GameObject* go) {
         addIf("Directional Light", Component::Type::DirectionalLight, go->getComponent<ComponentDirectionalLight>() != nullptr);
         addIf("Point Light", Component::Type::PointLight, go->getComponent<ComponentPointLight>() != nullptr);
         addIf("Spot Light", Component::Type::SpotLight, go->getComponent<ComponentSpotLight>() != nullptr);
-        addIf("Animation", Component::Type::Animation, go->getComponent<ComponentAnimation>() != nullptr);
+
         if (ImGui::BeginMenu("Add Script")) {
             auto* hr = m_editor->getHotReloadManager();
 
