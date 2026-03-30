@@ -9,6 +9,7 @@
 #include "HotReloadManager.h"
 #include "ComponentScript.h"
 #include "FileWatcher.h"
+#include "SkinningPass.h"
 
 #include <memory>
 #include <vector>
@@ -97,6 +98,8 @@ private:
     std::unique_ptr<MeshRenderPass>  m_meshRenderPass;
     std::unique_ptr<EnvironmentSystem> m_envSystem;
     std::unique_ptr<HotReloadManager> m_hotReload;
+    std::unique_ptr<SkinningPass> m_skinningPass;
+    std::vector<SkinInstance> m_lastSkinInstances;
 
     FileWatcher m_scriptWatcher;
 
@@ -159,6 +162,9 @@ private:
     void handleDialogs();
     void flushExitPrefabEdit();
     void handleShortcuts();
+    void collectSkinInstances(GameObject* root, std::vector<SkinInstance>& out);
+    SkinInstance buildSkinInstance(ComponentMesh* cm);
+
 
     std::vector<ComPtr<ID3D12Resource>> m_frameTransientBuffers;
 };

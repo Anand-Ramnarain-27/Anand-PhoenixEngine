@@ -37,6 +37,7 @@
 #include "FileWatcher.h"
 #include "Model.h"
 #include "MeshEntry.h"
+#include "ResourceSkin.h"
 #include <d3dx12.h>
 #include <filesystem>
 #include <algorithm>
@@ -72,15 +73,16 @@ bool ModuleEditor::init() {
     m_sceneManager = std::make_unique<SceneManager>();
     m_meshRenderPass = std::make_unique<MeshRenderPass>();
     m_hotReload = std::make_unique<HotReloadManager>();
+    m_skinningPass = std::make_unique<SkinningPass>();
 
-    // Register the callback. When a DLL reloads, every ScriptComponent in the
-    // scene is told to swap its IScript* for the new version.
+    if (!m_skinningPass->init(device)) {
+        return false;
+    }
+
     m_hotReload->setReloadCallback([this](const std::string& dllPath) {
         notifyScriptComponentsReload(dllPath);
         });
 
-    // Point the watcher at  build/PhoenixEngine/Debug/x64/Assets/Scripts/
-    // (App->GetFileSystem()->GetAssetsPath() should return that path already.)
     std::string scriptDir = app->getFileSystem()->GetAssetsPath() + std::string("Scripts/");
     app->getFileSystem()->CreateDir(scriptDir.c_str());
 
@@ -89,8 +91,6 @@ bool ModuleEditor::init() {
             onScriptFileEvent(absPath, ev);
         });
 
-    // Load any DLLs that are already in Assets/Scripts/ when the engine starts.
-    // This means you don't have to rebuild GameScripts just to get it recognised.
     auto existing = app->getFileSystem()->GetFilesInDirectory(scriptDir.c_str(), ".dll");
     for (const auto& path : existing)
         m_hotReload->loadLibrary(path);
@@ -176,10 +176,28 @@ void ModuleEditor::render() {
     m_frameTransientBuffers.clear();
 
     cmd->Reset(d3d12->getCommandAllocator(), nullptr);
+
+    if (m_sceneView->viewport.isReady()) {
+        ModuleScene* ms = getActiveModuleScene();
+        if (ms) {
+            std::vector<SkinInstance> skinInstances;
+            collectSkinInstances(ms->getRoot(), skinInstances);
+
+            if (!skinInstances.empty()) {
+                uint32_t bb = app->getD3D12()->getCurrentBackBufferIdx();
+
+                m_skinningPass->dispatch(cmd, skinInstances, bb);
+
+                m_lastSkinInstances = skinInstances;
+            }
+        }
+    }
+
     cmd->EndQuery(m_gpuQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
 
     ID3D12DescriptorHeap* heaps[] = { descs->getHeap(), app->getSamplerHeap()->getHeap() };
     cmd->SetDescriptorHeaps(2, heaps);
+
     handleNewScenePopup(cmd);
 
     if (m_sceneView->viewport.isReady()) m_sceneView->renderToTexture(cmd);
@@ -187,16 +205,21 @@ void ModuleEditor::render() {
 
     auto toRT = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     cmd->ResourceBarrier(1, &toRT);
+
     auto rtv = d3d12->getRenderTargetDescriptor();
     cmd->OMSetRenderTargets(1, &rtv, false, nullptr);
+
     float clear[] = { 0, 0, 0, 1 };
     cmd->ClearRenderTargetView(rtv, clear, 0, nullptr);
+
     m_imguiPass->record(cmd);
+
     auto toPresent = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     cmd->ResourceBarrier(1, &toPresent);
 
     cmd->EndQuery(m_gpuQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 1);
     cmd->ResolveQueryData(m_gpuQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 2, m_gpuReadback.Get(), 0);
+
     cmd->Close();
 
     ID3D12CommandList* lists[] = { cmd };
@@ -213,7 +236,10 @@ void ModuleEditor::render() {
     }
 
     m_memoryUpdateTimer += (float)app->getElapsedMilis();
-    if (m_memoryUpdateTimer >= 1000.0f) { m_memoryUpdateTimer = 0.0f; updateMemory(); }
+    if (m_memoryUpdateTimer >= 1000.0f) {
+        m_memoryUpdateTimer = 0.0f;
+        updateMemory();
+    }
 }
 
 void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras) {
@@ -249,28 +275,76 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     if (moduleScene) {
         std::function<void(GameObject*)> collectMeshes = [&](GameObject* node) {
             if (!node || !node->isActive()) return;
+            
             if (auto* cm = node->getComponent<ComponentMesh>()) {
                 cm->flushDeferredReleases();
                 Matrix nodeWorld = node->getTransform()->getGlobalMatrix();
                 if (Model* model = cm->getProceduralModel()) {
                     model->buildMeshEntries(nodeWorld, ownedEntries);
+
+                    if (cm->isSkinned()) {
+                        for (auto& e : ownedEntries) {
+                            if (e.meshRes == nullptr) continue;
+
+                            for (uint32_t si = 0; si < (uint32_t)m_lastSkinInstances.size(); ++si) {
+                                if (m_lastSkinInstances[si].mesh == cm) {
+                                    uint32_t bbIdx = app->getD3D12()->getCurrentBackBufferIdx();
+
+                                    e.skinnedVertexVA = m_skinningPass->getSkinnedVA(si, bbIdx);
+                                    e.skinnedVertexCount = m_lastSkinInstances[si].numVertices;
+
+                                    static const float id[16] = {
+                                        1,0,0,0,
+                                        0,1,0,0,
+                                        0,0,1,0,
+                                        0,0,0,1
+                                    };
+                                    memcpy(e.worldMatrix, id, sizeof(id));
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
                 else {
                     for (const auto& src : cm->getEntries()) {
                         if (!src.meshRes || !src.materialRes) continue;
+
                         MeshEntry e;
                         e.meshUID = src.meshUID;
                         e.materialUID = src.materialUID;
                         e.meshRes = src.meshRes;
                         e.materialRes = src.materialRes;
                         e.materialCB = src.materialCB;
+
                         memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));
+
+                        if (cm->isSkinned()) {
+                            for (uint32_t si = 0; si < (uint32_t)m_lastSkinInstances.size(); ++si) {
+                                if (m_lastSkinInstances[si].mesh == cm) {
+                                    uint32_t bbIdx = app->getD3D12()->getCurrentBackBufferIdx();
+
+                                    e.skinnedVertexVA = m_skinningPass->getSkinnedVA(si, bbIdx);
+                                    e.skinnedVertexCount = m_lastSkinInstances[si].numVertices;
+
+                                    static const float id[16] = {
+                                        1,0,0,0,
+                                        0,1,0,0,
+                                        0,0,1,0,
+                                        0,0,0,1
+                                    };
+                                    memcpy(e.worldMatrix, id, sizeof(id));
+                                    break;
+                                }
+                            }
+                        }
                         ownedEntries.push_back(std::move(e));
                     }
                 }
             }
-            for (auto* child : node->getChildren()) collectMeshes(child);
-            };
+            for (auto* child : node->getChildren())
+                collectMeshes(child);
+        };
         collectMeshes(moduleScene->getRoot());
         visibleMeshes.reserve(ownedEntries.size());
         for (auto& e : ownedEntries) visibleMeshes.push_back(&e);
@@ -279,10 +353,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     const EnvironmentSystem* envForIBL =
         (sky.enabled && m_envSystem) ? m_envSystem.get() : nullptr;
 
-    m_meshRenderPass->render(
-        cmd, visibleMeshes, m_frameLights,
-        camera->getPos(), view * proj, envForIBL,
-        m_samplerType);
+    m_meshRenderPass->render(cmd, visibleMeshes, m_frameLights, camera->getPos(), view * proj, envForIBL, m_samplerType);
 
     if (editorExtras) {
         if (s.showGrid) dd::xzSquareGrid(-100.f, 100.f, 0.f, 1.f, dd::colors::Gray);
@@ -879,3 +950,45 @@ void ModuleEditor::notifyScriptComponentsReload(const std::string& /*dllPath*/) 
         };
     visit(scene->getRoot());
 }
+
+void ModuleEditor::collectSkinInstances(GameObject* go, std::vector<SkinInstance>& out) {
+    if (!go || !go->isActive()) return;
+    if (auto* cm = go->getComponent<ComponentMesh>()) {
+        if (cm->isSkinned()) {
+            out.push_back(buildSkinInstance(cm));
+        }
+    }
+    for (auto* c : go->getChildren())
+        collectSkinInstances(c, out);
+}
+
+SkinInstance ModuleEditor::buildSkinInstance(ComponentMesh* cm) {
+    SkinInstance si;
+    si.mesh = cm;
+    si.skin = cm->getSkinResource();
+    si.numVertices = cm->getTotalVertexCount();
+    si.morphWeights = cm->getMorphWeightsVec(); 
+
+    if (!si.skin) return si;
+
+    uint32_t jc = (uint32_t)si.skin->jointNames.size();
+    si.paletteModel.resize(jc, Matrix::Identity);
+    si.paletteNormal.resize(jc, Matrix::Identity);
+
+    ModuleScene* scene = getActiveModuleScene();
+    for (uint32_t j = 0; j < jc; ++j) {
+        const std::string& jName = si.skin->jointNames[j];
+        GameObject* jGO = scene ? scene->findGameObjectByName(jName) : nullptr;
+        Matrix Tj = jGO
+            ? jGO->getTransform()->getGlobalMatrix()
+            : Matrix::Identity;
+        Matrix Bj_inv = si.skin->inverseBindMatrices[j];
+        si.paletteModel[j] = Bj_inv * Tj;
+
+        Matrix inv;
+        si.paletteModel[j].Invert(inv);
+        si.paletteNormal[j] = inv; 
+    }
+    return si;
+}
+

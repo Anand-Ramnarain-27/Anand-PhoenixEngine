@@ -30,14 +30,12 @@ void ComponentAnimation::Play(UID animUID, bool loop) {
     m_loop = loop;
     if (animUID == 0) return;
 
-    // RequestResource returns ResourceAnimation* with ref bumped.
-    m_animRes = static_cast<ResourceAnimation*>(
-        app->getResources()->RequestResource(animUID));
+    m_animRes = static_cast<ResourceAnimation*>(app->getResources()->RequestResource(animUID));
     if (!m_animRes) {
         LOG("ComponentAnimation: failed to load anim UID=%llu", animUID);
         return;
     }
-    // AnimImporter::Load is called by ModuleResources::CreateResourceFromUID.
+
     m_controller.Play(m_animRes, loop);
 }
 
@@ -45,9 +43,8 @@ void ComponentAnimation::Stop() {
     m_controller.Stop();
 }
 
-void ComponentAnimation::update(float dtMs) {
-    // Component::update receives elapsed ms from GameObject::update.
-    m_controller.Update(dtMs * 0.001f);   // convert ms -> seconds
+void ComponentAnimation::update(float dtMs) { 
+    m_controller.Update(dtMs * 0.001f);  
     updateNode(owner);
 }
 
@@ -63,15 +60,14 @@ void ComponentAnimation::updateNode(GameObject* go) {
             t->rotation = rot;
             t->markDirty();
         }
-        // Phase 3: push morph weights into ComponentMesh if present.
-        /*if (auto* cm = go->getComponent<ComponentMesh>()) {
+        if (auto* cm = go->getComponent<ComponentMesh>()) {
             uint32_t n = (uint32_t)cm->getMorphWeightCount();
             if (n > 0) {
                 std::vector<float> w(n, 0.f);
                 if (m_controller.GetMorphWeights(go->getName(), w.data(), n))
                     cm->setMorphWeights(w);
             }
-        }*/
+        }
     }
     for (auto* child : go->getChildren())
         updateNode(child);

@@ -8,19 +8,18 @@
 #include <algorithm>
 #include <cstring>
 
-// ?? local accessor helpers (same pattern as MeshImporter.cpp) ??????????
 static const unsigned char* accData(const tinygltf::Model& m,
     const tinygltf::Accessor& a) {
     const auto& v = m.bufferViews[a.bufferView];
     return m.buffers[v.buffer].data.data() + v.byteOffset + a.byteOffset;
 }
+
 static size_t accStride(const tinygltf::Model& m,
     const tinygltf::Accessor& a, size_t def) {
     size_t s = a.ByteStride(m.bufferViews[a.bufferView]);
     return s ? s : def;
 }
 
-// ?? helpers to write/read length-prefixed strings ???????????????????????
 static void writeStr(std::vector<char>& buf, const std::string& s) {
     uint32_t len = (uint32_t)s.size();
     buf.insert(buf.end(), (char*)&len, (char*)&len + 4);
@@ -31,39 +30,31 @@ static std::string readStr(const char*& cur) {
     std::string s(cur, len); cur += len; return s;
 }
 
-// ?? Import ???????????????????????????????????????????????????????????????
 bool AnimImporter::Import(const tinygltf::Model& model,
     int animIndex,
     const std::string& outputFile) {
     if (animIndex < 0 || animIndex >= (int)model.animations.size()) return false;
     const auto& anim = model.animations[animIndex];
 
-    // Gather channels by node name.
-    // glTF may have separate translation/rotation channels for the same node,
-    // so we accumulate into a map first.
     std::unordered_map<std::string, AnimChannel>  channels;
     std::unordered_map<std::string, MorphChannel> morphCh;
     float duration = 0.f;
 
     for (const auto& ch : anim.channels) {
-        if (ch.target_node < 0 ||
-            ch.target_node >= (int)model.nodes.size()) continue;
+        if (ch.target_node < 0 || ch.target_node >= (int)model.nodes.size()) continue;
         const std::string& nodeName = model.nodes[ch.target_node].name;
         const auto& sampler = anim.samplers[ch.sampler];
 
-        // -- timestamps (input accessor) --
         const auto& tsAcc = model.accessors[sampler.input];
         uint32_t numKeys = (uint32_t)tsAcc.count;
         const unsigned char* tsData = accData(model, tsAcc);
         size_t tsStride = accStride(model, tsAcc, sizeof(float));
 
-        // Update animation duration.
         for (uint32_t k = 0; k < numKeys; ++k) {
             float t; memcpy(&t, tsData + k * tsStride, sizeof(float));
             duration = std::max(duration, t);
         }
 
-        // -- output accessor --
         const auto& outAcc = model.accessors[sampler.output];
         const unsigned char* outData = accData(model, outAcc);
 
@@ -88,15 +79,11 @@ bool AnimImporter::Import(const tinygltf::Model& model,
             for (uint32_t k = 0; k < numKeys; ++k) {
                 memcpy(&c.rotTimeStamps[k], tsData + k * tsStride, sizeof(float));
                 float xyzw[4]; memcpy(xyzw, outData + k * stride, sizeof(xyzw));
-                // glTF quaternion order is (x,y,z,w), same as SimpleMath.
                 c.rotations[k] = { xyzw[0],xyzw[1],xyzw[2],xyzw[3] };
             }
         }
         else if (ch.target_path == "weights") {
-            // Phase 3 — morph target weights.
-            // numTargets = outAcc.count / numKeys
-            uint32_t numTargets = (numKeys > 0)
-                ? (uint32_t)(outAcc.count / numKeys) : 0;
+            uint32_t numTargets = (numKeys > 0) ? (uint32_t)(outAcc.count / numKeys) : 0;
             if (numTargets == 0) continue;
             auto& mc = morphCh[nodeName];
             mc.numKeyframes = numKeys;
@@ -114,16 +101,6 @@ bool AnimImporter::Import(const tinygltf::Model& model,
         }
     }
 
-    // ?? Serialize to binary ??????????????????????????????????????????????
-    // Format:
-    //   AnimHeader
-    //   for each channel:
-    //     uint32 nameLen, char[] name
-    //     uint32 numPos, float[] posTS, Vector3[] pos
-    //     uint32 numRot, float[] rotTS, Quaternion[] rot
-    //   for each morph channel:
-    //     uint32 nameLen, char[] name
-    //     uint32 numKF, uint32 numT, float[] times, float[] weights
     AnimHeader hdr;
     hdr.duration = duration;
     hdr.numChannels = (uint32_t)channels.size();
@@ -159,7 +136,6 @@ bool AnimImporter::Import(const tinygltf::Model& model,
     return ImporterUtils::SaveBuffer(outputFile, hdr, payload);
 }
 
-// ?? Load ?????????????????????????????????????????????????????????????????
 bool AnimImporter::Load(const std::string& file, ResourceAnimation& out) {
     AnimHeader hdr;
     std::vector<char> raw;
