@@ -5,6 +5,8 @@
 #include "ModuleResources.h"
 #include "SceneImporter.h"
 #include "TextureImporter.h"
+#include "AnimImporter.h"
+#include "ResourceAnimation.h"
 #include "tiny_gltf.h"
 #include <filesystem>
 #include <algorithm>
@@ -185,7 +187,9 @@ UID ModuleAssets::importAsset(const char* filePath) {
     std::string ext = p.extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
-    ResourceBase::Type rtype = isModelExtension(ext) ? ResourceBase::Type::Model : isTextureExtension(ext) ? ResourceBase::Type::Texture : ResourceBase::Type::Unknown;
+    ResourceBase::Type rtype = isModelExtension(ext) ? ResourceBase::Type::Model
+        : isTextureExtension(ext) ? ResourceBase::Type::Texture
+        : ResourceBase::Type::Unknown;
 
     UID uid = MetaFileManager::getOrCreateUID(path, rtype);
     m_pathToUID[path] = uid;
@@ -199,7 +203,9 @@ UID ModuleAssets::importAsset(const char* filePath) {
         std::string err;
         std::string warn;
 
-        ok = (ext == ".gltf") ? loader.LoadASCIIFromFile(&gltfModel, &err, &warn, path.c_str()) : loader.LoadBinaryFromFile(&gltfModel, &err, &warn, path.c_str());
+        ok = (ext == ".gltf")
+            ? loader.LoadASCIIFromFile(&gltfModel, &err, &warn, path.c_str())
+            : loader.LoadBinaryFromFile(&gltfModel, &err, &warn, path.c_str());
 
         if (!warn.empty()) LOG("ModuleAssets: GLTF Warning: %s", warn.c_str());
         if (!ok) {
@@ -213,6 +219,23 @@ UID ModuleAssets::importAsset(const char* filePath) {
             LOG("ModuleAssets: Import failed for: %s", sceneName.c_str());
             releaseGuard();
             return 0;
+        }
+
+        {
+            std::string animFolder = fsys->GetLibraryPath() + "Animations/" + sceneName + "/";
+            fsys->CreateDir((fsys->GetLibraryPath() + "Animations").c_str());
+            fsys->CreateDir(animFolder.c_str());
+
+            for (int ai = 0; ai < (int)gltfModel.animations.size(); ++ai) {
+                std::string animFile = animFolder + std::to_string(ai) + ".anim";
+                if (!fsys->Exists(animFile.c_str()))
+                    AnimImporter::Import(gltfModel, ai, animFile);
+
+                UID animUID = makeSubUID(uid, "anim", ai);
+                m_subUIDs[path + "|anim|" + std::to_string(ai)] = animUID;
+                m_uidToPath[animUID] = animFile;
+                app->getResources()->registerAnimation(animUID, animFile);
+            }
         }
 
         int mc = 0;

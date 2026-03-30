@@ -24,6 +24,7 @@
 #include "EditorSelection.h"
 #include "PrefabEditSession.h"
 #include "ComponentScript.h"
+#include "ComponentAnimation.h"
 #include <filesystem>
 #include <algorithm>
 
@@ -159,6 +160,7 @@ void InspectorPanel::drawContent() {
         const char* label =
             comp->getType() == Component::Type::Camera ? "Camera" :
             comp->getType() == Component::Type::Mesh ? "Mesh" :
+            comp->getType() == Component::Type::Animation ? "Animation" :
             comp->getType() == Component::Type::DirectionalLight ? "Directional Light" :
             comp->getType() == Component::Type::PointLight ? "Point Light" :
             comp->getType() == Component::Type::SpotLight ? "Spot Light" : 
@@ -181,6 +183,9 @@ void InspectorPanel::drawContent() {
 
             else if (comp->getType() == Component::Type::Script)
                 static_cast<ComponentScript*>(comp.get())->onEditor();
+
+            else if (comp->getType() == Component::Type::Animation)
+                drawComponentAnimation(static_cast<ComponentAnimation*>(comp.get()));
 
             else
                 comp->onEditor();
@@ -551,5 +556,22 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
         ImGui::Unindent(8.0f);
         ImGui::Spacing();
         ImGui::PopID();
+    }
+}
+
+void InspectorPanel::drawComponentAnimation(ComponentAnimation* anim) {
+    if (!ImGui::CollapsingHeader("Animation", ImGuiTreeNodeFlags_DefaultOpen)) return;
+
+    ImGui::Text("Playing: %s", anim->isPlaying() ? "Yes" : "No");
+
+    if (anim->isPlaying()) {
+        if (ImGui::Button("Stop")) anim->Stop();
+    }
+    else {
+        if (ImGui::Button("Play")) {
+            // For now, play the first animation sub-UID of the model.
+            // TODO: expose a picker once you have multiple animations.
+            anim->Play(/* animUID */ 0, true);
+        }
     }
 }

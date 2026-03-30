@@ -7,6 +7,7 @@ using Microsoft::WRL::ComPtr;
 
 class ComponentCamera;
 class ComponentMesh;
+class ComponentAnimation;
 class Material;
 struct ID3D12Resource;
 
@@ -22,6 +23,7 @@ private:
     void drawTransform();
     void drawComponentCamera(ComponentCamera* cam);
     void drawComponentMesh(ComponentMesh* mesh);
+    void drawComponentAnimation(ComponentAnimation* anim);
     void drawAddComponentMenu();
     void drawTexturePicker(ComponentMesh* mesh, Material* mat, int submeshIdx,
         const char* label, bool hasTex, const char* tooltip,
