@@ -277,9 +277,6 @@ void InspectorPanel::drawAddComponentMenu() {
     addComp("Directional Light", Component::Type::DirectionalLight, go->getComponent<ComponentDirectionalLight>() != nullptr);
     addComp("Point Light", Component::Type::PointLight, go->getComponent<ComponentPointLight>() != nullptr);
     addComp("Spot Light", Component::Type::SpotLight, go->getComponent<ComponentSpotLight>() != nullptr);
-    ImGui::Separator();
-	addComp("Animation", Component::Type::Animation, go->getComponent<ComponentAnimation>() != nullptr);
-
     ImGui::EndPopup();
 }
 
@@ -469,26 +466,18 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
                 if (isCurrent) ImGui::PopStyleColor();
                 if (clicked && ImGui::IsMouseDoubleClicked(0)) {
                     if (assetPath.empty()) m_editor->log(("No asset path for: " + name).c_str(), EditorColors::Danger);
-                    else {
-                        bool ok = mesh->loadModel(assetPath.c_str());
-                        logResult(m_editor, ok, ("Loaded: " + name).c_str(), ("Failed: " + assetPath).c_str());
-                    }
+                    else { bool ok = mesh->loadModel(assetPath.c_str()); logResult(m_editor, ok, ("Loaded: " + name).c_str(), ("Failed: " + assetPath).c_str()); }
                     ImGui::CloseCurrentPopup();
                 }
                 any = true;
             }
         }
         catch (...) {}
-        if (!any) {
-            ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted);
-            ImGui::Text("    No models imported yet.");
-            ImGui::PopStyleColor();
-        }
+        if (!any) { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("    No models imported yet."); ImGui::PopStyleColor(); }
         ImGui::EndPopup();
     }
 
     if (!hasAnything || !hasEntries) return;
-
     ImGui::Spacing();
     ImGui::SeparatorText("Materials");
 
@@ -496,64 +485,79 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
     for (int mi = 0; mi < (int)entries.size(); ++mi) {
         const MeshEntry& e = entries[mi];
         Material* mat = (e.materialRes ? e.materialRes->getMaterial() : nullptr);
-        if (!mat) {
-            ImGui::PushID(mi);
-            ImGui::TextDisabled("Submesh %d  - no material", mi);
-            ImGui::PopID();
-            continue;
-        }
-
+        if (!mat) { ImGui::PushID(mi); ImGui::TextDisabled("Submesh %d  � no material", mi); ImGui::PopID(); continue; }
         Material::Data& data = mat->getData();
 
         ImGui::PushID(mi);
         std::string header = "Submesh " + std::to_string(mi) + "  (" + modelName + ")";
-        if (!ImGui::CollapsingHeader(header.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::PopID();
-            continue;
-        }
-
+        if (!ImGui::CollapsingHeader(header.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) { ImGui::PopID(); continue; }
         ImGui::Indent(8.0f);
 
         ImGui::SeparatorText("Base Color");
-        if (ImGui::ColorEdit4("Color##bc", &data.baseColor.x)) {
-            app->getD3D12()->flush();
-            mesh->rebuildMaterialBuffers();
-        }
+        if (ImGui::ColorEdit4("Color##bc", &data.baseColor.x)) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
+        ImGui::Spacing();
+
+        if (mat->hasTexture()) { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::Text("[Albedo] Applied"); ImGui::PopStyleColor(); }
+        else { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("[Albedo] None"); ImGui::PopStyleColor(); }
+        ImGui::SameLine();
+        drawTexturePicker(mesh, mat, mi, "Albedo", mat->hasTexture(), "Base color / albedo texture (.dds)",
+            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv) { mat->setBaseColorTexture(tex, srv); });
 
         ImGui::SeparatorText("Surface");
-        if (ImGui::SliderFloat("##metal", &data.metallic, 0.f, 1.f)) {
-            app->getD3D12()->flush();
-            mesh->rebuildMaterialBuffers();
+        ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(4, 3));
+        if (ImGui::BeginTable("##pbr", 2, ImGuiTableFlags_SizingFixedFit)) {
+            ImGui::TableSetupColumn("##l", ImGuiTableColumnFlags_WidthFixed, 80.f);
+            ImGui::TableSetupColumn("##v", ImGuiTableColumnFlags_WidthStretch);
+
+            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); textMuted("Metallic");
+            ImGui::TableSetColumnIndex(1); ImGui::SetNextItemWidth(-1);
+            if (ImGui::SliderFloat("##metal", &data.metallic, 0.f, 1.f)) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
+
+            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); textMuted("Roughness");
+            ImGui::TableSetColumnIndex(1); ImGui::SetNextItemWidth(-1);
+            if (ImGui::SliderFloat("##rough", &data.roughness, 0.f, 1.f)) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
+            ImGui::EndTable();
         }
-        if (ImGui::SliderFloat("##rough", &data.roughness, 0.f, 1.f)) {
-            app->getD3D12()->flush();
-            mesh->rebuildMaterialBuffers();
+        ImGui::PopStyleVar();
+
+        ImGui::SeparatorText("Normal Map");
+        if (mat->hasNormalMap()) { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::Text("[N] Applied"); ImGui::PopStyleColor(); }
+        else { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("[N] None"); ImGui::PopStyleColor(); }
+        ImGui::SameLine();
+        drawTexturePicker(mesh, mat, mi, "Normal", mat->hasNormalMap(), "Tangent-space normal map (.dds)",
+            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv) { mat->setNormalMap(tex, srv); });
+        if (mat->hasNormalMap()) {
+            ImGui::SetNextItemWidth(-1);
+            if (ImGui::SliderFloat("Strength##ns", &data.normalStrength, 0.f, 3.f, "%.2f")) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Scales XY deviation of the normal map.\n1.0 = full strength, 0.0 = flat surface.");
         }
+
+        ImGui::SeparatorText("Ambient Occlusion");
+        if (mat->hasAOMap()) { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::Text("[AO] Applied"); ImGui::PopStyleColor(); }
+        else { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("[AO] None"); ImGui::PopStyleColor(); }
+        ImGui::SameLine();
+        drawTexturePicker(mesh, mat, mi, "AO", mat->hasAOMap(), "Ambient Occlusion map - single channel (.dds)",
+            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv) { mat->setAOMap(tex, srv); });
+        if (mat->hasAOMap()) {
+            ImGui::SetNextItemWidth(-1);
+            if (ImGui::SliderFloat("Strength##aos", &data.aoStrength, 0.f, 1.f, "%.2f")) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("0 = AO ignored (fully lit)\n1 = Full AO effect applied");
+        }
+
+        ImGui::SeparatorText("Emissive");
+        if (mat->hasEmissive()) { ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.9f, 0.3f, 1.f)); ImGui::Text("[E] Applied"); ImGui::PopStyleColor(); }
+        else { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("[E] None"); ImGui::PopStyleColor(); }
+        ImGui::SameLine();
+        drawTexturePicker(mesh, mat, mi, "Emissive", mat->hasEmissive(), "Emissive color map - additively blended (.dds)",
+            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv) { mat->setEmissiveMap(tex, srv); });
+        if (ImGui::ColorEdit3("Tint##emtint", &data.emissiveFactor.x)) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Multiplied with emissive map.\nWhite = use map as-is, Black = no emission.");
 
         ImGui::Unindent(8.0f);
         ImGui::Spacing();
         ImGui::PopID();
     }
-
-    uint32_t mt = mesh->getMorphWeightCount();
-    if (mt > 0) {
-        if (ImGui::CollapsingHeader("Morph Targets")) {
-            std::vector<float> w = mesh->getMorphWeightsVec();
-            bool changed = false;
-
-            for (uint32_t i = 0; i < mt; ++i) {
-                char label[32];
-                sprintf_s(label, "Target %u", i);
-                changed |= ImGui::SliderFloat(label, &w[i], 0.f, 1.f);
-            }
-
-            if (changed) {
-                mesh->setMorphWeights(w);
-            }
-        }
-    }
 }
-
 
 void InspectorPanel::drawComponentAnimation(ComponentAnimation* anim) {
     if (!ImGui::CollapsingHeader("Animation", ImGuiTreeNodeFlags_DefaultOpen)) return;

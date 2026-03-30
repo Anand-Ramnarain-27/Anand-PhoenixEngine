@@ -1,7 +1,6 @@
 #pragma once
 #include "Component.h"
 #include "MeshEntry.h"
-#include "ResourceSkin.h"
 #include <vector>
 #include <string>
 #include <memory>
@@ -43,21 +42,9 @@ public:
     const Vector3& getLocalAABBMax() const { return m_localAABBMax; }
     void getWorldAABB(Vector3& outMin, Vector3& outMax) const;
 
-    D3D12_GPU_VIRTUAL_ADDRESS getBindPoseVA() const;
-    D3D12_GPU_VIRTUAL_ADDRESS getSkinWeightsVA() const;
-    D3D12_GPU_VIRTUAL_ADDRESS getMorphVertsVA() const;
-    uint32_t getMorphWeightCount() const;
-    void setMorphWeights(const std::vector<float>& w);
-
-    bool isSkinned() const;
-    ResourceSkin* getSkinResource() const;
-    uint32_t getTotalVertexCount() const;
-    const std::vector<float>& getMorphWeightsVec() const;
 private:
     void releaseEntries();
     void rebuildEntry(MeshEntry& e);
-
-    ResourceSkin* m_skin = nullptr;
 
     UID m_modelUID = 0;
     std::string m_modelPath;
@@ -69,6 +56,4 @@ private:
     Vector3 m_localAABBMax = {};
     bool m_hasAABB = false;
     bool m_materialsDirty = false;
-    std::vector<float> m_morphWeights;
-    bool m_morphDirty = false;
 };

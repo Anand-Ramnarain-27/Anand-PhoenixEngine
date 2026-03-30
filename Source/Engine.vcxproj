@@ -266,7 +266,6 @@
     <ClInclude Include="ResourceCommon.h" />
     <ClInclude Include="ResourceMaterial.h" />
     <ClInclude Include="ResourceMesh.h" />
-    <ClInclude Include="ResourceSkin.h" />
     <ClInclude Include="ResourceTexture.h" />
     <ClInclude Include="SceneImporter.h" />
     <ClInclude Include="SceneManager.h" />
@@ -276,8 +275,6 @@
     <ClInclude Include="ScriptExport.h" />
     <ClInclude Include="ShaderTableDesc.h" />
     <ClInclude Include="SimpleMath.h" />
-    <ClInclude Include="SkinImporter.h" />
-    <ClInclude Include="SkinningPass.h" />
     <ClInclude Include="SkyboxRenderer.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="TextureImporter.h" />
@@ -430,8 +427,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="SkinImporter.cpp" />
-    <ClCompile Include="SkinningPass.cpp" />
     <ClCompile Include="SkyboxRenderer.cpp" />
     <ClCompile Include="TextureImporter.cpp" />
     <ClCompile Include="ViewportPanel.cpp" />
@@ -506,9 +501,6 @@
     <FxCompile Include="shaders\PrefilterEnvMapPS.hlsl">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="shaders\Skinning.hlsl">
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
     </FxCompile>
     <FxCompile Include="shaders\SkyboxPS.hlsl">

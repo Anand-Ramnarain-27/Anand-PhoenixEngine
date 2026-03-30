@@ -11,10 +11,9 @@ class SceneImporter {
 public:
     struct SceneHeader {
         uint32_t magic = 0x53434E45;
-        uint32_t version = 3;
+        uint32_t version = 2;
         uint32_t meshCount = 0;
         uint32_t materialCount = 0;
-        uint32_t skinCount = 0;
     };
 
     static bool ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const std::string& sceneName);

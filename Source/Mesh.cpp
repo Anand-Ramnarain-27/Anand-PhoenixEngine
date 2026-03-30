@@ -18,12 +18,7 @@ void Mesh::setData(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuf
     m_materialIndex = materialIndex;
     m_hasVertexBuffer = false;
     m_hasIndexBuffer = false;
-
-    if (!staticBuffer || vertices.empty()) { 
-        LOG("Mesh::setData(pool): invalid args - skipping GPU upload"); computeAABB(); 
-        return; 
-    }
-
+    if (!staticBuffer || vertices.empty()) { LOG("Mesh::setData(pool): invalid args - skipping GPU upload"); computeAABB(); return; }
     const size_t vbSize = vertices.size() * sizeof(Vertex);
     m_vertexBufferView = staticBuffer->allocVertexBuffer(cmd, vertices.data(), vbSize, sizeof(Vertex), "MeshVB");
     m_hasVertexBuffer = (m_vertexBufferView.BufferLocation != 0);
@@ -45,22 +40,13 @@ void Mesh::setData(const std::vector<Vertex>& vertices, const std::vector<uint32
     computeAABB();
 }
 
-void Mesh::uploadToGPU(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer)
-{
+void Mesh::uploadToGPU(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer) {
     if (m_hasVertexBuffer || !staticBuffer || m_vertices.empty()) return;
-
     m_vertexBufferView = staticBuffer->allocVertexBuffer(cmd, m_vertices.data(), m_vertices.size() * sizeof(Vertex), sizeof(Vertex), "MeshVB");
-
     m_hasVertexBuffer = (m_vertexBufferView.BufferLocation != 0);
-
     if (!m_indices.empty()) {
         m_indexBufferView = staticBuffer->allocIndexBuffer(cmd, m_indices.data(), m_indices.size() * sizeof(uint32_t), DXGI_FORMAT_R32_UINT, "MeshIB");
         m_hasIndexBuffer = (m_indexBufferView.BufferLocation != 0);
-    }
-
-    if (!m_skinWeightsCPU.empty()) {
-        setSkinData(m_skinWeightsCPU, cmd, staticBuffer);
-        m_skinWeightsCPU.clear();
     }
 }
 
@@ -74,24 +60,15 @@ void Mesh::draw(ID3D12GraphicsCommandList* cmdList) const {
     }
     if (!m_legacyVertexBuffer) const_cast<Mesh*>(this)->createLegacyBuffers();
     if (!m_legacyVertexBuffer) return;
-
     D3D12_VERTEX_BUFFER_VIEW vbv = { m_legacyVertexBuffer->GetGPUVirtualAddress(), (UINT)(m_vertices.size() * sizeof(Vertex)), sizeof(Vertex) };
     cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     cmdList->IASetVertexBuffers(0, 1, &vbv);
-
     if (m_legacyIndexBuffer) {
         D3D12_INDEX_BUFFER_VIEW ibv = { m_legacyIndexBuffer->GetGPUVirtualAddress(), (UINT)(m_indices.size() * sizeof(uint32_t)), DXGI_FORMAT_R32_UINT };
         cmdList->IASetIndexBuffer(&ibv);
         cmdList->DrawIndexedInstanced(getIndexCount(), 1, 0, 0, 0);
     }
     else cmdList->DrawInstanced(getVertexCount(), 1, 0, 0);
-}
-
-void Mesh::drawIndexOnly(ID3D12GraphicsCommandList* cmd) const {
-    if (!m_hasIndexBuffer) return;
-
-    cmd->IASetIndexBuffer(&m_indexBufferView);
-    cmd->DrawIndexedInstanced(getIndexCount(), 1, 0, 0, 0);
 }
 
 void Mesh::createLegacyBuffers() {
@@ -106,21 +83,4 @@ void Mesh::computeAABB() {
     m_aabbMin = m_aabbMax = m_vertices[0].position;
     for (const auto& v : m_vertices) { m_aabbMin = Vector3::Min(m_aabbMin, v.position); m_aabbMax = Vector3::Max(m_aabbMax, v.position); }
     m_hasAABB = true;
-}
-
-void Mesh::setSkinData(const std::vector<BoneWeight>& bw, ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* sb) {
-    if (bw.empty() || !sb || !cmd) return;
-
-    m_skinWeightCount = (uint32_t)bw.size();
-
-    auto vbv = sb->allocVertexBuffer(cmd, bw.data(), bw.size() * sizeof(BoneWeight), sizeof(BoneWeight), "SkinWeights");
-
-    m_skinWeightsGPUVA = vbv.BufferLocation;
-}
-
-void Mesh::setMorphData(const std::vector<Vertex>& allDeltas, uint32_t numTargets, ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* sb) {
-    if (allDeltas.empty() || numTargets == 0 || !sb || !cmd) return;
-    m_numMorphTargets = numTargets;
-    auto vbv = sb->allocVertexBuffer(cmd, allDeltas.data(), allDeltas.size() * sizeof(Vertex), sizeof(Vertex), "MorphDeltas");
-    m_morphVertsGPUVA = vbv.BufferLocation;
 }

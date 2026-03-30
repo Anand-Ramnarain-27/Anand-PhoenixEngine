@@ -337,44 +337,16 @@ void MeshRenderPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<Me
 		writeFallbackTex2DSRV(matTable, MAT_SLOT_EMISSIVE, m_fallbackTex2D.Get());
 
 		if (mat) {
-			if (mat->hasTexture() && mat->getBaseColorResource())
-				writeTex2DSRV(matTable, MAT_SLOT_BASECOLOR, mat->getBaseColorResource());
-
-			if (mat->hasMetalRoughMap() && mat->getMetalRoughResource())
-				writeTex2DSRV(matTable, MAT_SLOT_METALROUGH, mat->getMetalRoughResource());
-
-			if (mat->hasNormalMap() && mat->getNormalMapResource())
-				writeTex2DSRV(matTable, MAT_SLOT_NORMAL, mat->getNormalMapResource());
-
-			if (mat->hasAOMap() && mat->getAOMapResource())
-				writeTex2DSRV(matTable, MAT_SLOT_AO, mat->getAOMapResource());
-
-			if (mat->hasEmissive() && mat->getEmissiveResource())
-				writeTex2DSRV(matTable, MAT_SLOT_EMISSIVE, mat->getEmissiveResource());
+			if (mat->hasTexture() && mat->getBaseColorResource()) writeTex2DSRV(matTable, MAT_SLOT_BASECOLOR, mat->getBaseColorResource());
+			if (mat->hasMetalRoughMap() && mat->getMetalRoughResource()) writeTex2DSRV(matTable, MAT_SLOT_METALROUGH, mat->getMetalRoughResource());
+			if (mat->hasNormalMap() && mat->getNormalMapResource()) writeTex2DSRV(matTable, MAT_SLOT_NORMAL, mat->getNormalMapResource());
+			if (mat->hasAOMap() && mat->getAOMapResource()) writeTex2DSRV(matTable, MAT_SLOT_AO, mat->getAOMapResource());
+			if (mat->hasEmissive() && mat->getEmissiveResource()) writeTex2DSRV(matTable, MAT_SLOT_EMISSIVE, mat->getEmissiveResource());
 		}
 
-		cmd->SetGraphicsRootDescriptorTable(
-			MeshPipeline::SLOT_MAT_TEXTURES,
-			matTable.getGPUHandle(0)
-		);
+		cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_MAT_TEXTURES, matTable.getGPUHandle(0));
 
-		if (entry->skinnedVertexVA != 0) {
-			D3D12_VERTEX_BUFFER_VIEW svbv = {};
-			svbv.BufferLocation = entry->skinnedVertexVA;
-			svbv.SizeInBytes = entry->skinnedVertexCount * sizeof(Mesh::Vertex);
-			svbv.StrideInBytes = sizeof(Mesh::Vertex);
-
-			cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			cmd->IASetVertexBuffers(0, 1, &svbv);
-
-			if (mesh) {
-				mesh->drawIndexOnly(cmd);
-			}
-		}
-		else {
-			mesh->draw(cmd);
-		}
-
+		mesh->draw(cmd);
 		++slot;
 	}
 }

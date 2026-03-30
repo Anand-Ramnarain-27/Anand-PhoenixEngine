@@ -240,8 +240,6 @@
     <ClCompile Include="ComponentAnimation.cpp">
       <Filter>engine\scene\components</Filter>
     </ClCompile>
-    <ClCompile Include="SkinImporter.cpp" />
-    <ClCompile Include="SkinningPass.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -574,9 +572,6 @@
     <ClInclude Include="ComponentAnimation.h">
       <Filter>engine\scene\components</Filter>
     </ClInclude>
-    <ClInclude Include="ResourceSkin.h" />
-    <ClInclude Include="SkinImporter.h" />
-    <ClInclude Include="SkinningPass.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -769,9 +764,6 @@
       <Filter>shaders</Filter>
     </FxCompile>
     <FxCompile Include="shaders\PBRForwardVS.hlsl">
-      <Filter>shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="shaders\Skinning.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
   </ItemGroup>

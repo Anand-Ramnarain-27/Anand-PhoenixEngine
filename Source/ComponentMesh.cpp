@@ -131,12 +131,6 @@ bool ComponentMesh::loadModel(const char* filePath) {
     }
 
     computeLocalAABB();
-
-    if (!m_entries.empty() && m_entries[0].meshRes && m_entries[0].meshRes->getMesh()) {
-        uint32_t mt = m_entries[0].meshRes->getMesh()->getMorphTargetCount();
-        m_morphWeights.assign(mt, 0.f);
-    }
-
     return !m_entries.empty();
 }
 
@@ -160,6 +154,8 @@ void ComponentMesh::overrideMaterial(int slot, UID materialUID) {
 }
 
 void ComponentMesh::render(ID3D12GraphicsCommandList* /*cmd*/) {
+    // Rendering is handled by MeshRenderPass via MeshEntry lists built in
+    // ModuleEditor::renderSceneWithCamera. This override is intentionally empty.
 }
 
 void ComponentMesh::onSave(std::string& outJson) const {
@@ -221,59 +217,5 @@ void ComponentMesh::getWorldAABB(Vector3& outMin, Vector3& outMax) const {
         Vector3 wc = Vector3::Transform(c, world);
         outMin = Vector3::Min(outMin, wc);
         outMax = Vector3::Max(outMax, wc);
-    }
-}
-
-bool ComponentMesh::isSkinned() const {
-    return m_skin != nullptr;
-}
-
-ResourceSkin* ComponentMesh::getSkinResource() const {
-    return m_skin;
-}
-
-const std::vector<float>& ComponentMesh::getMorphWeightsVec() const {
-    return m_morphWeights;
-}
-
-unsigned int ComponentMesh::getTotalVertexCount() const
-{
-    unsigned int total = 0;
-
-    for (const auto& e : m_entries)
-    {
-        if (e.mesh)
-            total += e.mesh->getVertexCount();
-    }
-
-    return total;
-}
-
-D3D12_GPU_VIRTUAL_ADDRESS ComponentMesh::getBindPoseVA() const {
-    if (m_entries.empty() || !m_entries[0].meshRes) return 0;
-    const Mesh* m = m_entries[0].meshRes->getMesh();
-    return m ? m->getVertexBufferVA() : 0;
-}
-
-D3D12_GPU_VIRTUAL_ADDRESS ComponentMesh::getSkinWeightsVA() const {
-    if (m_entries.empty() || !m_entries[0].meshRes) return 0;
-    const Mesh* m = m_entries[0].meshRes->getMesh();
-    return m ? m->getSkinWeightsVA() : 0;
-}
-
-D3D12_GPU_VIRTUAL_ADDRESS ComponentMesh::getMorphVertsVA() const {
-    if (m_entries.empty() || !m_entries[0].meshRes) return 0;
-    const Mesh* m = m_entries[0].meshRes->getMesh();
-    return m ? m->getMorphVertsVA() : 0;
-}
-
-uint32_t ComponentMesh::getMorphWeightCount() const {
-    return (uint32_t)m_morphWeights.size();
-}
-
-void ComponentMesh::setMorphWeights(const std::vector<float>& w) {
-    if (w.size() == m_morphWeights.size()) {
-        m_morphWeights = w;
-        m_morphDirty = true;
     }
 }

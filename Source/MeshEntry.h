@@ -19,7 +19,4 @@ struct MeshEntry {
     Material* material = nullptr;
     float worldMatrix[16] = { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
     ComPtr<ID3D12Resource> materialCB;
-    D3D12_GPU_VIRTUAL_ADDRESS skinnedVertexVA = 0; 
-    uint32_t skinnedVertexCount = 0;
-
 };
