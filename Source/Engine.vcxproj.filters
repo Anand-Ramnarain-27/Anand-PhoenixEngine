@@ -228,6 +228,10 @@
     <ClCompile Include="ComponentScript.cpp">
       <Filter>engine\scene\components</Filter>
     </ClCompile>
+    <ClCompile Include="ResourceAnimation.cpp" />
+    <ClCompile Include="AnimationController.cpp" />
+    <ClCompile Include="ComponentAnimation.cpp" />
+    <ClCompile Include="AnimationImporter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -548,6 +552,10 @@
     <ClInclude Include="ComponentScript.h">
       <Filter>engine\scene\components</Filter>
     </ClInclude>
+    <ClInclude Include="ResourceAnimation.h" />
+    <ClInclude Include="AnimationController.h" />
+    <ClInclude Include="ComponentAnimation.h" />
+    <ClInclude Include="AnimationImporter.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

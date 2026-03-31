@@ -14,6 +14,7 @@ public:
         PointLight = 4,
         SpotLight = 5,
         Script = 6,
+		Animation = 7,
 		// Add new component types here
     };
 

@@ -5,6 +5,7 @@
 #include "ComponentMesh.h"
 #include "ComponentCamera.h"
 #include "ComponentLights.h"
+#include "ComponentAnimation.h"
 #include "PrefabManager.h"
 #include <algorithm>
 #include <random>
@@ -107,6 +108,7 @@ template ComponentCamera* GameObject::createComponent<ComponentCamera>();
 template ComponentDirectionalLight* GameObject::createComponent<ComponentDirectionalLight>();
 template ComponentPointLight* GameObject::createComponent<ComponentPointLight>();
 template ComponentSpotLight* GameObject::createComponent<ComponentSpotLight>();
+template ComponentAnimation* GameObject::createComponent<ComponentAnimation>();
 
 template ComponentTransform* GameObject::getComponent<ComponentTransform>() const;
 template ComponentMesh* GameObject::getComponent<ComponentMesh>() const;
@@ -114,9 +116,11 @@ template ComponentCamera* GameObject::getComponent<ComponentCamera>() const;
 template ComponentDirectionalLight* GameObject::getComponent<ComponentDirectionalLight>() const;
 template ComponentPointLight* GameObject::getComponent<ComponentPointLight>() const;
 template ComponentSpotLight* GameObject::getComponent<ComponentSpotLight>() const;
+template ComponentAnimation* GameObject::getComponent<ComponentAnimation>() const;
 
 template bool GameObject::removeComponent<ComponentMesh>();
 template bool GameObject::removeComponent<ComponentCamera>();
 template bool GameObject::removeComponent<ComponentDirectionalLight>();
 template bool GameObject::removeComponent<ComponentPointLight>();
 template bool GameObject::removeComponent<ComponentSpotLight>();
+template bool GameObject::removeComponent<ComponentAnimation>();

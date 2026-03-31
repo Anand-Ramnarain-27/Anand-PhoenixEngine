@@ -171,10 +171,13 @@
     <ClInclude Include="3rdParty\imgui-docking\imgui.h" />
     <ClInclude Include="3rdParty\imgui-docking\imgui_internal.h" />
     <ClInclude Include="3rdParty\ImGuizmo\ImGuizmo.h" />
+    <ClInclude Include="AnimationController.h" />
+    <ClInclude Include="AnimationImporter.h" />
     <ClInclude Include="Application.h" />
     <ClInclude Include="AssetBrowserPanel.h" />
     <ClInclude Include="CommandContext.h" />
     <ClInclude Include="Component.h" />
+    <ClInclude Include="ComponentAnimation.h" />
     <ClInclude Include="ComponentCamera.h" />
     <ClInclude Include="ComponentFactory.h" />
     <ClInclude Include="ComponentLights.h" />
@@ -259,6 +262,7 @@
     <ClInclude Include="RenderTargetDesc.h" />
     <ClInclude Include="RenderTexture.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="ResourceAnimation.h" />
     <ClInclude Include="ResourceCommon.h" />
     <ClInclude Include="ResourceMaterial.h" />
     <ClInclude Include="ResourceMesh.h" />
@@ -337,9 +341,12 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="AnimationController.cpp" />
+    <ClCompile Include="AnimationImporter.cpp" />
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="AssetBrowserPanel.cpp" />
     <ClCompile Include="CommandContext.cpp" />
+    <ClCompile Include="ComponentAnimation.cpp" />
     <ClCompile Include="ComponentCamera.cpp" />
     <ClCompile Include="ComponentFactory.cpp" />
     <ClCompile Include="ComponentLights.cpp" />
@@ -406,6 +413,7 @@
     <ClCompile Include="PrimitiveFactory.cpp" />
     <ClCompile Include="RenderTargetDesc.cpp" />
     <ClCompile Include="RenderTexture.cpp" />
+    <ClCompile Include="ResourceAnimation.cpp" />
     <ClCompile Include="ResourceMaterial.cpp" />
     <ClCompile Include="ResourceMesh.cpp" />
     <ClCompile Include="ResourceTexture.cpp" />
