@@ -233,6 +233,22 @@
     <ClCompile Include="ComponentAnimation.cpp" />
     <ClCompile Include="AnimationImporter.cpp" />
     <ClCompile Include="SkinningPass.cpp" />
+    <ClCompile Include="StateMachineResource.cpp" />
+    <ClCompile Include="AnimGraphPanel.cpp" />
+    <ClCompile Include="ComponentMotion.cpp" />
+    <ClCompile Include="SimpleCharacterController.cpp" />
+    <ClCompile Include="3rdParty\imgui-node-editor-master\crude_json.cpp">
+      <Filter>engine\ui\editorImgui</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdParty\imgui-node-editor-master\imgui_canvas.cpp">
+      <Filter>engine\ui\editorImgui</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdParty\imgui-node-editor-master\imgui_node_editor.cpp">
+      <Filter>engine\ui\editorImgui</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdParty\imgui-node-editor-master\imgui_node_editor_api.cpp">
+      <Filter>engine\ui\editorImgui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -558,6 +574,28 @@
     <ClInclude Include="ComponentAnimation.h" />
     <ClInclude Include="AnimationImporter.h" />
     <ClInclude Include="SkinningPass.h" />
+    <ClInclude Include="StateMachineResource.h" />
+    <ClInclude Include="AnimGraphPanel.h" />
+    <ClInclude Include="ComponentMotion.h" />
+    <ClInclude Include="SimpleCharacterController.h" />
+    <ClInclude Include="3rdParty\imgui-node-editor-master\crude_json.h">
+      <Filter>engine\ui\editorImgui</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdParty\imgui-node-editor-master\imgui_bezier_math.h">
+      <Filter>engine\ui\editorImgui</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdParty\imgui-node-editor-master\imgui_canvas.h">
+      <Filter>engine\ui\editorImgui</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdParty\imgui-node-editor-master\imgui_extra_math.h">
+      <Filter>engine\ui\editorImgui</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdParty\imgui-node-editor-master\imgui_node_editor.h">
+      <Filter>engine\ui\editorImgui</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdParty\imgui-node-editor-master\imgui_node_editor_internal.h">
+      <Filter>engine\ui\editorImgui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -601,6 +639,15 @@
     </None>
     <None Include="shaders\Tonemap.hlsli">
       <Filter>shaders\common shaders</Filter>
+    </None>
+    <None Include="3rdParty\imgui-node-editor-master\imgui_bezier_math.inl">
+      <Filter>engine\ui\editorImgui</Filter>
+    </None>
+    <None Include="3rdParty\imgui-node-editor-master\imgui_extra_math.inl">
+      <Filter>engine\ui\editorImgui</Filter>
+    </None>
+    <None Include="3rdParty\imgui-node-editor-master\imgui_node_editor_internal.inl">
+      <Filter>engine\ui\editorImgui</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -705,6 +752,9 @@
     </Filter>
     <Filter Include="shaders\common shaders">
       <UniqueIdentifier>{5a12279c-8da9-4f04-9c7a-08feed04409a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\ui\editorImgui">
+      <UniqueIdentifier>{5777aded-2c5d-40d1-8ab4-6465c7ea0c90}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

@@ -13,8 +13,7 @@
 static constexpr uint32_t STRUCT_VERTEX_BYTES = sizeof(Mesh::Vertex);
 
 bool SkinningPass::init(ID3D12Device* device) {
-    // ?? Upload staging buffer (CPU-visible) ??????????????????????????
-    size_t uploadSize = (MAX_PALETTE_MATRICES * sizeof(Matrix) * 2  // model+normal
+    size_t uploadSize = (MAX_PALETTE_MATRICES * sizeof(Matrix) * 2
         + MAX_MORPH_WEIGHTS * sizeof(float)) * FRAMES;
     {
         auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
@@ -24,7 +23,7 @@ bool SkinningPass::init(ID3D12Device* device) {
         m_upload->SetName(L"SkinningUpload");
         m_upload->Map(0, nullptr, reinterpret_cast<void**>(&m_uploadPtr));
     }
-    // ?? Per-frame palette + output buffers ???????????????????????????
+
     for (uint32_t i = 0; i < FRAMES; ++i) {
         size_t palSz = MAX_PALETTE_MATRICES * sizeof(Matrix) * 2
             + MAX_MORPH_WEIGHTS * sizeof(float);
@@ -56,7 +55,6 @@ void SkinningPass::execute(
     if (animComponents.empty()) return;
     uint32_t fi = frameIndex % FRAMES;
 
-    // Slide 33: transition output buffer to UAV for writing
     auto toUAV = CD3DX12_RESOURCE_BARRIER::Transition(
         m_outputs[fi].Get(),
         D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
@@ -67,17 +65,12 @@ void SkinningPass::execute(
     cmd->SetPipelineState(m_pso.Get());
 
     uint32_t vertexOffset = 0;
-    uint32_t paletteOffset = 0;  // in matrices
+    uint32_t paletteOffset = 0;  
 
     for (ComponentAnimation* ca : animComponents) {
         if (!ca) continue;
-        // For each skinned mesh owned by this animation component,
-        // build the matrix palette and dispatch.
-        // (Abbreviated — full implementation iterates ca->owner subtree
-        //  finding ComponentMesh entries with isSkinned())
     }
 
-    // Slide 33: transition back to vertex buffer for rendering
     auto toVB = CD3DX12_RESOURCE_BARRIER::Transition(
         m_outputs[fi].Get(),
         D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
@@ -90,15 +83,7 @@ D3D12_GPU_VIRTUAL_ADDRESS SkinningPass::getOutputVA(
     return m_outputs[frameIndex % FRAMES]->GetGPUVirtualAddress() + byteOffset;
 }
 
-bool SkinningPass::createRootSignature(ID3D12Device* device)
-{
-    // [0] 4x 32-bit constants : numVertices, numJoints, numMorphTargets, pad  (b0)
-    // [1] SRV paletteModel    (t0)
-    // [2] SRV paletteNormal   (t1)
-    // [3] SRV inVertex        (t2)
-    // [4] SRV morphVertices   (t3)
-    // [5] SRV morphWeights    (t4)
-    // [6] UAV outVertex       (u0)
+bool SkinningPass::createRootSignature(ID3D12Device* device) {
     CD3DX12_ROOT_PARAMETER params[7] = {};
     params[0].InitAsConstants(4, 0);               // b0
     params[1].InitAsShaderResourceView(0);         // t0

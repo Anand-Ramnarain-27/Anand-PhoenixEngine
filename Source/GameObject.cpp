@@ -6,7 +6,9 @@
 #include "ComponentCamera.h"
 #include "ComponentLights.h"
 #include "ComponentAnimation.h"
+#include "ComponentMotion.h"
 #include "PrefabManager.h"
+#include "SimpleCharacterController.h"
 #include <algorithm>
 #include <random>
 
@@ -109,6 +111,8 @@ template ComponentDirectionalLight* GameObject::createComponent<ComponentDirecti
 template ComponentPointLight* GameObject::createComponent<ComponentPointLight>();
 template ComponentSpotLight* GameObject::createComponent<ComponentSpotLight>();
 template ComponentAnimation* GameObject::createComponent<ComponentAnimation>();
+template ComponentMotion* GameObject::createComponent<ComponentMotion>();
+template SimpleCharacterController* GameObject::createComponent<SimpleCharacterController>();
 
 template ComponentTransform* GameObject::getComponent<ComponentTransform>() const;
 template ComponentMesh* GameObject::getComponent<ComponentMesh>() const;
@@ -117,6 +121,8 @@ template ComponentDirectionalLight* GameObject::getComponent<ComponentDirectiona
 template ComponentPointLight* GameObject::getComponent<ComponentPointLight>() const;
 template ComponentSpotLight* GameObject::getComponent<ComponentSpotLight>() const;
 template ComponentAnimation* GameObject::getComponent<ComponentAnimation>() const;
+template ComponentMotion* GameObject::getComponent<ComponentMotion>() const;
+template SimpleCharacterController* GameObject::getComponent<SimpleCharacterController>() const;
 
 template bool GameObject::removeComponent<ComponentMesh>();
 template bool GameObject::removeComponent<ComponentCamera>();
@@ -124,3 +130,5 @@ template bool GameObject::removeComponent<ComponentDirectionalLight>();
 template bool GameObject::removeComponent<ComponentPointLight>();
 template bool GameObject::removeComponent<ComponentSpotLight>();
 template bool GameObject::removeComponent<ComponentAnimation>();
+template bool GameObject::removeComponent<ComponentMotion>();
+template bool GameObject::removeComponent<SimpleCharacterController>();
