@@ -346,7 +346,25 @@ void MeshRenderPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<Me
 
 		cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_MAT_TEXTURES, matTable.getGPUHandle(0));
 
-		mesh->draw(cmd);
+		if (entry->useSkinnedVA && entry->skinnedVertexVA != 0) {
+			D3D12_VERTEX_BUFFER_VIEW vbv;
+			vbv.BufferLocation = entry->skinnedVertexVA;
+			vbv.SizeInBytes = mesh->getVertexCount() * sizeof(Mesh::Vertex);
+			vbv.StrideInBytes = sizeof(Mesh::Vertex);
+			cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			cmd->IASetVertexBuffers(0, 1, &vbv);
+			if (mesh->getIndexCount() > 0) {
+				const D3D12_INDEX_BUFFER_VIEW& ibv = mesh->getIndexBufferView();
+				cmd->IASetIndexBuffer(&ibv);
+				cmd->DrawIndexedInstanced(mesh->getIndexCount(), 1, 0, 0, 0);
+			}
+			else {
+				cmd->DrawInstanced(mesh->getVertexCount(), 1, 0, 0);
+			}
+		}
+		else {
+			mesh->draw(cmd);
+		}
 		++slot;
 	}
 }

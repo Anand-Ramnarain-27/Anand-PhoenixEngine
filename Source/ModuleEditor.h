@@ -9,6 +9,8 @@
 #include "HotReloadManager.h"
 #include "ComponentScript.h"
 #include "FileWatcher.h"
+#include "SkinningPass.h"
+#include "ComponentAnimation.h"
 
 #include <memory>
 #include <vector>
@@ -97,6 +99,7 @@ private:
     std::unique_ptr<MeshRenderPass>  m_meshRenderPass;
     std::unique_ptr<EnvironmentSystem> m_envSystem;
     std::unique_ptr<HotReloadManager> m_hotReload;
+    std::unique_ptr<SkinningPass> m_skinningPass;
 
     FileWatcher m_scriptWatcher;
 
