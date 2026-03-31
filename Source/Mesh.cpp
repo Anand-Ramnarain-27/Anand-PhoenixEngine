@@ -86,3 +86,13 @@ void Mesh::computeAABB() {
     for (const auto& v : m_vertices) { m_aabbMin = Vector3::Min(m_aabbMin, v.position); m_aabbMax = Vector3::Max(m_aabbMax, v.position); }
     m_hasAABB = true;
 }
+
+void Mesh::addMorphTarget(const std::vector<Vertex>& deltas) {
+    m_morphDeltas.insert(m_morphDeltas.end(), deltas.begin(), deltas.end());
+}
+
+void Mesh::uploadMorphTargets(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* sb) {
+    if (m_morphDeltas.empty() || !sb || !cmd) return;
+    size_t sz = m_morphDeltas.size() * sizeof(Vertex);
+    m_morphVBV = sb->allocVertexBuffer(cmd, m_morphDeltas.data(), sz, sizeof(Vertex), "MorphDeltas");
+}

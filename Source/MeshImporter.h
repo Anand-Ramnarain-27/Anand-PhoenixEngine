@@ -20,6 +20,7 @@ public:
         int32_t materialIndex = -1;
         uint32_t isSkinned = 0;   
         uint32_t jointCount = 0;
+        uint32_t morphTargetCount = 0;
     };
 
     static bool Import(const tinygltf::Primitive& primitive, const tinygltf::Model& model, const std::string& outputFile);
@@ -27,5 +28,9 @@ public:
     static bool Load(const std::string& file, std::unique_ptr<Mesh>& outMesh);
 
 private:
-    static bool Save(const MeshHeader& header, const std::vector<Mesh::Vertex>& vertices, const std::vector<uint32_t>& indices, const std::string& file);
+    static bool Save(const MeshHeader& header,
+        const std::vector<Mesh::Vertex>& vertices,
+        const std::vector<uint32_t>& indices,
+        const std::vector<std::vector<Mesh::Vertex>>& morphTargets,
+        const std::string& file);
 };
