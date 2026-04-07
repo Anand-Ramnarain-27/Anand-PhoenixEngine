@@ -1,5 +1,8 @@
 #include "Globals.h"
 #include "ResourceAnimation.h"
+#include "AnimationImporter.h"
+#include "Application.h"
+#include "ModuleFileSystem.h"
 #include <algorithm>
 
 ResourceAnimation::ResourceAnimation(UID uid)
@@ -8,7 +11,10 @@ ResourceAnimation::ResourceAnimation(UID uid)
 
 ResourceAnimation::~ResourceAnimation() { UnloadFromMemory(); }
 
-bool ResourceAnimation::LoadInMemory() { return true; }
+bool ResourceAnimation::LoadInMemory() {
+    if (libraryFile.empty()) return true; 
+    return AnimationImporter::Load(libraryFile, *this, app->getFileSystem());
+}
 
 void ResourceAnimation::UnloadFromMemory() {
     m_channels.clear();

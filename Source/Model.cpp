@@ -58,9 +58,18 @@ bool Model::importFromGLTF(const char* fileName) {
     tinygltf::TinyGLTF loader;
     tinygltf::Model gltfModel;
     std::string error, warning;
+
+    loader.SetImageLoader(
+        [](tinygltf::Image*, const int, std::string*, std::string*,
+            int, int, const unsigned char*, int, void*) -> bool {
+                return true; 
+        }, nullptr);
+
     if (!loader.LoadASCIIFromFile(&gltfModel, &error, &warning, fileName)) {
-        LOG("Model: Failed to load GLTF: %s", error.c_str());
-        return false;
+        if (!loader.LoadBinaryFromFile(&gltfModel, &error, &warning, fileName)) {
+            LOG("Model: Failed to load GLTF: %s", error.c_str());
+            return false;
+        }
     }
     if (!warning.empty()) LOG("Model: GLTF Warning: %s", warning.c_str());
     return SceneImporter::ImportFromLoadedGLTF(gltfModel, std::filesystem::path(fileName).stem().string());

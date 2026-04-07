@@ -3,6 +3,7 @@
 #include "ResourceMesh.h"
 #include "ResourceMaterial.h"
 #include "ResourceTexture.h"
+#include "ResourceAnimation.h"
 #include "ModuleStaticBuffer.h"
 #include "ModuleAssets.h"
 #include "Application.h"
@@ -28,6 +29,7 @@ bool ModuleResources::cleanUp() {
 void ModuleResources::registerMesh(UID uid, const std::string& libraryPath) { m_registry[uid] = { libraryPath, ResourceBase::Type::Mesh, 0 }; }
 void ModuleResources::registerMaterial(UID uid, const std::string& libraryPath, UID textureUID) { m_registry[uid] = { libraryPath, ResourceBase::Type::Material, textureUID }; }
 void ModuleResources::registerTexture(UID uid, const std::string& libraryPath) { m_registry[uid] = { libraryPath, ResourceBase::Type::Texture, 0 }; }
+void ModuleResources::registerAnimation(UID uid, const std::string& libraryPath) { m_registry[uid] = { libraryPath, ResourceBase::Type::Animation, 0 }; }
 
 std::string ModuleResources::getLibraryPath(UID uid) const {
     auto it = m_registry.find(uid);
@@ -56,6 +58,7 @@ void ModuleResources::ReleaseResource(ResourceBase* resource) {
 ResourceMesh* ModuleResources::RequestMesh(UID uid) { return static_cast<ResourceMesh*>(RequestResource(uid)); }
 ResourceMaterial* ModuleResources::RequestMaterial(UID uid) { return static_cast<ResourceMaterial*>(RequestResource(uid)); }
 ResourceTexture* ModuleResources::RequestTexture(UID uid) { return static_cast<ResourceTexture*>(RequestResource(uid)); }
+ResourceAnimation* ModuleResources::RequestAnimation(UID uid) { return static_cast<ResourceAnimation*>(RequestResource(uid)); }
 
 void ModuleResources::uploadPendingMeshes(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer) {
     std::lock_guard<std::mutex> lock(m_resourceMutex);
@@ -75,6 +78,7 @@ ResourceBase* ModuleResources::CreateResourceFromUID(UID uid) {
         case ResourceBase::Type::Mesh: { auto* r = new ResourceMesh(uid); r->libraryFile = rec.libraryPath; r->assetsFile = assetPath; return r; }
         case ResourceBase::Type::Material: { auto* r = new ResourceMaterial(uid); r->libraryFile = rec.libraryPath; r->assetsFile = assetPath; r->textureUID = rec.textureUID; return r; }
         case ResourceBase::Type::Texture: { auto* r = new ResourceTexture(uid); r->libraryFile = rec.libraryPath; r->assetsFile = assetPath; return r; }
+        case ResourceBase::Type::Animation: { auto* r = new ResourceAnimation(uid); r->libraryFile = rec.libraryPath; r->assetsFile = assetPath; return r; }
         default: LOG("ModuleResources: Unknown type for uid=%llu", uid); return nullptr;
         }
     }

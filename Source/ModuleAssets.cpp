@@ -5,6 +5,8 @@
 #include "ModuleResources.h"
 #include "SceneImporter.h"
 #include "TextureImporter.h"
+#include "AnimationImporter.h"
+#include "ResourceAnimation.h"
 #include "tiny_gltf.h"
 #include <filesystem>
 #include <algorithm>
@@ -129,9 +131,11 @@ void ModuleAssets::refreshAssets() {
                 ModuleFileSystem* fsys = app->getFileSystem();
                 int mc = 0;
                 int matc = 0;
+                int animc = 0;
+                countLibraryFiles(fsys->GetLibraryPath() + "Animations/" + sceneName + "/", ".anim", animc);
                 countLibraryFiles(fsys->GetLibraryPath() + "Meshes/" + sceneName + "/", ".mesh", mc);
                 countLibraryFiles(fsys->GetLibraryPath() + "Materials/" + sceneName + "/", ".mat", matc);
-                registerSceneSubResources(path, sceneName, mc, matc);
+                registerSceneSubResources(path, sceneName, mc, matc, animc);
             }
         }
         else if (isTextureExtension(ext)) {
@@ -215,11 +219,27 @@ UID ModuleAssets::importAsset(const char* filePath) {
             return 0;
         }
 
+        std::string animFolder = fsys->GetLibraryPath() + "Animations/" + sceneName + "/";
+        fsys->CreateDir(animFolder.c_str());
+        int animc = (int)gltfModel.animations.size();
+        for (int i = 0; i < animc; ++i) {
+            const std::string clipName = gltfModel.animations[i].name.empty()
+                ? ("clip_" + std::to_string(i))
+                : gltfModel.animations[i].name;
+            auto animRes = AnimationImporter::Import(gltfModel, i, clipName);
+            if (!animRes) {
+                LOG("ModuleAssets: Failed to import animation %d ('%s')", i, clipName.c_str());
+                continue;
+            }
+            std::string outPath = animFolder + std::to_string(i) + ".anim";
+            AnimationImporter::Save(*animRes, outPath, fsys);
+        }
+
         int mc = 0;
         int matc = 0;
         countLibraryFiles(fsys->GetLibraryPath() + "Meshes/" + sceneName + "/", ".mesh", mc);
         countLibraryFiles(fsys->GetLibraryPath() + "Materials/" + sceneName + "/", ".mat", matc);
-        registerSceneSubResources(path, sceneName, mc, matc);
+        registerSceneSubResources(path, sceneName, mc, matc, animc);
         ok = true;
     }
     else if (isTextureExtension(ext)) {
@@ -247,7 +267,7 @@ UID ModuleAssets::importAsset(const char* filePath) {
     return ok ? uid : 0;
 }
 
-void ModuleAssets::registerSceneSubResources(const std::string& filePath, const std::string& sceneName, int meshCount, int materialCount) {
+void ModuleAssets::registerSceneSubResources(const std::string& filePath, const std::string& sceneName, int meshCount, int materialCount, int animCount) {
     UID parent = findUID(filePath);
     if (parent == 0) return;
 
@@ -273,6 +293,15 @@ void ModuleAssets::registerSceneSubResources(const std::string& filePath, const 
         app->getResources()->registerMaterial(matUID, lp, 0);
     }
 
+    for (int i = 0; i < animCount; ++i) {
+        UID animUID = makeSubUID(parent, "anim", i);
+        std::string lp = fsys->GetLibraryPath() + "Animations/" + sceneName + "/"
+            + std::to_string(i) + ".anim";
+        m_subUIDs[filePath + "|anim|" + std::to_string(i)] = animUID;
+        m_uidToPath[animUID] = lp;
+        app->getResources()->registerAnimation(animUID, lp); // see step 3
+    }
+
     LOG("ModuleAssets: Registered %d meshes, %d materials for %s", meshCount, materialCount, sceneName.c_str());
 }
 
@@ -293,12 +322,14 @@ void ModuleAssets::deleteAsset(const std::string& assetPath) {
         std::string sceneName = fs::path(path).stem().string();
         deleteIfExists(fsys->GetLibraryPath() + "Meshes/" + sceneName);
         deleteIfExists(fsys->GetLibraryPath() + "Materials/" + sceneName);
+        deleteIfExists(fsys->GetLibraryPath() + "Animations/" + sceneName);
         deleteIfExists(path + ".meta");
         deleteIfExists(path);
         for (int i = 0; ; ++i) {
             bool anyMesh = m_subUIDs.erase(path + "|mesh|" + std::to_string(i)) > 0;
             bool anyMat = m_subUIDs.erase(path + "|mat|" + std::to_string(i)) > 0;
-            if (!anyMesh && !anyMat) break;
+            bool anyAnim = m_subUIDs.erase(path + "|anim|" + std::to_string(i)) > 0;
+            if (!anyMesh && !anyMat && !anyAnim) break;
         }
         m_sceneNameToPath.erase(sceneName);
     }

@@ -1,7 +1,9 @@
 #include "Globals.h"
 #include "AnimationImporter.h"
 #include "ResourceAnimation.h"
+#include "ModuleFileSystem.h"
 #include "tiny_gltf.h"
+#include <vector>
 #include <cstring>
 
 static std::unique_ptr<float[]> readFloats(
@@ -84,4 +86,131 @@ std::unique_ptr<ResourceAnimation> AnimationImporter::Import(
     LOG("AnimationImporter: Loaded clip '%s' duration=%.2fs",
         clipName.c_str(), res->getDuration());
     return res;
+}
+
+// Binary layout:
+// [uint32 magic=0x414E494D] [float duration]
+// [uint32 channelCount]
+//   per channel: [uint32 nameLen][char* name][uint32 numPos][float* posTimes][float* positions (x3)]
+//                [uint32 numRot][float* rotTimes][float* rotations (x4)]
+// [uint32 morphCount]
+//   per morph:   [uint32 nameLen][char* name][uint32 numTime][uint32 numTargets]
+//                [float* weightsTimes][float* weights (numTime*numTargets)]
+
+static constexpr uint32_t kAnimMagic = 0x414E494D;
+
+bool AnimationImporter::Save(const ResourceAnimation& anim, const std::string& path, ModuleFileSystem* fsys)
+{
+    std::vector<char> buf;
+    auto write = [&](const void* data, size_t sz) {
+        const char* p = reinterpret_cast<const char*>(data);
+        buf.insert(buf.end(), p, p + sz);
+        };
+    auto writeU32 = [&](uint32_t v) { write(&v, 4); };
+    auto writeF32 = [&](float v) { write(&v, 4); };
+    auto writeStr = [&](const std::string& s) {
+        uint32_t len = (uint32_t)s.size();
+        writeU32(len);
+        buf.insert(buf.end(), s.begin(), s.end());
+        };
+
+    writeU32(kAnimMagic);
+    float dur = anim.getDuration();
+    writeF32(dur);
+
+    const auto& channels = anim.getChannels();
+    writeU32((uint32_t)channels.size());
+    for (const auto& [name, ch] : channels) {
+        writeStr(name);
+        writeU32(ch.numPositions);
+        if (ch.numPositions > 0) {
+            write(ch.posTimeStamps.get(), ch.numPositions * sizeof(float));
+            write(ch.positions.get(), ch.numPositions * sizeof(float) * 3);
+        }
+        writeU32(ch.numRotations);
+        if (ch.numRotations > 0) {
+            write(ch.rotTimeStamps.get(), ch.numRotations * sizeof(float));
+            write(ch.rotations.get(), ch.numRotations * sizeof(float) * 4);
+        }
+    }
+
+    const auto& morphs = anim.getMorphChannels();
+    writeU32((uint32_t)morphs.size());
+    for (const auto& [name, mc] : morphs) {
+        writeStr(name);
+        writeU32(mc.numTime);
+        writeU32(mc.numTargets);
+        if (mc.numTime > 0) {
+            write(mc.weightsTimes.get(), mc.numTime * sizeof(float));
+            write(mc.weights.get(), mc.numTime * mc.numTargets * sizeof(float));
+        }
+    }
+
+    return fsys->Save(path.c_str(), buf.data(), (unsigned int)buf.size());
+}
+
+bool AnimationImporter::Load(const std::string& path, ResourceAnimation& outAnim, ModuleFileSystem* fsys)
+{
+    char* raw = nullptr;
+    uint32_t size = fsys->Load(path.c_str(), &raw);
+    if (!raw || size < 8) { delete[] raw; return false; }
+
+    const char* p = raw;
+    const char* end = raw + size;
+    auto readU32 = [&]() -> uint32_t { uint32_t v; memcpy(&v, p, 4); p += 4; return v; };
+    auto readF32 = [&]() -> float { float v;    memcpy(&v, p, 4); p += 4; return v; };
+    auto readStr = [&]() -> std::string {
+        uint32_t len = readU32();
+        std::string s(p, len); p += len; return s;
+        };
+
+    if (readU32() != kAnimMagic) { delete[] raw; return false; }
+    readF32(); 
+
+    uint32_t channelCount = readU32();
+    for (uint32_t i = 0; i < channelCount && p < end; ++i) {
+        std::string name = readStr();
+        Channel ch;
+        ch.numPositions = readU32();
+        if (ch.numPositions > 0) {
+            ch.posTimeStamps = std::make_unique<float[]>(ch.numPositions);
+            memcpy(ch.posTimeStamps.get(), p, ch.numPositions * sizeof(float));
+            p += ch.numPositions * sizeof(float);
+            ch.positions = std::make_unique<Vector3[]>(ch.numPositions);
+            memcpy(ch.positions.get(), p, ch.numPositions * sizeof(float) * 3);
+            p += ch.numPositions * sizeof(float) * 3;
+        }
+        ch.numRotations = readU32();
+        if (ch.numRotations > 0) {
+            ch.rotTimeStamps = std::make_unique<float[]>(ch.numRotations);
+            memcpy(ch.rotTimeStamps.get(), p, ch.numRotations * sizeof(float));
+            p += ch.numRotations * sizeof(float);
+            ch.rotations = std::make_unique<Quaternion[]>(ch.numRotations);
+            memcpy(ch.rotations.get(), p, ch.numRotations * sizeof(float) * 4);
+            p += ch.numRotations * sizeof(float) * 4;
+        }
+        outAnim.addChannel(name, std::move(ch));
+    }
+
+    uint32_t morphCount = readU32();
+    for (uint32_t i = 0; i < morphCount && p < end; ++i) {
+        std::string name = readStr();
+        MorphChannel mc;
+        mc.numTime = readU32();
+        mc.numTargets = readU32();
+        if (mc.numTime > 0) {
+            mc.weightsTimes = std::make_unique<float[]>(mc.numTime);
+            memcpy(mc.weightsTimes.get(), p, mc.numTime * sizeof(float));
+            p += mc.numTime * sizeof(float);
+            uint32_t wCount = mc.numTime * mc.numTargets;
+            mc.weights = std::make_unique<float[]>(wCount);
+            memcpy(mc.weights.get(), p, wCount * sizeof(float));
+            p += wCount * sizeof(float);
+        }
+        outAnim.addMorphChannel(name, std::move(mc));
+    }
+
+    delete[] raw;
+    outAnim.computeDuration();
+    return true;
 }
