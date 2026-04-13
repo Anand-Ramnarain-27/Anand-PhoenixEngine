@@ -31,6 +31,11 @@ public:
     AnimationController& getController() { return m_controller; }
     const std::string& getActiveState() const { return m_activeState; }
 
+    bool m_debugDrawSkeleton = false;
+
+    bool isDebugDrawEnabled() const { return m_debugDrawSkeleton; }
+    void setDebugDrawEnabled(bool v) { m_debugDrawSkeleton = v; }
+
 private: 
     void applyToHierarchy(GameObject* go);
      
