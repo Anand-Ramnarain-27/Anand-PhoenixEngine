@@ -47,6 +47,9 @@ private:
     void prefabCreateVariant(const std::string& src, const std::string& dst);
     void prefabRename(const std::string& oldName, const std::string& newName);
 
+    void assignAnimToSelection(const std::string& animPath);
+    void assignSmToSelection(const std::string& smPath);
+
     struct RootFolder { std::string path; std::string label; };
     std::vector<RootFolder> m_roots;
 

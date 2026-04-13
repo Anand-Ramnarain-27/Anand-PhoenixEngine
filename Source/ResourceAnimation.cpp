@@ -6,13 +6,13 @@
 #include <algorithm>
 
 ResourceAnimation::ResourceAnimation(UID uid)
-    : ResourceBase(uid, Type::Unknown) {
+    : ResourceBase(uid, Type::Animation) {
 }
 
 ResourceAnimation::~ResourceAnimation() { UnloadFromMemory(); }
 
 bool ResourceAnimation::LoadInMemory() {
-    if (libraryFile.empty()) return true; 
+    if (libraryFile.empty()) return true;
     return AnimationImporter::Load(libraryFile, *this, app->getFileSystem());
 }
 
