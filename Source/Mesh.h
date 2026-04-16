@@ -16,13 +16,10 @@ public:
         Vector2 texCoord;
         Vector3 normal;
         Vector4 tangent;
-
-        uint32_t joints[4] = { 0, 0, 0, 0 };
-        float    weights[4] = { 1.f, 0.f, 0.f, 0.f };
     };
 
-    static const D3D12_INPUT_ELEMENT_DESC InputLayout[6];
-    static const UINT InputLayoutCount = 6;
+    static const D3D12_INPUT_ELEMENT_DESC InputLayout[4];
+    static const UINT InputLayoutCount = 4;
 
     Mesh() = default;
     ~Mesh() = default;
@@ -40,17 +37,11 @@ public:
 
     const std::vector<Vertex>& getVertices() const { return m_vertices; }
     const std::vector<uint32_t>& getIndices() const { return m_indices; }
-    const D3D12_INDEX_BUFFER_VIEW& getIndexBufferView() const { return m_indexBufferView; }
 
     const Vector3& getAABBMin() const { return m_aabbMin; }
     const Vector3& getAABBMax() const { return m_aabbMax; }
     bool hasAABB() const { return m_hasAABB; }
     bool isOnGPU() const { return m_hasVertexBuffer; }
-
-    bool     isSkinned()    const { return m_isSkinned; }
-    void     setIsSkinned(bool s) { m_isSkinned = s; }
-    uint32_t getJointCount() const { return m_jointCount; }
-    void     setJointCount(uint32_t n) { m_jointCount = n; }
 
 private:
     void computeAABB();
@@ -71,7 +62,4 @@ private:
     Vector3 m_aabbMin = {};
     Vector3 m_aabbMax = {};
     bool m_hasAABB = false;
-
-    bool     m_isSkinned = false;
-    uint32_t m_jointCount = 0;
 };

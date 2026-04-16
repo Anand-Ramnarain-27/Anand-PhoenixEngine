@@ -232,7 +232,6 @@
     <ClCompile Include="AnimationController.cpp" />
     <ClCompile Include="ComponentAnimation.cpp" />
     <ClCompile Include="AnimationImporter.cpp" />
-    <ClCompile Include="SkinningPass.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -557,7 +556,6 @@
     <ClInclude Include="AnimationController.h" />
     <ClInclude Include="ComponentAnimation.h" />
     <ClInclude Include="AnimationImporter.h" />
-    <ClInclude Include="SkinningPass.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -747,9 +745,6 @@
       <Filter>shaders</Filter>
     </FxCompile>
     <FxCompile Include="shaders\PBRForwardVS.hlsl">
-      <Filter>shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="shaders\Skinning.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
   </ItemGroup>

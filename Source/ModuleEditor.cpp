@@ -35,7 +35,6 @@
 #include "SceneSettingsPanel.h"
 #include "PrefabManager.h"
 #include "FileWatcher.h"
-#include "ResourceMesh.h"
 #include "Model.h"
 #include "MeshEntry.h"
 #include <d3dx12.h>
@@ -74,10 +73,14 @@ bool ModuleEditor::init() {
     m_meshRenderPass = std::make_unique<MeshRenderPass>();
     m_hotReload = std::make_unique<HotReloadManager>();
 
+    // Register the callback. When a DLL reloads, every ScriptComponent in the
+    // scene is told to swap its IScript* for the new version.
     m_hotReload->setReloadCallback([this](const std::string& dllPath) {
         notifyScriptComponentsReload(dllPath);
         });
 
+    // Point the watcher at  build/PhoenixEngine/Debug/x64/Assets/Scripts/
+    // (App->GetFileSystem()->GetAssetsPath() should return that path already.)
     std::string scriptDir = app->getFileSystem()->GetAssetsPath() + std::string("Scripts/");
     app->getFileSystem()->CreateDir(scriptDir.c_str());
 
@@ -86,16 +89,13 @@ bool ModuleEditor::init() {
             onScriptFileEvent(absPath, ev);
         });
 
+    // Load any DLLs that are already in Assets/Scripts/ when the engine starts.
+    // This means you don't have to rebuild GameScripts just to get it recognised.
     auto existing = app->getFileSystem()->GetFilesInDirectory(scriptDir.c_str(), ".dll");
     for (const auto& path : existing)
         m_hotReload->loadLibrary(path);
 
     if (!m_meshRenderPass->init(device)) return false;
-
-    m_skinningPass = std::make_unique<SkinningPass>();
-    if (!m_skinningPass->init(device)) {
-        return false;
-    }
 
     m_envSystem = std::make_unique<EnvironmentSystem>();
     if (!m_envSystem->init(device, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT, false)) return false;
@@ -274,36 +274,6 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
         collectMeshes(moduleScene->getRoot());
         visibleMeshes.reserve(ownedEntries.size());
         for (auto& e : ownedEntries) visibleMeshes.push_back(&e);
-    }
-
-    std::vector<ComponentAnimation*> animComponents;
-    if (moduleScene) {
-        std::function<void(GameObject*)> gatherAnim = [&](GameObject* node) {
-            if (!node || !node->isActive()) return;
-            if (auto* ca = node->getComponent<ComponentAnimation>())
-                animComponents.push_back(ca);
-            for (auto* child : node->getChildren()) gatherAnim(child);
-            };
-        gatherAnim(moduleScene->getRoot());
-    }
-
-    uint32_t frameIndex = app->getD3D12()->getCurrentFrame(); 
-    if (m_skinningPass && !animComponents.empty())
-        m_skinningPass->execute(cmd, frameIndex, animComponents);
-
-    if (m_skinningPass && !animComponents.empty()) {
-        uint32_t vertexOffset = 0;
-        for (auto& e : ownedEntries) {
-            Mesh* mesh = e.mesh ? e.mesh
-                : (e.meshRes ? e.meshRes->getMesh() : nullptr);
-            if (!mesh || !mesh->isSkinned()) continue;
-            uint32_t byteOffset = vertexOffset * sizeof(Mesh::Vertex);
-            e.skinnedVertexVA = m_skinningPass->getOutputVA(frameIndex, byteOffset);
-            e.useSkinnedVA = true;
-            Matrix identity = Matrix::Identity;
-            memcpy(e.worldMatrix, &identity, sizeof(identity));
-            vertexOffset += mesh->getVertexCount();
-        }
     }
 
     const EnvironmentSystem* envForIBL =

@@ -93,8 +93,6 @@ bool MeshImporter::Load(const std::string& file, ID3D12GraphicsCommandList* cmd,
     if (!LoadRaw(file, header, vertices, indices)) return false;
     outMesh = std::make_unique<Mesh>();
     outMesh->setData(cmd, staticBuffer, vertices, indices, header.materialIndex);
-    outMesh->setIsSkinned(header.isSkinned != 0);
-    outMesh->setJointCount(header.jointCount);
     return true;
 }
 

@@ -13,10 +13,7 @@ VS_OUTPUT main(
     float3 position : POSITION,
     float2 texCoord : TEXCOORD,
     float3 normal : NORMAL,
-    float4 tangent : TANGENT,
-    uint4 joints : JOINTS, 
-    float4 weights : WEIGHTS)
-
+    float4 tangent : TANGENT)
 {
     VS_OUTPUT output;
 
