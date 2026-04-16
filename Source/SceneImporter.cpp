@@ -15,7 +15,6 @@ bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const
     std::string meshFolder = fs->GetLibraryPath() + "Meshes/" + sceneName;
     std::string basePath = app->getFileSystem()->GetAssetsPath() + "Models/" + sceneName + "/";
     std::string matFolder = fs->GetLibraryPath() + "Materials/" + sceneName;
-    std::string animFolder = fs->GetLibraryPath() + "Animations/" + sceneName + "/";
     int meshIndex = 0;
     for (const auto& mesh : gltfModel.meshes)
         for (const auto& prim : mesh.primitives)

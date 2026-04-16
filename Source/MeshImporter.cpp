@@ -7,25 +7,10 @@
 #include "ModuleFileSystem.h"
 #include <cstring>
 
-#define TINYGLTF_NO_STB_IMAGE       
-#define TINYGLTF_NO_STB_IMAGE_WRITE
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "tiny_gltf.h"
-
-namespace tinygltf {
-    bool LoadImageData(Image*, int, std::string*, std::string*,
-        int, int, const unsigned char*, int, void*) {
-        return true; 
-    }
-
-    bool WriteImageData(const std::string*, const std::string*,
-        const Image*, bool, const URICallbacks*,
-        std::string*, void*) {
-        return true; 
-    }
-}
 
 static const unsigned char* accessorData(const tinygltf::Model& model, const tinygltf::Accessor& acc) {
     const auto& view = model.bufferViews[acc.bufferView];

@@ -38,7 +38,7 @@ public:
 
 private:
 	void ensureLibraryDirectories();
-	void registerSceneSubResources(const std::string& filePath, const std::string& sceneName, int meshCount, int materialCount, int animCount);
+	void registerSceneSubResources(const std::string& filePath, const std::string& sceneName, int meshCount, int materialCount);
 	void importTexture(const std::string& path, const std::string& ext, UID uid);
 	void countLibraryFiles(const std::string& folder, const std::string& ext, int& count) const;
 

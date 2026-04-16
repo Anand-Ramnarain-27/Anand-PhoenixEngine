@@ -6,7 +6,7 @@ using UID = uint64_t;
 
 class ResourceBase {
 public:
-    enum class Type { Unknown = 0, Mesh, Texture, Material, Scene, Model, Animation};
+    enum class Type { Unknown = 0, Mesh, Texture, Material, Scene, Model };
 
     ResourceBase(UID id, Type t) : uid(id), type(t) {}
     virtual ~ResourceBase() = default;
