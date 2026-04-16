@@ -52,17 +52,6 @@ public:
     uint32_t getJointCount() const { return m_jointCount; }
     void     setJointCount(uint32_t n) { m_jointCount = n; }
 
-    void     setMorphTargetCount(uint32_t n) { m_morphTargetCount = n; }
-    uint32_t getMorphTargetCount() const { return m_morphTargetCount; }
-    void     addMorphTarget(const std::vector<Vertex>& deltas);
-    void     uploadMorphTargets(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* sb);
-
-    D3D12_GPU_VIRTUAL_ADDRESS getMorphBufferVA() const {
-        return m_morphVBV.BufferLocation;
-    }
-
-    bool hasMorphTargets() const { return m_morphTargetCount > 0; }
-
 private:
     void computeAABB();
     void createLegacyBuffers();
@@ -85,8 +74,4 @@ private:
 
     bool     m_isSkinned = false;
     uint32_t m_jointCount = 0;
-
-    uint32_t                 m_morphTargetCount = 0;
-    std::vector<Vertex>      m_morphDeltas;     
-    D3D12_VERTEX_BUFFER_VIEW m_morphVBV = {};
 };
