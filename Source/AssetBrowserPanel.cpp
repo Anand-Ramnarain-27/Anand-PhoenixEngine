@@ -8,10 +8,6 @@
 #include "GameObject.h"
 #include "ResourceMaterial.h"
 #include "ComponentMesh.h"
-#include "ComponentAnimation.h"
-#include "ResourceAnimation.h"
-#include "StateMachineResource.h"
-#include "ModuleResources.h"
 #include "PrefabManager.h"
 #include "TextureImporter.h"
 #include "PrimitiveFactory.h"
@@ -33,7 +29,7 @@ static bool isDirSkipped(const std::string& name) {
 }
 
 bool AssetBrowserPanel::isAssetFile(const std::string& ext) const {
-    static const char* kAllowed[] = { ".gltf",".fbx",".obj",".dds",".png",".jpg",".jpeg",".json",".prefab",".wav",".mp3",".ogg",".anim",".sm" };
+    static const char* kAllowed[] = { ".gltf",".fbx",".obj",".dds",".png",".jpg",".jpeg",".json",".prefab",".wav",".mp3",".ogg" };
     for (auto* e : kAllowed) if (ext == e) return true;
     return false;
 }
@@ -44,8 +40,6 @@ ImVec4 AssetBrowserPanel::typeColor(const std::string& ext) const {
     if (ext == ".json") return { 1.00f, 0.80f, 0.35f, 1.f };
     if (ext == ".prefab") return { 0.35f, 0.90f, 0.45f, 1.f };
     if (ext == ".wav" || ext == ".mp3" || ext == ".ogg") return { 1.00f, 0.55f, 0.35f, 1.f };
-    if (ext == ".anim") return { 1.00f, 0.60f, 0.90f, 1.f };  // pink/magenta
-    if (ext == ".sm")   return { 0.60f, 0.90f, 1.00f, 1.f };  // light cyan
     return EditorColors::Muted;
 }
 
@@ -55,8 +49,6 @@ const char* AssetBrowserPanel::typeIcon(const std::string& ext) const {
     if (ext == ".json") return "[S]";
     if (ext == ".prefab") return "[P]";
     if (ext == ".wav" || ext == ".mp3" || ext == ".ogg") return "[A]";
-    if (ext == ".anim") return "[AN]";
-    if (ext == ".sm")   return "[SM]";
     return "[?]";
 }
 
@@ -95,10 +87,7 @@ void AssetBrowserPanel::drawContent() {
         std::string lib = app->getFileSystem()->GetLibraryPath();
         while (!lib.empty() && (lib.back() == '/' || lib.back() == '\\')) lib.pop_back();
         fs::path projectRoot = fs::path(lib).parent_path();
-        for (auto& [rel, label] : std::vector<std::pair<std::string, std::string>>{
-                {"Assets","Assets"},
-                {"Library","Library"},
-                {"Library/Animations","Animations"} }) {
+        for (auto& [rel, label] : std::vector<std::pair<std::string, std::string>>{ {"Assets","Assets"}, {"Library","Library"} }) {
             std::string full = (projectRoot / rel).string();
             if (fs::exists(full)) m_roots.push_back({ full, label });
         }
@@ -331,26 +320,6 @@ void AssetBrowserPanel::drawItemContextMenu(int idx) {
         if (e.ext == ".json") {
             if (ImGui::MenuItem("Load Scene"))
                 if (auto* sm = m_editor->getSceneManager(); sm && sm->loadScene(e.path)) m_editor->log(("Loaded: " + e.name).c_str(), EditorColors::Success);
-            ImGui::Separator();
-        }
-        if (e.ext == ".anim") {
-            EditorSelection& sel = m_editor->getSelection();
-            bool hasAnimComp = sel.has() && sel.object->getComponent<ComponentAnimation>() != nullptr;
-            if (!hasAnimComp) ImGui::BeginDisabled();
-            if (ImGui::MenuItem("Assign to Selected")) assignAnimToSelection(e.path);
-            if (!hasAnimComp) ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && !hasAnimComp)
-                ImGui::SetTooltip("Select a GameObject with a ComponentAnimation first");
-            ImGui::Separator();
-        }
-        if (e.ext == ".sm") {
-            EditorSelection& sel = m_editor->getSelection();
-            bool hasAnimComp = sel.has() && sel.object->getComponent<ComponentAnimation>() != nullptr;
-            if (!hasAnimComp) ImGui::BeginDisabled();
-            if (ImGui::MenuItem("Load State Machine on Selected")) assignSmToSelection(e.path);
-            if (!hasAnimComp) ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && !hasAnimComp)
-                ImGui::SetTooltip("Select a GameObject with a ComponentAnimation first");
             ImGui::Separator();
         }
         if (e.ext == ".gltf" || e.ext == ".fbx" || e.ext == ".obj") {
@@ -641,53 +610,4 @@ void AssetBrowserPanel::prefabRename(const std::string& oldName, const std::stri
     app->getFileSystem()->Delete(oldPath.c_str());
     m_editor->log(("Renamed: " + oldName + " -> " + newName).c_str(), EditorColors::Success);
     m_dirty = true;
-}
-
-void AssetBrowserPanel::assignAnimToSelection(const std::string& animPath) {
-    EditorSelection& sel = m_editor->getSelection();
-    if (!sel.has()) { m_editor->log("No GameObject selected.", EditorColors::Danger); return; }
-    auto* anim = sel.object->getComponent<ComponentAnimation>();
-    if (!anim) { m_editor->log("Selected object has no ComponentAnimation.", EditorColors::Danger); return; }
-
-    // Find or request the animation resource by path
-    UID uid = app->getAssets()->findUID(animPath);
-    if (uid == 0) {
-        // It's a Library .anim file — look it up by path directly in the resource registry
-        uid = app->getAssets()->findUID(animPath);
-    }
-
-    ResourceAnimation* res = nullptr;
-    if (uid != 0) {
-        res = app->getResources()->RequestAnimation(uid);
-    }
-    else {
-        // Fallback: load directly (Library files may not have a top-level UID)
-        static ResourceAnimation tempAnim(0);
-        tempAnim.libraryFile = animPath;
-        if (tempAnim.LoadInMemory()) res = &tempAnim;
-    }
-
-    if (!res) { m_editor->log(("Failed to load anim: " + animPath).c_str(), EditorColors::Danger); return; }
-
-    std::string clipName = fs::path(animPath).stem().string();
-    anim->registerClip(clipName, res);
-    m_editor->log(("Registered clip '" + clipName + "' on " + sel.object->getName()).c_str(), EditorColors::Success);
-}
-
-void AssetBrowserPanel::assignSmToSelection(const std::string& smPath) {
-    EditorSelection& sel = m_editor->getSelection();
-    if (!sel.has()) { m_editor->log("No GameObject selected.", EditorColors::Danger); return; }
-    auto* anim = sel.object->getComponent<ComponentAnimation>();
-    if (!anim) { m_editor->log("Selected object has no ComponentAnimation.", EditorColors::Danger); return; }
-
-    // Allocate and load the state machine (editor owns the lifetime here)
-    auto* smRes = new StateMachineResource();
-    if (!smRes->loadFromFile(smPath)) {
-        delete smRes;
-        m_editor->log(("Failed to load state machine: " + smPath).c_str(), EditorColors::Danger);
-        return;
-    }
-
-    anim->setStateMachineResource(smRes);
-    m_editor->log(("Loaded SM '" + fs::path(smPath).stem().string() + "' on " + sel.object->getName()).c_str(), EditorColors::Success);
 }

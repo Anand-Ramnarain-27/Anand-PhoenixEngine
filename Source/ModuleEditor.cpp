@@ -287,18 +287,18 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     if (m_skinningPass && !animComponents.empty())
         m_skinningPass->execute(cmd, frameIndex, animComponents);
 
-    if (m_skinningPass && m_skinningPass->hasSkinnedMeshes(frameIndex)) {
+    if (m_skinningPass && !animComponents.empty()) {
+        uint32_t vertexOffset = 0;
         for (auto& e : ownedEntries) {
             Mesh* mesh = e.mesh ? e.mesh
                 : (e.meshRes ? e.meshRes->getMesh() : nullptr);
             if (!mesh || !mesh->isSkinned()) continue;
-            uint32_t vertOff = m_skinningPass->getMeshVertexOffset(mesh, frameIndex);
-            if (vertOff == UINT32_MAX) continue;
-            e.skinnedVertexVA = m_skinningPass->getOutputVA(
-                frameIndex, vertOff * sizeof(Mesh::Vertex));
+            uint32_t byteOffset = vertexOffset * sizeof(Mesh::Vertex);
+            e.skinnedVertexVA = m_skinningPass->getOutputVA(frameIndex, byteOffset);
             e.useSkinnedVA = true;
             Matrix identity = Matrix::Identity;
             memcpy(e.worldMatrix, &identity, sizeof(identity));
+            vertexOffset += mesh->getVertexCount();
         }
     }
     if (moduleScene) {
@@ -941,6 +941,7 @@ void ModuleEditor::debugDrawSkeleton(GameObject* root) {
     auto* transform = root->getTransform();
     Vector3 pos = transform->getGlobalMatrix().Translation();
 
+    // Draw bone to parent
     if (root->getParent()) {
         Vector3 parentPos = root->getParent()->getTransform()->getGlobalMatrix().Translation();
 
@@ -959,3 +960,4 @@ void ModuleEditor::debugDrawSkeleton(GameObject* root) {
     for (auto* child : root->getChildren())
         debugDrawSkeleton(child);
 }
+

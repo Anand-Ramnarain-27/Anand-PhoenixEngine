@@ -47,10 +47,6 @@ public:
     bool hasAABB() const { return m_hasAABB; }
     bool isOnGPU() const { return m_hasVertexBuffer; }
 
-    D3D12_GPU_VIRTUAL_ADDRESS getVertexBufferVA() const {
-        return m_hasVertexBuffer ? m_vertexBufferView.BufferLocation : 0;
-    }
-
     bool     isSkinned()    const { return m_isSkinned; }
     void     setIsSkinned(bool s) { m_isSkinned = s; }
     uint32_t getJointCount() const { return m_jointCount; }
@@ -91,6 +87,6 @@ private:
     uint32_t m_jointCount = 0;
 
     uint32_t                 m_morphTargetCount = 0;
-    std::vector<Vertex>      m_morphDeltas;
+    std::vector<Vertex>      m_morphDeltas;     
     D3D12_VERTEX_BUFFER_VIEW m_morphVBV = {};
 };

@@ -163,7 +163,7 @@ void InspectorPanel::drawContent() {
             comp->getType() == Component::Type::Mesh ? "Mesh" :
             comp->getType() == Component::Type::DirectionalLight ? "Directional Light" :
             comp->getType() == Component::Type::PointLight ? "Point Light" :
-            comp->getType() == Component::Type::SpotLight ? "Spot Light" :
+            comp->getType() == Component::Type::SpotLight ? "Spot Light" : 
             comp->getType() == Component::Type::Script ? "Script" :
             "Component";
 
@@ -221,54 +221,19 @@ void InspectorPanel::drawContent() {
         if (ImGui::SliderFloat("Speed##anim", &spd, 0.0f, 4.0f))
             anim->getController().setSpeed(spd);
 
-        if (ImGui::Button("Play##anim"))  anim->onPlay();
+        if (ImGui::Button("Play##anim"))  anim->onPlay(/*anim resource here*/);
         ImGui::SameLine();
         if (ImGui::Button("Stop##anim"))  anim->onStop();
 
-        // Drag a .anim file from the Asset Browser onto this box to register it
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.18f, 0.25f, 1.f));
-        ImGui::Button("Drop .anim clip here", ImVec2(-1, 28));
-        ImGui::PopStyleColor();
+        ImGui::Text("Drag animation asset here:");
         if (ImGui::BeginDragDropTarget()) {
-            // Accept both payload names for robustness
-            const ImGuiPayload* p = ImGui::AcceptDragDropPayload("ASSET_PATH");
-            if (!p) p = ImGui::AcceptDragDropPayload("DRAG_ASSET");
-            if (p) {
+            if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("DRAG_ASSET")) {
                 std::string path(static_cast<const char*>(p->Data), p->DataSize - 1);
-                std::string ext = std::filesystem::path(path).extension().string();
-                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-                if (ext == ".anim") {
-                    std::string clipName = std::filesystem::path(path).stem().string();
-                    UID uid = app->getAssets()->findUID(path);
-                    ResourceAnimation* res = uid ? app->getResources()->RequestAnimation(uid) : nullptr;
-                    if (res) {
-                        anim->registerClip(clipName, res);
-                        m_editor->log(("Clip registered: " + clipName).c_str(), EditorColors::Success);
-                    }
-                    else {
-                        m_editor->log(("Could not load anim: " + path).c_str(), EditorColors::Danger);
-                    }
-                }
-                else {
-                    m_editor->log("Drop a .anim file to register a clip.", EditorColors::Warning);
-                }
             }
             ImGui::EndDragDropTarget();
         }
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Drag a .anim file from the Asset Browser (Library/Animations)");
-
-        // Show registered clips
-        if (!anim->getClipMap().empty()) {
-            ImGui::Spacing();
-            ImGui::TextDisabled("Registered clips:");
-            for (const auto& [name, res] : anim->getClipMap()) {
-                float dur = res ? res->getDuration() : 0.f;
-                ImGui::Text("  [AN] %s  (%.2fs)", name.c_str(), dur);
-            }
-        }
     }
-
+    
     ImGui::Spacing(); ImGui::Separator();
     drawAddComponentMenu();
     ImGui::Spacing();
