@@ -157,7 +157,6 @@ private:
     ComPtr<ID3D12Resource> createUploadBuffer(ID3D12Device*, SIZE_T, const wchar_t*);
     void gatherLights(GameObject* node, FrameLightData& out) const;
     void debugDrawLights(ModuleScene* scene, float lightSize);
-    void debugDrawSkeleton(GameObject* root);
     void updateMemory();
     void handleNewScenePopup(ID3D12GraphicsCommandList* cmd);
     void drawDockspace();

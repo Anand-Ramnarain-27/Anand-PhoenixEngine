@@ -39,7 +39,6 @@
 #include "Model.h"
 #include "MeshEntry.h"
 #include "AnimGraphPanel.h"
-#include "ResourceAnimation.h"
 #include <d3dx12.h>
 #include <filesystem>
 #include <algorithm>
@@ -254,53 +253,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
 
     std::vector<MeshEntry>  ownedEntries;
     std::vector<MeshEntry*> visibleMeshes;
-    std::vector<ComponentAnimation*> animComponents;
 
-    if (moduleScene) {
-        std::function<void(GameObject*)> gatherAnim = [&](GameObject* node) {
-            if (!node || !node->isActive()) return;
-            if (auto* ca = node->getComponent<ComponentAnimation>())
-                animComponents.push_back(ca);
-            for (auto* child : node->getChildren()) gatherAnim(child);
-            };
-        gatherAnim(moduleScene->getRoot());
-    }
-
-    if (moduleScene) {
-        std::function<void(GameObject*)> drawSkeletons = [&](GameObject* node) {
-            if (!node || !node->isActive()) return;
-
-            if (auto* anim = node->getComponent<ComponentAnimation>()) {
-                if (anim->isDebugDrawEnabled()) {
-                    debugDrawSkeleton(node);
-                }
-            }
-
-            for (auto* child : node->getChildren())
-                drawSkeletons(child);
-            };
-
-        drawSkeletons(moduleScene->getRoot());
-    }
-
-    uint32_t frameIndex = app->getD3D12()->getCurrentFrame();
-    if (m_skinningPass && !animComponents.empty())
-        m_skinningPass->execute(cmd, frameIndex, animComponents);
-
-    if (m_skinningPass && !animComponents.empty()) {
-        uint32_t vertexOffset = 0;
-        for (auto& e : ownedEntries) {
-            Mesh* mesh = e.mesh ? e.mesh
-                : (e.meshRes ? e.meshRes->getMesh() : nullptr);
-            if (!mesh || !mesh->isSkinned()) continue;
-            uint32_t byteOffset = vertexOffset * sizeof(Mesh::Vertex);
-            e.skinnedVertexVA = m_skinningPass->getOutputVA(frameIndex, byteOffset);
-            e.useSkinnedVA = true;
-            Matrix identity = Matrix::Identity;
-            memcpy(e.worldMatrix, &identity, sizeof(identity));
-            vertexOffset += mesh->getVertexCount();
-        }
-    }
     if (moduleScene) {
         std::function<void(GameObject*)> collectMeshes = [&](GameObject* node) {
             if (!node || !node->isActive()) return;
@@ -329,6 +282,36 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
         collectMeshes(moduleScene->getRoot());
         visibleMeshes.reserve(ownedEntries.size());
         for (auto& e : ownedEntries) visibleMeshes.push_back(&e);
+    }
+
+    std::vector<ComponentAnimation*> animComponents;
+    if (moduleScene) {
+        std::function<void(GameObject*)> gatherAnim = [&](GameObject* node) {
+            if (!node || !node->isActive()) return;
+            if (auto* ca = node->getComponent<ComponentAnimation>())
+                animComponents.push_back(ca);
+            for (auto* child : node->getChildren()) gatherAnim(child);
+            };
+        gatherAnim(moduleScene->getRoot());
+    }
+
+    uint32_t frameIndex = app->getD3D12()->getCurrentFrame(); 
+    if (m_skinningPass && !animComponents.empty())
+        m_skinningPass->execute(cmd, frameIndex, animComponents);
+
+    if (m_skinningPass && !animComponents.empty()) {
+        uint32_t vertexOffset = 0;
+        for (auto& e : ownedEntries) {
+            Mesh* mesh = e.mesh ? e.mesh
+                : (e.meshRes ? e.meshRes->getMesh() : nullptr);
+            if (!mesh || !mesh->isSkinned()) continue;
+            uint32_t byteOffset = vertexOffset * sizeof(Mesh::Vertex);
+            e.skinnedVertexVA = m_skinningPass->getOutputVA(frameIndex, byteOffset);
+            e.useSkinnedVA = true;
+            Matrix identity = Matrix::Identity;
+            memcpy(e.worldMatrix, &identity, sizeof(identity));
+            vertexOffset += mesh->getVertexCount();
+        }
     }
 
     const EnvironmentSystem* envForIBL =
@@ -934,30 +917,3 @@ void ModuleEditor::notifyScriptComponentsReload(const std::string& /*dllPath*/) 
         };
     visit(scene->getRoot());
 }
-
-void ModuleEditor::debugDrawSkeleton(GameObject* root) {
-    if (!root) return;
-
-    auto* transform = root->getTransform();
-    Vector3 pos = transform->getGlobalMatrix().Translation();
-
-    // Draw bone to parent
-    if (root->getParent()) {
-        Vector3 parentPos = root->getParent()->getTransform()->getGlobalMatrix().Translation();
-
-        ddVec3 from = { parentPos.x, parentPos.y, parentPos.z };
-        ddVec3 to = { pos.x, pos.y, pos.z };
-
-        dd::line(from, to, dd::colors::Green);
-    }
-
-    float size = 0.05f;
-    ddVec3 p = { pos.x, pos.y, pos.z };
-
-    dd::line(p, ddVec3{ pos.x + size, pos.y, pos.z }, dd::colors::Red);
-    dd::line(p, ddVec3{ pos.x, pos.y + size, pos.z }, dd::colors::Green);
-    dd::line(p, ddVec3{ pos.x, pos.y, pos.z + size }, dd::colors::Blue);
-    for (auto* child : root->getChildren())
-        debugDrawSkeleton(child);
-}
-

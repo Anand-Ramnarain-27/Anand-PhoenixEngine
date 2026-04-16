@@ -119,9 +119,6 @@ void ComponentAnimation::onEditor() {
                 sendTrigger(tr.triggerName);
         }
     }
-
-    ImGui::Separator();
-    ImGui::Checkbox("Debug Skeleton##anim", &m_debugDrawSkeleton);
 }
  
 void ComponentAnimation::onSave(std::string& outJson) const {
@@ -129,7 +126,6 @@ void ComponentAnimation::onSave(std::string& outJson) const {
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
     doc.AddMember("smFilePath", Value(m_smFilePath.c_str(), a), a);
     doc.AddMember("activeState", Value(m_activeState.c_str(), a), a);
-    doc.AddMember("debugSkeleton", m_debugDrawSkeleton, a);
     StringBuffer sb; PrettyWriter<StringBuffer> w(sb); doc.Accept(w);
     outJson = sb.GetString();
 }
@@ -142,8 +138,6 @@ void ComponentAnimation::onLoad(const std::string& json) {
         m_smFilePath = doc["smFilePath"].GetString();
     if (doc.HasMember("activeState"))
         m_activeState = doc["activeState"].GetString();
-    if (doc.HasMember("debugSkeleton"))
-        m_debugDrawSkeleton = doc["debugSkeleton"].GetBool();
     // TODO: resolve m_smFilePath -> load StateMachineResource
     // TODO: for each clip in resource -> RequestAnimation -> registerClip
 }

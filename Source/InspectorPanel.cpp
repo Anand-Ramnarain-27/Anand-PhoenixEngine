@@ -24,7 +24,6 @@
 #include "EditorSelection.h"
 #include "PrefabEditSession.h"
 #include "ComponentScript.h"
-#include "ResourceAnimation.h"
 #include <filesystem>
 #include <algorithm>
 
@@ -32,7 +31,6 @@ namespace fs = std::filesystem;
 
 static constexpr float kDeg2Rad = 0.0174532925f;
 static constexpr float kRad2Deg = 57.2957795f;
-static const char* kDragAsset = "DRAG_ASSET";
 
 static GameObject* findPrefabRoot(GameObject* go) {
     GameObject* cur = go;
@@ -211,29 +209,6 @@ void InspectorPanel::drawContent() {
         go->removeComponentByType(toRemove);
     }
 
-    if (auto* anim = sel.object->getComponent<ComponentAnimation>()) {
-        ImGui::Separator();
-        ImGui::Text("Animation");
-        ImGui::Text("State: %s", anim->getController().isPlaying() ? "Playing" : "Stopped");
-        ImGui::Text("Time:  %.3f s", anim->getController().getCurrentTimeMs() / 1000.0f);
-
-        float spd = anim->getController().getSpeed();
-        if (ImGui::SliderFloat("Speed##anim", &spd, 0.0f, 4.0f))
-            anim->getController().setSpeed(spd);
-
-        if (ImGui::Button("Play##anim"))  anim->onPlay(/*anim resource here*/);
-        ImGui::SameLine();
-        if (ImGui::Button("Stop##anim"))  anim->onStop();
-
-        ImGui::Text("Drag animation asset here:");
-        if (ImGui::BeginDragDropTarget()) {
-            if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("DRAG_ASSET")) {
-                std::string path(static_cast<const char*>(p->Data), p->DataSize - 1);
-            }
-            ImGui::EndDragDropTarget();
-        }
-    }
-    
     ImGui::Spacing(); ImGui::Separator();
     drawAddComponentMenu();
     ImGui::Spacing();
