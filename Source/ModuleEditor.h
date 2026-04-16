@@ -44,7 +44,6 @@ class ComponentCamera;
 class ComponentMesh;
 class ModuleScene;
 class FileDialog;
-class AnimGraphPanel;
 
 class ModuleEditor : public Module {
 public:
@@ -119,7 +118,6 @@ private:
     GameViewPanel* m_gameView = nullptr;
     ConsolePanel* m_console = nullptr;
     PerformancePanel* m_performance = nullptr;
-    AnimGraphPanel* m_animGraph = nullptr;
 
     template<typename T, typename... Args>
     T* addPanel(Args&&... args) {

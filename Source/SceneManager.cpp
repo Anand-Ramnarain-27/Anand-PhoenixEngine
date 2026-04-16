@@ -7,7 +7,6 @@
 #include "GameObject.h"
 #include "ComponentMesh.h"
 #include "SceneSerializer.h"
-#include "ComponentAnimation.h"
 
 SceneManager::~SceneManager() { clearScene(); }
 
@@ -29,25 +28,12 @@ ModuleScene* SceneManager::getModuleScene() const {
     return activeScene ? activeScene->getModuleScene() : nullptr;
 }
 
-static void dispatchAnimationEvent(ModuleScene* ms, bool playing) {
-    if (!ms) return;
-    std::function<void(GameObject*)> visit = [&](GameObject* node) {
-        if (!node) return;
-        if (auto* anim = node->getComponent<ComponentAnimation>())
-            playing ? anim->onPlay() : anim->onStop();
-        for (auto* child : node->getChildren()) visit(child);
-        };
-    visit(ms->getRoot());
-}
-
 void SceneManager::play() {
     if (!activeScene || m_editingPrefab) return;
     if (state == PlayState::Stopped) {
-        if (auto* ms = activeScene->getModuleScene())
-            hasSerializedState = SceneSerializer::SaveTempScene(ms);
+        if (auto* ms = activeScene->getModuleScene()) hasSerializedState = SceneSerializer::SaveTempScene(ms);
     }
     state = PlayState::Playing;
-    dispatchAnimationEvent(activeScene->getModuleScene(), true);  // ADD THIS
 }
 
 void SceneManager::pause() {
@@ -57,13 +43,9 @@ void SceneManager::pause() {
 
 void SceneManager::stop() {
     if (!activeScene || state == PlayState::Stopped) return;
-    dispatchAnimationEvent(activeScene->getModuleScene(), false);  // ADD THIS
     auto* ms = activeScene->getModuleScene();
     if (hasSerializedState && ms) {
-        if (!SceneSerializer::LoadTempScene(ms)) {
-            LOG("SceneManager: Failed to restore temp scene, falling back to reset()");
-            activeScene->reset();
-        }
+        if (!SceneSerializer::LoadTempScene(ms)) { LOG("SceneManager: Failed to restore temp scene, falling back to reset()"); activeScene->reset(); }
         hasSerializedState = false;
     }
     else activeScene->reset();

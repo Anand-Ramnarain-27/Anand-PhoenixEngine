@@ -38,7 +38,6 @@
 #include "ResourceMesh.h"
 #include "Model.h"
 #include "MeshEntry.h"
-#include "AnimGraphPanel.h"
 #include <d3dx12.h>
 #include <filesystem>
 #include <algorithm>
@@ -123,7 +122,6 @@ bool ModuleEditor::init() {
     addPanel<AssetBrowserPanel>(this);
     addPanel<SceneSettingsPanel>(this);
     addPanel<ResourcesPanel>(this);
-    m_animGraph = addPanel<AnimGraphPanel>(this);
 
     log("[Editor] Initialized", EditorColors::Success);
     return true;
@@ -165,12 +163,6 @@ void ModuleEditor::preRender() {
     drawDockspace();
     drawMenuBar();
     for (EditorPanel* p : m_panels) if (p->open) p->draw();
-    if (m_animGraph) {
-        ComponentAnimation* anim = nullptr;
-        if (m_selection.has())
-            anim = m_selection.object->getComponent<ComponentAnimation>();
-        m_animGraph->setTarget(anim);
-    }
     handleDialogs();
 }
 

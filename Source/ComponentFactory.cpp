@@ -6,8 +6,6 @@
 #include "ComponentLights.h"
 #include "ComponentScript.h"
 #include "ComponentAnimation.h"
-#include "ComponentMotion.h"
-#include "SimpleCharacterController.h"
 
 std::unique_ptr<Component> ComponentFactory::CreateComponent(Component::Type type, GameObject* owner) {
     switch (type) {
@@ -19,8 +17,6 @@ std::unique_ptr<Component> ComponentFactory::CreateComponent(Component::Type typ
     case Component::Type::SpotLight: return std::make_unique<ComponentSpotLight>(owner);
 	case Component::Type::Script: return std::make_unique<ComponentScript>(owner);
 	case Component::Type::Animation: return std::make_unique<ComponentAnimation>(owner);
-    case Component::Type::Motion: return std::make_unique<ComponentMotion>(owner);
-    case Component::Type::CharacterController: return std::make_unique<SimpleCharacterController>(owner);
     default: LOG("ComponentFactory: Unknown component type %d", (int)type); return nullptr;
     }
 }

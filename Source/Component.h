@@ -15,9 +15,6 @@ public:
         SpotLight = 5,
         Script = 6,
 		Animation = 7,
-        Motion = 8, 
-        CharacterController = 9,
-
 		// Add new component types here
     };
 
