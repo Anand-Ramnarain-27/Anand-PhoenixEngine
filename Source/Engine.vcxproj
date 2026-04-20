@@ -207,6 +207,7 @@
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="GameViewPanel.h" />
     <ClInclude Include="GBuffer.h" />
+    <ClInclude Include="GBufferPass.h" />
     <ClInclude Include="gltf_utils.h" />
     <ClInclude Include="HandleManager.h" />
     <ClInclude Include="HDRToCubemapPass.h" />
@@ -361,6 +362,7 @@
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="GameViewPanel.cpp" />
     <ClCompile Include="GBuffer.cpp" />
+    <ClCompile Include="GBufferPass.cpp" />
     <ClCompile Include="HDRToCubemapPass.cpp" />
     <ClCompile Include="HierarchyPanel.cpp" />
     <ClCompile Include="HotReloadManager.cpp" />
@@ -456,6 +458,11 @@
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="shaders\GBufferPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
     </FxCompile>
     <FxCompile Include="shaders\HDRToCubemapPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
