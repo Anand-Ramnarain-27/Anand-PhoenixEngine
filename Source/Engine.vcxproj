@@ -206,7 +206,6 @@
     <ClInclude Include="FrustumDebugDraw.h" />
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="GameViewPanel.h" />
-    <ClInclude Include="GBuffer.h" />
     <ClInclude Include="gltf_utils.h" />
     <ClInclude Include="HandleManager.h" />
     <ClInclude Include="HDRToCubemapPass.h" />
@@ -360,7 +359,6 @@
     <ClCompile Include="FileWatcher.cpp" />
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="GameViewPanel.cpp" />
-    <ClCompile Include="GBuffer.cpp" />
     <ClCompile Include="HDRToCubemapPass.cpp" />
     <ClCompile Include="HierarchyPanel.cpp" />
     <ClCompile Include="HotReloadManager.cpp" />

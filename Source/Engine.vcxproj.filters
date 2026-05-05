@@ -228,7 +228,6 @@
     <ClCompile Include="ComponentScript.cpp">
       <Filter>engine\scene\components</Filter>
     </ClCompile>
-    <ClCompile Include="GBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -549,7 +548,6 @@
     <ClInclude Include="ComponentScript.h">
       <Filter>engine\scene\components</Filter>
     </ClInclude>
-    <ClInclude Include="GBuffer.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
