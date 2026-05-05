@@ -105,27 +105,39 @@ bool ComponentMesh::loadModel(const char* filePath) {
     std::string meshFolder = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/";
     int meshCount = 0;
     while (app->getFileSystem()->Exists((meshFolder + std::to_string(meshCount) + ".mesh").c_str())) ++meshCount;
-    if (meshCount == 0) { LOG("ComponentMesh: No meshes found in Library for '%s'", sceneName.c_str()); return false; }
+    if (meshCount == 0) {
+        LOG("ComponentMesh: No meshes found, forcing reimport for '%s'", sceneName.c_str());
+        return false;
+    }
 
     for (int i = 0; i < meshCount; ++i) {
         MeshEntry e;
         e.meshUID = app->getAssets()->findSubUID(canonicalPath, "mesh", i);
-        e.materialUID = app->getAssets()->findSubUID(canonicalPath, "mat", i);
+        e.materialUID = 0; 
 
         if (e.meshUID)
             e.meshRes = app->getResources()->RequestMesh(e.meshUID);
 
-        if (e.materialUID == 0 && e.meshRes && e.meshRes->getMesh()) {
+        if (e.meshRes && e.meshRes->getMesh()) {
             int matIdx = e.meshRes->getMesh()->getMaterialIndex();
-            if (matIdx >= 0)
-                e.materialUID = app->getAssets()->findSubUID(canonicalPath, "mat", matIdx);
-            LOG("ComponentMesh: submesh %d has no direct mat UID, using materialIndex %d → matUID=%llu",
-                i, matIdx, e.materialUID);
+
+            if (matIdx >= 0) {
+                e.materialUID = app->getAssets()->findSubUID(
+                    canonicalPath, "mat", matIdx);
+            }
+
+            if (e.materialUID == 0) {
+                LOG("ComponentMesh: submesh %d has invalid material, using default", i);
+                e.materialUID = 0;
+            }
         }
 
-        if (e.materialUID)
+        if (e.materialUID != 0) {
             e.materialRes = app->getResources()->RequestMaterial(e.materialUID);
-
+        }
+        else {
+            e.materialRes = nullptr;
+        }
         rebuildEntry(e);
         m_entries.push_back(std::move(e));
     }

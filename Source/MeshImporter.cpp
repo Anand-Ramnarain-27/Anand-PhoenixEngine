@@ -61,6 +61,11 @@ bool MeshImporter::Import(const tinygltf::Primitive& primitive, const tinygltf::
     header.vertexCount = (uint32_t)vertices.size();
     header.indexCount = (uint32_t)indices.size();
     header.materialIndex = primitive.material;
+
+    if (header.materialIndex < 0 || header.materialIndex >= (int)model.materials.size())
+    {
+        header.materialIndex = -1;
+    }
     return Save(header, vertices, indices, outputFile);
 }
 

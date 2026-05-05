@@ -22,7 +22,8 @@ public:
 		Color,
 		Emissive,
 		Normal,
-		OcclusionMetalRough
+		Occlusion,   
+		MetalRoughness,
 	};
 
 	static bool Import(const char* sourcePath, const std::string& outputPath, TextureType type = TextureType::Color);

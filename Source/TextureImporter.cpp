@@ -50,19 +50,37 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
 
 	if (!IsCompressed(meta.format)) {
 		DXGI_FORMAT fmt;
-		switch (type) {
-		case TextureType::Emissive:
-			fmt = HasAlpha(meta.format) ? DXGI_FORMAT_BC3_UNORM_SRGB : DXGI_FORMAT_BC1_UNORM_SRGB;
+		switch (type)
+		{
+		case TextureType::Color:
+			fmt = HasAlpha(meta.format)
+				? DXGI_FORMAT_BC3_UNORM_SRGB
+				: DXGI_FORMAT_BC1_UNORM_SRGB;
 			break;
+
+		case TextureType::Emissive:
+			fmt = HasAlpha(meta.format)
+				? DXGI_FORMAT_BC3_UNORM_SRGB
+				: DXGI_FORMAT_BC1_UNORM_SRGB;
+			break;
+
 		case TextureType::Normal:
+			// ? Correct for normals
 			fmt = DXGI_FORMAT_BC5_UNORM;
 			break;
-		case TextureType::OcclusionMetalRough:
-			fmt = DXGI_FORMAT_BC1_UNORM;
+
+		case TextureType::Occlusion:
+			// ? AO = linear, single channel
+			fmt = DXGI_FORMAT_BC4_UNORM;
 			break;
-		case TextureType::Color:
+
+		case TextureType::MetalRoughness:
+			// ? MR = linear, needs at least 2 channels (G+B)
+			fmt = DXGI_FORMAT_BC5_UNORM;
+			break;
+
 		default:
-			fmt = HasAlpha(meta.format) ? DXGI_FORMAT_BC3_UNORM_SRGB : DXGI_FORMAT_BC1_UNORM_SRGB;
+			fmt = DXGI_FORMAT_BC1_UNORM;
 			break;
 		}
 

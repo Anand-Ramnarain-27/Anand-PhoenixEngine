@@ -16,11 +16,32 @@ bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const
     std::string basePath = app->getFileSystem()->GetAssetsPath() + "Models/" + sceneName + "/";
     std::string matFolder = fs->GetLibraryPath() + "Materials/" + sceneName;
     int meshIndex = 0;
-    for (const auto& mesh : gltfModel.meshes)
-        for (const auto& prim : mesh.primitives)
-            if (!MeshImporter::Import(prim, gltfModel, ImporterUtils::IndexedPath(meshFolder, meshIndex++, ".mesh"))) LOG("SceneImporter: Failed to import mesh %d", meshIndex - 1);
-    int matIndex = 0;
-    for (const auto& mat : gltfModel.materials) MaterialImporter::Import(mat, gltfModel, sceneName, ImporterUtils::IndexedPath(matFolder, matIndex++, ".mat"), matIndex - 1, basePath);
+
+    for (const auto& mesh : gltfModel.meshes) {
+        for (const auto& prim : mesh.primitives) {
+
+            int currentMeshIndex = meshIndex;
+
+            if (!MeshImporter::Import(
+                prim,
+                gltfModel,
+                ImporterUtils::IndexedPath(meshFolder, currentMeshIndex, ".mesh")))
+            {
+                LOG("SceneImporter: Failed to import mesh %d", currentMeshIndex);
+            }
+
+            if (prim.material < -1 || prim.material >= (int)gltfModel.materials.size()) {
+                LOG("SceneImporter: Invalid material index %d on mesh %d", prim.material, currentMeshIndex);
+            }
+
+            meshIndex++;
+        }
+    }
+    for (int k = 0; k < (int)gltfModel.materials.size(); k++) {
+        const auto& mat = gltfModel.materials[k];
+
+        MaterialImporter::Import(mat, gltfModel, sceneName, ImporterUtils::IndexedPath(matFolder, k, ".mat"), k, basePath);
+    }
     if (!SaveSceneMetadata(sceneName, gltfModel)) { LOG("SceneImporter: Failed to save scene metadata"); return false; }
     return true;
 }
@@ -39,14 +60,25 @@ bool SceneImporter::CreateSceneDirectory(const std::string& sceneName) {
     std::string lib = fs->GetLibraryPath();
     fs->CreateDir((lib + "Meshes").c_str());
     fs->CreateDir((lib + "Materials").c_str());
-    return fs->CreateDir((lib + "Meshes/" + sceneName).c_str()) & fs->CreateDir((lib + "Materials/" + sceneName).c_str());
+    return fs->CreateDir((lib + "Meshes/" + sceneName).c_str()) && fs->CreateDir((lib + "Materials/" + sceneName).c_str());
 }
 
 bool SceneImporter::SaveSceneMetadata(const std::string& sceneName, const tinygltf::Model& gltfModel) {
     SceneHeader header;
     std::vector<int32_t> matIndices;
-    for (const auto& mesh : gltfModel.meshes)
-        for (const auto& prim : mesh.primitives) { header.meshCount++; matIndices.push_back(prim.material); }
+    for (const auto& mesh : gltfModel.meshes) {
+        for (const auto& prim : mesh.primitives) {
+
+            header.meshCount++;
+
+            int matIdx = prim.material;
+
+            if (matIdx < 0 || matIdx >= (int)gltfModel.materials.size())
+                matIdx = -1;
+
+            matIndices.push_back(matIdx);
+        }
+    }
     header.materialCount = (uint32_t)gltfModel.materials.size();
     std::vector<char> payload(matIndices.size() * sizeof(int32_t));
     memcpy(payload.data(), matIndices.data(), payload.size());

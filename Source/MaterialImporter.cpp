@@ -35,54 +35,61 @@ std::string MaterialImporter::importTexture(int texIndex, const tinygltf::Model&
 
 bool MaterialImporter::Import(const tinygltf::Material& gltfMat, const tinygltf::Model& model,
 	const std::string& sceneName, const std::string& outputFile,
-	int /*materialIndex*/, const std::string& basePath) {
+	int /*materialIndex*/, const std::string& basePath)
+{
 	const auto& pbr = gltfMat.pbrMetallicRoughness;
 
-	MaterialHeader header;
+	MaterialHeader header{};
+	header.version = 6;
+
 	header.metallic = (float)pbr.metallicFactor;
 	header.roughness = (float)pbr.roughnessFactor;
+
 	header.emissiveR = (float)gltfMat.emissiveFactor[0];
 	header.emissiveG = (float)gltfMat.emissiveFactor[1];
 	header.emissiveB = (float)gltfMat.emissiveFactor[2];
 
-	std::string baseColorPath = importTexture(pbr.baseColorTexture.index, model, sceneName, basePath,
-		TextureImporter::TextureType::Color);
+	std::string baseColorPath = importTexture(pbr.baseColorTexture.index, model, sceneName, basePath, TextureImporter::TextureType::Color);
+
 	if (!baseColorPath.empty()) {
 		header.hasTexture = 1;
 		header.texturePathLength = (uint32_t)baseColorPath.size();
 	}
 
-	std::string normalPath = importTexture(gltfMat.normalTexture.index, model, sceneName, basePath,
-		TextureImporter::TextureType::Normal);
+	std::string normalPath = importTexture(gltfMat.normalTexture.index, model, sceneName, basePath, TextureImporter::TextureType::Normal);
+
 	if (!normalPath.empty()) {
 		header.hasNormalMap = 1;
 		header.normalPathLength = (uint32_t)normalPath.size();
+
 		header.normalStrength = (float)gltfMat.normalTexture.scale;
 		if (header.normalStrength == 0.f) header.normalStrength = 1.f;
+
 		header.flags |= MAT_FLAG_COMPRESSED_NORMS;
 	}
 
-	std::string aoPath = importTexture(gltfMat.occlusionTexture.index, model, sceneName, basePath,
-		TextureImporter::TextureType::OcclusionMetalRough);
+	std::string aoPath = importTexture(gltfMat.occlusionTexture.index, model, sceneName, basePath, TextureImporter::TextureType::Occlusion);
+
 	if (!aoPath.empty()) {
 		header.hasAOMap = 1;
 		header.aoPathLength = (uint32_t)aoPath.size();
+
 		header.aoStrength = (float)gltfMat.occlusionTexture.strength;
 		if (header.aoStrength == 0.f) header.aoStrength = 1.f;
 	}
 
-	std::string emissivePath = importTexture(gltfMat.emissiveTexture.index, model, sceneName, basePath,
-		TextureImporter::TextureType::Emissive);
-	if (!emissivePath.empty()) {
-		header.hasEmissiveMap = 1;
-		header.emissivePathLength = (uint32_t)emissivePath.size();
-	}
+	std::string metalRoughPath = importTexture(pbr.metallicRoughnessTexture.index, model, sceneName, basePath, TextureImporter::TextureType::MetalRoughness);
 
-	std::string metalRoughPath = importTexture(pbr.metallicRoughnessTexture.index, model, sceneName, basePath,
-		TextureImporter::TextureType::OcclusionMetalRough);
 	if (!metalRoughPath.empty()) {
 		header.hasMetalRoughMap = 1;
 		header.metalRoughPathLength = (uint32_t)metalRoughPath.size();
+	}
+
+	std::string emissivePath = importTexture(gltfMat.emissiveTexture.index, model, sceneName, basePath, TextureImporter::TextureType::Emissive);
+
+	if (!emissivePath.empty()) {
+		header.hasEmissiveMap = 1;
+		header.emissivePathLength = (uint32_t)emissivePath.size();
 	}
 
 	return Save(header, baseColorPath, normalPath, aoPath, emissivePath, metalRoughPath, outputFile);
@@ -112,15 +119,16 @@ bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& 
 	std::string emissivePath;
 	std::string metalRoughPath;
 
-	if (header.version >= 2) {
-		normalPath = readPath(header.normalPathLength);
-		aoPath = readPath(header.aoPathLength);
-		emissivePath = readPath(header.emissivePathLength);
+	if (header.version != 6) {
+		LOG("MaterialImporter: Version mismatch (%u), forcing reimport: %s",
+			header.version, file.c_str());
+		return false;
 	}
 
-	if (header.version >= 3) {
-		metalRoughPath = readPath(header.metalRoughPathLength);
-	}
+	normalPath = readPath(header.normalPathLength);
+	aoPath = readPath(header.aoPathLength);
+	emissivePath = readPath(header.emissivePathLength);
+	metalRoughPath = readPath(header.metalRoughPathLength);
 
 	outMaterial = std::make_unique<Material>();
 	auto& data = outMaterial->getData();
@@ -150,6 +158,21 @@ bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& 
 	loadTex(emissivePath, &Material::setEmissiveMap);
 	loadTex(metalRoughPath, &Material::setMetalRoughMap);
 
+	if (outMaterial->hasMetalRoughMap() && !outMaterial->getMetalRoughResource()) {
+		outMaterial->getData().flags &= ~MAT_FLAG_METALROUGH_TEX;
+	}
+
+	if (outMaterial->hasNormalMap() && !outMaterial->getNormalMapResource()) {
+		outMaterial->getData().flags &= ~MAT_FLAG_NORMAL_TEX;
+	}
+
+	if (outMaterial->hasAOMap() && !outMaterial->getAOMapResource()) {
+		outMaterial->getData().flags &= ~MAT_FLAG_OCCLUSION_TEX;
+	}
+
+	if (outMaterial->hasEmissive() && !outMaterial->getEmissiveResource()) {
+		outMaterial->getData().flags &= ~MAT_FLAG_EMISSIVE_TEX;
+	}
 	return true;
 }
 

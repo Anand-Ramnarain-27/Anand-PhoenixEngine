@@ -77,22 +77,46 @@ float3 SampleEmissive(in Material material, in Texture2D emissiveTex, in float2 
     return material.EmissiveFactor;
 }
 
-void SampleMetallicRoughness(in Material material, in Texture2D baseColorTex, in Texture2D metallicRoughnessTex,
-                              in float2 uv, out float3 baseColor, out float roughness,
-                              out float alphaRoughness, out float metallic)
+void SampleMetallicRoughness(
+    in Material material,
+    in Texture2D baseColorTex,
+    in Texture2D metallicRoughnessTex,
+    in float2 uv,
+    out float3 baseColor,
+    out float roughness,
+    out float alphaRoughness,
+    out float metallic)
 {
+    // --- Base color ---
     baseColor = material.BaseColor.rgb;
 
     if (material.Flags & HAS_BASECOLOUR_TEX)
-        baseColor *= baseColorTex.Sample(BilinearWrap, uv).rgb;
+    {
+        float3 albedo = baseColorTex.Sample(BilinearWrap, uv).rgb;
+        baseColor *= albedo;
+    }
 
-    float2 mr = float2(material.MetallicFactor, material.RoughnessFactor);
+    // --- Defaults ---
+    metallic = material.MetallicFactor;
+    roughness = material.RoughnessFactor;
 
+    // --- Texture override ---
     if (material.Flags & HAS_METALLICROUGHNESS_TEX)
-        mr *= metallicRoughnessTex.Sample(BilinearWrap, uv).bg;
+    {
+        float3 mrSample = metallicRoughnessTex.Sample(BilinearWrap, uv).rgb;
 
-    metallic       = mr.x;
-    roughness      = mr.y;
+        // ? EXPLICIT (no swizzle ambiguity)
+        float texRoughness = mrSample.g;
+        float texMetallic = mrSample.b;
+
+        roughness *= texRoughness;
+        metallic *= texMetallic;
+    }
+
+    // --- Safety ---
+    roughness = saturate(roughness);
+    metallic = saturate(metallic);
+
     alphaRoughness = roughness * roughness;
 }
 
