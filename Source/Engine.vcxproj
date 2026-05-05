@@ -187,7 +187,6 @@
     <ClInclude Include="D3D12ResourceFactory.h" />
     <ClInclude Include="DebugDrawPass.h" />
     <ClInclude Include="debug_draw.hpp" />
-    <ClInclude Include="DeferredLightingPass.h" />
     <ClInclude Include="DepthStencilDesc.h" />
     <ClInclude Include="DescriptorBase.h" />
     <ClInclude Include="EditorColors.h" />
@@ -353,7 +352,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="DeferredLightingPass.cpp" />
     <ClCompile Include="DepthStencilDesc.cpp" />
     <ClCompile Include="EditorPanel.cpp" />
     <ClCompile Include="EditorPanels.cpp" />
@@ -451,11 +449,6 @@
     <None Include="SimpleMath.inl" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="shaders\DeferredLightingPS.hlsl">
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
-    </FxCompile>
     <FxCompile Include="shaders\EnvironmentBRDFPS.hlsl">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>

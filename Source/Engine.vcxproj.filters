@@ -230,7 +230,6 @@
     </ClCompile>
     <ClCompile Include="GBuffer.cpp" />
     <ClCompile Include="GBufferPass.cpp" />
-    <ClCompile Include="DeferredLightingPass.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug_draw.hpp" />
@@ -553,7 +552,6 @@
     </ClInclude>
     <ClInclude Include="GBuffer.h" />
     <ClInclude Include="GBufferPass.h" />
-    <ClInclude Include="DeferredLightingPass.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -746,9 +744,6 @@
       <Filter>shaders</Filter>
     </FxCompile>
     <FxCompile Include="shaders\GBufferPS.hlsl">
-      <Filter>shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="shaders\DeferredLightingPS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
   </ItemGroup>
