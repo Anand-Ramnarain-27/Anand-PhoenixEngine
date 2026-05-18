@@ -6,6 +6,7 @@
 #include "ModuleScene.h"
 #include "GameObject.h"
 #include "ComponentMesh.h"
+#include "ComponentAnimation.h"
 #include "SceneSerializer.h"
 
 SceneManager::~SceneManager() { clearScene(); }
@@ -42,6 +43,16 @@ void SceneManager::pause() {
 }
 
 void SceneManager::stop() {
+    std::function<void(GameObject*)> stopAnims =
+        [&](GameObject* node) {
+        if (!node) return;
+        if (auto* a = node->getComponent<ComponentAnimation>())
+            a->stop();
+        for (auto* c : node->getChildren()) stopAnims(c);
+        };
+    if (auto* ms = getModuleScene(); ms && ms->getRoot())
+        stopAnims(ms->getRoot());
+
     if (!activeScene || state == PlayState::Stopped) return;
     auto* ms = activeScene->getModuleScene();
     if (hasSerializedState && ms) {

@@ -5,6 +5,7 @@
 #include "ImporterUtils.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
+#include "AnimationImporter.h"
 #include "tiny_gltf.h"
 #include <filesystem>
 #include <cstring>
@@ -43,6 +44,7 @@ bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const
         MaterialImporter::Import(mat, gltfModel, sceneName, ImporterUtils::IndexedPath(matFolder, k, ".mat"), k, basePath);
     }
     if (!SaveSceneMetadata(sceneName, gltfModel)) { LOG("SceneImporter: Failed to save scene metadata"); return false; }
+    AnimationImporter::ImportAll(gltfModel, sceneName);
     return true;
 }
 
