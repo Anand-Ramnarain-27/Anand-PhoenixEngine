@@ -23,7 +23,6 @@
 #include "ComponentCamera.h"
 #include "ComponentLights.h"
 #include "ComponentFactory.h"
-#include "ComponentAnimation.h"
 #include "PrimitiveFactory.h"
 #include "ModuleCamera.h"
 #include "FrustumDebugDraw.h"
@@ -243,17 +242,6 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     m_frameLights.pointLights.clear();
     m_frameLights.spotLights.clear();
     if (moduleScene) gatherLights(moduleScene->getRoot(), m_frameLights);
-
-    if (editorExtras && s.debugDrawAnimationBones && moduleScene) {
-        std::function<void(GameObject*)> drawBones =
-            [&](GameObject* node) {
-            if (!node || !node->isActive()) return;
-            if (auto* a = node->getComponent<ComponentAnimation>())
-                a->setDebugDrawBones(true);
-            for (auto* c : node->getChildren()) drawBones(c);
-            };
-        drawBones(moduleScene->getRoot());
-    }
 
     std::vector<MeshEntry>  ownedEntries;
     std::vector<MeshEntry*> visibleMeshes;

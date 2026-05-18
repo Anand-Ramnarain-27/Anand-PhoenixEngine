@@ -14,7 +14,6 @@
 #include "ComponentMesh.h"
 #include "ComponentLights.h"
 #include "ComponentFactory.h"
-#include "ComponentAnimation.h"
 #include "PrefabManager.h"
 #include "TextureImporter.h"
 #include "Material.h"
@@ -164,7 +163,6 @@ void InspectorPanel::drawContent() {
             comp->getType() == Component::Type::PointLight ? "Point Light" :
             comp->getType() == Component::Type::SpotLight ? "Spot Light" : 
             comp->getType() == Component::Type::Script ? "Script" :
-            comp->getType() == Component::Type::Animation ? "Animation" :
             "Component";
 
         ImGui::PushID((int)comp->getType());
@@ -183,9 +181,6 @@ void InspectorPanel::drawContent() {
 
             else if (comp->getType() == Component::Type::Script)
                 static_cast<ComponentScript*>(comp.get())->onEditor();
-
-            else if (comp->getType() == Component::Type::Animation)
-                static_cast<ComponentAnimation*>(comp.get())->onEditor();
 
             else
                 comp->onEditor();
@@ -277,8 +272,6 @@ void InspectorPanel::drawAddComponentMenu() {
     addComp("Directional Light", Component::Type::DirectionalLight, go->getComponent<ComponentDirectionalLight>() != nullptr);
     addComp("Point Light", Component::Type::PointLight, go->getComponent<ComponentPointLight>() != nullptr);
     addComp("Spot Light", Component::Type::SpotLight, go->getComponent<ComponentSpotLight>() != nullptr);
-    addComp("Animation", Component::Type::Animation, go->getComponent<ComponentAnimation>() != nullptr);
-
     ImGui::EndPopup();
 }
 

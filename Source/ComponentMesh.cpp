@@ -13,7 +13,6 @@
 #include "ModuleD3D12.h"
 #include "ResourceMesh.h"
 #include "ResourceMaterial.h"
-#include "ComponentAnimation.h"
 #include "3rdParty/rapidjson/document.h"
 #include "3rdParty/rapidjson/writer.h"
 #include "3rdParty/rapidjson/stringbuffer.h"
@@ -142,36 +141,6 @@ bool ComponentMesh::loadModel(const char* filePath) {
         rebuildEntry(e);
         m_entries.push_back(std::move(e));
     }
-
-    ComponentAnimation* animComp =
-        owner->getComponent<ComponentAnimation>();
-    if (!animComp) {
-        animComp = owner->createComponent<ComponentAnimation>();
-    }
-    animComp->m_availableAnims.clear();
-    animComp->m_availableAnimNames.clear();
-
-    for (int i = 0; ; ++i) {
-        UID uid = app->getAssets()->findSubUID(canonicalPath, "anim", i);
-        if (uid == 0) break;
-        animComp->m_availableAnims.push_back(uid);
-
-        // Try to get the name from the resource
-        ResourceAnimation* res =
-            app->getResources()->RequestAnimation(uid);
-        if (res) {
-            animComp->m_availableAnimNames.push_back(res->getName());
-            app->getResources()->ReleaseResource(res); // dec ref
-        }
-        else {
-            animComp->m_availableAnimNames.push_back(
-                sceneName + "_anim_" + std::to_string(i));
-        }
-    }
-
-    // Auto-play first clip if available
-    if (!animComp->m_availableAnims.empty())
-        animComp->play(animComp->m_availableAnims[0], true);
 
     computeLocalAABB();
     return !m_entries.empty();

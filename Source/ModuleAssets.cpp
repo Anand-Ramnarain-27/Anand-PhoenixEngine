@@ -273,17 +273,6 @@ void ModuleAssets::registerSceneSubResources(const std::string& filePath, const 
         app->getResources()->registerMaterial(matUID, lp, 0);
     }
 
-    std::string animFolder =
-        fsys->GetLibraryPath() + "Animations/" + sceneName + "/";
-    int animCount = 0;
-    countLibraryFiles(animFolder, ".anim", animCount);
-    for (int i = 0; i < animCount; ++i) {
-        UID animUID = makeSubUID(parent, "anim", i);
-        std::string lp = animFolder + std::to_string(i) + ".anim";
-        m_subUIDs[filePath + "|anim|" + std::to_string(i)] = animUID;
-        m_uidToPath[animUID] = lp;
-        app->getResources()->registerAnimation(animUID, lp);
-    }
     LOG("ModuleAssets: Registered %d meshes, %d materials for %s", meshCount, materialCount, sceneName.c_str());
 }
 

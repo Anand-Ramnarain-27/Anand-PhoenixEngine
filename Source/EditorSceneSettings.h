@@ -22,8 +22,6 @@ struct EditorSceneSettings
     bool  debugDrawCameraFrustums = true;
     bool  debugDrawEditorCameraRay  = true;
 
-    bool debugDrawAnimationBones = false;
-
     struct Skybox
     {
         bool        enabled = false;
