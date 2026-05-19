@@ -443,3 +443,8 @@ cmake_install.cmake
 *.dds
 *.bmp
 *.tga
+
+# Claude Code
+.claude/
+.claudeignore
+CLAUDE.md
