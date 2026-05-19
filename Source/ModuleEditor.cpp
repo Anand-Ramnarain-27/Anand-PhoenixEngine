@@ -38,6 +38,7 @@
 #include "SceneSettingsPanel.h"
 #include "PrefabManager.h"
 #include "FileWatcher.h"
+#include "ResourceMaterial.h"
 #include "Model.h"
 #include "MeshEntry.h"
 #include <d3dx12.h>
@@ -299,7 +300,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     translucentMeshes.reserve(visibleMeshes.size());
     for (MeshEntry* e : visibleMeshes) {
         const Material* mat = e->materialRes ? e->materialRes->getMaterial() : e->material;
-        bool isTranslucent = mat && mat->getData().baseColor.a < 0.999f;
+        bool isTranslucent = mat && mat->getData().baseColor.w < 0.999f;
         (isTranslucent ? translucentMeshes : opaqueMeshes).push_back(e);
     }
 
