@@ -9,6 +9,8 @@
 #include "ImGuiPass.h"
 #include "DebugDrawPass.h"
 #include "MeshRenderPass.h"
+#include "GBufferPass.h"
+#include "RenderTexture.h"
 #include "EmptyScene.h"
 #include "ModuleScene.h"
 #include "SceneManager.h"
@@ -97,6 +99,9 @@ bool ModuleEditor::init() {
 
     if (!m_meshRenderPass->init(device)) return false;
 
+    m_gbufferPass = std::make_unique<GBufferPass>();
+    if (!m_gbufferPass->init(device)) return false;
+
     m_envSystem = std::make_unique<EnvironmentSystem>();
     if (!m_envSystem->init(device, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT, false)) return false;
 
@@ -134,6 +139,7 @@ bool ModuleEditor::cleanUp() {
     m_imguiPass.reset();
     m_debugDraw.reset();
     m_sceneManager.reset();
+    m_gbufferPass.reset();
     m_gpuQueryHeap.Reset();
     m_gpuReadback.Reset();
 
@@ -216,7 +222,7 @@ void ModuleEditor::render() {
     if (m_memoryUpdateTimer >= 1000.0f) { m_memoryUpdateTimer = 0.0f; updateMemory(); }
 }
 
-void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras) {
+void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras, RenderTexture* outputRT) {
     ModuleCamera* camera = app->getCamera();
     ModuleScene* moduleScene = getActiveModuleScene();
 
@@ -278,6 +284,28 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
 
     const EnvironmentSystem* envForIBL =
         (sky.enabled && m_envSystem) ? m_envSystem.get() : nullptr;
+
+    // GBuffer geometry pass — fills albedo / normalMetalRough / emissiveAO MRTs
+    if (m_gbufferPass && !visibleMeshes.empty()) {
+        m_gbufferPass->render(cmd, visibleMeshes, view * proj, w, h);
+
+        // Rebind the output render target after GBuffer changed OMSetRenderTargets
+        if (outputRT && outputRT->isValid()) {
+            auto rtv = outputRT->getRtvHandle();
+            auto dsv = outputRT->getDsvHandle();
+            bool hasDsv = outputRT->getDepthTexture() != nullptr;
+            cmd->OMSetRenderTargets(1, &rtv, FALSE, hasDsv ? &dsv : nullptr);
+            D3D12_VIEWPORT vp = { 0.f, 0.f, float(w), float(h), 0.f, 1.f };
+            D3D12_RECT     sc = { 0, 0, LONG(w), LONG(h) };
+            cmd->RSSetViewports(1, &vp);
+            cmd->RSSetScissorRects(1, &sc);
+        }
+
+        // Restore descriptor heaps for the forward pass
+        ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap(),
+                                          app->getSamplerHeap()->getHeap() };
+        cmd->SetDescriptorHeaps(2, heaps);
+    }
 
     m_meshRenderPass->render(
         cmd, visibleMeshes, m_frameLights,

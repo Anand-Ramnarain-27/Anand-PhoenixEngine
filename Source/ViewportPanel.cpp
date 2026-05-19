@@ -20,7 +20,7 @@ void ViewportPanel::renderToTexture(ID3D12GraphicsCommandList* cmd) {
         sb->finalizeUploads(cmd);
     }
     viewport.rt->beginRender(cmd);
-    m_editor->renderSceneWithCamera(cmd, view, proj, w, h, useEditorExtras());
+    m_editor->renderSceneWithCamera(cmd, view, proj, w, h, useEditorExtras(), viewport.rt.get());
     onPostRender(cmd, w, h);
     viewport.rt->endRender(cmd);
 }

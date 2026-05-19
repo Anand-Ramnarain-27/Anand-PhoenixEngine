@@ -9,6 +9,7 @@
 #include "HotReloadManager.h"
 #include "ComponentScript.h"
 #include "FileWatcher.h"
+#include "GBufferPass.h"
 
 #include <memory>
 #include <vector>
@@ -34,6 +35,7 @@ class SceneManager;
 class EnvironmentSystem;
 class ImGuiPass;
 class DebugDrawPass;
+class RenderTexture;
 class EditorPanel;
 class SceneViewPanel;
 class GameViewPanel;
@@ -65,7 +67,9 @@ public:
     ModuleScene* getActiveModuleScene()const;
     ImVec2             getSceneViewSize()    const;
 
-    void renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras);
+    void renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras, RenderTexture* outputRT = nullptr);
+
+    GBufferPass* getGBufferPass() const { return m_gbufferPass.get(); }
 
     void log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
     GameObject* createEmptyGameObject(const char* name = "Empty", GameObject* parent = nullptr);
@@ -95,6 +99,7 @@ private:
     std::unique_ptr<DebugDrawPass>   m_debugDraw;
     std::unique_ptr<SceneManager>    m_sceneManager;
     std::unique_ptr<MeshRenderPass>  m_meshRenderPass;
+    std::unique_ptr<GBufferPass>     m_gbufferPass;
     std::unique_ptr<EnvironmentSystem> m_envSystem;
     std::unique_ptr<HotReloadManager> m_hotReload;
 

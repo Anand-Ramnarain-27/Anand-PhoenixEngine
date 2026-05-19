@@ -223,6 +223,9 @@
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="MeshEntry.h" />
     <ClInclude Include="MeshImporter.h" />
+    <ClInclude Include="GBuffer.h" />
+    <ClInclude Include="GBufferPipeline.h" />
+    <ClInclude Include="GBufferPass.h" />
     <ClInclude Include="MeshPipeline.h" />
     <ClInclude Include="MeshRenderPass.h" />
     <ClInclude Include="Model.h" />
@@ -368,6 +371,9 @@
     <ClCompile Include="MaterialImporter.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="MeshImporter.cpp" />
+    <ClCompile Include="GBuffer.cpp" />
+    <ClCompile Include="GBufferPipeline.cpp" />
+    <ClCompile Include="GBufferPass.cpp" />
     <ClCompile Include="MeshPipeline.cpp" />
     <ClCompile Include="MeshRenderPass.cpp" />
     <ClCompile Include="MetaFileManager.cpp" />
@@ -434,6 +440,7 @@
     <None Include="packages.config" />
     <None Include="shaders\Common.hlsli" />
     <None Include="shaders\ForwardPass.hlsli" />
+    <None Include="shaders\GBufferPass.hlsli" />
     <None Include="shaders\GgxBrdf.hlsli" />
     <None Include="shaders\ImageBasedLighting.hlsli" />
     <None Include="shaders\Lighting.hlsli" />
@@ -445,6 +452,16 @@
     <None Include="SimpleMath.inl" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="shaders\GBufferVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
+    <FxCompile Include="shaders\GBufferPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
     <FxCompile Include="shaders\EnvironmentBRDFPS.hlsl">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
