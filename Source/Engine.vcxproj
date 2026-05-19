@@ -223,6 +223,8 @@
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="MeshEntry.h" />
     <ClInclude Include="MeshImporter.h" />
+    <ClInclude Include="DeferredLightingPipeline.h" />
+    <ClInclude Include="DeferredLightingPass.h" />
     <ClInclude Include="GBuffer.h" />
     <ClInclude Include="GBufferPipeline.h" />
     <ClInclude Include="GBufferPass.h" />
@@ -371,6 +373,8 @@
     <ClCompile Include="MaterialImporter.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="MeshImporter.cpp" />
+    <ClCompile Include="DeferredLightingPipeline.cpp" />
+    <ClCompile Include="DeferredLightingPass.cpp" />
     <ClCompile Include="GBuffer.cpp" />
     <ClCompile Include="GBufferPipeline.cpp" />
     <ClCompile Include="GBufferPass.cpp" />
@@ -452,6 +456,16 @@
     <None Include="SimpleMath.inl" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="shaders\DeferredLightingVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
+    <FxCompile Include="shaders\DeferredLightingPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
     <FxCompile Include="shaders\GBufferVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>

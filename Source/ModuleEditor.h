@@ -10,6 +10,7 @@
 #include "ComponentScript.h"
 #include "FileWatcher.h"
 #include "GBufferPass.h"
+#include "DeferredLightingPass.h"
 
 #include <memory>
 #include <vector>
@@ -69,7 +70,8 @@ public:
 
     void renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras, RenderTexture* outputRT = nullptr);
 
-    GBufferPass* getGBufferPass() const { return m_gbufferPass.get(); }
+    GBufferPass*            getGBufferPass()           const { return m_gbufferPass.get(); }
+    DeferredLightingPass*   getDeferredLightingPass()  const { return m_deferredLightingPass.get(); }
 
     void log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
     GameObject* createEmptyGameObject(const char* name = "Empty", GameObject* parent = nullptr);
@@ -99,7 +101,8 @@ private:
     std::unique_ptr<DebugDrawPass>   m_debugDraw;
     std::unique_ptr<SceneManager>    m_sceneManager;
     std::unique_ptr<MeshRenderPass>  m_meshRenderPass;
-    std::unique_ptr<GBufferPass>     m_gbufferPass;
+    std::unique_ptr<GBufferPass>          m_gbufferPass;
+    std::unique_ptr<DeferredLightingPass> m_deferredLightingPass;
     std::unique_ptr<EnvironmentSystem> m_envSystem;
     std::unique_ptr<HotReloadManager> m_hotReload;
 

@@ -14,6 +14,11 @@ public:
         return ModuleDescriptorsBase::create(resource, nullptr);
     }
 
+    DepthStencilDesc create(ID3D12Resource* resource, const D3D12_DEPTH_STENCIL_VIEW_DESC* desc)
+    {
+        return ModuleDescriptorsBase::create(resource, desc);
+    }
+
 protected:
     void createViewInternal(ID3D12Resource* resource, const void* pDesc, D3D12_CPU_DESCRIPTOR_HANDLE destHandle) override
     {

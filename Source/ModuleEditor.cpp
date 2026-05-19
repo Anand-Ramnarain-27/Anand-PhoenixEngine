@@ -10,6 +10,7 @@
 #include "DebugDrawPass.h"
 #include "MeshRenderPass.h"
 #include "GBufferPass.h"
+#include "DeferredLightingPass.h"
 #include "RenderTexture.h"
 #include "EmptyScene.h"
 #include "ModuleScene.h"
@@ -102,6 +103,9 @@ bool ModuleEditor::init() {
     m_gbufferPass = std::make_unique<GBufferPass>();
     if (!m_gbufferPass->init(device)) return false;
 
+    m_deferredLightingPass = std::make_unique<DeferredLightingPass>();
+    if (!m_deferredLightingPass->init(device)) return false;
+
     m_envSystem = std::make_unique<EnvironmentSystem>();
     if (!m_envSystem->init(device, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT, false)) return false;
 
@@ -140,6 +144,7 @@ bool ModuleEditor::cleanUp() {
     m_debugDraw.reset();
     m_sceneManager.reset();
     m_gbufferPass.reset();
+    m_deferredLightingPass.reset();
     m_gpuQueryHeap.Reset();
     m_gpuReadback.Reset();
 
@@ -285,14 +290,16 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     const EnvironmentSystem* envForIBL =
         (sky.enabled && m_envSystem) ? m_envSystem.get() : nullptr;
 
-    // GBuffer geometry pass — fills albedo / normalMetalRough / emissiveAO MRTs
-    if (m_gbufferPass && !visibleMeshes.empty()) {
-        m_gbufferPass->render(cmd, visibleMeshes, view * proj, w, h);
+    const Matrix viewProj = view * proj;
 
-        // Rebind the output render target after GBuffer changed OMSetRenderTargets
+    // GBuffer geometry pass — fills albedo / normalMetalRough / emissiveAO / depth MRTs
+    if (m_gbufferPass && !visibleMeshes.empty()) {
+        m_gbufferPass->render(cmd, visibleMeshes, viewProj, w, h);
+
+        // Rebind the output render target — GBuffer pass changed OMSetRenderTargets
         if (outputRT && outputRT->isValid()) {
-            auto rtv = outputRT->getRtvHandle();
-            auto dsv = outputRT->getDsvHandle();
+            auto rtv   = outputRT->getRtvHandle();
+            auto dsv   = outputRT->getDsvHandle();
             bool hasDsv = outputRT->getDepthTexture() != nullptr;
             cmd->OMSetRenderTargets(1, &rtv, FALSE, hasDsv ? &dsv : nullptr);
             D3D12_VIEWPORT vp = { 0.f, 0.f, float(w), float(h), 0.f, 1.f };
@@ -301,16 +308,20 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
             cmd->RSSetScissorRects(1, &sc);
         }
 
-        // Restore descriptor heaps for the forward pass
+        // Deferred lighting pass — fullscreen triangle reading from GBuffer SRVs
+        if (m_deferredLightingPass) {
+            Matrix invViewProj;
+            viewProj.Invert(invViewProj);
+            m_deferredLightingPass->render(cmd, *m_gbufferPass, m_frameLights,
+                                            camera->getPos(), invViewProj,
+                                            envForIBL, w, h);
+        }
+
+        // Restore descriptor heaps for subsequent passes
         ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap(),
                                           app->getSamplerHeap()->getHeap() };
         cmd->SetDescriptorHeaps(2, heaps);
     }
-
-    m_meshRenderPass->render(
-        cmd, visibleMeshes, m_frameLights,
-        camera->getPos(), view * proj, envForIBL,
-        m_samplerType);
 
     if (editorExtras) {
         if (s.showGrid) dd::xzSquareGrid(-100.f, 100.f, 0.f, 1.f, dd::colors::Gray);
