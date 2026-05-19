@@ -23,10 +23,15 @@ std::string MaterialImporter::importTexture(int texIndex, const tinygltf::Model&
 	fs->CreateDir(matFolder.c_str());
 
 	if (!img.uri.empty()) {
-		std::string ddsPath = matFolder + TextureImporter::GetTextureName(img.uri.c_str()) + ".dds";
+		// Strip leading '/' — some exporters (e.g. busterDrone) incorrectly prefix
+		// URIs with '/', producing a root-relative path instead of a relative one.
+		std::string uri = img.uri;
+		if (!uri.empty() && uri[0] == '/') uri = uri.substr(1);
+
+		std::string ddsPath = matFolder + TextureImporter::GetTextureName(uri.c_str()) + ".dds";
 		if (!fs->Exists(ddsPath.c_str()) || !fs->Exists(ImporterUtils::MetaPath(ddsPath).c_str())) {
-			if (!TextureImporter::Import((basePath + img.uri).c_str(), ddsPath, type)) {
-				LOG("MaterialImporter: Failed to import texture %s", (basePath + img.uri).c_str());
+			if (!TextureImporter::Import((basePath + uri).c_str(), ddsPath, type)) {
+				LOG("MaterialImporter: Failed to import texture %s", (basePath + uri).c_str());
 				return {};
 			}
 		}

@@ -11,6 +11,17 @@
 
 namespace fs = std::filesystem;
 
+// tinygltf's default loader uses stb_image, which cannot decode DDS files.
+// For any image that has a URI (external file), we skip stb_image and keep the
+// URI intact — MaterialImporter loads those files itself via TextureImporter.
+// For embedded images (GLB bufferViews with no URI), we fall back to the default
+// tinygltf decoder so that PNG/JPG embedded data still gets decoded.
+static bool engineImageLoader(tinygltf::Image* img, int idx, std::string* err, std::string* warn,
+    int req_w, int req_h, const unsigned char* bytes, int size, void* ud) {
+    if (!img->uri.empty()) return true; // URI image — handled via TextureImporter
+    return tinygltf::LoadImageData(img, idx, err, warn, req_w, req_h, bytes, size, ud);
+}
+
 static bool isModelExtension(const std::string& ext) {
     return ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".stl" || ext == ".blend";
 }
@@ -210,6 +221,7 @@ UID ModuleAssets::importAsset(const char* filePath) {
     if (ext == ".gltf" || ext == ".glb") {
         tinygltf::Model gltfModel;
         tinygltf::TinyGLTF loader;
+        loader.SetImageLoader(&engineImageLoader, nullptr);
         std::string err;
         std::string warn;
 
