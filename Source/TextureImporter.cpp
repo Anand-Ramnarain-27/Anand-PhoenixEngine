@@ -20,6 +20,57 @@ static std::string CanonicalPath(const std::string& p) {
 	return s;
 }
 
+static bool ProcessAndSave(ScratchImage& image, const std::string& outputPath, TextureImporter::TextureType type) {
+	ScratchImage mipChain;
+	if (image.GetMetadata().mipLevels == 1) {
+		if (FAILED(GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), TEX_FILTER_DEFAULT, 0, mipChain))) mipChain = std::move(image);
+	}
+	else {
+		mipChain = std::move(image);
+	}
+
+	ScratchImage compressed;
+	const TexMetadata& meta = mipChain.GetMetadata();
+
+	if (!IsCompressed(meta.format)) {
+		DXGI_FORMAT fmt;
+		switch (type) {
+		case TextureImporter::TextureType::Color:
+		case TextureImporter::TextureType::Emissive:
+			fmt = HasAlpha(meta.format) ? DXGI_FORMAT_BC3_UNORM_SRGB : DXGI_FORMAT_BC1_UNORM_SRGB;
+			break;
+		case TextureImporter::TextureType::Normal:
+			fmt = DXGI_FORMAT_BC5_UNORM;
+			break;
+		case TextureImporter::TextureType::Occlusion:
+			fmt = DXGI_FORMAT_BC4_UNORM;
+			break;
+		case TextureImporter::TextureType::MetalRoughness:
+			fmt = DXGI_FORMAT_BC5_UNORM;
+			break;
+		default:
+			fmt = DXGI_FORMAT_BC1_UNORM;
+			break;
+		}
+		if (FAILED(Compress(mipChain.GetImages(), mipChain.GetImageCount(), meta, fmt, TEX_COMPRESS_DEFAULT, 1.0f, compressed))) compressed = std::move(mipChain);
+	}
+	else {
+		compressed = std::move(mipChain);
+	}
+
+	std::string normOutput = CanonicalPath(outputPath);
+	std::wstring wOutput = std::filesystem::path(normOutput).wstring();
+	if (FAILED(SaveToDDSFile(compressed.GetImages(), compressed.GetImageCount(), compressed.GetMetadata(), DDS_FLAGS_NONE, wOutput.c_str()))) {
+		LOG("TextureImporter: Failed to save DDS '%s'", normOutput.c_str());
+		return false;
+	}
+
+	const TexMetadata& finalMeta = compressed.GetMetadata();
+	TextureImporter::SaveMetadata(normOutput, (uint32_t)finalMeta.width, (uint32_t)finalMeta.height, (uint32_t)finalMeta.mipLevels, (uint32_t)finalMeta.format);
+	LOG("TextureImporter: Imported '%s' (%dx%d, %d mips, fmt=%d)", normOutput.c_str(), (int)finalMeta.width, (int)finalMeta.height, (int)finalMeta.mipLevels, (int)finalMeta.format);
+	return true;
+}
+
 bool TextureImporter::Import(const char* sourcePath, const std::string& outputPath, TextureType type) {
 	std::wstring wSource = std::filesystem::path(sourcePath).wstring();
 	std::wstring ext = std::filesystem::path(sourcePath).extension().wstring();
@@ -37,72 +88,45 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
 		return false;
 	}
 
-	ScratchImage mipChain;
-	if (image.GetMetadata().mipLevels == 1) {
-		if (FAILED(GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), TEX_FILTER_DEFAULT, 0, mipChain))) mipChain = std::move(image);
-	}
-	else {
-		mipChain = std::move(image);
-	}
+	return ProcessAndSave(image, outputPath, type);
+}
 
-	ScratchImage compressed;
-	const TexMetadata& meta = mipChain.GetMetadata();
-
-	if (!IsCompressed(meta.format)) {
-		DXGI_FORMAT fmt;
-		switch (type)
-		{
-		case TextureType::Color:
-			fmt = HasAlpha(meta.format)
-				? DXGI_FORMAT_BC3_UNORM_SRGB
-				: DXGI_FORMAT_BC1_UNORM_SRGB;
-			break;
-
-		case TextureType::Emissive:
-			fmt = HasAlpha(meta.format)
-				? DXGI_FORMAT_BC3_UNORM_SRGB
-				: DXGI_FORMAT_BC1_UNORM_SRGB;
-			break;
-
-		case TextureType::Normal:
-			// ? Correct for normals
-			fmt = DXGI_FORMAT_BC5_UNORM;
-			break;
-
-		case TextureType::Occlusion:
-			// ? AO = linear, single channel
-			fmt = DXGI_FORMAT_BC4_UNORM;
-			break;
-
-		case TextureType::MetalRoughness:
-			// ? MR = linear, needs at least 2 channels (G+B)
-			fmt = DXGI_FORMAT_BC5_UNORM;
-			break;
-
-		default:
-			fmt = DXGI_FORMAT_BC1_UNORM;
-			break;
-		}
-
-		if (FAILED(Compress(mipChain.GetImages(), mipChain.GetImageCount(), meta, fmt, TEX_COMPRESS_DEFAULT, 1.0f, compressed))) compressed = std::move(mipChain);
-	}
-	else {
-		compressed = std::move(mipChain);
-	}
-
-	std::string normOutput = CanonicalPath(outputPath);
-
-	std::wstring wOutput = std::filesystem::path(normOutput).wstring();
-	if (FAILED(SaveToDDSFile(compressed.GetImages(), compressed.GetImageCount(), compressed.GetMetadata(), DDS_FLAGS_NONE, wOutput.c_str()))) {
-		LOG("TextureImporter: Failed to save DDS '%s'", normOutput.c_str());
+bool TextureImporter::ImportFromMemory(const unsigned char* data, int width, int height, int channels,
+	const std::string& outputPath, TextureType type) {
+	if (!data || width <= 0 || height <= 0 || channels < 1 || channels > 4) {
+		LOG("TextureImporter: ImportFromMemory invalid args (channels=%d, %dx%d)", channels, width, height);
 		return false;
 	}
 
-	const TexMetadata& finalMeta = compressed.GetMetadata();
-	SaveMetadata(normOutput, (uint32_t)finalMeta.width, (uint32_t)finalMeta.height, (uint32_t)finalMeta.mipLevels, (uint32_t)finalMeta.format);
+	bool isColor = (type == TextureType::Color || type == TextureType::Emissive);
 
-	LOG("TextureImporter: Imported '%s' (%dx%d, %d mips, fmt=%d)", normOutput.c_str(), (int)finalMeta.width, (int)finalMeta.height, (int)finalMeta.mipLevels, (int)finalMeta.format);
-	return true;
+	ScratchImage image;
+	if (channels == 4) {
+		DXGI_FORMAT fmt = isColor ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
+		image.Initialize2D(fmt, (size_t)width, (size_t)height, 1, 1);
+		memcpy(image.GetPixels(), data, (size_t)width * height * 4);
+	}
+	else if (channels == 3) {
+		DXGI_FORMAT fmt = isColor ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
+		image.Initialize2D(fmt, (size_t)width, (size_t)height, 1, 1);
+		uint8_t* dst = image.GetPixels();
+		for (int i = 0; i < width * height; ++i) {
+			dst[i * 4 + 0] = data[i * 3 + 0];
+			dst[i * 4 + 1] = data[i * 3 + 1];
+			dst[i * 4 + 2] = data[i * 3 + 2];
+			dst[i * 4 + 3] = 255;
+		}
+	}
+	else if (channels == 2) {
+		image.Initialize2D(DXGI_FORMAT_R8G8_UNORM, (size_t)width, (size_t)height, 1, 1);
+		memcpy(image.GetPixels(), data, (size_t)width * height * 2);
+	}
+	else {
+		image.Initialize2D(DXGI_FORMAT_R8_UNORM, (size_t)width, (size_t)height, 1, 1);
+		memcpy(image.GetPixels(), data, (size_t)width * height);
+	}
+
+	return ProcessAndSave(image, outputPath, type);
 }
 
 bool TextureImporter::Load(const std::string& file, ComPtr<ID3D12Resource>& outTexture, D3D12_GPU_DESCRIPTOR_HANDLE& outSRV) {

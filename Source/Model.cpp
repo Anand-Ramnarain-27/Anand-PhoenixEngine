@@ -26,7 +26,7 @@ static bool materialsNeedReimport(const std::string& matFolder, uint32_t materia
     if (!ImporterUtils::LoadBuffer(firstMat, header, buf)) return true;
     if (!ImporterUtils::ValidateHeader(header, 0x4D415452)) return true;
 
-    return header.version < 4;
+    return header.version < 7;
 }
 
 bool Model::load(const char* fileName, ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer) {
@@ -63,7 +63,10 @@ bool Model::importFromGLTF(const char* fileName) {
         return false;
     }
     if (!warning.empty()) LOG("Model: GLTF Warning: %s", warning.c_str());
-    return SceneImporter::ImportFromLoadedGLTF(gltfModel, std::filesystem::path(fileName).stem().string());
+    std::string baseDir = std::filesystem::path(fileName).parent_path().string();
+    for (char& c : baseDir) if (c == '\\') c = '/';
+    baseDir += '/';
+    return SceneImporter::ImportFromLoadedGLTF(gltfModel, std::filesystem::path(fileName).stem().string(), baseDir);
 }
 
 bool Model::loadFromLibrary(const std::string& folder, ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer) {

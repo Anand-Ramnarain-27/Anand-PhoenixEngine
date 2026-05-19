@@ -9,11 +9,10 @@
 #include <filesystem>
 #include <cstring>
 
-bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const std::string& sceneName) {
+bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const std::string& sceneName, const std::string& basePath) {
     if (!CreateSceneDirectory(sceneName)) LOG("SceneImporter: Warning: CreateSceneDirectory returned false for %s (may already exist)", sceneName.c_str());
     ModuleFileSystem* fs = app->getFileSystem();
     std::string meshFolder = fs->GetLibraryPath() + "Meshes/" + sceneName;
-    std::string basePath = app->getFileSystem()->GetAssetsPath() + "Models/" + sceneName + "/";
     std::string matFolder = fs->GetLibraryPath() + "Materials/" + sceneName;
     int meshIndex = 0;
 

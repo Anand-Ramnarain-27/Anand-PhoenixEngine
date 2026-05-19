@@ -100,6 +100,20 @@ void ModuleAssets::countLibraryFiles(const std::string& folder, const std::strin
     while (app->getFileSystem()->Exists((folder + std::to_string(count) + ext).c_str())) ++count;
 }
 
+static bool materialCacheNeedsUpgrade(const std::string& sceneName) {
+    ModuleFileSystem* fsys = app->getFileSystem();
+    std::string firstMat = fsys->GetLibraryPath() + "Materials/" + sceneName + "/0.mat";
+    if (!fsys->Exists(firstMat.c_str())) return false;
+    char* buf = nullptr;
+    uint32_t size = fsys->Load(firstMat.c_str(), &buf);
+    if (!buf || size < 8) { delete[] buf; return true; }
+    uint32_t magic, version;
+    memcpy(&magic, buf, 4);
+    memcpy(&version, buf + 4, 4);
+    delete[] buf;
+    return magic != 0x4D415452 || version < 7;
+}
+
 void ModuleAssets::refreshAssets() {
     std::string assetsRoot = app->getFileSystem()->GetAssetsPath();
     if (!fs::exists(assetsRoot)) return;
@@ -121,7 +135,7 @@ void ModuleAssets::refreshAssets() {
 
         if (isModelExtension(ext)) {
             std::string sceneName = entry.path().stem().string();
-            if (!sceneExists(sceneName) || needsReimport(path)) {
+            if (!sceneExists(sceneName) || needsReimport(path) || materialCacheNeedsUpgrade(sceneName)) {
                 LOG("ModuleAssets: (Re)importing model %s", path.c_str());
                 importAsset(path.c_str());
             }
@@ -209,7 +223,10 @@ UID ModuleAssets::importAsset(const char* filePath) {
         }
 
         std::string sceneName = p.stem().string();
-        if (!SceneImporter::ImportFromLoadedGLTF(gltfModel, sceneName)) {
+        std::string baseDir = fs::path(path).parent_path().string();
+        for (char& c : baseDir) if (c == '\\') c = '/';
+        baseDir += '/';
+        if (!SceneImporter::ImportFromLoadedGLTF(gltfModel, sceneName, baseDir)) {
             LOG("ModuleAssets: Import failed for: %s", sceneName.c_str());
             releaseGuard();
             return 0;

@@ -15,7 +15,7 @@ class MaterialImporter {
 public:
 	struct MaterialHeader {
 		uint32_t magic = 0x4D415452;
-		uint32_t version = 6;
+		uint32_t version = 7;
 
 		uint32_t hasTexture = 0;
 		uint32_t texturePathLength = 0;
@@ -30,14 +30,19 @@ public:
 
 		float normalStrength = 1.f;
 		float aoStrength = 1.f;
-		float emissiveR = 1.f;
-		float emissiveG = 1.f;
-		float emissiveB = 1.f;
+		float emissiveR = 0.f;
+		float emissiveG = 0.f;
+		float emissiveB = 0.f;
 		float metallic = 0.f;
 		float roughness = 0.5f;
 		float _pad = 0.f;
 		uint32_t flags = 0;
 		uint32_t _pad2 = 0;
+		// Added in version 7
+		float baseColorR = 1.f;
+		float baseColorG = 1.f;
+		float baseColorB = 1.f;
+		float baseColorA = 1.f;
 	};
 
 	static bool Import(const tinygltf::Material& gltfMaterial, const tinygltf::Model& model,

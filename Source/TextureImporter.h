@@ -27,9 +27,8 @@ public:
 	};
 
 	static bool Import(const char* sourcePath, const std::string& outputPath, TextureType type = TextureType::Color);
+	static bool ImportFromMemory(const unsigned char* data, int width, int height, int channels, const std::string& outputPath, TextureType type = TextureType::Color);
 	static bool Load(const std::string& file, ComPtr<ID3D12Resource>& outTexture, D3D12_GPU_DESCRIPTOR_HANDLE& outSRV);
 	static std::string GetTextureName(const char* filePath);
-
-private:
 	static bool SaveMetadata(const std::string& ddsPath, uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t format);
 };

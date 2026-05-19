@@ -16,21 +16,38 @@ std::string MaterialImporter::importTexture(int texIndex, const tinygltf::Model&
 	if (texIndex < 0 || texIndex >= (int)model.textures.size()) return {};
 	const auto& tex = model.textures[texIndex];
 	if (tex.source < 0 || tex.source >= (int)model.images.size()) return {};
-	const std::string& uri = model.images[tex.source].uri;
-	if (uri.empty()) return {};
+	const auto& img = model.images[tex.source];
 
 	ModuleFileSystem* fs = app->getFileSystem();
 	std::string matFolder = fs->GetLibraryPath() + "Materials/" + sceneName + "/";
 	fs->CreateDir(matFolder.c_str());
-	std::string ddsPath = matFolder + TextureImporter::GetTextureName(uri.c_str()) + ".dds";
 
-	if (!fs->Exists(ddsPath.c_str()) || !fs->Exists(ImporterUtils::MetaPath(ddsPath).c_str())) {
-		if (!TextureImporter::Import((basePath + uri).c_str(), ddsPath, type)) {
-			LOG("MaterialImporter: Failed to import texture %s", (basePath + uri).c_str());
-			return {};
+	if (!img.uri.empty()) {
+		std::string ddsPath = matFolder + TextureImporter::GetTextureName(img.uri.c_str()) + ".dds";
+		if (!fs->Exists(ddsPath.c_str()) || !fs->Exists(ImporterUtils::MetaPath(ddsPath).c_str())) {
+			if (!TextureImporter::Import((basePath + img.uri).c_str(), ddsPath, type)) {
+				LOG("MaterialImporter: Failed to import texture %s", (basePath + img.uri).c_str());
+				return {};
+			}
 		}
+		return ddsPath;
 	}
-	return ddsPath;
+
+	// Embedded texture (GLB or GLTF with bufferView — tinygltf decodes into img.image)
+	if (!img.image.empty() && img.width > 0 && img.height > 0 && img.component > 0) {
+		std::string name = img.name.empty() ? ("embedded_" + std::to_string(tex.source)) : img.name;
+		for (char& c : name) if (!std::isalnum((unsigned char)c) && c != '_') c = '_';
+		std::string ddsPath = matFolder + name + ".dds";
+		if (!fs->Exists(ddsPath.c_str()) || !fs->Exists(ImporterUtils::MetaPath(ddsPath).c_str())) {
+			if (!TextureImporter::ImportFromMemory(img.image.data(), img.width, img.height, img.component, ddsPath, type)) {
+				LOG("MaterialImporter: Failed to import embedded texture '%s'", name.c_str());
+				return {};
+			}
+		}
+		return ddsPath;
+	}
+
+	return {};
 }
 
 bool MaterialImporter::Import(const tinygltf::Material& gltfMat, const tinygltf::Model& model,
@@ -40,10 +57,14 @@ bool MaterialImporter::Import(const tinygltf::Material& gltfMat, const tinygltf:
 	const auto& pbr = gltfMat.pbrMetallicRoughness;
 
 	MaterialHeader header{};
-	header.version = 6;
 
 	header.metallic = (float)pbr.metallicFactor;
 	header.roughness = (float)pbr.roughnessFactor;
+
+	header.baseColorR = (float)pbr.baseColorFactor[0];
+	header.baseColorG = (float)pbr.baseColorFactor[1];
+	header.baseColorB = (float)pbr.baseColorFactor[2];
+	header.baseColorA = (float)pbr.baseColorFactor[3];
 
 	header.emissiveR = (float)gltfMat.emissiveFactor[0];
 	header.emissiveG = (float)gltfMat.emissiveFactor[1];
@@ -119,7 +140,7 @@ bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& 
 	std::string emissivePath;
 	std::string metalRoughPath;
 
-	if (header.version != 6) {
+	if (header.version != 7) {
 		LOG("MaterialImporter: Version mismatch (%u), forcing reimport: %s",
 			header.version, file.c_str());
 		return false;
@@ -137,6 +158,7 @@ bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& 
 	data.normalStrength = header.normalStrength;
 	data.aoStrength = header.aoStrength;
 	data.emissiveFactor = Vector3(header.emissiveR, header.emissiveG, header.emissiveB);
+	data.baseColor = Vector4(header.baseColorR, header.baseColorG, header.baseColorB, header.baseColorA);
 	data.flags = header.flags;
 
 	auto loadTex = [&](const std::string& path,

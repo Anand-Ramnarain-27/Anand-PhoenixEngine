@@ -16,7 +16,7 @@ public:
         uint32_t materialCount = 0;
     };
 
-    static bool ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const std::string& sceneName);
+    static bool ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const std::string& sceneName, const std::string& basePath);
     static bool LoadScene(const std::string& sceneName, std::unique_ptr<Model>& outModel);
     static bool LoadSceneMetadata(const std::string& sceneName, SceneHeader& header);
 
