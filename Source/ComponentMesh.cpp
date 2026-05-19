@@ -69,13 +69,7 @@ void ComponentMesh::rebuildMaterialBuffers() {
     }
 }
 
-bool ComponentMesh::loadModel(const char* filePath) {
-    releaseEntries();
-    m_proceduralModel.reset();
-    m_proceduralMaterialBuffers.clear();
-    m_modelPath.clear();
-    m_modelUID = 0;
-
+static std::string resolveCanonicalPath(const char* filePath, UID& outUID) {
     std::string normPath = filePath;
     for (char& c : normPath) if (c == '\\') c = '/';
     std::string sceneName = std::filesystem::path(normPath).stem().string();
@@ -83,24 +77,38 @@ bool ComponentMesh::loadModel(const char* filePath) {
     std::string libPath = app->getFileSystem()->GetLibraryPath();
     if (normPath.find(libPath) == 0) {
         std::string resolved = app->getAssets()->getAssetPathForScene(sceneName);
-        if (resolved.empty()) { LOG("ComponentMesh: Cannot resolve asset path for scene '%s'", sceneName.c_str()); return false; }
+        if (resolved.empty()) { outUID = 0; return {}; }
         normPath = resolved;
         for (char& c : normPath) if (c == '\\') c = '/';
-        sceneName = std::filesystem::path(normPath).stem().string();
     }
 
-    UID sceneUID = app->getAssets()->findUID(normPath);
-    if (sceneUID == 0) {
-        std::string resolved = app->getAssets()->getAssetPathForScene(sceneName);
-        if (!resolved.empty()) sceneUID = app->getAssets()->findUID(resolved);
+    outUID = app->getAssets()->findUID(normPath);
+    if (outUID == 0) {
+        std::string resolved = app->getAssets()->getAssetPathForScene(
+            std::filesystem::path(normPath).stem().string());
+        if (!resolved.empty()) outUID = app->getAssets()->findUID(resolved);
     }
+    if (outUID == 0) return {};
 
-    if (sceneUID == 0) { LOG("ComponentMesh: No UID for '%s' - import it first", normPath.c_str()); return false; }
+    std::string canonical = app->getAssets()->getPathFromUID(outUID);
+    return canonical.empty() ? normPath : canonical;
+}
 
-    std::string canonicalPath = app->getAssets()->getPathFromUID(sceneUID);
-    if (canonicalPath.empty()) canonicalPath = normPath;
+bool ComponentMesh::loadModel(const char* filePath) {
+    releaseEntries();
+    m_proceduralModel.reset();
+    m_proceduralMaterialBuffers.clear();
+    m_modelPath.clear();
+    m_modelUID = 0;
+    m_meshFileStart = -1;
+    m_meshFileCount = 0;
+
+    UID sceneUID = 0;
+    std::string canonicalPath = resolveCanonicalPath(filePath, sceneUID);
+    if (canonicalPath.empty()) { LOG("ComponentMesh: Cannot resolve '%s' - import it first", filePath); return false; }
     m_modelUID = sceneUID;
     m_modelPath = canonicalPath;
+    std::string sceneName = std::filesystem::path(canonicalPath).stem().string();
 
     std::string meshFolder = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/";
     int meshCount = 0;
@@ -146,6 +154,40 @@ bool ComponentMesh::loadModel(const char* filePath) {
     return !m_entries.empty();
 }
 
+bool ComponentMesh::loadMeshSubset(const std::string& assetPath, int startMesh, int meshCount) {
+    releaseEntries();
+    m_proceduralModel.reset();
+    m_proceduralMaterialBuffers.clear();
+    m_modelPath.clear();
+    m_modelUID = 0;
+    m_meshFileStart = -1;
+    m_meshFileCount = 0;
+    if (meshCount <= 0) return false;
+
+    UID sceneUID = 0;
+    std::string canonical = resolveCanonicalPath(assetPath.c_str(), sceneUID);
+    if (canonical.empty()) { LOG("ComponentMesh: Cannot resolve '%s' - import it first", assetPath.c_str()); return false; }
+    m_modelUID = sceneUID;
+    m_modelPath = canonical;
+    m_meshFileStart = startMesh;
+    m_meshFileCount = meshCount;
+
+    for (int i = startMesh; i < startMesh + meshCount; ++i) {
+        MeshEntry e;
+        e.meshUID = app->getAssets()->findSubUID(canonical, "mesh", i);
+        if (e.meshUID) e.meshRes = app->getResources()->RequestMesh(e.meshUID);
+        if (e.meshRes && e.meshRes->getMesh()) {
+            int matIdx = e.meshRes->getMesh()->getMaterialIndex();
+            if (matIdx >= 0) e.materialUID = app->getAssets()->findSubUID(canonical, "mat", matIdx);
+        }
+        if (e.materialUID != 0) e.materialRes = app->getResources()->RequestMaterial(e.materialUID);
+        rebuildEntry(e);
+        m_entries.push_back(std::move(e));
+    }
+    computeLocalAABB();
+    return !m_entries.empty();
+}
+
 void ComponentMesh::setProceduralModel(std::unique_ptr<Model> model) {
     releaseEntries();
     m_proceduralModel = std::shared_ptr<Model>(std::move(model));
@@ -175,6 +217,8 @@ void ComponentMesh::onSave(std::string& outJson) const {
     doc.AddMember("ModelUID", m_modelUID, a);
     Value pathVal; pathVal.SetString(m_modelPath.c_str(), a);
     doc.AddMember("ModelPath", pathVal, a);
+    doc.AddMember("MeshFileStart", m_meshFileStart, a);
+    doc.AddMember("MeshFileCount", m_meshFileCount, a);
     Value entries(kArrayType);
     for (const auto& e : m_entries) { Value ev(kObjectType); ev.AddMember("meshUID", e.meshUID, a); ev.AddMember("materialUID", e.materialUID, a); entries.PushBack(ev, a); }
     doc.AddMember("Entries", entries, a);
@@ -185,7 +229,17 @@ void ComponentMesh::onSave(std::string& outJson) const {
 void ComponentMesh::onLoad(const std::string& jsonStr) {
     Document doc; doc.Parse(jsonStr.c_str());
     if (doc.HasParseError()) return;
-    if (doc.HasMember("ModelPath") && doc["ModelPath"].IsString()) { std::string path = doc["ModelPath"].GetString(); if (!path.empty()) loadModel(path.c_str()); }
+    if (doc.HasMember("ModelPath") && doc["ModelPath"].IsString()) {
+        std::string path = doc["ModelPath"].GetString();
+        if (!path.empty()) {
+            int start = (doc.HasMember("MeshFileStart") && doc["MeshFileStart"].IsInt()) ? doc["MeshFileStart"].GetInt() : -1;
+            int count = (doc.HasMember("MeshFileCount") && doc["MeshFileCount"].IsInt()) ? doc["MeshFileCount"].GetInt() : 0;
+            if (start >= 0 && count > 0)
+                loadMeshSubset(path, start, count);
+            else
+                loadModel(path.c_str());
+        }
+    }
     if (doc.HasMember("Entries") && doc["Entries"].IsArray()) {
         const auto& arr = doc["Entries"].GetArray();
         for (int i = 0; i < (int)arr.Size() && i < (int)m_entries.size(); ++i) { UID savedMat = arr[i]["materialUID"].GetUint64(); if (savedMat != m_entries[i].materialUID) overrideMaterial(i, savedMat); }

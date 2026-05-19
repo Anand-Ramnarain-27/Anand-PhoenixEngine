@@ -529,13 +529,9 @@ void AssetBrowserPanel::spawnAsset(const std::string& path) {
     ModuleScene* scene = m_editor->getActiveModuleScene();
     EditorSelection& sel = m_editor->getSelection();
 
-    if (ext == ".gltf" || ext == ".fbx" || ext == ".obj") {
+    if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj") {
         if (!scene) return;
-        std::string name = fs::path(path).stem().string();
-        GameObject* go = scene->createGameObject(name.c_str());
-        bool ok = go->createComponent<ComponentMesh>()->loadModel(path.c_str());
-        m_editor->log(ok ? ("Added: " + name).c_str() : ("Failed: " + path).c_str(), ok ? EditorColors::Success : EditorColors::Danger);
-        if (ok) sel.object = go;
+        if (GameObject* go = m_editor->spawnModel(path)) sel.object = go;
     }
     else if (ext == ".json") {
         if (auto* sm = m_editor->getSceneManager(); sm && sm->loadScene(path)) m_editor->log(("Loaded scene: " + path).c_str(), EditorColors::Success);

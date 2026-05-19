@@ -77,6 +77,7 @@ public:
     GameObject* createEmptyGameObject(const char* name = "Empty", GameObject* parent = nullptr);
     void deleteGameObject(GameObject* go);
     void spawnAssetAtPath(const std::string& path);
+    GameObject* spawnModel(const std::string& path);
     static bool isChildOf(const GameObject* root, const GameObject* needle);
 
     void pushCommand(EditorCommand cmd);

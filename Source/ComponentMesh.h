@@ -20,6 +20,7 @@ public:
     ~ComponentMesh() override;
 
     bool loadModel(const char* filePath);
+    bool loadMeshSubset(const std::string& assetPath, int startMesh, int meshCount);
     void setProceduralModel(std::unique_ptr<Model> model);
     void overrideMaterial(int slot, UID materialUID);
     void rebuildMaterialBuffers();
@@ -48,6 +49,8 @@ private:
 
     UID m_modelUID = 0;
     std::string m_modelPath;
+    int m_meshFileStart = -1;
+    int m_meshFileCount = 0;
     std::vector<MeshEntry> m_entries;
     std::shared_ptr<Model> m_proceduralModel;
     std::vector<ComPtr<ID3D12Resource>> m_proceduralMaterialBuffers;
