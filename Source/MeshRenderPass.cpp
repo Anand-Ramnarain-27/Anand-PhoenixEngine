@@ -258,9 +258,9 @@ void MeshRenderPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewP
 		world.Invert(inv);
 		inst.normalMatrix = inv;
 
-		const Material* mat = nullptr;
-		if (entry.materialRes) mat = entry.materialRes->getMaterial();
-		else if (entry.material) mat = entry.material;
+		const Material* mat = entry.instanceMaterial.get();
+		if (!mat) mat = entry.material;
+		if (!mat && entry.materialRes) mat = entry.materialRes->getMaterial();
 		inst.material = toGpuMaterial(mat);
 
 		memcpy(static_cast<char*>(m_perInstanceMapped) + (UINT64)slot * instSz, &inst, sizeof(inst));
@@ -344,9 +344,9 @@ void MeshRenderPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12Pipelin
 
 		ShaderTableDesc& matTable = m_matRing[slot];
 
-		const Material* mat = nullptr;
-		if (entry->materialRes) mat = entry->materialRes->getMaterial();
-		else if (entry->material) mat = entry->material;
+		const Material* mat = entry->instanceMaterial.get();
+		if (!mat) mat = entry->material;
+		if (!mat && entry->materialRes) mat = entry->materialRes->getMaterial();
 
 		writeFallbackTex2DSRV(matTable, MAT_SLOT_BASECOLOR, m_fallbackTex2D.Get());
 		writeFallbackTex2DSRV(matTable, MAT_SLOT_METALROUGH, m_fallbackTex2D.Get());

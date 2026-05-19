@@ -35,6 +35,7 @@ public:
     Model* getProceduralModel() const { return m_proceduralModel.get(); }
     const std::string& getModelPath() const { return m_modelPath; }
     UID getModelUID() const { return m_modelUID; }
+    std::vector<MeshEntry>& getEntries() { return m_entries; }
     const std::vector<MeshEntry>& getEntries() const { return m_entries; }
 
     void computeLocalAABB();

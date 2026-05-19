@@ -276,6 +276,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                         e.materialUID = src.materialUID;
                         e.meshRes = src.meshRes;
                         e.materialRes = src.materialRes;
+                        e.material = src.instanceMaterial.get(); // forward per-instance edits
                         e.materialCB = src.materialCB;
                         memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));
                         ownedEntries.push_back(std::move(e));
@@ -300,7 +301,9 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     opaqueMeshes.reserve(visibleMeshes.size());
     translucentMeshes.reserve(visibleMeshes.size());
     for (MeshEntry* e : visibleMeshes) {
-        const Material* mat = e->materialRes ? e->materialRes->getMaterial() : e->material;
+        const Material* mat = e->instanceMaterial.get();
+        if (!mat) mat = e->material;
+        if (!mat && e->materialRes) mat = e->materialRes->getMaterial();
         bool isTranslucent = mat && mat->getData().baseColor.w < 0.999f;
         (isTranslucent ? translucentMeshes : opaqueMeshes).push_back(e);
     }

@@ -155,9 +155,9 @@ void GBufferPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj
         world.Invert(inv);
         inst.normalMatrix = inv;
 
-        const Material* mat = nullptr;
-        if (entry.materialRes) mat = entry.materialRes->getMaterial();
-        else if (entry.material) mat = entry.material;
+        const Material* mat = entry.instanceMaterial.get();
+        if (!mat) mat = entry.material;
+        if (!mat && entry.materialRes) mat = entry.materialRes->getMaterial();
         inst.material = toGpuMaterial(mat);
 
         memcpy(static_cast<char*>(m_instanceMapped) + (UINT64)slot * instSz, &inst, sizeof(inst));
@@ -210,9 +210,9 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
             cmd->SetGraphicsRootConstantBufferView(GBufferPipeline::SLOT_INSTANCE_CB, instVA);
 
             ShaderTableDesc& matTable = m_matRing[slot];
-            const Material* mat = nullptr;
-            if (entry->materialRes) mat = entry->materialRes->getMaterial();
-            else if (entry->material) mat = entry->material;
+            const Material* mat = entry->instanceMaterial.get();
+            if (!mat) mat = entry->material;
+            if (!mat && entry->materialRes) mat = entry->materialRes->getMaterial();
 
             writeFallbackSRV(matTable, 0, m_fallbackTex.Get());
             writeFallbackSRV(matTable, 1, m_fallbackTex.Get());

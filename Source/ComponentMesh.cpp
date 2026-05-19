@@ -48,8 +48,15 @@ static ComPtr<ID3D12Resource> makeMaterialCB(const Material::Data& data) {
 }
 
 void ComponentMesh::rebuildEntry(MeshEntry& e) {
-    Material::Data data = {};
-    if (e.materialRes && e.materialRes->getMaterial()) data = e.materialRes->getMaterial()->getData();
+    // Initialise the per-instance material copy the first time (or after a reset).
+    // Subsequent calls (e.g. from markMaterialsDirty) reuse the existing copy so
+    // that in-editor changes to one instance are not clobbered.
+    if (!e.instanceMaterial) {
+        e.instanceMaterial = std::make_unique<Material>();
+        if (e.materialRes && e.materialRes->getMaterial())
+            *e.instanceMaterial = *e.materialRes->getMaterial();
+    }
+    Material::Data data = e.instanceMaterial ? e.instanceMaterial->getData() : Material::Data{};
     if (e.materialCB) m_deferredRelease.push_back(std::move(e.materialCB));
     e.materialCB = makeMaterialCB(data);
 }
@@ -202,6 +209,7 @@ void ComponentMesh::overrideMaterial(int slot, UID materialUID) {
     if (slot < 0 || slot >= (int)m_entries.size()) return;
     MeshEntry& e = m_entries[slot];
     if (e.materialRes) { app->getResources()->ReleaseResource(e.materialRes); e.materialRes = nullptr; }
+    e.instanceMaterial.reset(); // force re-initialisation from the new resource
     e.materialUID = materialUID;
     if (materialUID != 0) e.materialRes = app->getResources()->RequestMaterial(materialUID);
     rebuildEntry(e);

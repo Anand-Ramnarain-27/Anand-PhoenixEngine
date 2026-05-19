@@ -476,10 +476,12 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
     ImGui::Spacing();
     ImGui::SeparatorText("Materials");
 
-    const auto& entries = mesh->getEntries();
+    auto& entries = mesh->getEntries();
     for (int mi = 0; mi < (int)entries.size(); ++mi) {
-        const MeshEntry& e = entries[mi];
-        Material* mat = (e.materialRes ? e.materialRes->getMaterial() : nullptr);
+        MeshEntry& e = entries[mi];
+        Material* mat = e.instanceMaterial.get();
+        if (!mat) mat = e.material;
+        if (!mat && e.materialRes) mat = e.materialRes->getMaterial();
         if (!mat) { ImGui::PushID(mi); ImGui::TextDisabled("Submesh %d  � no material", mi); ImGui::PopID(); continue; }
         Material::Data& data = mat->getData();
 
