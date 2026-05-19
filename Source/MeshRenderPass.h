@@ -24,7 +24,16 @@ public:
 
 	bool init(ID3D12Device* device, bool useMSAA = false);
 
-	void render(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes, const FrameLightData& lights, const Vector3& cameraPos, const Matrix& viewProj, const EnvironmentSystem* env, int samplerType = 0);
+	void render(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
+	            const FrameLightData& lights, const Vector3& cameraPos,
+	            const Matrix& viewProj, const EnvironmentSystem* env, int samplerType = 0);
+
+	// Renders with the transparent PSO (alpha blend, depth test, no depth write).
+	// Uses the upper half of the instance ring so it can be called after render()
+	// in the same frame without slot overlap.
+	void renderTransparent(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
+	                       const FrameLightData& lights, const Vector3& cameraPos,
+	                       const Matrix& viewProj, const EnvironmentSystem* env, int samplerType = 0);
 
 	MeshPipeline& getPipeline() {
 		return m_pipeline;
@@ -40,9 +49,19 @@ private:
 	void uploadPerFrameCB(const FrameLightData& lights, const Vector3& cameraPos, uint32_t envRoughLevels);
 	void writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj, UINT slot, D3D12_GPU_VIRTUAL_ADDRESS& outMvpVA, D3D12_GPU_VIRTUAL_ADDRESS& outInstVA);
 
+	// Core rendering implementation — selects PSO and uses [slotBase, slotBase+maxSlots) from the ring
+	void renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pso,
+	                   const std::vector<MeshEntry*>& meshes,
+	                   const FrameLightData& lights, const Vector3& cameraPos,
+	                   const Matrix& viewProj, const EnvironmentSystem* env,
+	                   int samplerType, UINT slotBase, UINT maxSlots);
+
 	MeshPipeline m_pipeline;
 
-	static constexpr UINT MAX_INSTANCES = 512;
+	// Ring is split: opaque uses [0, MAX_OPAQUE), transparent uses [MAX_OPAQUE, MAX_INSTANCES)
+	static constexpr UINT MAX_OPAQUE       = 256;
+	static constexpr UINT MAX_TRANSPARENT  = 256;
+	static constexpr UINT MAX_INSTANCES    = MAX_OPAQUE + MAX_TRANSPARENT;
 
 	ComPtr<ID3D12Resource> m_mvpRing;
 	void* m_mvpMapped = nullptr;

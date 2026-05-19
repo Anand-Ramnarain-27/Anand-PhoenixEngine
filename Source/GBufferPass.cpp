@@ -171,66 +171,68 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
                           const std::vector<MeshEntry*>& meshes,
                           const Matrix& viewProj,
                           uint32_t width, uint32_t height) {
-    if (meshes.empty() || width == 0 || height == 0) return;
+    if (width == 0 || height == 0) return;
 
     m_gbuffer.resize(width, height);
 
     BEGIN_EVENT(cmd, L"GBuffer Geometry Pass");
 
+    // Always clear GBuffer and transition depth — transparent pass depends on cleared depth
     m_gbuffer.beginGeomPass(cmd);
 
-    cmd->SetPipelineState(m_pipeline.getPSO());
-    cmd->SetGraphicsRootSignature(m_pipeline.getRootSig());
+    if (!meshes.empty()) {
+        cmd->SetPipelineState(m_pipeline.getPSO());
+        cmd->SetGraphicsRootSignature(m_pipeline.getRootSig());
 
-    auto* samplerHeap = app->getSamplerHeap();
-    ID3D12DescriptorHeap* heaps[] = {
-        app->getShaderDescriptors()->getHeap(),
-        samplerHeap->getHeap()
-    };
-    cmd->SetDescriptorHeaps(2, heaps);
-    cmd->SetGraphicsRootDescriptorTable(GBufferPipeline::SLOT_SAMPLER,
-                                         samplerHeap->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));
+        auto* samplerHeap = app->getSamplerHeap();
+        ID3D12DescriptorHeap* heaps[] = {
+            app->getShaderDescriptors()->getHeap(),
+            samplerHeap->getHeap()
+        };
+        cmd->SetDescriptorHeaps(2, heaps);
+        cmd->SetGraphicsRootDescriptorTable(GBufferPipeline::SLOT_SAMPLER,
+                                             samplerHeap->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));
 
-    UINT slot = 0;
-    for (MeshEntry* entry : meshes) {
-        if (!entry) continue;
-        Mesh* mesh = entry->meshRes ? entry->meshRes->getMesh() : entry->mesh;
-        if (!mesh) continue;
-        if (slot >= MAX_INSTANCES) {
-            LOG("GBufferPass: MAX_INSTANCES exceeded");
-            break;
+        UINT slot = 0;
+        for (MeshEntry* entry : meshes) {
+            if (!entry) continue;
+            Mesh* mesh = entry->meshRes ? entry->meshRes->getMesh() : entry->mesh;
+            if (!mesh) continue;
+            if (slot >= MAX_INSTANCES) {
+                LOG("GBufferPass: MAX_INSTANCES exceeded");
+                break;
+            }
+
+            D3D12_GPU_VIRTUAL_ADDRESS mvpVA, instVA;
+            writePerDrawCBs(*entry, viewProj, slot, mvpVA, instVA);
+
+            cmd->SetGraphicsRootConstantBufferView(GBufferPipeline::SLOT_MVP_CB,      mvpVA);
+            cmd->SetGraphicsRootConstantBufferView(GBufferPipeline::SLOT_INSTANCE_CB, instVA);
+
+            ShaderTableDesc& matTable = m_matRing[slot];
+            const Material* mat = nullptr;
+            if (entry->materialRes) mat = entry->materialRes->getMaterial();
+            else if (entry->material) mat = entry->material;
+
+            writeFallbackSRV(matTable, 0, m_fallbackTex.Get());
+            writeFallbackSRV(matTable, 1, m_fallbackTex.Get());
+            writeFallbackSRV(matTable, 2, m_fallbackTex.Get());
+            writeFallbackSRV(matTable, 3, m_fallbackTex.Get());
+            writeFallbackSRV(matTable, 4, m_fallbackTex.Get());
+
+            if (mat) {
+                if (mat->hasTexture()      && mat->getBaseColorResource())   writeTex2DSRV(matTable, 0, mat->getBaseColorResource());
+                if (mat->hasMetalRoughMap()&& mat->getMetalRoughResource())  writeTex2DSRV(matTable, 1, mat->getMetalRoughResource());
+                if (mat->hasNormalMap()    && mat->getNormalMapResource())   writeTex2DSRV(matTable, 2, mat->getNormalMapResource());
+                if (mat->hasAOMap()        && mat->getAOMapResource())       writeTex2DSRV(matTable, 3, mat->getAOMapResource());
+                if (mat->hasEmissive()     && mat->getEmissiveResource())    writeTex2DSRV(matTable, 4, mat->getEmissiveResource());
+            }
+
+            cmd->SetGraphicsRootDescriptorTable(GBufferPipeline::SLOT_MAT_TEXTURES,
+                                                 matTable.getGPUHandle(0));
+            mesh->draw(cmd);
+            ++slot;
         }
-
-        D3D12_GPU_VIRTUAL_ADDRESS mvpVA, instVA;
-        writePerDrawCBs(*entry, viewProj, slot, mvpVA, instVA);
-
-        cmd->SetGraphicsRootConstantBufferView(GBufferPipeline::SLOT_MVP_CB,      mvpVA);
-        cmd->SetGraphicsRootConstantBufferView(GBufferPipeline::SLOT_INSTANCE_CB, instVA);
-
-        ShaderTableDesc& matTable = m_matRing[slot];
-        const Material* mat = nullptr;
-        if (entry->materialRes) mat = entry->materialRes->getMaterial();
-        else if (entry->material) mat = entry->material;
-
-        // Reset to fallback then override with real textures
-        writeFallbackSRV(matTable, 0, m_fallbackTex.Get());
-        writeFallbackSRV(matTable, 1, m_fallbackTex.Get());
-        writeFallbackSRV(matTable, 2, m_fallbackTex.Get());
-        writeFallbackSRV(matTable, 3, m_fallbackTex.Get());
-        writeFallbackSRV(matTable, 4, m_fallbackTex.Get());
-
-        if (mat) {
-            if (mat->hasTexture()      && mat->getBaseColorResource())   writeTex2DSRV(matTable, 0, mat->getBaseColorResource());
-            if (mat->hasMetalRoughMap()&& mat->getMetalRoughResource())  writeTex2DSRV(matTable, 1, mat->getMetalRoughResource());
-            if (mat->hasNormalMap()    && mat->getNormalMapResource())   writeTex2DSRV(matTable, 2, mat->getNormalMapResource());
-            if (mat->hasAOMap()        && mat->getAOMapResource())       writeTex2DSRV(matTable, 3, mat->getAOMapResource());
-            if (mat->hasEmissive()     && mat->getEmissiveResource())    writeTex2DSRV(matTable, 4, mat->getEmissiveResource());
-        }
-
-        cmd->SetGraphicsRootDescriptorTable(GBufferPipeline::SLOT_MAT_TEXTURES,
-                                             matTable.getGPUHandle(0));
-        mesh->draw(cmd);
-        ++slot;
     }
 
     m_gbuffer.endGeomPass(cmd);

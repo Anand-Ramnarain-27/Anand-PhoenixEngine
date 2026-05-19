@@ -93,18 +93,16 @@ public:
 	bool init(ID3D12Device* device, bool useMSAA = false);
 	void bindIBL(ID3D12GraphicsCommandList* cmd, const EnvironmentSystem* env) const;
 
-	ID3D12PipelineState* getPSO() const {
-		return m_pso.Get();
-	}
-
-	ID3D12RootSignature* getRootSig() const {
-		return m_rootSig.Get();
-	}
+	ID3D12PipelineState* getPSO()            const { return m_pso.Get(); }
+	ID3D12PipelineState* getTransparentPSO() const { return m_transparentPso.Get(); }
+	ID3D12RootSignature* getRootSig()        const { return m_rootSig.Get(); }
 
 private:
 	bool createRootSignature(ID3D12Device* device);
 	bool createPSO(ID3D12Device* device, bool useMSAA);
+	bool createTransparentPSO(ID3D12Device* device);
 
 	ComPtr<ID3D12RootSignature> m_rootSig;
 	ComPtr<ID3D12PipelineState> m_pso;
+	ComPtr<ID3D12PipelineState> m_transparentPso;
 };

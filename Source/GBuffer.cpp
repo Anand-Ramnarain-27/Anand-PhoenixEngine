@@ -73,11 +73,18 @@ void GBuffer::resize(uint32_t w, uint32_t h) {
         m_depthTexture->SetName(L"GBuffer_Depth");
     }
 
-    // DSV with concrete D32_FLOAT format
+    // DSV with concrete D32_FLOAT format (writable)
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
     dsvDesc.Format        = DXGI_FORMAT_D32_FLOAT;
     dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     m_dsvDesc = dsd->create(m_depthTexture.Get(), &dsvDesc);
+
+    // Read-only DSV — used by the transparent forward pass (depth test, no depth write)
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsvRODesc = {};
+    dsvRODesc.Format        = DXGI_FORMAT_D32_FLOAT;
+    dsvRODesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    dsvRODesc.Flags         = D3D12_DSV_FLAG_READ_ONLY_DEPTH;
+    m_dsvReadOnly = dsd->create(m_depthTexture.Get(), &dsvRODesc);
 
     // SRV for sampling depth as R32_FLOAT in the deferred lighting pass
     m_depthSrvTable = sd->allocTable("GBuffer_DepthSRV");
@@ -96,6 +103,7 @@ void GBuffer::release() {
     }
     if (m_depthTexture) gpuRes->deferRelease(m_depthTexture);
     m_dsvDesc.reset();
+    m_dsvReadOnly.reset();
     m_depthSrvTable.reset();
     m_depthReadable = false;
     m_width  = 0;
@@ -171,4 +179,8 @@ D3D12_GPU_DESCRIPTOR_HANDLE GBuffer::getDepthSrvHandle() const {
 
 D3D12_CPU_DESCRIPTOR_HANDLE GBuffer::getDsvHandle() const {
     return m_dsvDesc.getCPUHandle();
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE GBuffer::getReadOnlyDsvHandle() const {
+    return m_dsvReadOnly.getCPUHandle();
 }

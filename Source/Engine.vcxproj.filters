@@ -736,6 +736,9 @@
     <FxCompile Include="shaders\PBRForwardPS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
+    <FxCompile Include="shaders\TransparentForwardPS.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
     <FxCompile Include="shaders\PBRForwardVS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>

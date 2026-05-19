@@ -292,14 +292,26 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
 
     const Matrix viewProj = view * proj;
 
-    // GBuffer geometry pass — fills albedo / normalMetalRough / emissiveAO / depth MRTs
-    if (m_gbufferPass && !visibleMeshes.empty()) {
-        m_gbufferPass->render(cmd, visibleMeshes, viewProj, w, h);
+    // Split into opaque and translucent lists
+    std::vector<MeshEntry*> opaqueMeshes;
+    std::vector<MeshEntry*> translucentMeshes;
+    opaqueMeshes.reserve(visibleMeshes.size());
+    translucentMeshes.reserve(visibleMeshes.size());
+    for (MeshEntry* e : visibleMeshes) {
+        const Material* mat = e->materialRes ? e->materialRes->getMaterial() : e->material;
+        bool isTranslucent = mat && mat->getData().baseColor.a < 0.999f;
+        (isTranslucent ? translucentMeshes : opaqueMeshes).push_back(e);
+    }
+
+    // GBuffer geometry pass — fills albedo / normalMetalRough / emissiveAO / depth MRTs.
+    // Always run even for translucent-only frames so depth is cleared and in DEPTH_READ state.
+    if (m_gbufferPass && (!opaqueMeshes.empty() || !translucentMeshes.empty())) {
+        m_gbufferPass->render(cmd, opaqueMeshes, viewProj, w, h);
 
         // Rebind the output render target — GBuffer pass changed OMSetRenderTargets
         if (outputRT && outputRT->isValid()) {
-            auto rtv   = outputRT->getRtvHandle();
-            auto dsv   = outputRT->getDsvHandle();
+            auto rtv    = outputRT->getRtvHandle();
+            auto dsv    = outputRT->getDsvHandle();
             bool hasDsv = outputRT->getDepthTexture() != nullptr;
             cmd->OMSetRenderTargets(1, &rtv, FALSE, hasDsv ? &dsv : nullptr);
             D3D12_VIEWPORT vp = { 0.f, 0.f, float(w), float(h), 0.f, 1.f };
@@ -317,10 +329,39 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                                             envForIBL, w, h);
         }
 
+        // Transparent forward pass — sorted back-to-front, depth test only (no depth write)
+        if (!translucentMeshes.empty() && m_meshRenderPass && outputRT && outputRT->isValid()) {
+            // Sort furthest-first for correct alpha blending
+            const Vector3 camPos = camera->getPos();
+            std::sort(translucentMeshes.begin(), translucentMeshes.end(),
+                      [&camPos](const MeshEntry* a, const MeshEntry* b) {
+                          Matrix wa, wb;
+                          memcpy(&wa, a->worldMatrix, sizeof(float) * 16);
+                          memcpy(&wb, b->worldMatrix, sizeof(float) * 16);
+                          float da = Vector3::DistanceSquared(wa.Translation(), camPos);
+                          float db = Vector3::DistanceSquared(wb.Translation(), camPos);
+                          return da > db;
+                      });
+
+            // Bind scene RT + GBuffer read-only depth (DEPTH_READ state, no writes allowed)
+            auto rtv    = outputRT->getRtvHandle();
+            auto roDsv  = m_gbufferPass->getGBuffer().getReadOnlyDsvHandle();
+            cmd->OMSetRenderTargets(1, &rtv, FALSE, &roDsv);
+            D3D12_VIEWPORT vp = { 0.f, 0.f, float(w), float(h), 0.f, 1.f };
+            D3D12_RECT     sc = { 0, 0, LONG(w), LONG(h) };
+            cmd->RSSetViewports(1, &vp);
+            cmd->RSSetScissorRects(1, &sc);
+
+            BEGIN_EVENT(cmd, L"Forward Transparent Pass");
+            m_meshRenderPass->renderTransparent(cmd, translucentMeshes, m_frameLights,
+                                                 camPos, viewProj, envForIBL);
+            END_EVENT(cmd);
+        }
+
         // Restore descriptor heaps for subsequent passes
-        ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap(),
-                                          app->getSamplerHeap()->getHeap() };
-        cmd->SetDescriptorHeaps(2, heaps);
+        ID3D12DescriptorHeap* heaps2[] = { app->getShaderDescriptors()->getHeap(),
+                                           app->getSamplerHeap()->getHeap() };
+        cmd->SetDescriptorHeaps(2, heaps2);
     }
 
     if (editorExtras) {
