@@ -2,6 +2,7 @@
 #include "SceneImporter.h"
 #include "MeshImporter.h"
 #include "MaterialImporter.h"
+#include "AnimationImporter.h"
 #include "ImporterUtils.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
@@ -112,6 +113,7 @@ bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const
     }
     if (!SaveSceneMetadata(sceneName, gltfModel)) { LOG("SceneImporter: Failed to save scene metadata"); return false; }
     SaveNodeMetadata(sceneName, gltfModel);
+    AnimationImporter::ImportAll(gltfModel, sceneName);
     return true;
 }
 
