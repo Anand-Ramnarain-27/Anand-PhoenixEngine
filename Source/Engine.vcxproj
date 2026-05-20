@@ -266,6 +266,7 @@
     <ClInclude Include="Resource.h" />
     <ClInclude Include="ResourceCommon.h" />
     <ClInclude Include="AnimationController.h" />
+    <ClInclude Include="ComponentAnimation.h" />
     <ClInclude Include="AnimationImporter.h" />
     <ClInclude Include="ResourceAnimation.h" />
     <ClInclude Include="ResourceMaterial.h" />
@@ -421,6 +422,7 @@
     <ClCompile Include="RenderTargetDesc.cpp" />
     <ClCompile Include="RenderTexture.cpp" />
     <ClCompile Include="AnimationController.cpp" />
+    <ClCompile Include="ComponentAnimation.cpp" />
     <ClCompile Include="AnimationImporter.cpp" />
     <ClCompile Include="ResourceAnimation.cpp" />
     <ClCompile Include="ResourceMaterial.cpp" />

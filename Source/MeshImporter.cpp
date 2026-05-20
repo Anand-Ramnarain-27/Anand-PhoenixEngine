@@ -29,6 +29,36 @@ static void readAccessor(const tinygltf::Model& model, const tinygltf::Accessor&
     for (size_t i = 0; i < count; ++i) setFn(i, reinterpret_cast<const float*>(data + i * stride));
 }
 
+namespace {
+struct SkinDataHeader {
+    uint32_t magic       = 0x534B494E; // 'SKIN'
+    uint32_t version     = 1;
+    uint32_t vertexCount = 0;
+    uint32_t pad         = 0;
+};
+
+static bool SaveSkin(uint32_t vertexCount, const std::vector<Mesh::BoneWeight>& bw, const std::string& meshFile) {
+    std::string skinFile = meshFile.substr(0, meshFile.rfind('.')) + ".skin";
+    SkinDataHeader hdr; hdr.vertexCount = vertexCount;
+    std::vector<char> payload(vertexCount * sizeof(Mesh::BoneWeight));
+    memcpy(payload.data(), bw.data(), payload.size());
+    return ImporterUtils::SaveBuffer(skinFile, hdr, payload);
+}
+
+static bool LoadSkin(const std::string& meshFile, std::vector<Mesh::BoneWeight>& outBW) {
+    std::string skinFile = meshFile.substr(0, meshFile.rfind('.')) + ".skin";
+    SkinDataHeader hdr;
+    std::vector<char> raw;
+    if (!ImporterUtils::LoadBuffer(skinFile, hdr, raw)) return false;
+    if (hdr.magic != 0x534B494E || hdr.version == 0 || hdr.vertexCount == 0) return false;
+    size_t expected = sizeof(SkinDataHeader) + hdr.vertexCount * sizeof(Mesh::BoneWeight);
+    if (raw.size() != expected) return false;
+    outBW.resize(hdr.vertexCount);
+    memcpy(outBW.data(), raw.data() + sizeof(SkinDataHeader), hdr.vertexCount * sizeof(Mesh::BoneWeight));
+    return true;
+}
+} // namespace
+
 bool MeshImporter::Import(const tinygltf::Primitive& primitive, const tinygltf::Model& model, const std::string& outputFile) {
     if (!primitive.attributes.count("POSITION")) return false;
     const auto& posAcc = model.accessors[primitive.attributes.at("POSITION")];
@@ -57,6 +87,37 @@ bool MeshImporter::Import(const tinygltf::Primitive& primitive, const tinygltf::
             else { LOG("MeshImporter: Unsupported index format"); return false; }
         }
     }
+    // JOINTS_0 + WEIGHTS_0 — per-vertex skinning data
+    std::vector<Mesh::BoneWeight> boneWeights;
+    if (primitive.attributes.count("JOINTS_0") && primitive.attributes.count("WEIGHTS_0")) {
+        boneWeights.resize(vertexCount);
+
+        // JOINTS_0: VEC4 of UNSIGNED_BYTE or UNSIGNED_SHORT
+        const auto& jointsAcc = model.accessors[primitive.attributes.at("JOINTS_0")];
+        const unsigned char* jData = accessorData(model, jointsAcc);
+        const bool isUByte = (jointsAcc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE);
+        const size_t jDefStride = isUByte ? 4 : 8;
+        const size_t jStride = accessorStride(model, jointsAcc, jDefStride);
+        for (size_t i = 0; i < vertexCount; ++i) {
+            const unsigned char* e = jData + i * jStride;
+            if (isUByte) {
+                boneWeights[i].indices[0] = e[0]; boneWeights[i].indices[1] = e[1];
+                boneWeights[i].indices[2] = e[2]; boneWeights[i].indices[3] = e[3];
+            } else {
+                const uint16_t* us = reinterpret_cast<const uint16_t*>(e);
+                boneWeights[i].indices[0] = us[0]; boneWeights[i].indices[1] = us[1];
+                boneWeights[i].indices[2] = us[2]; boneWeights[i].indices[3] = us[3];
+            }
+        }
+
+        // WEIGHTS_0: VEC4 of FLOAT
+        readAccessor<float>(model, model.accessors[primitive.attributes.at("WEIGHTS_0")],
+            sizeof(float) * 4, vertexCount, [&](size_t i, const float* e) {
+                boneWeights[i].weights[0] = e[0]; boneWeights[i].weights[1] = e[1];
+                boneWeights[i].weights[2] = e[2]; boneWeights[i].weights[3] = e[3];
+            });
+    }
+
     MeshHeader header;
     header.vertexCount = (uint32_t)vertices.size();
     header.indexCount = (uint32_t)indices.size();
@@ -66,7 +127,10 @@ bool MeshImporter::Import(const tinygltf::Primitive& primitive, const tinygltf::
     {
         header.materialIndex = -1;
     }
-    return Save(header, vertices, indices, outputFile);
+    bool ok = Save(header, vertices, indices, outputFile);
+    if (ok && !boneWeights.empty())
+        SaveSkin(header.vertexCount, boneWeights, outputFile);
+    return ok;
 }
 
 static bool LoadRaw(const std::string& file, MeshImporter::MeshHeader& header, std::vector<Mesh::Vertex>& vertices, std::vector<uint32_t>& indices) {
@@ -98,6 +162,9 @@ bool MeshImporter::Load(const std::string& file, ID3D12GraphicsCommandList* cmd,
     if (!LoadRaw(file, header, vertices, indices)) return false;
     outMesh = std::make_unique<Mesh>();
     outMesh->setData(cmd, staticBuffer, vertices, indices, header.materialIndex);
+    std::vector<Mesh::BoneWeight> boneWeights;
+    if (LoadSkin(file, boneWeights))
+        outMesh->setBoneWeights(cmd, staticBuffer, boneWeights);
     return true;
 }
 
@@ -108,6 +175,9 @@ bool MeshImporter::Load(const std::string& file, std::unique_ptr<Mesh>& outMesh)
     if (!LoadRaw(file, header, vertices, indices)) return false;
     outMesh = std::make_unique<Mesh>();
     outMesh->setData(vertices, indices, header.materialIndex);
+    std::vector<Mesh::BoneWeight> boneWeights;
+    if (LoadSkin(file, boneWeights))
+        outMesh->setBoneWeights(nullptr, nullptr, boneWeights);  // CPU-side only; GPU upload deferred to uploadToGPU
     return true;
 }
 

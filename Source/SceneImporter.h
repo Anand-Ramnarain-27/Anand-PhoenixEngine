@@ -19,12 +19,19 @@ public:
 
     struct NodeInfo {
         std::string name;
-        int         parentIndex;   // -1 = root
-        int         meshFileStart; // -1 = no mesh
-        int         meshFileCount;
+        int         parentIndex   = -1; // -1 = root
+        int         meshFileStart = -1; // -1 = no mesh
+        int         meshFileCount = 0;
+        int         skinIndex     = -1; // -1 = not skinned
         Vector3     translation;
         Quaternion  rotation;
         Vector3     scale;
+    };
+
+    struct SkinInfo {
+        std::string         name;
+        std::vector<int>    jointNodeIndices;   // node indices of each joint
+        std::vector<Matrix> inverseBindMatrices; // row-major, one per joint
     };
 
     static bool ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const std::string& sceneName, const std::string& basePath);
@@ -32,9 +39,11 @@ public:
     static bool LoadSceneMetadata(const std::string& sceneName, SceneHeader& header);
     static bool LoadNodeTree(const std::string& sceneName, std::vector<NodeInfo>& outNodes);
     static bool LoadMaterialIndices(const std::string& sceneName, std::vector<int>& outMatIndices);
+    static bool LoadSkins(const std::string& sceneName, std::vector<SkinInfo>& outSkins);
 
 private:
     static bool CreateSceneDirectory(const std::string& sceneName);
     static bool SaveSceneMetadata(const std::string& sceneName, const tinygltf::Model& gltfModel);
     static bool SaveNodeMetadata(const std::string& sceneName, const tinygltf::Model& gltfModel);
+    static bool SaveSkinMetadata(const std::string& sceneName, const tinygltf::Model& gltfModel);
 };

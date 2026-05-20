@@ -12,6 +12,11 @@ const D3D12_INPUT_ELEMENT_DESC Mesh::InputLayout[4] = {
     { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 };
 
+const D3D12_INPUT_ELEMENT_DESC Mesh::BoneWeightInputLayout[2] = {
+    { "BLENDINDICES", 0, DXGI_FORMAT_R32G32B32A32_SINT,  1, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "BLENDWEIGHT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+};
+
 void Mesh::setData(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, int materialIndex) {
     m_vertices = vertices;
     m_indices = indices;
@@ -40,6 +45,14 @@ void Mesh::setData(const std::vector<Vertex>& vertices, const std::vector<uint32
     computeAABB();
 }
 
+void Mesh::setBoneWeights(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer, const std::vector<BoneWeight>& boneWeights) {
+    m_boneWeights = boneWeights;
+    if (!cmd || !staticBuffer || boneWeights.empty()) return;
+    const size_t sz = boneWeights.size() * sizeof(BoneWeight);
+    m_boneWeightBufferView = staticBuffer->allocVertexBuffer(cmd, boneWeights.data(), sz, sizeof(BoneWeight), "MeshBoneWeightVB");
+    m_hasBoneWeightBuffer = (m_boneWeightBufferView.BufferLocation != 0);
+}
+
 void Mesh::uploadToGPU(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer) {
     if (m_hasVertexBuffer || !staticBuffer || m_vertices.empty()) return;
     m_vertexBufferView = staticBuffer->allocVertexBuffer(cmd, m_vertices.data(), m_vertices.size() * sizeof(Vertex), sizeof(Vertex), "MeshVB");
@@ -48,12 +61,19 @@ void Mesh::uploadToGPU(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* stati
         m_indexBufferView = staticBuffer->allocIndexBuffer(cmd, m_indices.data(), m_indices.size() * sizeof(uint32_t), DXGI_FORMAT_R32_UINT, "MeshIB");
         m_hasIndexBuffer = (m_indexBufferView.BufferLocation != 0);
     }
+    if (!m_hasBoneWeightBuffer && !m_boneWeights.empty()) {
+        const size_t sz = m_boneWeights.size() * sizeof(BoneWeight);
+        m_boneWeightBufferView = staticBuffer->allocVertexBuffer(cmd, m_boneWeights.data(), sz, sizeof(BoneWeight), "MeshBoneWeightVB");
+        m_hasBoneWeightBuffer = (m_boneWeightBufferView.BufferLocation != 0);
+    }
 }
 
 void Mesh::draw(ID3D12GraphicsCommandList* cmdList) const {
     if (m_hasVertexBuffer) {
         cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         cmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+        if (m_hasBoneWeightBuffer)
+            cmdList->IASetVertexBuffers(1, 1, &m_boneWeightBufferView);
         if (m_hasIndexBuffer) { cmdList->IASetIndexBuffer(&m_indexBufferView); cmdList->DrawIndexedInstanced(getIndexCount(), 1, 0, 0, 0); }
         else cmdList->DrawInstanced(getVertexCount(), 1, 0, 0);
         return;

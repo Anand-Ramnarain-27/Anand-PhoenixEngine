@@ -1,0 +1,26 @@
+#pragma once
+#include "Component.h"
+#include "AnimationController.h"
+#include "ResourceCommon.h"
+
+class ComponentAnimation final : public Component {
+public:
+    explicit ComponentAnimation(GameObject* owner);
+    ~ComponentAnimation() override = default;
+
+    void OnPlay(UID uid, bool loop = false);
+    void OnStop();
+
+    void update(float deltaTime) override;
+    void onSave(std::string& outJson) const override;
+    void onLoad(const std::string& json) override;
+    Type getType() const override { return Type::Animation; }
+
+    AnimationController& getController() { return m_controller; }
+    const AnimationController& getController() const { return m_controller; }
+
+private:
+    void applyAnimation(GameObject* go, const Matrix& parentWorld);
+
+    AnimationController m_controller;
+};

@@ -18,8 +18,17 @@ public:
         Vector4 tangent;
     };
 
+    struct BoneWeight {
+        int   indices[4] = {0, 0, 0, 0};
+        float weights[4] = {0.f, 0.f, 0.f, 0.f};
+    };
+
     static const D3D12_INPUT_ELEMENT_DESC InputLayout[4];
     static const UINT InputLayoutCount = 4;
+
+    // Bone weight buffer layout: bound to input slot 1
+    static const D3D12_INPUT_ELEMENT_DESC BoneWeightInputLayout[2];
+    static const UINT BoneWeightInputLayoutCount = 2;
 
     Mesh() = default;
     ~Mesh() = default;
@@ -28,6 +37,7 @@ public:
 
     void setData(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, int materialIndex);
     void setData(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, int materialIndex);
+    void setBoneWeights(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer, const std::vector<BoneWeight>& boneWeights);
     void uploadToGPU(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer);
     void draw(ID3D12GraphicsCommandList* cmdList) const;
 
@@ -37,6 +47,8 @@ public:
 
     const std::vector<Vertex>& getVertices() const { return m_vertices; }
     const std::vector<uint32_t>& getIndices() const { return m_indices; }
+    const std::vector<BoneWeight>& getBoneWeights() const { return m_boneWeights; }
+    bool hasBoneWeights() const { return m_hasBoneWeightBuffer || !m_boneWeights.empty(); }
 
     const Vector3& getAABBMin() const { return m_aabbMin; }
     const Vector3& getAABBMax() const { return m_aabbMax; }
@@ -55,6 +67,10 @@ private:
     D3D12_INDEX_BUFFER_VIEW m_indexBufferView = {};
     bool m_hasVertexBuffer = false;
     bool m_hasIndexBuffer = false;
+
+    std::vector<BoneWeight>  m_boneWeights;
+    D3D12_VERTEX_BUFFER_VIEW m_boneWeightBufferView = {};
+    bool                     m_hasBoneWeightBuffer = false;
 
     ComPtr<ID3D12Resource> m_legacyVertexBuffer;
     ComPtr<ID3D12Resource> m_legacyIndexBuffer;
