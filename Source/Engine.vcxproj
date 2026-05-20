@@ -267,6 +267,7 @@
     <ClInclude Include="ResourceCommon.h" />
     <ClInclude Include="AnimationController.h" />
     <ClInclude Include="ComponentAnimation.h" />
+    <ClInclude Include="SkinningPass.h" />
     <ClInclude Include="AnimationImporter.h" />
     <ClInclude Include="ResourceAnimation.h" />
     <ClInclude Include="ResourceMaterial.h" />
@@ -423,6 +424,7 @@
     <ClCompile Include="RenderTexture.cpp" />
     <ClCompile Include="AnimationController.cpp" />
     <ClCompile Include="ComponentAnimation.cpp" />
+    <ClCompile Include="SkinningPass.cpp" />
     <ClCompile Include="AnimationImporter.cpp" />
     <ClCompile Include="ResourceAnimation.cpp" />
     <ClCompile Include="ResourceMaterial.cpp" />
@@ -549,6 +551,10 @@
     <FxCompile Include="shaders\SkyboxVS.hlsl">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="shaders\SkinningCS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
     </FxCompile>
   </ItemGroup>

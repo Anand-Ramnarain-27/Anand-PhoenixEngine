@@ -50,6 +50,10 @@ public:
     const std::vector<BoneWeight>& getBoneWeights() const { return m_boneWeights; }
     bool hasBoneWeights() const { return m_hasBoneWeightBuffer || !m_boneWeights.empty(); }
 
+    // GPU virtual addresses — valid after uploadToGPU() or setData() with a command list.
+    D3D12_GPU_VIRTUAL_ADDRESS getVertexBufferVA()     const { return m_vertexBufferView.BufferLocation; }
+    D3D12_GPU_VIRTUAL_ADDRESS getBoneWeightBufferVA() const { return m_boneWeightBufferView.BufferLocation; }
+
     const Vector3& getAABBMin() const { return m_aabbMin; }
     const Vector3& getAABBMax() const { return m_aabbMax; }
     bool hasAABB() const { return m_hasAABB; }
