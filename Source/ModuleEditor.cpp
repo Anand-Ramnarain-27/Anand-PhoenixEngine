@@ -693,21 +693,34 @@ GameObject* ModuleEditor::spawnModel(const std::string& path) {
         return nullptr;
     }
 
+    // Use the hierarchy system when node metadata is available and the model has
+    // multiple mesh nodes (multi-node GLTF). For anything else — single-mesh models,
+    // older imports without nodes.meta, or non-GLTF formats — fall back to the
+    // simple single-GameObject path so they still load correctly.
     ResourceModel* model = app->getResources()->RequestModel(uid);
-    if (!model) {
-        log(("Failed to load model: " + stem).c_str(), EditorColors::Danger);
-        return nullptr;
+    if (model) {
+        int meshNodeCount = 0;
+        for (const auto& n : model->getNodes())
+            if (!n.meshes.empty()) ++meshNodeCount;
+
+        if (meshNodeCount > 1) {
+            GameObject* root = model->spawnIntoScene(scene);
+            app->getResources()->ReleaseResource(model);
+            if (root) {
+                log(("Added: " + stem).c_str(), EditorColors::Success);
+                return root;
+            }
+        } else {
+            app->getResources()->ReleaseResource(model);
+        }
     }
 
-    GameObject* root = model->spawnIntoScene(scene);
-    app->getResources()->ReleaseResource(model);
-
-    if (root)
-        log(("Added: " + stem).c_str(), EditorColors::Success);
-    else
-        log(("Failed to spawn: " + stem).c_str(), EditorColors::Danger);
-
-    return root;
+    // Fallback: no node metadata, single-mesh model, or non-GLTF format
+    GameObject* go = scene->createGameObject(stem);
+    bool ok = go->createComponent<ComponentMesh>()->loadModel(path.c_str());
+    log(ok ? ("Added: " + stem).c_str() : ("Failed: " + path).c_str(),
+        ok ? EditorColors::Success : EditorColors::Danger);
+    return ok ? go : nullptr;
 }
 
 bool ModuleEditor::isChildOf(const GameObject* root, const GameObject* needle) {
