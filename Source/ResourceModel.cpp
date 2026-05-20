@@ -3,6 +3,7 @@
 #include "SceneImporter.h"
 #include "ComponentMesh.h"
 #include "ComponentTransform.h"
+#include "ComponentAnimation.h"
 #include "ModuleScene.h"
 #include "ModuleAssets.h"
 #include "Application.h"
@@ -109,6 +110,36 @@ GameObject* ResourceModel::spawnIntoScene(ModuleScene* scene, GameObject* parent
             goList[i]->setParent(goList[p]);
         else
             goList[i]->setParent(root);
+    }
+
+    // Wire up skin data for each mesh node that references a skin.
+    // The Skin is copied into ComponentMesh so that ResourceModel can be released.
+    for (size_t i = 0; i < m_nodes.size(); ++i) {
+        const Node& n = m_nodes[i];
+        if (n.skinIndex < 0 || n.skinIndex >= (int)m_skins.size()) continue;
+        if (!goList[i]) continue;
+        ComponentMesh* cm = goList[i]->getComponent<ComponentMesh>();
+        if (!cm) continue;
+
+        const Skin& skin = m_skins[n.skinIndex];
+        std::vector<GameObject*> joints;
+        joints.reserve(skin.jointNodeIndices.size());
+        for (int ji : skin.jointNodeIndices)
+            joints.push_back((ji >= 0 && ji < (int)goList.size()) ? goList[ji] : nullptr);
+        cm->setSkinData(skin, std::move(joints));
+    }
+
+    // Attach ComponentAnimation to the root if this model has any animations.
+    std::vector<UID> animUIDs;
+    for (int i = 0; ; ++i) {
+        UID uid = app->getAssets()->findSubUID(assetsFile, "anim", i);
+        if (uid == 0) break;
+        animUIDs.push_back(uid);
+    }
+    if (!animUIDs.empty()) {
+        auto* animComp = root->createComponent<ComponentAnimation>();
+        animComp->setAnimationList(animUIDs);
+        animComp->OnPlay(animUIDs[0], /*loop=*/true);
     }
 
     return root;

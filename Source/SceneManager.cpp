@@ -6,6 +6,7 @@
 #include "ModuleScene.h"
 #include "GameObject.h"
 #include "ComponentMesh.h"
+#include "ComponentAnimation.h"
 #include "SceneSerializer.h"
 
 SceneManager::~SceneManager() { clearScene(); }
@@ -55,6 +56,19 @@ void SceneManager::stop() {
 void SceneManager::update(float deltaTime) {
     if (m_editingPrefab) return;
     if (activeScene && state == PlayState::Playing) activeScene->update(deltaTime);
+}
+
+void SceneManager::updateAnimations(float deltaTime) {
+    if (m_editingPrefab) return;
+    if (state == PlayState::Playing) return; // already updated via update()
+    auto* ms = getModuleScene();
+    if (!ms) return;
+    std::function<void(GameObject*)> visit = [&](GameObject* go) {
+        if (!go || !go->isActive()) return;
+        if (auto* anim = go->getComponent<ComponentAnimation>()) anim->update(deltaTime);
+        for (auto* child : go->getChildren()) visit(child);
+    };
+    visit(ms->getRoot());
 }
 
 static void renderModuleScene(ModuleScene* ms, ID3D12GraphicsCommandList* cmd) {

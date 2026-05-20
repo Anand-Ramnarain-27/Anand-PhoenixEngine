@@ -22,5 +22,8 @@ struct MeshEntry {
     std::unique_ptr<Material> instanceMaterial;
     float worldMatrix[16] = { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
     bool isSkinned = false;
+    // Non-zero when isSkinned: GPU VA into SkinningPass output buffer at the
+    // correct vertex offset for this mesh.  Set each frame after dispatch().
+    D3D12_GPU_VIRTUAL_ADDRESS skinnedVA = 0;
     ComPtr<ID3D12Resource> materialCB;
 };

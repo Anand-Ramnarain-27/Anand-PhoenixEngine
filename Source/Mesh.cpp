@@ -91,6 +91,18 @@ void Mesh::draw(ID3D12GraphicsCommandList* cmdList) const {
     else cmdList->DrawInstanced(getVertexCount(), 1, 0, 0);
 }
 
+void Mesh::drawSkinned(ID3D12GraphicsCommandList* cmdList, D3D12_GPU_VIRTUAL_ADDRESS skinnedVA) const {
+    D3D12_VERTEX_BUFFER_VIEW vbv = { skinnedVA, (UINT)(m_vertices.size() * sizeof(Vertex)), sizeof(Vertex) };
+    cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    cmdList->IASetVertexBuffers(0, 1, &vbv);
+    if (m_hasIndexBuffer) {
+        cmdList->IASetIndexBuffer(&m_indexBufferView);
+        cmdList->DrawIndexedInstanced(getIndexCount(), 1, 0, 0, 0);
+    } else {
+        cmdList->DrawInstanced(getVertexCount(), 1, 0, 0);
+    }
+}
+
 void Mesh::createLegacyBuffers() {
     ModuleGPUResources* gpu = app->getGPUResources();
     if (!gpu || m_vertices.empty()) return;

@@ -40,6 +40,10 @@ public:
     void setBoneWeights(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer, const std::vector<BoneWeight>& boneWeights);
     void uploadToGPU(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer);
     void draw(ID3D12GraphicsCommandList* cmdList) const;
+    // Draw using a pre-skinned vertex buffer produced by SkinningPass instead of the
+    // original vertex buffer.  skinnedVA is the GPU VA of the first vertex for this mesh
+    // within SkinningPass::getOutputBuffer() (i.e. already offset by vertexOffset * sizeof(Vertex)).
+    void drawSkinned(ID3D12GraphicsCommandList* cmdList, D3D12_GPU_VIRTUAL_ADDRESS skinnedVA) const;
 
     uint32_t getVertexCount() const { return (uint32_t)m_vertices.size(); }
     uint32_t getIndexCount() const { return (uint32_t)m_indices.size(); }

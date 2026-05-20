@@ -368,7 +368,10 @@ void MeshRenderPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12Pipelin
 
 		cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_MAT_TEXTURES, matTable.getGPUHandle(0));
 
-		mesh->draw(cmd);
+		if (entry->skinnedVA != 0)
+			mesh->drawSkinned(cmd, entry->skinnedVA);
+		else
+			mesh->draw(cmd);
 		++drawn;
 	}
 }

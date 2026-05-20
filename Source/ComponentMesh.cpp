@@ -205,6 +205,12 @@ void ComponentMesh::addMeshEntry(UID meshUID, UID materialUID) {
     m_entries.push_back(std::move(e));
 }
 
+void ComponentMesh::setSkinData(const ResourceModel::Skin& skin, std::vector<GameObject*> joints) {
+    m_localSkin   = skin;
+    m_skinJoints  = std::move(joints);
+    m_hasSkin     = true;
+}
+
 void ComponentMesh::setProceduralModel(std::unique_ptr<Model> model) {
     releaseEntries();
     m_proceduralModel = std::shared_ptr<Model>(std::move(model));

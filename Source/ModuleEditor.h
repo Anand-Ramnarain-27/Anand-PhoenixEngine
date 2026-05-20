@@ -11,6 +11,7 @@
 #include "FileWatcher.h"
 #include "GBufferPass.h"
 #include "DeferredLightingPass.h"
+#include "SkinningPass.h"
 
 #include <memory>
 #include <vector>
@@ -106,6 +107,7 @@ private:
     std::unique_ptr<DeferredLightingPass> m_deferredLightingPass;
     std::unique_ptr<EnvironmentSystem> m_envSystem;
     std::unique_ptr<HotReloadManager> m_hotReload;
+    std::unique_ptr<SkinningPass>    m_skinningPass;
 
     FileWatcher m_scriptWatcher;
 

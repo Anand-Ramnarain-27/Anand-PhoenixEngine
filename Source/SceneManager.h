@@ -27,6 +27,7 @@ public:
     bool isPlaying() const { return state == PlayState::Playing; }
 
     void update(float deltaTime);
+    void updateAnimations(float deltaTime);
     void render(ID3D12GraphicsCommandList* cmd, const ModuleCamera& camera, uint32_t width, uint32_t height);
     void onViewportResized(uint32_t width, uint32_t height);
 

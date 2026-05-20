@@ -1,6 +1,7 @@
 #pragma once
 #include "Component.h"
 #include "MeshEntry.h"
+#include "ResourceModel.h"
 #include <vector>
 #include <string>
 #include <memory>
@@ -45,6 +46,13 @@ public:
     const Vector3& getLocalAABBMax() const { return m_localAABBMax; }
     void getWorldAABB(Vector3& outMin, Vector3& outMax) const;
 
+    // Skinning data — call once when spawning a skinned GLTF model.
+    // skin is copied into this component so ResourceModel can be released.
+    void setSkinData(const ResourceModel::Skin& skin, std::vector<GameObject*> joints);
+    bool hasSkinData() const { return m_hasSkin; }
+    const ResourceModel::Skin& getLocalSkin() const { return m_localSkin; }
+    const std::vector<GameObject*>& getSkinJoints() const { return m_skinJoints; }
+
 private:
     void releaseEntries();
     void rebuildEntry(MeshEntry& e);
@@ -61,4 +69,8 @@ private:
     Vector3 m_localAABBMax = {};
     bool m_hasAABB = false;
     bool m_materialsDirty = false;
+
+    bool m_hasSkin = false;
+    ResourceModel::Skin       m_localSkin;   // owned copy of the skin definition
+    std::vector<GameObject*>  m_skinJoints;  // joint GameObjects in joint-index order (not owned)
 };

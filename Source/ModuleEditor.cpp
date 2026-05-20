@@ -2,6 +2,7 @@
 #include "ModuleEditor.h"
 #include "Application.h"
 #include "ModuleD3D12.h"
+#include "ComponentAnimation.h"
 #include "ModuleShaderDescriptors.h"
 #include "ModuleDSDescriptors.h"
 #include "ModuleRTDescriptors.h"
@@ -43,7 +44,9 @@
 #include "ModuleResources.h"
 #include "ModuleAssets.h"
 #include "Model.h"
+#include "Mesh.h"
 #include "MeshEntry.h"
+#include "ResourceMesh.h"
 #include <d3dx12.h>
 #include <filesystem>
 #include <algorithm>
@@ -104,6 +107,12 @@ bool ModuleEditor::init() {
 
     if (!m_meshRenderPass->init(device)) return false;
 
+    m_skinningPass = std::make_unique<SkinningPass>();
+    if (!m_skinningPass->init(device)) {
+        // Non-fatal: editor runs without GPU skinning
+        m_skinningPass.reset();
+    }
+
     m_gbufferPass = std::make_unique<GBufferPass>();
     if (!m_gbufferPass->init(device)) return false;
 
@@ -149,6 +158,7 @@ bool ModuleEditor::cleanUp() {
     m_sceneManager.reset();
     m_gbufferPass.reset();
     m_deferredLightingPass.reset();
+    if (m_skinningPass) { m_skinningPass->cleanUp(); m_skinningPass.reset(); }
     m_gpuQueryHeap.Reset();
     m_gpuReadback.Reset();
 
@@ -173,7 +183,11 @@ void ModuleEditor::preRender() {
     m_imguiPass->startFrame();
     ImGuizmo::BeginFrame();
     handleShortcuts();
-    if (m_sceneManager) m_sceneManager->update(app->getElapsedMilis() * 0.001f);
+    if (m_sceneManager) {
+        float dt = app->getElapsedMilis() * 0.001f;
+        m_sceneManager->update(dt);
+        m_sceneManager->updateAnimations(dt);
+    }
     m_performance->pushFPS(app->getFPS());
     drawDockspace();
     drawMenuBar();
@@ -261,6 +275,12 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     std::vector<MeshEntry>  ownedEntries;
     std::vector<MeshEntry*> visibleMeshes;
 
+    // Skinning job list built alongside mesh collection
+    std::vector<SkinningPass::SkinJob> skinJobs;
+    std::vector<size_t>                skinJobEntryIdx; // ownedEntries index per job
+    uint32_t curPaletteOffset = 0;
+    uint32_t curVertexOffset  = 0;
+
     if (moduleScene) {
         std::function<void(GameObject*)> collectMeshes = [&](GameObject* node) {
             if (!node || !node->isActive()) return;
@@ -271,16 +291,44 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                     model->buildMeshEntries(nodeWorld, ownedEntries);
                 }
                 else {
+                    const bool isSkinned = m_skinningPass && cm->hasSkinData();
                     for (const auto& src : cm->getEntries()) {
                         if (!src.meshRes || !src.materialRes) continue;
                         MeshEntry e;
-                        e.meshUID = src.meshUID;
+                        e.meshUID     = src.meshUID;
                         e.materialUID = src.materialUID;
-                        e.meshRes = src.meshRes;
+                        e.meshRes     = src.meshRes;
                         e.materialRes = src.materialRes;
-                        e.material = src.instanceMaterial.get(); // forward per-instance edits
-                        e.materialCB = src.materialCB;
-                        memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));
+                        e.material    = src.instanceMaterial.get();
+                        e.materialCB  = src.materialCB;
+
+                        Mesh* mesh = src.meshRes->getMesh();
+                        if (isSkinned && mesh && mesh->hasBoneWeights()) {
+                            e.isSkinned = true;
+                            // skinnedVA filled in after dispatch below
+
+                            // Build joint world matrices for this skin job
+                            const auto& joints = cm->getSkinJoints();
+                            std::vector<Matrix> jointWorlds;
+                            jointWorlds.reserve(joints.size());
+                            for (auto* jgo : joints)
+                                jointWorlds.push_back(jgo ? jgo->getTransform()->getGlobalMatrix() : Matrix::Identity);
+
+                            SkinningPass::SkinJob job;
+                            job.skin               = &cm->getLocalSkin();
+                            job.jointWorldMatrices = std::move(jointWorlds);
+                            job.mesh               = mesh;
+                            job.paletteOffset      = curPaletteOffset;
+                            job.vertexOffset       = curVertexOffset;
+
+                            skinJobEntryIdx.push_back(ownedEntries.size());
+                            skinJobs.push_back(std::move(job));
+
+                            curPaletteOffset += (uint32_t)cm->getLocalSkin().jointNodeIndices.size();
+                            curVertexOffset  += mesh->getVertexCount();
+                        } else {
+                            memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));
+                        }
                         ownedEntries.push_back(std::move(e));
                     }
                 }
@@ -290,6 +338,18 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
         collectMeshes(moduleScene->getRoot());
         visibleMeshes.reserve(ownedEntries.size());
         for (auto& e : ownedEntries) visibleMeshes.push_back(&e);
+    }
+
+    // Dispatch GPU skinning before the geometry pass so skinned vertex buffers are ready
+    if (!skinJobs.empty() && m_skinningPass) {
+        UINT frameIndex = app->getD3D12()->getCurrentBackBufferIdx();
+        m_skinningPass->dispatch(cmd, skinJobs, frameIndex);
+
+        D3D12_GPU_VIRTUAL_ADDRESS outputVA =
+            m_skinningPass->getOutputBuffer(frameIndex)->GetGPUVirtualAddress();
+        for (size_t i = 0; i < skinJobs.size(); ++i)
+            ownedEntries[skinJobEntryIdx[i]].skinnedVA =
+                outputVA + skinJobs[i].vertexOffset * sizeof(Mesh::Vertex);
     }
 
     const EnvironmentSystem* envForIBL =
@@ -694,16 +754,17 @@ GameObject* ModuleEditor::spawnModel(const std::string& path) {
     }
 
     // Use the hierarchy system when node metadata is available and the model has
-    // multiple mesh nodes (multi-node GLTF). For anything else — single-mesh models,
-    // older imports without nodes.meta, or non-GLTF formats — fall back to the
-    // simple single-GameObject path so they still load correctly.
+    // multiple mesh nodes OR skin data (skinned models need the full node hierarchy
+    // even if they only have one mesh node).  Fall back to the simple single-GameObject
+    // path for older imports without nodes.meta or non-GLTF formats.
     ResourceModel* model = app->getResources()->RequestModel(uid);
     if (model) {
         int meshNodeCount = 0;
         for (const auto& n : model->getNodes())
             if (!n.meshes.empty()) ++meshNodeCount;
 
-        if (meshNodeCount > 1) {
+        bool needsHierarchy = meshNodeCount > 1 || !model->getSkins().empty();
+        if (needsHierarchy) {
             GameObject* root = model->spawnIntoScene(scene);
             app->getResources()->ReleaseResource(model);
             if (root) {

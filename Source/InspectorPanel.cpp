@@ -7,12 +7,14 @@
 #include "ModuleAssets.h"
 #include "ModuleResources.h"
 #include "ResourceMesh.h"
+#include "ResourceAnimation.h"
 #include "SceneManager.h"
 #include "GameObject.h"
 #include "ComponentTransform.h"
 #include "ComponentCamera.h"
 #include "ComponentMesh.h"
 #include "ComponentLights.h"
+#include "ComponentAnimation.h"
 #include "ComponentFactory.h"
 #include "PrefabManager.h"
 #include "TextureImporter.h"
@@ -161,8 +163,9 @@ void InspectorPanel::drawContent() {
             comp->getType() == Component::Type::Mesh ? "Mesh" :
             comp->getType() == Component::Type::DirectionalLight ? "Directional Light" :
             comp->getType() == Component::Type::PointLight ? "Point Light" :
-            comp->getType() == Component::Type::SpotLight ? "Spot Light" : 
+            comp->getType() == Component::Type::SpotLight ? "Spot Light" :
             comp->getType() == Component::Type::Script ? "Script" :
+            comp->getType() == Component::Type::Animation ? "Animation" :
             "Component";
 
         ImGui::PushID((int)comp->getType());
@@ -178,6 +181,9 @@ void InspectorPanel::drawContent() {
 
             else if (comp->getType() == Component::Type::Mesh)
                 drawComponentMesh(static_cast<ComponentMesh*>(comp.get()));
+
+            else if (comp->getType() == Component::Type::Animation)
+                drawComponentAnimation(static_cast<ComponentAnimation*>(comp.get()));
 
             else if (comp->getType() == Component::Type::Script)
                 static_cast<ComponentScript*>(comp.get())->onEditor();
@@ -268,6 +274,7 @@ void InspectorPanel::drawAddComponentMenu() {
 
     addComp("Camera", Component::Type::Camera, go->getComponent<ComponentCamera>() != nullptr);
     addComp("Mesh", Component::Type::Mesh, go->getComponent<ComponentMesh>() != nullptr);
+    addComp("Animation", Component::Type::Animation, go->getComponent<ComponentAnimation>() != nullptr);
     ImGui::Separator();
     addComp("Directional Light", Component::Type::DirectionalLight, go->getComponent<ComponentDirectionalLight>() != nullptr);
     addComp("Point Light", Component::Type::PointLight, go->getComponent<ComponentPointLight>() != nullptr);
@@ -553,5 +560,72 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
         ImGui::Unindent(8.0f);
         ImGui::Spacing();
         ImGui::PopID();
+    }
+}
+
+void InspectorPanel::drawComponentAnimation(ComponentAnimation* anim) {
+    const auto& uids  = anim->getAnimationUIDs();
+    AnimationController& ctrl = anim->getController();
+
+    // --- Animation picker dropdown ---
+    ImGui::SeparatorText("Clip");
+
+    int currentIdx = -1;
+    for (int i = 0; i < (int)uids.size(); ++i)
+        if (uids[i] == ctrl.Resource) { currentIdx = i; break; }
+
+    std::string preview = "None";
+    if (currentIdx >= 0 && ctrl.Resource != 0) {
+        auto* r = app->getResources()->RequestAnimation(ctrl.Resource);
+        if (r) { preview = r->getAnimName(); app->getResources()->ReleaseResource(r); }
+        if (preview.empty()) preview = "Anim_" + std::to_string(currentIdx);
+    }
+
+    ImGui::SetNextItemWidth(-1);
+    if (ImGui::BeginCombo("##animclip", preview.c_str())) {
+        for (int i = 0; i < (int)uids.size(); ++i) {
+            auto* r = app->getResources()->RequestAnimation(uids[i]);
+            std::string name = r ? r->getAnimName() : ("Anim_" + std::to_string(i));
+            if (r) app->getResources()->ReleaseResource(r);
+            bool sel = (i == currentIdx);
+            if (ImGui::Selectable(name.c_str(), sel))
+                ctrl.Play(uids[i], ctrl.Loop);
+            if (sel) ImGui::SetItemDefaultFocus();
+        }
+        if (uids.empty()) ImGui::TextDisabled("No animations available");
+        ImGui::EndCombo();
+    }
+
+    // --- Playback controls ---
+    ImGui::SeparatorText("Playback");
+    if (ctrl.isPlaying()) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.1f, 1.f));
+        if (ImGui::Button("Stop##animstop", ImVec2(60, 0))) ctrl.Stop();
+        ImGui::PopStyleColor();
+    } else {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.5f, 0.1f, 1.f));
+        if (ImGui::Button("Play##animplay", ImVec2(60, 0))) {
+            UID uid = ctrl.Resource;
+            if (uid == 0 && !uids.empty()) uid = uids[0];
+            if (uid != 0) ctrl.Play(uid, ctrl.Loop);
+        }
+        ImGui::PopStyleColor();
+    }
+    ImGui::SameLine();
+    ImGui::Checkbox("Loop##animloop", &ctrl.Loop);
+
+    // --- Time scrub ---
+    float duration = 0.f;
+    if (ctrl.Resource != 0) {
+        auto* r = app->getResources()->RequestAnimation(ctrl.Resource);
+        if (r) { duration = r->getDuration(); app->getResources()->ReleaseResource(r); }
+    }
+    if (duration > 0.f) {
+        ImGui::Spacing();
+        ImGui::SetNextItemWidth(-60);
+        if (ImGui::SliderFloat("##animscrub", &ctrl.CurrentTime, 0.f, duration, "%.2f s"))
+            if (!ctrl.isPlaying()) { /* manual scrub — controller already updated */ }
+        ImGui::SameLine();
+        ImGui::TextDisabled("%.1f s", duration);
     }
 }

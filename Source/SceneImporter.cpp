@@ -9,6 +9,7 @@
 #include "tiny_gltf.h"
 #include <filesystem>
 #include <cstring>
+#include <unordered_map>
 
 namespace {
     struct NodeFileHeader {
@@ -52,6 +53,7 @@ namespace {
     struct TempNode {
         std::string name;
         int parentIdx;
+        int gltfNodeIdx;   // original GLTF global node index
         int gltfMeshIdx;
         int skinIdx;       // gltf node.skin (-1 if none)
         float t[3], r[4], s[3];
@@ -62,8 +64,9 @@ namespace {
         if (ni < 0 || ni >= (int)model.nodes.size()) return;
         const auto& n = model.nodes[ni];
         TempNode tn{};
-        tn.name       = n.name.empty() ? ("Node_" + std::to_string(ni)) : n.name;
-        tn.parentIdx  = parentIdx;
+        tn.name        = n.name.empty() ? ("Node_" + std::to_string(ni)) : n.name;
+        tn.parentIdx   = parentIdx;
+        tn.gltfNodeIdx = ni;
         tn.gltfMeshIdx = n.mesh;
         tn.skinIdx     = n.skin;
 
@@ -244,6 +247,20 @@ bool SceneImporter::SaveNodeMetadata(const std::string& sceneName, const tinyglt
 bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinygltf::Model& gltfModel) {
     if (gltfModel.skins.empty()) return true;
 
+    // Build GLTF global node index -> DFS engine index mapping.
+    // The skin joint arrays use GLTF global indices; ResourceModel::spawnIntoScene
+    // indexes goList by DFS order, so we must convert here at import time.
+    std::unordered_map<int, int> gltfToDfs;
+    if (!gltfModel.scenes.empty()) {
+        int si = (gltfModel.defaultScene >= 0 && gltfModel.defaultScene < (int)gltfModel.scenes.size())
+                 ? gltfModel.defaultScene : 0;
+        std::vector<TempNode> nodes;
+        for (int ni : gltfModel.scenes[si].nodes)
+            visitGLTFNode(ni, -1, gltfModel, nodes);
+        for (int dfsIdx = 0; dfsIdx < (int)nodes.size(); ++dfsIdx)
+            gltfToDfs[nodes[dfsIdx].gltfNodeIdx] = dfsIdx;
+    }
+
     SkinFileHeader hdr;
     hdr.skinCount = (uint32_t)gltfModel.skins.size();
 
@@ -262,8 +279,9 @@ bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinyglt
             append(skin.name.data(), nameLen);
 
         for (int ji : skin.joints) {
-            int32_t jIdx = ji;
-            append(&jIdx, sizeof(int32_t));
+            auto it = gltfToDfs.find(ji);
+            int32_t dfsIdx = (it != gltfToDfs.end()) ? it->second : -1;
+            append(&dfsIdx, sizeof(int32_t));
         }
 
         // Inverse bind matrices — GLTF MAT4 is column-major; transpose to row-major for DX.
