@@ -21,6 +21,7 @@ public:
 
     bool loadModel(const char* filePath);
     bool loadMeshSubset(const std::string& assetPath, int startMesh, int meshCount);
+    void addMeshEntry(UID meshUID, UID materialUID);
     void setProceduralModel(std::unique_ptr<Model> model);
     void overrideMaterial(int slot, UID materialUID);
     void rebuildMaterialBuffers();

@@ -267,6 +267,7 @@
     <ClInclude Include="ResourceCommon.h" />
     <ClInclude Include="ResourceMaterial.h" />
     <ClInclude Include="ResourceMesh.h" />
+    <ClInclude Include="ResourceModel.h" />
     <ClInclude Include="ResourceTexture.h" />
     <ClInclude Include="SceneImporter.h" />
     <ClInclude Include="SceneManager.h" />
@@ -418,6 +419,7 @@
     <ClCompile Include="RenderTexture.cpp" />
     <ClCompile Include="ResourceMaterial.cpp" />
     <ClCompile Include="ResourceMesh.cpp" />
+    <ClCompile Include="ResourceModel.cpp" />
     <ClCompile Include="ResourceTexture.cpp" />
     <ClCompile Include="SceneImporter.cpp" />
     <ClCompile Include="SceneManager.cpp" />

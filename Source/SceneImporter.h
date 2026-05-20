@@ -31,6 +31,7 @@ public:
     static bool LoadScene(const std::string& sceneName, std::unique_ptr<Model>& outModel);
     static bool LoadSceneMetadata(const std::string& sceneName, SceneHeader& header);
     static bool LoadNodeTree(const std::string& sceneName, std::vector<NodeInfo>& outNodes);
+    static bool LoadMaterialIndices(const std::string& sceneName, std::vector<int>& outMatIndices);
 
 private:
     static bool CreateSceneDirectory(const std::string& sceneName);

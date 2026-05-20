@@ -217,6 +217,22 @@ bool SceneImporter::SaveNodeMetadata(const std::string& sceneName, const tinyglt
     return ImporterUtils::SaveBuffer(path, header, payload);
 }
 
+bool SceneImporter::LoadMaterialIndices(const std::string& sceneName, std::vector<int>& outMatIndices) {
+    SceneHeader header;
+    std::vector<char> raw;
+    std::string path = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/scene.meta";
+    if (!ImporterUtils::LoadBuffer(path, header, raw)) return false;
+    if (!ImporterUtils::ValidateHeader(header, 0x53434E45)) return false;
+
+    size_t offset       = sizeof(SceneHeader);
+    size_t expectedSize = header.meshCount * sizeof(int32_t);
+    if (raw.size() < offset + expectedSize) return false;
+
+    outMatIndices.resize(header.meshCount);
+    memcpy(outMatIndices.data(), raw.data() + offset, expectedSize);
+    return true;
+}
+
 bool SceneImporter::LoadNodeTree(const std::string& sceneName, std::vector<NodeInfo>& outNodes) {
     std::string path = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/nodes.meta";
     NodeFileHeader header;

@@ -11,6 +11,7 @@ class ResourceBase;
 class ResourceMesh;
 class ResourceMaterial;
 class ResourceTexture;
+class ResourceModel;
 struct ID3D12GraphicsCommandList;
 class ModuleStaticBuffer;
 
@@ -28,10 +29,12 @@ public:
     ResourceMesh* RequestMesh(UID uid);
     ResourceMaterial* RequestMaterial(UID uid);
     ResourceTexture* RequestTexture(UID uid);
+    ResourceModel* RequestModel(UID uid);
 
     void registerMesh(UID uid, const std::string& libraryPath);
     void registerMaterial(UID uid, const std::string& libraryPath, UID textureUID = 0);
     void registerTexture(UID uid, const std::string& libraryPath);
+    void registerModel(UID uid, const std::string& libraryPath);
 
     void uploadPendingMeshes(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer);
 

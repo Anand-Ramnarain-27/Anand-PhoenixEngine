@@ -283,6 +283,10 @@ void ModuleAssets::registerSceneSubResources(const std::string& filePath, const 
     ModuleFileSystem* fsys = app->getFileSystem();
     m_sceneNameToPath[sceneName] = filePath;
 
+    // Register the model resource itself (uses the GLTF asset's UID)
+    std::string nodesMetaPath = fsys->GetLibraryPath() + "Meshes/" + sceneName + "/nodes.meta";
+    app->getResources()->registerModel(parent, nodesMetaPath);
+
     std::string meshFolder = fsys->GetLibraryPath() + "Meshes/" + sceneName + "/";
     std::string matFolder = fsys->GetLibraryPath() + "Materials/" + sceneName + "/";
 

@@ -195,6 +195,16 @@ bool ComponentMesh::loadMeshSubset(const std::string& assetPath, int startMesh, 
     return !m_entries.empty();
 }
 
+void ComponentMesh::addMeshEntry(UID meshUID, UID materialUID) {
+    MeshEntry e;
+    e.meshUID     = meshUID;
+    e.materialUID = materialUID;
+    if (e.meshUID)     e.meshRes     = app->getResources()->RequestMesh(e.meshUID);
+    if (e.materialUID) e.materialRes = app->getResources()->RequestMaterial(e.materialUID);
+    rebuildEntry(e);
+    m_entries.push_back(std::move(e));
+}
+
 void ComponentMesh::setProceduralModel(std::unique_ptr<Model> model) {
     releaseEntries();
     m_proceduralModel = std::shared_ptr<Model>(std::move(model));
@@ -237,20 +247,36 @@ void ComponentMesh::onSave(std::string& outJson) const {
 void ComponentMesh::onLoad(const std::string& jsonStr) {
     Document doc; doc.Parse(jsonStr.c_str());
     if (doc.HasParseError()) return;
-    if (doc.HasMember("ModelPath") && doc["ModelPath"].IsString()) {
-        std::string path = doc["ModelPath"].GetString();
-        if (!path.empty()) {
-            int start = (doc.HasMember("MeshFileStart") && doc["MeshFileStart"].IsInt()) ? doc["MeshFileStart"].GetInt() : -1;
-            int count = (doc.HasMember("MeshFileCount") && doc["MeshFileCount"].IsInt()) ? doc["MeshFileCount"].GetInt() : 0;
-            if (start >= 0 && count > 0)
-                loadMeshSubset(path, start, count);
-            else
-                loadModel(path.c_str());
+
+    std::string path;
+    if (doc.HasMember("ModelPath") && doc["ModelPath"].IsString())
+        path = doc["ModelPath"].GetString();
+
+    if (!path.empty()) {
+        int start = (doc.HasMember("MeshFileStart") && doc["MeshFileStart"].IsInt()) ? doc["MeshFileStart"].GetInt() : -1;
+        int count = (doc.HasMember("MeshFileCount") && doc["MeshFileCount"].IsInt()) ? doc["MeshFileCount"].GetInt() : 0;
+        if (start >= 0 && count > 0)
+            loadMeshSubset(path, start, count);
+        else
+            loadModel(path.c_str());
+
+        if (doc.HasMember("Entries") && doc["Entries"].IsArray()) {
+            const auto& arr = doc["Entries"].GetArray();
+            for (int i = 0; i < (int)arr.Size() && i < (int)m_entries.size(); ++i) {
+                UID savedMat = arr[i]["materialUID"].GetUint64();
+                if (savedMat != m_entries[i].materialUID) overrideMaterial(i, savedMat);
+            }
         }
-    }
-    if (doc.HasMember("Entries") && doc["Entries"].IsArray()) {
+    } else if (doc.HasMember("Entries") && doc["Entries"].IsArray()) {
+        // UID-only path: spawned from ResourceModel with no file range
+        releaseEntries();
         const auto& arr = doc["Entries"].GetArray();
-        for (int i = 0; i < (int)arr.Size() && i < (int)m_entries.size(); ++i) { UID savedMat = arr[i]["materialUID"].GetUint64(); if (savedMat != m_entries[i].materialUID) overrideMaterial(i, savedMat); }
+        for (const auto& ev : arr) {
+            UID meshUID = ev.HasMember("meshUID")     ? ev["meshUID"].GetUint64()     : 0;
+            UID matUID  = ev.HasMember("materialUID") ? ev["materialUID"].GetUint64() : 0;
+            if (meshUID) addMeshEntry(meshUID, matUID);
+        }
+        computeLocalAABB();
     }
 }
 

@@ -39,9 +39,11 @@
 #include "PrefabManager.h"
 #include "FileWatcher.h"
 #include "ResourceMaterial.h"
+#include "ResourceModel.h"
+#include "ModuleResources.h"
+#include "ModuleAssets.h"
 #include "Model.h"
 #include "MeshEntry.h"
-#include "SceneImporter.h"
 #include <d3dx12.h>
 #include <filesystem>
 #include <algorithm>
@@ -684,67 +686,28 @@ GameObject* ModuleEditor::spawnModel(const std::string& path) {
     if (!scene) return nullptr;
 
     std::string stem = fs::path(path).stem().string();
-    std::string assetPath = path;
-    std::string ext = fs::path(path).extension().string();
-    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
-    // Try to load the node hierarchy written during import
-    std::vector<SceneImporter::NodeInfo> nodes;
-    bool hasHierarchy = SceneImporter::LoadNodeTree(stem, nodes);
-
-    // Count total nodes that have meshes (so we know if we need a parent)
-    int meshNodeCount = 0;
-    if (hasHierarchy) {
-        for (const auto& n : nodes) if (n.meshFileStart >= 0 && n.meshFileCount > 0) ++meshNodeCount;
+    UID uid = app->getAssets()->findUID(path);
+    if (uid == 0) {
+        log(("Cannot find UID for: " + path).c_str(), EditorColors::Danger);
+        return nullptr;
     }
 
-    // Single-mesh case: only one mesh in the file — no hierarchy needed
-    if (!hasHierarchy || meshNodeCount <= 1) {
-        GameObject* go = scene->createGameObject(stem.c_str());
-        bool ok = go->createComponent<ComponentMesh>()->loadModel(assetPath.c_str());
-        log(ok ? ("Added: " + stem).c_str() : ("Failed: " + path).c_str(), ok ? EditorColors::Success : EditorColors::Danger);
-        return ok ? go : nullptr;
+    ResourceModel* model = app->getResources()->RequestModel(uid);
+    if (!model) {
+        log(("Failed to load model: " + stem).c_str(), EditorColors::Danger);
+        return nullptr;
     }
 
-    // Multi-node case: create parent + children
-    GameObject* parent = scene->createGameObject(stem.c_str());
+    GameObject* root = model->spawnIntoScene(scene);
+    app->getResources()->ReleaseResource(model);
 
-    // Build a flat array of GameObjects matching the nodes array (index-aligned)
-    std::vector<GameObject*> goList(nodes.size(), nullptr);
-    for (size_t i = 0; i < nodes.size(); ++i) {
-        const SceneImporter::NodeInfo& ni = nodes[i];
-        std::string nodeName = ni.name.empty() ? ("Node_" + std::to_string(i)) : ni.name;
-        GameObject* go = scene->createGameObject(nodeName.c_str());
+    if (root)
+        log(("Added: " + stem).c_str(), EditorColors::Success);
+    else
+        log(("Failed to spawn: " + stem).c_str(), EditorColors::Danger);
 
-        // Set local transform from the stored TRS
-        ComponentTransform* t = go->getTransform();
-        if (t) {
-            t->position = ni.translation;
-            t->rotation = ni.rotation;
-            t->scale    = ni.scale;
-            t->markDirty();
-        }
-
-        // Attach mesh if this node has one
-        if (ni.meshFileStart >= 0 && ni.meshFileCount > 0) {
-            go->createComponent<ComponentMesh>()->loadMeshSubset(assetPath, ni.meshFileStart, ni.meshFileCount);
-        }
-
-        goList[i] = go;
-    }
-
-    // Wire up parent/child relationships
-    for (size_t i = 0; i < nodes.size(); ++i) {
-        if (!goList[i]) continue;
-        int p = nodes[i].parentIndex;
-        if (p >= 0 && p < (int)goList.size() && goList[p])
-            goList[i]->setParent(goList[p]);
-        else
-            goList[i]->setParent(parent);
-    }
-
-    log(("Added: " + stem).c_str(), EditorColors::Success);
-    return parent;
+    return root;
 }
 
 bool ModuleEditor::isChildOf(const GameObject* root, const GameObject* needle) {
