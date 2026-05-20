@@ -21,5 +21,6 @@ struct MeshEntry {
     // Per-instance deep copy for resource-backed entries; takes priority over materialRes.
     std::unique_ptr<Material> instanceMaterial;
     float worldMatrix[16] = { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
+    bool isSkinned = false;
     ComPtr<ID3D12Resource> materialCB;
 };

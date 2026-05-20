@@ -15,6 +15,7 @@ void SkinningPass::cleanUp() {
     m_uploadMapped = nullptr;
     for (int i = 0; i < FRAMES_IN_FLIGHT; ++i) {
         m_palettes[i].Reset();
+        m_paletteNormals[i].Reset();
         m_outputs[i].Reset();
     }
     m_rootSig.Reset();
@@ -22,9 +23,10 @@ void SkinningPass::cleanUp() {
 }
 
 bool SkinningPass::createBuffers(ID3D12Device* device) {
-    // Upload ring: 3 sections of MAX_TOTAL_JOINTS matrices, persistently mapped.
+    // Upload ring: 3 sections of MAX_TOTAL_JOINTS matrices for palette,
+    // followed by 3 sections for paletteNormal, all persistently mapped.
     {
-        const UINT64 sz = UINT64(FRAMES_IN_FLIGHT) * MAX_TOTAL_JOINTS * sizeof(Matrix);
+        const UINT64 sz = UINT64(FRAMES_IN_FLIGHT) * MAX_TOTAL_JOINTS * sizeof(Matrix) * 2;
         auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         auto bd = CD3DX12_RESOURCE_DESC::Buffer(sz);
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
@@ -50,6 +52,18 @@ bool SkinningPass::createBuffers(ID3D12Device* device) {
             m_paletteStates[i] = D3D12_RESOURCE_STATE_COPY_DEST;
         }
 
+        // PaletteNormal: default heap, starts in COPY_DEST.
+        {
+            auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+            auto bd = CD3DX12_RESOURCE_DESC::Buffer(paletteSz);
+            HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
+                D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_paletteNormals[i]));
+            if (FAILED(hr)) { LOG("SkinningPass: paletteNormal[%d] failed 0x%08X", i, hr); return false; }
+            wchar_t name[40]; swprintf_s(name, L"SkinPaletteNormal[%d]", i);
+            m_paletteNormals[i]->SetName(name);
+            m_paletteNormalStates[i] = D3D12_RESOURCE_STATE_COPY_DEST;
+        }
+
         // Output: default heap, UAV-capable, starts as VERTEX_AND_CONSTANT_BUFFER.
         {
             auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
@@ -67,18 +81,20 @@ bool SkinningPass::createBuffers(ID3D12Device* device) {
 
 bool SkinningPass::createPipeline(ID3D12Device* device) {
     // Root signature (no descriptor heap needed — all root descriptors):
-    //   [0] b0 : root constants  4 x uint32  (vertexCount, paletteOffset, vertexOffset, pad)
-    //   [1] t0 : root SRV        StructuredBuffer<Vertex>     (input vertices)
-    //   [2] t1 : root SRV        StructuredBuffer<BoneWeight> (bone weights)
-    //   [3] t2 : root SRV        StructuredBuffer<float4x4>   (palette)
-    //   [4] u0 : root UAV        RWStructuredBuffer<Vertex>   (output)
+    //   [0] b0 : root constants  4 x uint32  (numVertices, paletteOffset, vertexOffset, pad)
+    //   [1] t0 : root SRV        StructuredBuffer<float4x4>   (palette)
+    //   [2] t1 : root SRV        StructuredBuffer<float4x4>   (paletteNormal)
+    //   [3] t2 : root SRV        StructuredBuffer<Vertex>     (input vertices)
+    //   [4] t3 : root SRV        StructuredBuffer<BoneWeight> (bone weights)
+    //   [5] u0 : root UAV        RWStructuredBuffer<Vertex>   (output)
     {
-        CD3DX12_ROOT_PARAMETER params[5] = {};
+        CD3DX12_ROOT_PARAMETER params[6] = {};
         params[0].InitAsConstants(4, 0);              // b0
-        params[1].InitAsShaderResourceView(0);        // t0
-        params[2].InitAsShaderResourceView(1);        // t1
-        params[3].InitAsShaderResourceView(2);        // t2
-        params[4].InitAsUnorderedAccessView(0);       // u0
+        params[1].InitAsShaderResourceView(0);        // t0 palette
+        params[2].InitAsShaderResourceView(1);        // t1 paletteNormal
+        params[3].InitAsShaderResourceView(2);        // t2 inVertex
+        params[4].InitAsShaderResourceView(3);        // t3 boneWeights
+        params[5].InitAsUnorderedAccessView(0);       // u0 outVertex
 
         CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
         rsDesc.Init(_countof(params), params, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
@@ -98,7 +114,7 @@ bool SkinningPass::createPipeline(ID3D12Device* device) {
 
     // Compute PSO.
     {
-        auto cs = DX::ReadData(L"SkinningCS.cso");
+        auto cs = DX::ReadData(L"Skinning.cso");
         D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
         desc.pRootSignature = m_rootSig.Get();
         desc.CS = { cs.data(), cs.size() };
@@ -118,49 +134,49 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
 
     BEGIN_EVENT(cmd, "SkinningPass");
 
-    // ---- 1. Build matrix palette on CPU and write into the upload ring ----
-    // Section for this frame starts at frameIndex * MAX_TOTAL_JOINTS matrices.
-    const UINT64 uploadSectionOff =
-        UINT64(frameIndex) * MAX_TOTAL_JOINTS * sizeof(Matrix);
-    uint8_t* uploadDst = m_uploadMapped + uploadSectionOff;
+    // Upload ring layout: first half = palette sections, second half = paletteNormal sections.
+    const UINT64 sectionBytes = UINT64(MAX_TOTAL_JOINTS) * sizeof(Matrix);
+    const UINT64 paletteUploadOff       = UINT64(frameIndex) * sectionBytes;
+    const UINT64 paletteNormalUploadOff = UINT64(FRAMES_IN_FLIGHT) * sectionBytes
+                                        + UINT64(frameIndex) * sectionBytes;
 
+    uint8_t* paletteDst       = m_uploadMapped + paletteUploadOff;
+    uint8_t* paletteNormalDst = m_uploadMapped + paletteNormalUploadOff;
+
+    // ---- 1. Build matrix palettes on CPU ----
     for (const auto& job : jobs) {
-        const uint32_t jointCount =
-            static_cast<uint32_t>(job.skin->jointNodeIndices.size());
+        const uint32_t jointCount = static_cast<uint32_t>(job.skin->jointNodeIndices.size());
         for (uint32_t j = 0; j < jointCount; ++j) {
-            // palette[j] = inverseBindMatrix[j] * jointWorldTransform[j]
-            // Row-major order: invBind applied first, then world.
             Matrix m = job.skin->inverseBindMatrices[j] * job.jointWorldMatrices[j];
-            memcpy(uploadDst + (job.paletteOffset + j) * sizeof(Matrix),
-                   &m, sizeof(Matrix));
+            memcpy(paletteDst + (job.paletteOffset + j) * sizeof(Matrix), &m, sizeof(Matrix));
+
+            Matrix inv, normalMat;
+            m.Invert(inv);
+            normalMat = inv.Transpose();
+            memcpy(paletteNormalDst + (job.paletteOffset + j) * sizeof(Matrix),
+                   &normalMat, sizeof(Matrix));
         }
     }
 
-    // ---- 2. Copy upload section → palette[frame] ----
-    {
-        // If palette is still in COPY_DEST (first use or after previous SRV use), skip the
-        // first transition; otherwise transition back from NON_PIXEL_SHADER_RESOURCE.
-        if (m_paletteStates[frameIndex] != D3D12_RESOURCE_STATE_COPY_DEST) {
-            auto b = CD3DX12_RESOURCE_BARRIER::Transition(
-                m_palettes[frameIndex].Get(),
-                m_paletteStates[frameIndex],
-                D3D12_RESOURCE_STATE_COPY_DEST);
+    // ---- 2. Copy upload sections → GPU buffers ----
+    auto transitionTo = [&](ComPtr<ID3D12Resource>& res, D3D12_RESOURCE_STATES& state,
+                             D3D12_RESOURCE_STATES newState) {
+        if (state != newState) {
+            auto b = CD3DX12_RESOURCE_BARRIER::Transition(res.Get(), state, newState);
             cmd->ResourceBarrier(1, &b);
-            m_paletteStates[frameIndex] = D3D12_RESOURCE_STATE_COPY_DEST;
+            state = newState;
         }
+    };
 
-        cmd->CopyBufferRegion(
-            m_palettes[frameIndex].Get(), 0,
-            m_upload.Get(), uploadSectionOff,
-            UINT64(MAX_TOTAL_JOINTS) * sizeof(Matrix));
+    // Palette
+    transitionTo(m_palettes[frameIndex], m_paletteStates[frameIndex], D3D12_RESOURCE_STATE_COPY_DEST);
+    cmd->CopyBufferRegion(m_palettes[frameIndex].Get(), 0, m_upload.Get(), paletteUploadOff, sectionBytes);
+    transitionTo(m_palettes[frameIndex], m_paletteStates[frameIndex], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-        auto b = CD3DX12_RESOURCE_BARRIER::Transition(
-            m_palettes[frameIndex].Get(),
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-        cmd->ResourceBarrier(1, &b);
-        m_paletteStates[frameIndex] = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-    }
+    // PaletteNormal
+    transitionTo(m_paletteNormals[frameIndex], m_paletteNormalStates[frameIndex], D3D12_RESOURCE_STATE_COPY_DEST);
+    cmd->CopyBufferRegion(m_paletteNormals[frameIndex].Get(), 0, m_upload.Get(), paletteNormalUploadOff, sectionBytes);
+    transitionTo(m_paletteNormals[frameIndex], m_paletteNormalStates[frameIndex], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
     // ---- 3. Transition output: VERTEX_AND_CONSTANT_BUFFER → UNORDERED_ACCESS ----
     {
@@ -175,14 +191,8 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
     cmd->SetComputeRootSignature(m_rootSig.Get());
     cmd->SetPipelineState(m_pso.Get());
 
-    // Palette SRV is shared for all jobs this frame.
-    cmd->SetComputeRootShaderResourceView(3,
-        m_palettes[frameIndex]->GetGPUVirtualAddress());
-
-    // Output UAV points to the start of the whole output buffer;
-    // per-mesh offset is handled inside the shader via g_vertexOffset.
-    cmd->SetComputeRootUnorderedAccessView(4,
-        m_outputs[frameIndex]->GetGPUVirtualAddress());
+    // Output UAV is shared for all jobs — per-mesh offset handled via g_vertexOffset.
+    cmd->SetComputeRootUnorderedAccessView(5, m_outputs[frameIndex]->GetGPUVirtualAddress());
 
     for (const auto& job : jobs) {
         if (!job.mesh || !job.mesh->hasBoneWeights()) continue;
@@ -194,16 +204,16 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
         const D3D12_GPU_VIRTUAL_ADDRESS bwVA     = job.mesh->getBoneWeightBufferVA();
         if (vertexVA == 0 || bwVA == 0) continue;
 
-        // Root constants: vertexCount, paletteOffset, vertexOffset, pad.
-        const uint32_t constants[4] = {
-            vertexCount,
-            job.paletteOffset,
-            job.vertexOffset,
-            0u
-        };
+        // Root constants: numVertices, paletteOffset, vertexOffset, pad.
+        const uint32_t constants[4] = { vertexCount, job.paletteOffset, job.vertexOffset, 0u };
         cmd->SetComputeRoot32BitConstants(0, 4, constants, 0);
-        cmd->SetComputeRootShaderResourceView(1, vertexVA);   // t0 InputVertices
-        cmd->SetComputeRootShaderResourceView(2, bwVA);       // t1 BoneWeights
+
+        // Per-job palette SRVs offset to this skin's base joint.
+        const UINT64 paletteJointOff = UINT64(job.paletteOffset) * sizeof(Matrix);
+        cmd->SetComputeRootShaderResourceView(1, m_palettes[frameIndex]->GetGPUVirtualAddress() + paletteJointOff);
+        cmd->SetComputeRootShaderResourceView(2, m_paletteNormals[frameIndex]->GetGPUVirtualAddress() + paletteJointOff);
+        cmd->SetComputeRootShaderResourceView(3, vertexVA);
+        cmd->SetComputeRootShaderResourceView(4, bwVA);
 
         const UINT groups = (vertexCount + THREAD_GROUP_SIZE - 1) / THREAD_GROUP_SIZE;
         cmd->Dispatch(groups, 1, 1);

@@ -242,7 +242,11 @@ void MeshRenderPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewP
 	const UINT instSz = cbAlign(sizeof(MeshPipeline::CbPerInstance));
 
 	Matrix world;
-	memcpy(&world, entry.worldMatrix, sizeof(float) * 16);
+	if (entry.isSkinned) {
+		world = Matrix::Identity;
+	} else {
+		memcpy(&world, entry.worldMatrix, sizeof(float) * 16);
+	}
 
 	{
 		MeshPipeline::CbMVP mvp;

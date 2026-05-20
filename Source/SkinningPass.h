@@ -50,14 +50,18 @@ private:
     bool createBuffers(ID3D12Device* device);
     bool createPipeline(ID3D12Device* device);
 
-    // Upload ring: FRAMES_IN_FLIGHT sections of MAX_TOTAL_JOINTS matrices each.
-    // Persistently CPU-mapped; section [f] is written on frame f.
+    // Upload ring: FRAMES_IN_FLIGHT sections each for palette and paletteNormal.
+    // Two consecutive sections of MAX_TOTAL_JOINTS matrices, persistently CPU-mapped.
     ComPtr<ID3D12Resource> m_upload;
     uint8_t*               m_uploadMapped = nullptr;
 
     // Per-frame GPU palette buffers (default heap, StructuredBuffer<float4x4> SRV).
     ComPtr<ID3D12Resource> m_palettes[FRAMES_IN_FLIGHT];
     D3D12_RESOURCE_STATES  m_paletteStates[FRAMES_IN_FLIGHT] = {};
+
+    // Per-frame GPU inverse-transpose palette buffers (default heap, StructuredBuffer<float4x4> SRV).
+    ComPtr<ID3D12Resource> m_paletteNormals[FRAMES_IN_FLIGHT];
+    D3D12_RESOURCE_STATES  m_paletteNormalStates[FRAMES_IN_FLIGHT] = {};
 
     // Per-frame skinned-vertex output buffers (default heap, UAV + VBV).
     ComPtr<ID3D12Resource> m_outputs[FRAMES_IN_FLIGHT];
