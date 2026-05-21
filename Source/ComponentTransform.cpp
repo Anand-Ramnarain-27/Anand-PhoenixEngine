@@ -24,11 +24,6 @@ void ComponentTransform::rebuildGlobal() {
     globalMatrix = parent ? localMatrix * parent->getTransform()->getGlobalMatrix() : localMatrix;
 }
 
-const Matrix& ComponentTransform::getLocalMatrix() {
-    if (dirty) { rebuildLocal(); dirty = false; }
-    return localMatrix;
-}
-
 const Matrix& ComponentTransform::getGlobalMatrix() {
     if (dirty) { rebuildLocal(); rebuildGlobal(); dirty = false; }
     return globalMatrix;

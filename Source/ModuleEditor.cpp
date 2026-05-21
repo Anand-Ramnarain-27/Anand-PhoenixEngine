@@ -287,6 +287,10 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
             if (auto* cm = node->getComponent<ComponentMesh>()) {
                 cm->flushDeferredReleases();
                 Matrix nodeWorld = node->getTransform()->getGlobalMatrix();
+                if (node == getSelection().object) {
+                    Vector3 wp = nodeWorld.Translation();
+                    ::log(__FILE__, __LINE__, "collectMeshes [%s]: world pos=%.3f %.3f %.3f", node->getName().c_str(), wp.x, wp.y, wp.z);
+                }
                 if (Model* model = cm->getProceduralModel()) {
                     model->buildMeshEntries(nodeWorld, ownedEntries);
                 }
