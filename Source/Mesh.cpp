@@ -92,7 +92,10 @@ void Mesh::draw(ID3D12GraphicsCommandList* cmdList) const {
 }
 
 void Mesh::drawSkinned(ID3D12GraphicsCommandList* cmdList, D3D12_GPU_VIRTUAL_ADDRESS skinnedVA) const {
-    D3D12_VERTEX_BUFFER_VIEW vbv = { skinnedVA, (UINT)(m_vertices.size() * sizeof(Vertex)), sizeof(Vertex) };
+    const UINT sizeBytes = (UINT)(m_vertices.size() * sizeof(Vertex));
+    LOG("Mesh::drawSkinned  va=0x%llX  sizeBytes=%u  verts=%u  stride=%u",
+        (unsigned long long)skinnedVA, sizeBytes, (unsigned)m_vertices.size(), (unsigned)sizeof(Vertex));
+    D3D12_VERTEX_BUFFER_VIEW vbv = { skinnedVA, sizeBytes, sizeof(Vertex) };
     cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     cmdList->IASetVertexBuffers(0, 1, &vbv);
     if (m_hasIndexBuffer) {

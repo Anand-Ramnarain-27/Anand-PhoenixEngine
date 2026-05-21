@@ -194,15 +194,29 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
     // Output UAV is shared for all jobs — per-mesh offset handled via g_vertexOffset.
     cmd->SetComputeRootUnorderedAccessView(5, m_outputs[frameIndex]->GetGPUVirtualAddress());
 
+    LOG("SkinningPass: frame=%u dispatching %u job(s), vertex budget used: %u / %u",
+        frameIndex, (unsigned)jobs.size(),
+        jobs.empty() ? 0u : (jobs.back().vertexOffset + (jobs.back().mesh ? jobs.back().mesh->getVertexCount() : 0u)),
+        MAX_TOTAL_VERTICES);
+
     for (const auto& job : jobs) {
         if (!job.mesh || !job.mesh->hasBoneWeights()) continue;
 
         const uint32_t vertexCount = job.mesh->getVertexCount();
         if (vertexCount == 0) continue;
 
+        if (job.vertexOffset + vertexCount > MAX_TOTAL_VERTICES) {
+            LOG("SkinningPass: skip job — vertex range [%u, %u) exceeds output buffer size %u",
+                job.vertexOffset, job.vertexOffset + vertexCount, MAX_TOTAL_VERTICES);
+            continue;
+        }
+
         const D3D12_GPU_VIRTUAL_ADDRESS vertexVA = job.mesh->getVertexBufferVA();
         const D3D12_GPU_VIRTUAL_ADDRESS bwVA     = job.mesh->getBoneWeightBufferVA();
-        if (vertexVA == 0 || bwVA == 0) continue;
+        if (vertexVA == 0 || bwVA == 0) {
+            LOG("SkinningPass: skip job — mesh GPU buffers not ready (vertexVA=%llu bwVA=%llu)", vertexVA, bwVA);
+            continue;
+        }
 
         // Root constants: numVertices, paletteOffset, vertexOffset, pad.
         const uint32_t constants[4] = { vertexCount, job.paletteOffset, job.vertexOffset, 0u };
