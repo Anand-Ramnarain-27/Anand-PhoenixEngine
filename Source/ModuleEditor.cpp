@@ -281,31 +281,16 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     uint32_t curPaletteOffset = 0;
     uint32_t curVertexOffset  = 0;
 
-    // Recompute every node's world matrix top-down unconditionally before collectMeshes.
-    // Dirty-flag checks are unreliable here: gatherLights (just above) calls getGlobalMatrix
-    // on light nodes which cascades up through rebuildGlobal, silently clearing dirty on
-    // ancestor nodes before they have been updated with the user's latest TRS change.
-    // By always recomputing from TRS (not from the cached dirty state), inspector edits,
-    // gizmo manipulations, and animation bone updates all resolve to a consistent world
-    // matrix each frame regardless of call order.
-    if (moduleScene) {
-        std::function<void(GameObject*, const Matrix&)> propagateTransforms =
-            [&](GameObject* node, const Matrix& parentWorld) {
-                if (!node || !node->isActive()) return;
-                node->getTransform()->updateWorldMatrix(parentWorld);
-                const Matrix& nodeWorld = node->getTransform()->getGlobalMatrix();
-                for (auto* child : node->getChildren())
-                    propagateTransforms(child, nodeWorld);
-            };
-        propagateTransforms(moduleScene->getRoot(), Matrix::Identity);
-    }
-
     if (moduleScene) {
         std::function<void(GameObject*)> collectMeshes = [&](GameObject* node) {
             if (!node || !node->isActive()) return;
             if (auto* cm = node->getComponent<ComponentMesh>()) {
                 cm->flushDeferredReleases();
                 Matrix nodeWorld = node->getTransform()->getGlobalMatrix();
+                if (node == getSelection().object) {
+                    Vector3 wp = nodeWorld.Translation();
+                    ::log(__FILE__, __LINE__, "collectMeshes [%s]: world pos=%.3f %.3f %.3f", node->getName().c_str(), wp.x, wp.y, wp.z);
+                }
                 if (Model* model = cm->getProceduralModel()) {
                     model->buildMeshEntries(nodeWorld, ownedEntries);
                 }

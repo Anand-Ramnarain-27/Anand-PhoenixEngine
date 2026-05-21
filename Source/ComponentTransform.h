@@ -12,10 +12,6 @@ public:
 
     const Matrix& getGlobalMatrix();
     void markDirty();
-    // Called top-down each frame before rendering to eagerly propagate world matrices.
-    // parentWorld is the already-recomputed parent globalMatrix.
-    void updateWorldMatrix(const Matrix& parentWorld);
-    bool isDirty() const { return dirty; }
     // Called by ComponentAnimation each frame to push animated local+world into
     // the cached matrices without going through the dirty-flag path.
     void setWorldMatrixDirect(const Matrix& local, const Matrix& world);

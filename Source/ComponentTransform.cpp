@@ -29,12 +29,6 @@ const Matrix& ComponentTransform::getGlobalMatrix() {
     return globalMatrix;
 }
 
-void ComponentTransform::updateWorldMatrix(const Matrix& parentWorld) {
-    rebuildLocal();
-    globalMatrix = localMatrix * parentWorld;
-    dirty = false;
-}
-
 void ComponentTransform::setWorldMatrixDirect(const Matrix& local, const Matrix& world) {
     localMatrix  = local;
     globalMatrix = world;
