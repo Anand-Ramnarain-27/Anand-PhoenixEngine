@@ -17,7 +17,7 @@ class SkinningPass {
 public:
     // Hard caps for the combined per-frame buffers.
     static constexpr uint32_t MAX_TOTAL_JOINTS   = 1024;
-    static constexpr uint32_t MAX_TOTAL_VERTICES = 262144; // 256 K — covers multi-part characters
+    static constexpr uint32_t MAX_TOTAL_VERTICES = 65536;
     static constexpr uint32_t THREAD_GROUP_SIZE  = 64;
 
     // One SkinJob describes one skinned-mesh instance to process this frame.

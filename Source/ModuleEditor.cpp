@@ -291,17 +291,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                     model->buildMeshEntries(nodeWorld, ownedEntries);
                 }
                 else {
-                    const bool hasSkinData = m_skinningPass && cm->hasSkinData();
-                    bool animIsPlaying = false;
-                    if (hasSkinData) {
-                        for (GameObject* anc = node->getParent(); anc; anc = anc->getParent()) {
-                            if (auto* anim = anc->getComponent<ComponentAnimation>()) {
-                                animIsPlaying = anim->getController().isPlaying();
-                                break;
-                            }
-                        }
-                    }
-                    const bool isSkinned = hasSkinData && animIsPlaying;
+                    const bool isSkinned = m_skinningPass && cm->hasSkinData();
                     for (const auto& src : cm->getEntries()) {
                         if (!src.meshRes || !src.materialRes) continue;
                         MeshEntry e;
@@ -313,13 +303,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                         e.materialCB  = src.materialCB;
 
                         Mesh* mesh = src.meshRes->getMesh();
-                        const uint32_t meshVertCount = mesh ? mesh->getVertexCount() : 0;
-                        const bool vertBudgetOk = (curVertexOffset + meshVertCount) <= SkinningPass::MAX_TOTAL_VERTICES;
-                        if (!vertBudgetOk && isSkinned && mesh)
-                            //LOG("SkinningPass: vertex budget exceeded (offset=%u + count=%u > %u) — mesh '%s' drawn unskinned",
-                              //  curVertexOffset, meshVertCount, SkinningPass::MAX_TOTAL_VERTICES, node->getName().c_str());
-
-                        if (isSkinned && mesh && mesh->hasBoneWeights() && vertBudgetOk) {
+                        if (isSkinned && mesh && mesh->hasBoneWeights()) {
                             e.isSkinned = true;
                             // skinnedVA filled in after dispatch below
 
@@ -341,7 +325,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                             skinJobs.push_back(std::move(job));
 
                             curPaletteOffset += (uint32_t)cm->getLocalSkin().jointNodeIndices.size();
-                            curVertexOffset  += meshVertCount;
+                            curVertexOffset  += mesh->getVertexCount();
                         } else {
                             memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));
                         }

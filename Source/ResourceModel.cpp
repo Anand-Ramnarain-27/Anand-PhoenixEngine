@@ -139,6 +139,7 @@ GameObject* ResourceModel::spawnIntoScene(ModuleScene* scene, GameObject* parent
     if (!animUIDs.empty()) {
         auto* animComp = root->createComponent<ComponentAnimation>();
         animComp->setAnimationList(animUIDs);
+        animComp->OnPlay(animUIDs[0], /*loop=*/true);
     }
 
     return root;
