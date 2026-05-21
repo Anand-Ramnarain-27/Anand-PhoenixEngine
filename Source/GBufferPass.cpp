@@ -140,10 +140,7 @@ void GBufferPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj
     const UINT instSz = cbAlign(sizeof(MeshPipeline::CbPerInstance));
 
     Matrix world;
-    if (entry.isSkinned)
-        world = Matrix::Identity;
-    else
-        memcpy(&world, entry.worldMatrix, sizeof(float) * 16);
+    memcpy(&world, entry.worldMatrix, sizeof(float) * 16);
 
     {
         MeshPipeline::CbMVP mvp;
@@ -233,10 +230,7 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
 
             cmd->SetGraphicsRootDescriptorTable(GBufferPipeline::SLOT_MAT_TEXTURES,
                                                  matTable.getGPUHandle(0));
-            if (entry->skinnedVA != 0)
-                mesh->drawSkinned(cmd, entry->skinnedVA);
-            else
-                mesh->draw(cmd);
+            mesh->draw(cmd);
             ++slot;
         }
     }
