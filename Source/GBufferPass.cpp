@@ -233,6 +233,9 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
 
             cmd->SetGraphicsRootDescriptorTable(GBufferPipeline::SLOT_MAT_TEXTURES,
                                                  matTable.getGPUHandle(0));
+            if (entry->isSkinned)
+                LOG("drawSkinned: skinnedVA=0x%llX isSkinned=%d",
+                    (unsigned long long)entry->skinnedVA, (int)entry->isSkinned);
             if (entry->skinnedVA != 0)
                 mesh->drawSkinned(cmd, entry->skinnedVA);
             else

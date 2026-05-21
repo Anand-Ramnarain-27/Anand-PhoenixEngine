@@ -49,16 +49,28 @@ void ComponentAnimation::update(float deltaTime) {
 void ComponentAnimation::applyAnimation(GameObject* go, const Matrix& parentWorld) {
     auto* t = go->getTransform();
 
-    Vector3 pos = t->position;
+    Vector3    pos = t->position;
     Quaternion rot = t->rotation;
+    Vector3    scl = t->scale;
     if (m_controller.GetTransform(go->getName().c_str(), pos, rot)) {
         t->position = pos;
         t->rotation = rot;
-        t->markDirty();
     }
 
-    // WorldTransform = LocalTransform * ParentWorldTransform
-    Matrix world = t->getLocalMatrix() * parentWorld;
+    // Rebuild local matrix from (possibly animated) TRS without touching the
+    // cached dirty flag — calling getLocalMatrix() would clear dirty and leave
+    // globalMatrix stale, making joint getGlobalMatrix() return bind-pose values.
+    Matrix local = Matrix::CreateScale(scl)
+                 * Matrix::CreateFromQuaternion(rot)
+                 * Matrix::CreateTranslation(pos);
+
+    // Row-vector DirectX convention: v_world = v_local * local * parent.
+    // Combined world matrix = local * parentWorld (left-to-right application order).
+    Matrix world = local * parentWorld;
+
+    // Write both matrices directly so getGlobalMatrix() returns the animated value
+    // this frame without needing to rebuild via the dirty path.
+    t->setWorldMatrixDirect(local, world);
 
     for (auto* child : go->getChildren())
         applyAnimation(child, world);
