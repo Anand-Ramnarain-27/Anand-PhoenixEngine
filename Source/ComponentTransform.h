@@ -10,6 +10,7 @@ public:
     Vector3 scale = { 1, 1, 1 };
     Quaternion rotation = Quaternion::Identity;
 
+    const Matrix& getLocalMatrix();
     const Matrix& getGlobalMatrix();
     void markDirty();
     // Called by ComponentAnimation each frame to push animated local+world into
