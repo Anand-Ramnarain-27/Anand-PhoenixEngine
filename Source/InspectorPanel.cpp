@@ -245,14 +245,14 @@ void InspectorPanel::drawTransform() {
         };
 
     float pos[3] = { t->position.x, t->position.y, t->position.z };
-    if (ImGui::DragFloat3("Position", pos, 0.1f)) { t->position = { pos[0], pos[1], pos[2] }; t->markDirty(); markOverride("position"); LOG("Inspector: position -> %.3f %.3f %.3f", pos[0], pos[1], pos[2]); }
+    if (ImGui::DragFloat3("Position", pos, 0.1f)) { t->position = { pos[0], pos[1], pos[2] }; t->markDirty(); markOverride("position"); }
 
     Vector3 euler = t->rotation.ToEuler();
     float deg[3] = { euler.x * kRad2Deg, euler.y * kRad2Deg, euler.z * kRad2Deg };
-    if (ImGui::DragFloat3("Rotation", deg, 0.5f)) { t->rotation = Quaternion::CreateFromYawPitchRoll(deg[1] * kDeg2Rad, deg[0] * kDeg2Rad, deg[2] * kDeg2Rad); t->markDirty(); markOverride("rotation"); LOG("Inspector: rotation (deg) -> %.2f %.2f %.2f", deg[0], deg[1], deg[2]); }
+    if (ImGui::DragFloat3("Rotation", deg, 0.5f)) { t->rotation = Quaternion::CreateFromYawPitchRoll(deg[1] * kDeg2Rad, deg[0] * kDeg2Rad, deg[2] * kDeg2Rad); t->markDirty(); markOverride("rotation"); }
 
     float scl[3] = { t->scale.x, t->scale.y, t->scale.z };
-    if (ImGui::DragFloat3("Scale", scl, 0.01f)) { t->scale = { scl[0], scl[1], scl[2] }; t->markDirty(); markOverride("scale"); LOG("Inspector: scale -> %.3f %.3f %.3f", scl[0], scl[1], scl[2]); }
+    if (ImGui::DragFloat3("Scale", scl, 0.01f)) { t->scale = { scl[0], scl[1], scl[2] }; t->markDirty(); markOverride("scale"); }
 }
 
 void InspectorPanel::drawAddComponentMenu() {
