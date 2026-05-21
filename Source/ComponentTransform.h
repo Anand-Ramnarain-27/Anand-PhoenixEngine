@@ -13,9 +13,6 @@ public:
     const Matrix& getLocalMatrix();
     const Matrix& getGlobalMatrix();
     void markDirty();
-    // Called by ComponentAnimation each frame to push animated local+world into
-    // the cached matrices without going through the dirty-flag path.
-    void setWorldMatrixDirect(const Matrix& local, const Matrix& world);
 
     void onSave(std::string& outJson) const override;
     void onLoad(const std::string& json) override;

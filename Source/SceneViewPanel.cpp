@@ -125,7 +125,7 @@ void SceneViewPanel::drawGizmo() {
     }
     if (ImGuizmo::Manipulate((const float*)&view, (const float*)&proj, m_gizmoOp, m_gizmoMode, (float*)&world, nullptr, snapPtr)) {
         Matrix local = world;
-        if (GameObject* par = sel.object->getParent()) local = world * par->getTransform()->getGlobalMatrix().Invert();
+        if (GameObject* par = sel.object->getParent()) local = par->getTransform()->getGlobalMatrix().Invert() * world;
         float tr[3], rot[3], sc[3];
         ImGuizmo::DecomposeMatrixToComponents((const float*)&local, tr, rot, sc);
         t->position = { tr[0], tr[1], tr[2] };

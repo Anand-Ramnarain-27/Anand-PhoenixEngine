@@ -21,7 +21,7 @@ void ComponentTransform::rebuildLocal() {
 
 void ComponentTransform::rebuildGlobal() {
     auto* parent = owner->getParent();
-    globalMatrix = parent ? localMatrix * parent->getTransform()->getGlobalMatrix() : localMatrix;
+    globalMatrix = parent ? parent->getTransform()->getGlobalMatrix() * localMatrix : localMatrix;
 }
 
 const Matrix& ComponentTransform::getLocalMatrix() {
@@ -32,12 +32,6 @@ const Matrix& ComponentTransform::getLocalMatrix() {
 const Matrix& ComponentTransform::getGlobalMatrix() {
     if (dirty) { rebuildLocal(); rebuildGlobal(); dirty = false; }
     return globalMatrix;
-}
-
-void ComponentTransform::setWorldMatrixDirect(const Matrix& local, const Matrix& world) {
-    localMatrix  = local;
-    globalMatrix = world;
-    dirty        = false;
 }
 
 void ComponentTransform::onSave(std::string& outJson) const {

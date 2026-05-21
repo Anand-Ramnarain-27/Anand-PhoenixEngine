@@ -144,50 +144,17 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
     uint8_t* paletteNormalDst = m_uploadMapped + paletteNormalUploadOff;
 
     // ---- 1. Build matrix palettes on CPU ----
-    // Summary log each frame so we can verify the dispatch is receiving the right mesh.
-    LOG("Dispatch: jobs=%u firstJobVerts=%u firstJobJoints=%u",
-        (unsigned)jobs.size(),
-        jobs[0].mesh ? jobs[0].mesh->getVertexCount() : 0u,
-        jobs[0].skin ? (unsigned)jobs[0].skin->jointNodeIndices.size() : 0u);
-
-    // Joint[0] detail log every 60 frames to verify palette is not all-identity.
-    // If jointWorld.t matches invBind.t exactly and palette.t == (0,0,0), the
-    // world transforms are not being updated (still returning bind-pose values).
-    {
-        static UINT s_logFrame = 0;
-        if (++s_logFrame >= 60) {
-            s_logFrame = 0;
-            const auto& j0 = jobs[0];
-            if (!j0.skin->inverseBindMatrices.empty() && !j0.jointWorldMatrices.empty()) {
-                const Matrix& ibm = j0.skin->inverseBindMatrices[0];
-                const Matrix& jw  = j0.jointWorldMatrices[0];
-                Matrix palette0   = ibm * jw;
-                Vector3 ibmT = ibm.Translation(), jwT = jw.Translation(), palT = palette0.Translation();
-                LOG("SkinPalette job[0] joint[0]: invBind.t=(%.3f,%.3f,%.3f)  jointWorld.t=(%.3f,%.3f,%.3f)  palette.t=(%.3f,%.3f,%.3f)",
-                    ibmT.x, ibmT.y, ibmT.z, jwT.x, jwT.y, jwT.z, palT.x, palT.y, palT.z);
-            }
-        }
-    }
-
     for (const auto& job : jobs) {
         const uint32_t jointCount = static_cast<uint32_t>(job.skin->jointNodeIndices.size());
         for (uint32_t j = 0; j < jointCount; ++j) {
             Matrix m = job.skin->inverseBindMatrices[j] * job.jointWorldMatrices[j];
+            memcpy(paletteDst + (job.paletteOffset + j) * sizeof(Matrix), &m, sizeof(Matrix));
 
-            // The GBuffer shader uses mul(v, M_hlsl) where HLSL reads the uploaded bytes
-            // as column-major (i.e. M_hlsl = uploaded^T).  Every other matrix in the
-            // engine is transposed before upload so HLSL sees the correct value.
-            // Transpose here so HLSL computes v * (invBind*jointWorld) as intended.
-            Matrix mT = m.Transpose();
-            memcpy(paletteDst + (job.paletteOffset + j) * sizeof(Matrix), &mT, sizeof(Matrix));
-
-            // Normal palette: HLSL must see (m^-1)^T so we upload m^-1 and let HLSL
-            // transpose it on read.  Previously inv.Transpose() was stored, making HLSL
-            // see m^-1 instead of (m^-1)^T — normals were transformed incorrectly.
-            Matrix inv;
+            Matrix inv, normalMat;
             m.Invert(inv);
+            normalMat = inv.Transpose();
             memcpy(paletteNormalDst + (job.paletteOffset + j) * sizeof(Matrix),
-                   &inv, sizeof(Matrix));
+                   &normalMat, sizeof(Matrix));
         }
     }
 
@@ -233,11 +200,7 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
         MAX_TOTAL_VERTICES);
 
     for (const auto& job : jobs) {
-        if (!job.mesh) continue;
-        if (!job.mesh->hasBoneWeights()) {
-            LOG("SkinningPass: skip job — mesh has no bone weight data (CPU or GPU)");
-            continue;
-        }
+        if (!job.mesh || !job.mesh->hasBoneWeights()) continue;
 
         const uint32_t vertexCount = job.mesh->getVertexCount();
         if (vertexCount == 0) continue;
@@ -250,11 +213,6 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
 
         const D3D12_GPU_VIRTUAL_ADDRESS vertexVA = job.mesh->getVertexBufferVA();
         const D3D12_GPU_VIRTUAL_ADDRESS bwVA     = job.mesh->getBoneWeightBufferVA();
-
-        LOG("SkinJob: vertOffset=%u palOff=%u verts=%u bwVA=0x%llX vertVA=0x%llX",
-            job.vertexOffset, job.paletteOffset, vertexCount,
-            (unsigned long long)bwVA, (unsigned long long)vertexVA);
-
         if (vertexVA == 0 || bwVA == 0) {
             LOG("SkinningPass: skip job — mesh GPU buffers not ready (vertexVA=%llu bwVA=%llu)", vertexVA, bwVA);
             continue;
@@ -264,11 +222,10 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
         const uint32_t constants[4] = { vertexCount, job.paletteOffset, job.vertexOffset, 0u };
         cmd->SetComputeRoot32BitConstants(0, 4, constants, 0);
 
-        // Palette SRVs start at the buffer base — the shader uses g_paletteOffset to index
-        // into the correct skin's section.  Do NOT pre-offset the VA here; that would cause
-        // the shader's own g_paletteOffset indexing to double-count the offset.
-        cmd->SetComputeRootShaderResourceView(1, m_palettes[frameIndex]->GetGPUVirtualAddress());
-        cmd->SetComputeRootShaderResourceView(2, m_paletteNormals[frameIndex]->GetGPUVirtualAddress());
+        // Per-job palette SRVs offset to this skin's base joint.
+        const UINT64 paletteJointOff = UINT64(job.paletteOffset) * sizeof(Matrix);
+        cmd->SetComputeRootShaderResourceView(1, m_palettes[frameIndex]->GetGPUVirtualAddress() + paletteJointOff);
+        cmd->SetComputeRootShaderResourceView(2, m_paletteNormals[frameIndex]->GetGPUVirtualAddress() + paletteJointOff);
         cmd->SetComputeRootShaderResourceView(3, vertexVA);
         cmd->SetComputeRootShaderResourceView(4, bwVA);
 
