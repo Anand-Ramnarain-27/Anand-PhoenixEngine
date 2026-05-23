@@ -28,7 +28,7 @@ public:
     const AnimationController& getController() const { return m_controller; }
 
 private:
-    void applyAnimation(GameObject* go);
+    void applyAnimation(GameObject* go, const Matrix& parentWorld);
 
     AnimationController      m_controller;
     std::vector<UID>         m_animUIDs;
