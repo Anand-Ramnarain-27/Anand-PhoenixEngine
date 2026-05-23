@@ -38,15 +38,14 @@ void ComponentAnimation::OnStop() {
 }
 
 void ComponentAnimation::update(float deltaTime) {
-    m_controller.Update(deltaTime);
     if (!m_controller.isPlaying()) return;
+    m_controller.Update(deltaTime);
 
-    Matrix rootWorld = owner->getTransform()->getGlobalMatrix();
     for (auto* child : owner->getChildren())
-        applyAnimation(child, rootWorld);
+        applyAnimation(child);
 }
 
-void ComponentAnimation::applyAnimation(GameObject* go, const Matrix& parentWorld) {
+void ComponentAnimation::applyAnimation(GameObject* go) {
     auto* t = go->getTransform();
 
     Vector3 pos = t->position;
@@ -57,11 +56,8 @@ void ComponentAnimation::applyAnimation(GameObject* go, const Matrix& parentWorl
         t->markDirty();
     }
 
-    // WorldTransform = LocalTransform * ParentWorldTransform
-    Matrix world = t->getLocalMatrix() * parentWorld;
-
     for (auto* child : go->getChildren())
-        applyAnimation(child, world);
+        applyAnimation(child);
 }
 
 void ComponentAnimation::onEditor() {
