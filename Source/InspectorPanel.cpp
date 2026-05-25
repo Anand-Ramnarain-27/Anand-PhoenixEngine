@@ -628,4 +628,10 @@ void InspectorPanel::drawComponentAnimation(ComponentAnimation* anim) {
         ImGui::SameLine();
         ImGui::TextDisabled("%.1f s", duration);
     }
+
+    // --- Debug visualization ---
+    ImGui::Spacing();
+    ImGui::SeparatorText("Debug");
+    ImGui::Checkbox("Draw Bones",        &anim->drawBones());
+    ImGui::Checkbox("Draw Axis Triads",  &anim->drawAxisTriads());
 }

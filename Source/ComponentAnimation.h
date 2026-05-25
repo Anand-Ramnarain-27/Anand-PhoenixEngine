@@ -20,6 +20,7 @@ public:
 
     void update(float deltaTime) override;
     void onEditor() override;
+    void onDrawGizmos() override;
     void onSave(std::string& outJson) const override;
     void onLoad(const std::string& json) override;
     Type getType() const override { return Type::Animation; }
@@ -27,10 +28,16 @@ public:
     AnimationController& getController() { return m_controller; }
     const AnimationController& getController() const { return m_controller; }
 
+    bool& drawBones()      { return m_drawBones; }
+    bool& drawAxisTriads() { return m_drawAxisTriads; }
+
 private:
     void applyAnimation(GameObject* go);
 
     AnimationController      m_controller;
     std::vector<UID>         m_animUIDs;
     std::vector<std::string> m_animNames; // parallel to m_animUIDs
+
+    bool m_drawBones      = false;
+    bool m_drawAxisTriads = false;
 };

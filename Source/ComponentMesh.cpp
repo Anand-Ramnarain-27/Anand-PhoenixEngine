@@ -236,6 +236,35 @@ void ComponentMesh::render(ID3D12GraphicsCommandList* /*cmd*/) {
     // ModuleEditor::renderSceneWithCamera. This override is intentionally empty.
 }
 
+void ComponentMesh::onEditor() {
+    if (!m_hasSkin) return;
+    ImGui::Checkbox("Draw Bind Pose", &m_drawBindPose);
+}
+
+void ComponentMesh::onDrawGizmos() {
+    if (!m_drawBindPose || !m_hasSkin) return;
+
+    const int n = (int)m_skinJoints.size();
+    for (int i = 0; i < n; ++i) {
+        Matrix bindWorld = m_localSkin.inverseBindMatrices[i].Invert();
+        Vector3 myPos = bindWorld.Translation();
+        ddVec3 to = { myPos.x, myPos.y, myPos.z };
+
+        dd::axisTriad(bindWorld.m[0], 0.f, 0.05f);
+
+        GameObject* parentGO = m_skinJoints[i]->getParent();
+        for (int p = 0; p < n; ++p) {
+            if (m_skinJoints[p] == parentGO) {
+                Matrix parentBind = m_localSkin.inverseBindMatrices[p].Invert();
+                Vector3 parentPos = parentBind.Translation();
+                ddVec3 from = { parentPos.x, parentPos.y, parentPos.z };
+                dd::line(from, to, dd::colors::Cyan);
+                break;
+            }
+        }
+    }
+}
+
 void ComponentMesh::onSave(std::string& outJson) const {
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
     doc.AddMember("ModelUID", m_modelUID, a);

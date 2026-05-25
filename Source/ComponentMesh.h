@@ -30,6 +30,8 @@ public:
     void markMaterialsDirty();
 
     void render(ID3D12GraphicsCommandList* cmd) override;
+    void onEditor() override;
+    void onDrawGizmos() override;
     void onSave(std::string& outJson) const override;
     void onLoad(const std::string& json) override;
     Type getType() const override { return Type::Mesh; }
@@ -73,4 +75,6 @@ private:
     bool m_hasSkin = false;
     ResourceModel::Skin       m_localSkin;   // owned copy of the skin definition
     std::vector<GameObject*>  m_skinJoints;  // joint GameObjects in joint-index order (not owned)
+
+    bool m_drawBindPose = false;
 };

@@ -24,6 +24,7 @@ public:
     virtual void render(ID3D12GraphicsCommandList*) {}
     virtual void update(float) {}
     virtual void onEditor() {}
+    virtual void onDrawGizmos() {}
     virtual void onSave(std::string& outJson) const {}
     virtual void onLoad(const std::string& json) {}
     virtual Type getType() const = 0;

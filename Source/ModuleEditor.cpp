@@ -449,6 +449,17 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
             else if (c.x < .5f && c.y < .5f && c.z > .5f) dd::line(f, t, dd::colors::Blue);
             else                                             dd::line(f, t, dd::colors::White);
         }
+        if (moduleScene) {
+            std::function<void(GameObject*)> drawGizmos = [&](GameObject* node) {
+                if (!node || !node->isActive()) return;
+                for (const auto& comp : node->getComponents())
+                    comp->onDrawGizmos();
+                for (auto* child : node->getChildren())
+                    drawGizmos(child);
+            };
+            drawGizmos(moduleScene->getRoot());
+        }
+
         m_debugDraw->record(cmd, w, h, view, proj);
     }
 }

@@ -106,6 +106,39 @@ void ComponentAnimation::onEditor() {
         ImGui::SliderFloat("##animtime", &m_controller.CurrentTime, 0.f, duration, "%.2f s");
         ImGui::SameLine(0, 4); ImGui::TextDisabled("/ %.2f", duration);
     }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Checkbox("Draw Bones",       &m_drawBones);
+    ImGui::Checkbox("Draw Axis Triads", &m_drawAxisTriads);
+}
+
+void ComponentAnimation::onDrawGizmos() {
+    if (!m_drawBones && !m_drawAxisTriads) return;
+
+    auto draw = [&](auto& self, GameObject* go) -> void {
+        auto* t = go->getTransform();
+        if (!t) return;
+
+        if (m_drawBones && go->getParent() && go->getParent() != owner) {
+            Vector3 from = go->getParent()->getTransform()->getGlobalMatrix().Translation();
+            Vector3 to   = t->getGlobalMatrix().Translation();
+            ddVec3 f  = { from.x, from.y, from.z };
+            ddVec3 tt = { to.x,   to.y,   to.z   };
+            dd::line(f, tt, dd::colors::Yellow);
+        }
+
+        if (m_drawAxisTriads) {
+            Matrix world = t->getGlobalMatrix();
+            dd::axisTriad(world.m[0], 0.f, 0.1f);
+        }
+
+        for (auto* child : go->getChildren())
+            self(self, child);
+    };
+
+    for (auto* child : owner->getChildren())
+        draw(draw, child);
 }
 
 void ComponentAnimation::onSave(std::string& outJson) const {
