@@ -21,7 +21,7 @@ void ComponentTransform::rebuildLocal() {
 
 void ComponentTransform::rebuildGlobal() {
     auto* parent = owner->getParent();
-    globalMatrix = parent ? parent->getTransform()->getGlobalMatrix() * localMatrix : localMatrix;
+    globalMatrix = parent ? localMatrix * parent->getTransform()->getGlobalMatrix() : localMatrix;
 }
 
 const Matrix& ComponentTransform::getLocalMatrix() {

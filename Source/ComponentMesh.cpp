@@ -246,8 +246,35 @@ void ComponentMesh::onSave(std::string& outJson) const {
     Value entries(kArrayType);
     for (const auto& e : m_entries) { Value ev(kObjectType); ev.AddMember("meshUID", e.meshUID, a); ev.AddMember("materialUID", e.materialUID, a); entries.PushBack(ev, a); }
     doc.AddMember("Entries", entries, a);
+
+    if (m_hasSkin) {
+        Value jointNames(kArrayType);
+        for (auto* j : m_skinJoints) { Value n; n.SetString(j->getName().c_str(), a); jointNames.PushBack(n, a); }
+        doc.AddMember("SkinJointNames", jointNames, a);
+
+        Value ibms(kArrayType);
+        for (const auto& mat : m_localSkin.inverseBindMatrices) {
+            Value mArr(kArrayType);
+            const float* f = reinterpret_cast<const float*>(&mat);
+            for (int k = 0; k < 16; ++k) mArr.PushBack(f[k], a);
+            ibms.PushBack(mArr, a);
+        }
+        doc.AddMember("SkinIBMs", ibms, a);
+    }
+
     StringBuffer buf; Writer<StringBuffer> w(buf); doc.Accept(w);
     outJson = buf.GetString();
+}
+
+static GameObject* findInSubtree(GameObject* node, const std::string& name) {
+    if (node->getName() == name) return node;
+    for (auto* child : node->getChildren()) if (auto* found = findInSubtree(child, name)) return found;
+    return nullptr;
+}
+
+static GameObject* hierarchyRoot(GameObject* go) {
+    while (go->getParent() && go->getParent()->getParent()) go = go->getParent();
+    return go;
 }
 
 void ComponentMesh::onLoad(const std::string& jsonStr) {
@@ -283,6 +310,30 @@ void ComponentMesh::onLoad(const std::string& jsonStr) {
             if (meshUID) addMeshEntry(meshUID, matUID);
         }
         computeLocalAABB();
+    }
+
+    if (doc.HasMember("SkinJointNames") && doc.HasMember("SkinIBMs")) {
+        const auto& names  = doc["SkinJointNames"].GetArray();
+        const auto& ibmsArr = doc["SkinIBMs"].GetArray();
+        if (names.Size() == ibmsArr.Size() && names.Size() > 0) {
+            ResourceModel::Skin skin;
+            std::vector<GameObject*> joints;
+            skin.jointNodeIndices.resize(names.Size());
+            skin.inverseBindMatrices.resize(names.Size());
+
+            GameObject* root = hierarchyRoot(owner);
+            bool ok = true;
+            for (SizeType k = 0; k < names.Size(); ++k) {
+                skin.jointNodeIndices[k] = static_cast<int>(k);
+                const auto& mArr = ibmsArr[k].GetArray();
+                float* f = reinterpret_cast<float*>(&skin.inverseBindMatrices[k]);
+                for (int fi = 0; fi < 16; ++fi) f[fi] = mArr[fi].GetFloat();
+                GameObject* jgo = findInSubtree(root, names[k].GetString());
+                if (!jgo) { LOG("ComponentMesh: skin joint '%s' not found", names[k].GetString()); ok = false; break; }
+                joints.push_back(jgo);
+            }
+            if (ok) setSkinData(skin, std::move(joints));
+        }
     }
 }
 
