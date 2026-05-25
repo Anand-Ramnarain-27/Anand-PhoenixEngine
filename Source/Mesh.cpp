@@ -54,12 +54,14 @@ void Mesh::setBoneWeights(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* st
 }
 
 void Mesh::uploadToGPU(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer) {
-    if (m_hasVertexBuffer || !staticBuffer || m_vertices.empty()) return;
-    m_vertexBufferView = staticBuffer->allocVertexBuffer(cmd, m_vertices.data(), m_vertices.size() * sizeof(Vertex), sizeof(Vertex), "MeshVB");
-    m_hasVertexBuffer = (m_vertexBufferView.BufferLocation != 0);
-    if (!m_indices.empty()) {
-        m_indexBufferView = staticBuffer->allocIndexBuffer(cmd, m_indices.data(), m_indices.size() * sizeof(uint32_t), DXGI_FORMAT_R32_UINT, "MeshIB");
-        m_hasIndexBuffer = (m_indexBufferView.BufferLocation != 0);
+    if (!staticBuffer) return;
+    if (!m_hasVertexBuffer && !m_vertices.empty()) {
+        m_vertexBufferView = staticBuffer->allocVertexBuffer(cmd, m_vertices.data(), m_vertices.size() * sizeof(Vertex), sizeof(Vertex), "MeshVB");
+        m_hasVertexBuffer = (m_vertexBufferView.BufferLocation != 0);
+        if (!m_indices.empty()) {
+            m_indexBufferView = staticBuffer->allocIndexBuffer(cmd, m_indices.data(), m_indices.size() * sizeof(uint32_t), DXGI_FORMAT_R32_UINT, "MeshIB");
+            m_hasIndexBuffer = (m_indexBufferView.BufferLocation != 0);
+        }
     }
     if (!m_hasBoneWeightBuffer && !m_boneWeights.empty()) {
         const size_t sz = m_boneWeights.size() * sizeof(BoneWeight);

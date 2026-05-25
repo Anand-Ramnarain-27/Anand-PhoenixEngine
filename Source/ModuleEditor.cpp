@@ -303,7 +303,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                         e.materialCB  = src.materialCB;
 
                         Mesh* mesh = src.meshRes->getMesh();
-                        if (isSkinned && mesh && mesh->hasBoneWeights()) {
+                        if (isSkinned && mesh && mesh->getBoneWeightBufferVA() != 0) {
                             e.isSkinned = true;
                             // skinnedVA filled in after dispatch below
 

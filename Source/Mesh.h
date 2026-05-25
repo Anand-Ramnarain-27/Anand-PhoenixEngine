@@ -61,7 +61,7 @@ public:
     const Vector3& getAABBMin() const { return m_aabbMin; }
     const Vector3& getAABBMax() const { return m_aabbMax; }
     bool hasAABB() const { return m_hasAABB; }
-    bool isOnGPU() const { return m_hasVertexBuffer; }
+    bool isOnGPU() const { return m_hasVertexBuffer && (m_boneWeights.empty() || m_hasBoneWeightBuffer); }
 
 private:
     void computeAABB();
