@@ -10,24 +10,30 @@
 
 // Binary format written by this file and read by ResourceAnimation::LoadInMemory.
 //
-// [AnimFileHeader]
+// [AnimFileHeader]   (version 2)
 // char[animNameLen]
-// For each channel:
+// For each transform channel (channelCount):
 //   uint32 nodeNameLen | uint32 posCount | uint32 rotCount
 //   char[nodeNameLen]
 //   float[posCount]       posTimeStamps
 //   Vector3[posCount]     positions
 //   float[rotCount]       rotTimeStamps
 //   Quaternion[rotCount]  rotations
+// uint32 morphChannelCount
+// For each morph channel (morphChannelCount):
+//   uint32 nodeNameLen | uint32 numTime | uint32 numTargets
+//   char[nodeNameLen]
+//   float[numTime]              weightsTimes
+//   float[numTime * numTargets] weights
 
 namespace {
 
 struct AnimFileHeader {
-    uint32_t magic       = 0x414E494D; // 'ANIM'
-    uint32_t version     = 1;
-    uint32_t animNameLen = 0;
+    uint32_t magic        = 0x414E494D; // 'ANIM'
+    uint32_t version      = 2;          // v2 adds morph-channel section after transform channels
+    uint32_t animNameLen  = 0;
     uint32_t channelCount = 0;
-    float    duration    = 0.f;
+    float    duration     = 0.f;
 };
 
 struct NodeAnim {
@@ -38,6 +44,14 @@ struct NodeAnim {
     std::unique_ptr<float[]>      rotTimes;
     std::unique_ptr<Quaternion[]> rotations;
     UINT                          rotCount = 0;
+};
+
+struct NodeMorph {
+    std::string              name;
+    std::unique_ptr<float[]> times;
+    std::unique_ptr<float[]> weights;   // flat: [t0_w0, t0_w1, ..., t1_w0, ...]
+    uint32_t                 numTime    = 0;
+    uint32_t                 numTargets = 0;
 };
 
 static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
@@ -52,6 +66,8 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
 
     // One NodeAnim per node, merging translation and rotation channels.
     std::unordered_map<int, NodeAnim> nodeMap;
+    // One NodeMorph per node for weight channels (glTF path == "weights").
+    std::unordered_map<int, NodeMorph> morphMap;
     float duration = 0.f;
 
     for (const auto& chan : anim.channels) {
@@ -61,34 +77,72 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
         const auto& sampler = anim.samplers[chan.sampler];
         if (sampler.input < 0 || sampler.output < 0) continue;
 
-        NodeAnim& na = nodeMap[chan.target_node];
-        if (na.name.empty()) na.name = getNodeName(chan.target_node);
+        if (chan.target_path == "translation" || chan.target_path == "rotation") {
+            NodeAnim& na = nodeMap[chan.target_node];
+            if (na.name.empty()) na.name = getNodeName(chan.target_node);
 
-        if (chan.target_path == "translation") {
+            if (chan.target_path == "translation") {
+                UINT timeCnt = 0, valCnt = 0;
+                std::unique_ptr<float[]>   times;
+                std::unique_ptr<Vector3[]> values;
+
+                if (!loadAccessorTyped(times,  timeCnt, gltfModel, sampler.input))  continue;
+                if (!loadAccessorTyped(values, valCnt,  gltfModel, sampler.output)) continue;
+
+                for (UINT i = 0; i < timeCnt; ++i) duration = std::max(duration, times[i]);
+                na.posTimes  = std::move(times);
+                na.positions = std::move(values);
+                na.posCount  = timeCnt;
+
+            } else { // rotation
+                UINT timeCnt = 0, valCnt = 0;
+                std::unique_ptr<float[]>      times;
+                std::unique_ptr<Quaternion[]> values;
+
+                if (!loadAccessorTyped(times,  timeCnt, gltfModel, sampler.input))  continue;
+                if (!loadAccessorTyped(values, valCnt,  gltfModel, sampler.output)) continue;
+
+                for (UINT i = 0; i < timeCnt; ++i) duration = std::max(duration, times[i]);
+                na.rotTimes   = std::move(times);
+                na.rotations  = std::move(values);
+                na.rotCount   = timeCnt;
+            }
+
+        } else if (chan.target_path == "weights") {
             UINT timeCnt = 0, valCnt = 0;
-            std::unique_ptr<float[]>   times;
-            std::unique_ptr<Vector3[]> values;
+            std::unique_ptr<float[]> times, values;
 
             if (!loadAccessorTyped(times,  timeCnt, gltfModel, sampler.input))  continue;
             if (!loadAccessorTyped(values, valCnt,  gltfModel, sampler.output)) continue;
+            if (timeCnt == 0 || valCnt == 0) continue;
+
+            const uint32_t numTargets = valCnt / timeCnt;
+            if (numTargets == 0) continue;
+
+            // Warn if the target count doesn't match the mesh's morph target count.
+            int nodeIdx = chan.target_node;
+            if (nodeIdx >= 0 && nodeIdx < (int)gltfModel.nodes.size()) {
+                int meshIdx = gltfModel.nodes[nodeIdx].mesh;
+                if (meshIdx >= 0 && meshIdx < (int)gltfModel.meshes.size()) {
+                    const auto& gltfMesh = gltfModel.meshes[meshIdx];
+                    if (!gltfMesh.primitives.empty()) {
+                        size_t meshTargets = gltfMesh.primitives[0].targets.size();
+                        if (meshTargets > 0 && numTargets != (uint32_t)meshTargets) {
+                            LOG("AnimationImporter: weights channel for node %d has %u targets but mesh has %zu",
+                                nodeIdx, numTargets, meshTargets);
+                        }
+                    }
+                }
+            }
 
             for (UINT i = 0; i < timeCnt; ++i) duration = std::max(duration, times[i]);
-            na.posTimes  = std::move(times);
-            na.positions = std::move(values);
-            na.posCount  = timeCnt;
 
-        } else if (chan.target_path == "rotation") {
-            UINT timeCnt = 0, valCnt = 0;
-            std::unique_ptr<float[]>      times;
-            std::unique_ptr<Quaternion[]> values;
-
-            if (!loadAccessorTyped(times,  timeCnt, gltfModel, sampler.input))  continue;
-            if (!loadAccessorTyped(values, valCnt,  gltfModel, sampler.output)) continue;
-
-            for (UINT i = 0; i < timeCnt; ++i) duration = std::max(duration, times[i]);
-            na.rotTimes   = std::move(times);
-            na.rotations  = std::move(values);
-            na.rotCount   = timeCnt;
+            NodeMorph& nm = morphMap[chan.target_node];
+            if (nm.name.empty()) nm.name = getNodeName(chan.target_node);
+            nm.times      = std::move(times);
+            nm.weights    = std::move(values);
+            nm.numTime    = timeCnt;
+            nm.numTargets = numTargets;
         }
     }
 
@@ -97,7 +151,11 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
     for (const auto& [idx, na] : nodeMap)
         if (na.posCount > 0 || na.rotCount > 0) ++validCount;
 
-    if (validCount == 0) return false;
+    uint32_t validMorphCount = 0;
+    for (const auto& [idx, nm] : morphMap)
+        if (nm.numTime > 0) ++validMorphCount;
+
+    if (validCount == 0 && validMorphCount == 0) return false;
 
     std::string animName = anim.name.empty() ? ("Anim_" + std::to_string(animIdx)) : anim.name;
 
@@ -134,6 +192,22 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
             append(na.rotTimes.get(),   rotCount * sizeof(float));
             append(na.rotations.get(),  rotCount * sizeof(Quaternion));
         }
+    }
+
+    // Serialize morph channels (version 2 extension)
+    uint32_t morphChannelCount = validMorphCount;
+    append(&morphChannelCount, sizeof(uint32_t));
+    for (const auto& [idx, nm] : morphMap) {
+        if (nm.numTime == 0) continue;
+        uint32_t nameLen    = (uint32_t)nm.name.size();
+        uint32_t numTime    = nm.numTime;
+        uint32_t numTargets = nm.numTargets;
+        append(&nameLen,    sizeof(uint32_t));
+        append(&numTime,    sizeof(uint32_t));
+        append(&numTargets, sizeof(uint32_t));
+        append(nm.name.data(), nameLen);
+        append(nm.times.get(),   numTime * sizeof(float));
+        append(nm.weights.get(), numTime * numTargets * sizeof(float));
     }
 
     return ImporterUtils::SaveBuffer(outPath, header, payload);

@@ -7,7 +7,7 @@
 namespace {
 struct AnimFileHeader {
     uint32_t magic       = 0x414E494D;
-    uint32_t version     = 1;
+    uint32_t version     = 2;
     uint32_t animNameLen = 0;
     uint32_t channelCount = 0;
     float    duration    = 0.f;
@@ -16,8 +16,14 @@ struct AnimFileHeader {
 
 ResourceAnimation::ResourceAnimation(UID uid) : ResourceBase(uid, Type::Animation) {}
 
+const ResourceAnimation::MorphChannel* ResourceAnimation::getMorphChannel(const std::string& nodeName) const {
+    auto it = m_morphChannels.find(nodeName);
+    return (it != m_morphChannels.end()) ? &it->second : nullptr;
+}
+
 bool ResourceAnimation::LoadInMemory() {
     m_channels.clear();
+    m_morphChannels.clear();
     m_name.clear();
     m_duration = 0.f;
 
@@ -80,11 +86,59 @@ bool ResourceAnimation::LoadInMemory() {
         m_channels.emplace(std::move(nodeName), std::move(ch));
     }
 
-    return !m_channels.empty();
+    // ---- v2 extension: morph-weight channels ----
+    // Layout appended after transform channels:
+    //   uint32 morphChannelCount
+    //   For each morph channel:
+    //     uint32 nodeNameLen | uint32 numTime | uint32 numTargets
+    //     char[nodeNameLen]
+    //     float[numTime]              weightsTimes
+    //     float[numTime * numTargets] weights
+    if (header.version >= 2 && cur + sizeof(uint32_t) <= end) {
+        uint32_t morphCount = 0;
+        memcpy(&morphCount, cur, sizeof(uint32_t));
+        cur += sizeof(uint32_t);
+
+        m_morphChannels.reserve(morphCount);
+
+        for (uint32_t i = 0; i < morphCount; ++i) {
+            if (cur + 3 * sizeof(uint32_t) > end) break;
+
+            uint32_t nameLen, numTime, numTargets;
+            memcpy(&nameLen,    cur,                      sizeof(uint32_t));
+            memcpy(&numTime,    cur + sizeof(uint32_t),   sizeof(uint32_t));
+            memcpy(&numTargets, cur + 2 * sizeof(uint32_t), sizeof(uint32_t));
+            cur += 3 * sizeof(uint32_t);
+
+            if (cur + nameLen > end) break;
+            std::string nodeName(cur, nameLen);
+            cur += nameLen;
+
+            if (numTime == 0 || numTargets == 0) continue;
+
+            size_t timeBytes   = numTime * sizeof(float);
+            size_t weightBytes = numTime * numTargets * sizeof(float);
+            if (cur + timeBytes + weightBytes > end) break;
+
+            MorphChannel mc;
+            mc.numTime    = numTime;
+            mc.numTargets = numTargets;
+            mc.weightsTimes = std::make_unique<float[]>(numTime);
+            mc.weights      = std::make_unique<float[]>(numTime * numTargets);
+            memcpy(mc.weightsTimes.get(), cur,             timeBytes);
+            memcpy(mc.weights.get(),      cur + timeBytes, weightBytes);
+            cur += timeBytes + weightBytes;
+
+            m_morphChannels.emplace(std::move(nodeName), std::move(mc));
+        }
+    }
+
+    return !m_channels.empty() || !m_morphChannels.empty();
 }
 
 void ResourceAnimation::UnloadFromMemory() {
     m_channels.clear();
+    m_morphChannels.clear();
     m_name.clear();
     m_duration = 0.f;
 }
