@@ -55,6 +55,12 @@ public:
     const ResourceModel::Skin& getLocalSkin() const { return m_localSkin; }
     const std::vector<GameObject*>& getSkinJoints() const { return m_skinJoints; }
 
+    // Morph target weights — one float per target, written by the animation system each frame.
+    // Shared across all mesh primitives in this component (index 0 = first target of the mesh).
+    static constexpr int MAX_MORPH_WEIGHTS = 64;
+    void setMorphWeight(int index, float weight);
+    const float* getMorphWeights() const { return m_morphWeights; }
+
 private:
     void releaseEntries();
     void rebuildEntry(MeshEntry& e);
@@ -75,6 +81,8 @@ private:
     bool m_hasSkin = false;
     ResourceModel::Skin       m_localSkin;   // owned copy of the skin definition
     std::vector<GameObject*>  m_skinJoints;  // joint GameObjects in joint-index order (not owned)
+
+    float m_morphWeights[MAX_MORPH_WEIGHTS] = {};
 
     bool m_drawBindPose = false;
 };

@@ -24,10 +24,12 @@ void SkinningPass::cleanUp() {
 }
 
 bool SkinningPass::createBuffers(ID3D12Device* device) {
-    // Upload ring: 3 sections of MAX_TOTAL_JOINTS matrices for palette,
-    // followed by 3 sections for paletteNormal, all persistently mapped.
+    const UINT64 jointSz      = UINT64(MAX_TOTAL_JOINTS) * sizeof(Matrix);
+    const UINT64 morphWeightSz = UINT64(MAX_TOTAL_MORPH_WEIGHTS) * sizeof(float);
+
+    // Upload ring: FRAMES_IN_FLIGHT sections for palette, then paletteNormal, then morph weights.
     {
-        const UINT64 sz = UINT64(FRAMES_IN_FLIGHT) * MAX_TOTAL_JOINTS * sizeof(Matrix) * 2;
+        const UINT64 sz = UINT64(FRAMES_IN_FLIGHT) * (jointSz * 2 + morphWeightSz);
         auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         auto bd = CD3DX12_RESOURCE_DESC::Buffer(sz);
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
@@ -37,11 +39,12 @@ bool SkinningPass::createBuffers(ID3D12Device* device) {
         m_upload->Map(0, nullptr, reinterpret_cast<void**>(&m_uploadMapped));
     }
 
-    const UINT64 paletteSz = UINT64(MAX_TOTAL_JOINTS) * sizeof(Matrix);
+    // palette GPU buffer = joint matrices + morph weights in one allocation.
+    const UINT64 paletteSz = jointSz + morphWeightSz;
     const UINT64 outputSz  = UINT64(MAX_TOTAL_VERTICES) * sizeof(Mesh::Vertex);
 
     for (int i = 0; i < FRAMES_IN_FLIGHT; ++i) {
-        // Palette: default heap, starts in COPY_DEST.
+        // Palette+weights: default heap, starts in COPY_DEST.
         {
             auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
             auto bd = CD3DX12_RESOURCE_DESC::Buffer(paletteSz);
@@ -151,28 +154,38 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
 
     BEGIN_EVENT(cmd, "SkinningPass");
 
-    // Upload ring layout: first half = palette sections, second half = paletteNormal sections.
-    const UINT64 sectionBytes = UINT64(MAX_TOTAL_JOINTS) * sizeof(Matrix);
-    const UINT64 paletteUploadOff       = UINT64(frameIndex) * sectionBytes;
-    const UINT64 paletteNormalUploadOff = UINT64(FRAMES_IN_FLIGHT) * sectionBytes
-                                        + UINT64(frameIndex) * sectionBytes;
+    // Upload ring offsets (see header comment for layout).
+    const UINT64 jointSz           = UINT64(MAX_TOTAL_JOINTS) * sizeof(Matrix);
+    const UINT64 morphWeightSz     = UINT64(MAX_TOTAL_MORPH_WEIGHTS) * sizeof(float);
+    const UINT64 paletteUploadOff       = UINT64(frameIndex) * jointSz;
+    const UINT64 paletteNormalUploadOff = UINT64(FRAMES_IN_FLIGHT) * jointSz + UINT64(frameIndex) * jointSz;
+    const UINT64 morphWeightUploadOff   = UINT64(FRAMES_IN_FLIGHT) * jointSz * 2 + UINT64(frameIndex) * morphWeightSz;
 
     uint8_t* paletteDst       = m_uploadMapped + paletteUploadOff;
     uint8_t* paletteNormalDst = m_uploadMapped + paletteNormalUploadOff;
+    uint8_t* morphWeightDst   = m_uploadMapped + morphWeightUploadOff;
 
-    // ---- 1. Build matrix palettes on CPU (skip morph-only jobs that have no skin) ----
+    // ---- 1. Build matrix palettes + morph weights on CPU ----
     for (const auto& job : jobs) {
-        if (!job.skin) continue;
-        const uint32_t jointCount = static_cast<uint32_t>(job.skin->jointNodeIndices.size());
-        for (uint32_t j = 0; j < jointCount; ++j) {
-            Matrix m = job.skin->inverseBindMatrices[j] * job.jointWorldMatrices[j];
-            memcpy(paletteDst + (job.paletteOffset + j) * sizeof(Matrix), &m, sizeof(Matrix));
+        // Joint matrices (skip morph-only jobs that have no skin).
+        if (job.skin) {
+            const uint32_t jointCount = static_cast<uint32_t>(job.skin->jointNodeIndices.size());
+            for (uint32_t j = 0; j < jointCount; ++j) {
+                Matrix m = job.skin->inverseBindMatrices[j] * job.jointWorldMatrices[j];
+                memcpy(paletteDst + (job.paletteOffset + j) * sizeof(Matrix), &m, sizeof(Matrix));
 
-            Matrix inv, normalMat;
-            m.Invert(inv);
-            normalMat = inv.Transpose();
-            memcpy(paletteNormalDst + (job.paletteOffset + j) * sizeof(Matrix),
-                   &normalMat, sizeof(Matrix));
+                Matrix inv, normalMat;
+                m.Invert(inv);
+                normalMat = inv.Transpose();
+                memcpy(paletteNormalDst + (job.paletteOffset + j) * sizeof(Matrix),
+                       &normalMat, sizeof(Matrix));
+            }
+        }
+        // Morph weights — written at job.morphWeightOffset within the combined weight section.
+        if (!job.morphWeights.empty()) {
+            memcpy(morphWeightDst + job.morphWeightOffset * sizeof(float),
+                   job.morphWeights.data(),
+                   job.morphWeights.size() * sizeof(float));
         }
     }
 
@@ -186,14 +199,15 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
         }
     };
 
-    // Palette
+    // Palette matrices + morph weights — both sections are in the same GPU buffer, so one barrier covers both.
     transitionTo(m_palettes[frameIndex], m_paletteStates[frameIndex], D3D12_RESOURCE_STATE_COPY_DEST);
-    cmd->CopyBufferRegion(m_palettes[frameIndex].Get(), 0, m_upload.Get(), paletteUploadOff, sectionBytes);
+    cmd->CopyBufferRegion(m_palettes[frameIndex].Get(), 0,        m_upload.Get(), paletteUploadOff,     jointSz);
+    cmd->CopyBufferRegion(m_palettes[frameIndex].Get(), jointSz,  m_upload.Get(), morphWeightUploadOff, morphWeightSz);
     transitionTo(m_palettes[frameIndex], m_paletteStates[frameIndex], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
     // PaletteNormal
     transitionTo(m_paletteNormals[frameIndex], m_paletteNormalStates[frameIndex], D3D12_RESOURCE_STATE_COPY_DEST);
-    cmd->CopyBufferRegion(m_paletteNormals[frameIndex].Get(), 0, m_upload.Get(), paletteNormalUploadOff, sectionBytes);
+    cmd->CopyBufferRegion(m_paletteNormals[frameIndex].Get(), 0, m_upload.Get(), paletteNormalUploadOff, jointSz);
     transitionTo(m_paletteNormals[frameIndex], m_paletteNormalStates[frameIndex], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
     // ---- 3. Transition output: VERTEX_AND_CONSTANT_BUFFER → UNORDERED_ACCESS ----
@@ -218,11 +232,12 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
         if (!job.mesh) continue;
 
         const bool hasSkin  = (job.skin != nullptr) && !job.jointWorldMatrices.empty();
-        const bool hasMorph = job.mesh->hasMorphTargets();
+        // Morphing is active only when the mesh has targets AND the caller supplied weights.
+        const bool hasMorph = job.mesh->hasMorphTargets() && !job.morphWeights.empty();
         if (!hasSkin && !hasMorph) continue;
 
         const uint32_t vertexCount     = job.mesh->getVertexCount();
-        const uint32_t numMorphTargets = hasMorph ? job.mesh->getNumMorphTargets() : 0u;
+        const uint32_t numMorphTargets = hasMorph ? static_cast<uint32_t>(job.morphWeights.size()) : 0u;
         const uint32_t numJoints       = hasSkin  ? static_cast<uint32_t>(job.skin->jointNodeIndices.size()) : 0u;
         if (vertexCount == 0) continue;
 
@@ -234,9 +249,12 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
         if (hasSkin && rawBwVA == 0) continue;  // skin job but bone weights not on GPU yet
         const D3D12_GPU_VIRTUAL_ADDRESS bwVA = hasSkin ? rawBwVA : dummyVA;
 
-        // Morph buffers: real VAs when present, dummy when not.
+        // Morph vertex deltas: per-mesh buffer uploaded at import time.
+        // Morph weights: live in the extended section of the per-frame palette buffer.
         const D3D12_GPU_VIRTUAL_ADDRESS morphVtxVA = hasMorph ? job.mesh->getMorphTargetBufferVA() : dummyVA;
-        const D3D12_GPU_VIRTUAL_ADDRESS morphWgtVA = (hasMorph && job.morphWeightsVA != 0) ? job.morphWeightsVA : dummyVA;
+        const D3D12_GPU_VIRTUAL_ADDRESS morphWgtVA = hasMorph
+            ? m_palettes[frameIndex]->GetGPUVirtualAddress() + jointSz + UINT64(job.morphWeightOffset) * sizeof(float)
+            : dummyVA;
 
         // Root constants: numVertices, paletteOffset, vertexOffset, numMorphTargets, numJoints.
         const uint32_t constants[5] = { vertexCount, job.paletteOffset, job.vertexOffset, numMorphTargets, numJoints };

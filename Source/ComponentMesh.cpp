@@ -211,6 +211,11 @@ void ComponentMesh::setSkinData(const ResourceModel::Skin& skin, std::vector<Gam
     m_hasSkin     = true;
 }
 
+void ComponentMesh::setMorphWeight(int index, float weight) {
+    if (index < 0 || index >= MAX_MORPH_WEIGHTS) return;
+    m_morphWeights[index] = weight;
+}
+
 void ComponentMesh::setProceduralModel(std::unique_ptr<Model> model) {
     releaseEntries();
     m_proceduralModel = std::shared_ptr<Model>(std::move(model));

@@ -16,9 +16,10 @@ using Microsoft::WRL::ComPtr;
 class SkinningPass {
 public:
     // Hard caps for the combined per-frame buffers.
-    static constexpr uint32_t MAX_TOTAL_JOINTS   = 1024;
-    static constexpr uint32_t MAX_TOTAL_VERTICES = 65536;
-    static constexpr uint32_t THREAD_GROUP_SIZE  = 64;
+    static constexpr uint32_t MAX_TOTAL_JOINTS        = 1024;
+    static constexpr uint32_t MAX_TOTAL_VERTICES      = 65536;
+    static constexpr uint32_t MAX_TOTAL_MORPH_WEIGHTS = 64;   // combined float slots across all jobs per frame
+    static constexpr uint32_t THREAD_GROUP_SIZE       = 64;
 
     // One SkinJob describes one skinned-mesh instance to process this frame.
     // paletteOffset and vertexOffset are assigned by the caller when building the job list
@@ -31,7 +32,10 @@ public:
         Mesh*                       mesh;                // source mesh
         uint32_t                    paletteOffset;       // first joint index in the combined palette
         uint32_t                    vertexOffset;        // first vertex index in the combined output
-        D3D12_GPU_VIRTUAL_ADDRESS   morphWeightsVA = 0;  // GPU float[] of per-target weights; 0 when no morph targets
+        // CPU-side per-target blend weights.  SkinningPass uploads these into the extended palette
+        // buffer each frame.  Size == number of morph targets actually used; empty = no morphing.
+        std::vector<float>          morphWeights;
+        uint32_t                    morphWeightOffset = 0; // first float slot in the combined weight section
     };
 
     bool init(ID3D12Device* device);
@@ -53,12 +57,16 @@ private:
     bool createBuffers(ID3D12Device* device);
     bool createPipeline(ID3D12Device* device);
 
-    // Upload ring: FRAMES_IN_FLIGHT sections each for palette and paletteNormal.
-    // Two consecutive sections of MAX_TOTAL_JOINTS matrices, persistently CPU-mapped.
+    // Upload ring layout (persistently CPU-mapped, GENERIC_READ):
+    //   [0 .. FIF*jointSz)            : FIF palette sections (MAX_TOTAL_JOINTS matrices each)
+    //   [FIF*jointSz .. 2*FIF*jointSz): FIF paletteNormal sections
+    //   [2*FIF*jointSz .. end)        : FIF morph-weight sections (MAX_TOTAL_MORPH_WEIGHTS floats each)
     ComPtr<ID3D12Resource> m_upload;
     uint8_t*               m_uploadMapped = nullptr;
 
-    // Per-frame GPU palette buffers (default heap, StructuredBuffer<float4x4> SRV).
+    // Per-frame GPU palette+morph-weight buffers (default heap, NON_PIXEL_SHADER_RESOURCE).
+    // Layout: [MAX_TOTAL_JOINTS float4x4s | MAX_TOTAL_MORPH_WEIGHTS floats]
+    // The shader reads the palette from offset 0 and morph weights from offset jointSz.
     ComPtr<ID3D12Resource> m_palettes[FRAMES_IN_FLIGHT];
     D3D12_RESOURCE_STATES  m_paletteStates[FRAMES_IN_FLIGHT] = {};
 
