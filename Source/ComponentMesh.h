@@ -58,8 +58,10 @@ public:
     // Morph target weights — one float per target, written by the animation system each frame.
     // Shared across all mesh primitives in this component (index 0 = first target of the mesh).
     static constexpr int MAX_MORPH_WEIGHTS = 64;
-    void setMorphWeight(int index, float weight);
+    void  setMorphWeight(int index, float weight);
     const float* getMorphWeights() const { return m_morphWeights; }
+    bool  getMorphWeightsDirty()   const { return m_morphWeightsDirty; }
+    void  clearMorphWeightsDirty()       { m_morphWeightsDirty = false; }
 
 private:
     void releaseEntries();
@@ -83,6 +85,7 @@ private:
     std::vector<GameObject*>  m_skinJoints;  // joint GameObjects in joint-index order (not owned)
 
     float m_morphWeights[MAX_MORPH_WEIGHTS] = {};
+    bool  m_morphWeightsDirty = false;
 
     bool m_drawBindPose = false;
 };

@@ -192,6 +192,84 @@ void ModuleEditor::preRender() {
     drawDockspace();
     drawMenuBar();
     for (EditorPanel* p : m_panels) if (p->open) p->draw();
+
+    // --- Morph Target Debug Window ---
+    {
+        ModuleScene* morphScene = getActiveModuleScene();
+        if (morphScene) {
+            struct MorphEntry { ComponentMesh* cm; Mesh* mesh; std::string goName; GameObject* go; };
+            std::vector<MorphEntry> found;
+            std::function<void(GameObject*)> collect = [&](GameObject* node) {
+                if (!node || !node->isActive()) return;
+                if (auto* cm = node->getComponent<ComponentMesh>()) {
+                    for (const auto& entry : cm->getEntries()) {
+                        Mesh* m = entry.meshRes ? entry.meshRes->getMesh() : nullptr;
+                        if (m && m->hasMorphTargets()) {
+                            found.push_back({ cm, m, node->getName(), node });
+                            break;
+                        }
+                    }
+                }
+                for (auto* c : node->getChildren()) collect(c);
+            };
+            collect(morphScene->getRoot());
+
+            if (!found.empty()) {
+                ImGui::Begin("Morph Targets Debug");
+                for (auto& mt : found) {
+                    const uint32_t n = mt.mesh->getNumMorphTargets();
+
+                    // Walk up parent chain to find the ComponentAnimation driving this node.
+                    ComponentAnimation* animComp = nullptr;
+                    for (GameObject* p = mt.go->getParent(); p && !animComp; p = p->getParent())
+                        animComp = p->getComponent<ComponentAnimation>();
+
+                    const bool isPlaying = animComp && animComp->getController().isPlaying();
+
+                    ImGui::Text("%s  |  Morph Targets: %u", mt.goName.c_str(), n);
+
+                    if (animComp) {
+                        float t = animComp->getController().CurrentTime;
+                        bool  hasMC = animComp->getController().hasMorphChannel(mt.goName.c_str());
+                        ImGui::Text("Anim time: %.3f s  |  MorphChannel: %s",
+                                    t, hasMC ? "YES" : "no (weights channel missing)");
+                        if (!hasMC)
+                            ImGui::TextColored(ImVec4(1,0.6f,0,1),
+                                "  Check: node name in .anim matches '%s'", mt.goName.c_str());
+                    } else {
+                        ImGui::TextDisabled("  No ComponentAnimation in parent chain");
+                    }
+                    ImGui::Separator();
+
+                    if (isPlaying) {
+                        ImGui::BeginDisabled();
+                        ImGui::TextDisabled("(animation is driving weights)");
+                    }
+                    for (uint32_t i = 0; i < n; ++i) {
+                        char label[48];
+                        snprintf(label, sizeof(label), "Weight %u##%s%u", i, mt.goName.c_str(), i);
+                        float v = mt.cm->getMorphWeights()[i];
+                        if (ImGui::SliderFloat(label, &v, 0.f, 1.f))
+                            mt.cm->setMorphWeight((int)i, v);
+                    }
+                    if (isPlaying) ImGui::EndDisabled();
+
+                    {
+                        char wbuf[256] = {};
+                        int off = 0;
+                        for (uint32_t i = 0; i < n && off < (int)sizeof(wbuf) - 12; ++i)
+                            off += snprintf(wbuf + off, sizeof(wbuf) - off,
+                                            i ? "  %.3f" : "%.3f", mt.cm->getMorphWeights()[i]);
+                        ImGui::Text("Weights this frame:  %s", wbuf);
+                    }
+                    ImGui::Spacing();
+                }
+                ImGui::End();
+            }
+        }
+    }
+    // --- End Morph Target Debug Window ---
+
     handleDialogs();
 }
 
@@ -278,8 +356,9 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     // Skinning job list built alongside mesh collection
     std::vector<SkinningPass::SkinJob> skinJobs;
     std::vector<size_t>                skinJobEntryIdx; // ownedEntries index per job
-    uint32_t curPaletteOffset = 0;
-    uint32_t curVertexOffset  = 0;
+    uint32_t curPaletteOffset     = 0;
+    uint32_t curVertexOffset      = 0;
+    uint32_t curMorphWeightOffset = 0;
 
     if (moduleScene) {
         std::function<void(GameObject*)> collectMeshes = [&](GameObject* node) {
@@ -303,29 +382,59 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                         e.materialCB  = src.materialCB;
 
                         Mesh* mesh = src.meshRes->getMesh();
-                        if (isSkinned && mesh && mesh->getBoneWeightBufferVA() != 0) {
-                            e.isSkinned = true;
-                            // skinnedVA filled in after dispatch below
+                        const bool hasBones = isSkinned && mesh && mesh->getBoneWeightBufferVA() != 0;
 
-                            // Build joint world matrices for this skin job
-                            const auto& joints = cm->getSkinJoints();
-                            std::vector<Matrix> jointWorlds;
-                            jointWorlds.reserve(joints.size());
-                            for (auto* jgo : joints)
-                                jointWorlds.push_back(jgo ? jgo->getTransform()->getGlobalMatrix() : Matrix::Identity);
+                        // Evaluate morph: only active when weights are non-zero or freshly written.
+                        // Clears dirty flag so next frame only re-dispatches on new animation input.
+                        bool shouldMorph = false;
+                        if (m_skinningPass && mesh && mesh->hasMorphTargets()) {
+                            shouldMorph = cm->getMorphWeightsDirty();
+                            if (!shouldMorph) {
+                                const float* w = cm->getMorphWeights();
+                                const uint32_t n = mesh->getNumMorphTargets();
+                                for (uint32_t t = 0; t < n && !shouldMorph; ++t)
+                                    shouldMorph = (w[t] != 0.f);
+                            }
+                            cm->clearMorphWeightsDirty();
+                        }
+
+                        const bool needsGpuJob = hasBones || shouldMorph;
+
+                        if (needsGpuJob) {
+                            e.isSkinned = true; // skinnedVA filled after dispatch
 
                             SkinningPass::SkinJob job;
-                            job.skin               = &cm->getLocalSkin();
-                            job.jointWorldMatrices = std::move(jointWorlds);
-                            job.mesh               = mesh;
-                            job.paletteOffset      = curPaletteOffset;
-                            job.vertexOffset       = curVertexOffset;
+                            job.mesh              = mesh;
+                            job.paletteOffset     = curPaletteOffset;
+                            job.vertexOffset      = curVertexOffset;
+                            job.morphWeightOffset = curMorphWeightOffset;
+
+                            if (hasBones) {
+                                const auto& joints = cm->getSkinJoints();
+                                std::vector<Matrix> jointWorlds;
+                                jointWorlds.reserve(joints.size());
+                                for (auto* jgo : joints)
+                                    jointWorlds.push_back(jgo ? jgo->getTransform()->getGlobalMatrix() : Matrix::Identity);
+                                job.skin               = &cm->getLocalSkin();
+                                job.jointWorldMatrices = std::move(jointWorlds);
+                            } else {
+                                // Morph-only: shader outputs local space; world transform in MeshEntry.
+                                memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));
+                            }
+
+                            if (shouldMorph) {
+                                const uint32_t numTargets = mesh->getNumMorphTargets();
+                                const float* w = cm->getMorphWeights();
+                                job.morphWeights.assign(w, w + numTargets);
+                                curMorphWeightOffset += numTargets;
+                            }
 
                             skinJobEntryIdx.push_back(ownedEntries.size());
                             skinJobs.push_back(std::move(job));
 
-                            curPaletteOffset += (uint32_t)cm->getLocalSkin().jointNodeIndices.size();
-                            curVertexOffset  += mesh->getVertexCount();
+                            if (hasBones)
+                                curPaletteOffset += (uint32_t)cm->getLocalSkin().jointNodeIndices.size();
+                            curVertexOffset += mesh->getVertexCount();
                         } else {
                             memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));
                         }

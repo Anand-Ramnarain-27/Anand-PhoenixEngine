@@ -115,6 +115,10 @@ bool AnimationController::GetTransform(const char* name, Vector3& pos, Quaternio
     return true;
 }
 
+bool AnimationController::hasMorphChannel(const char* name) const {
+    return m_animation && m_animation->getMorphChannel(name) != nullptr;
+}
+
 bool AnimationController::GetMorphWeights(const char* name, float* outWeights, uint32_t numTargets) const {
     if (!m_animation || !outWeights || numTargets == 0) return false;
 

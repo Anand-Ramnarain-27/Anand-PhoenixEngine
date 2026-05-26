@@ -32,6 +32,9 @@ public:
     // the output array is NOT modified in that case.
     bool GetMorphWeights(const char* name, float* outWeights, uint32_t numTargets) const;
 
+    // Returns true if the loaded animation contains a weights channel for the given node name.
+    bool hasMorphChannel(const char* name) const;
+
     bool isPlaying() const { return m_playing; }
 
     // Public state members (as specified).
