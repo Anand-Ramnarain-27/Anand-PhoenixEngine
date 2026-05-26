@@ -114,3 +114,43 @@ bool AnimationController::GetTransform(const char* name, Vector3& pos, Quaternio
 
     return true;
 }
+
+bool AnimationController::GetMorphWeights(const char* name, float* outWeights, uint32_t numTargets) const {
+    if (!m_animation || !outWeights || numTargets == 0) return false;
+
+    const ResourceAnimation::MorphChannel* mc = m_animation->getMorphChannel(name);
+    if (!mc || mc->numTime == 0 || mc->numTargets == 0) return false;
+
+    memset(outWeights, 0, numTargets * sizeof(float));
+    const uint32_t chTargets = std::min(mc->numTargets, numTargets);
+
+    const float* tFirst = mc->weightsTimes.get();
+    const float* tLast  = tFirst + mc->numTime;
+    const float* upper  = std::upper_bound(tFirst, tLast, CurrentTime);
+
+    if (upper == tFirst) {
+        // Before the first keyframe — clamp to start.
+        for (uint32_t i = 0; i < chTargets; ++i)
+            outWeights[i] = mc->weights[i];
+    } else if (upper == tLast) {
+        // After the last keyframe — clamp to end.
+        const uint32_t k = mc->numTime - 1;
+        for (uint32_t i = 0; i < chTargets; ++i)
+            outWeights[i] = mc->weights[k * mc->numTargets + i];
+    } else {
+        // Keyframes bracket CurrentTime: [k] <= CurrentTime < [k+1].
+        const int   k      = (int)(upper - tFirst) - 1;
+        const float t0     = tFirst[k];
+        const float t1     = tFirst[k + 1];
+        const float denom  = t1 - t0;
+        const float lambda = denom > 0.f
+            ? std::max(0.f, std::min(1.f, (CurrentTime - t0) / denom))
+            : 0.f;
+        for (uint32_t i = 0; i < chTargets; ++i) {
+            const float w0 = mc->weights[ k      * mc->numTargets + i];
+            const float w1 = mc->weights[(k + 1) * mc->numTargets + i];
+            outWeights[i] = w0 + lambda * (w1 - w0);
+        }
+    }
+    return true;
+}

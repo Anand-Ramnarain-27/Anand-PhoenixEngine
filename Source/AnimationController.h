@@ -26,6 +26,12 @@ public:
     // Returns false if the animation is not loaded or the node has no channel.
     bool GetTransform(const char* name, Vector3& pos, Quaternion& rot) const;
 
+    // Samples morph-target weights for the node named 'name' at CurrentTime.
+    // outWeights must point to a caller-allocated array of at least numTargets floats.
+    // Returns false if the animation is not loaded or the node has no morph channel;
+    // the output array is NOT modified in that case.
+    bool GetMorphWeights(const char* name, float* outWeights, uint32_t numTargets) const;
+
     bool isPlaying() const { return m_playing; }
 
     // Public state members (as specified).

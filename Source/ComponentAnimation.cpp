@@ -2,6 +2,8 @@
 #include "ComponentAnimation.h"
 #include "GameObject.h"
 #include "ComponentTransform.h"
+#include "ComponentMesh.h"
+#include "ResourceMesh.h"
 #include "ModuleResources.h"
 #include "ResourceAnimation.h"
 #include "Application.h"
@@ -46,14 +48,30 @@ void ComponentAnimation::update(float deltaTime) {
 }
 
 void ComponentAnimation::applyAnimation(GameObject* go) {
-    auto* t = go->getTransform();
+    const char* nodeName = go->getName().c_str();
 
+    auto* t = go->getTransform();
     Vector3 pos = t->position;
     Quaternion rot = t->rotation;
-    if (m_controller.GetTransform(go->getName().c_str(), pos, rot)) {
+    if (m_controller.GetTransform(nodeName, pos, rot)) {
         t->position = pos;
         t->rotation = rot;
         t->markDirty();
+    }
+
+    auto* meshComp = go->getComponent<ComponentMesh>();
+    if (meshComp) {
+        const auto& entries = meshComp->getEntries();
+        if (!entries.empty() && entries[0].meshRes != nullptr) {
+            const uint32_t numTargets = entries[0].meshRes->getNumMorphTargets();
+            if (numTargets > 0) {
+                float weights[ComponentMesh::MAX_MORPH_WEIGHTS] = {};
+                if (m_controller.GetMorphWeights(nodeName, weights, numTargets)) {
+                    for (uint32_t i = 0; i < numTargets; ++i)
+                        meshComp->setMorphWeight((int)i, weights[i]);
+                }
+            }
+        }
     }
 
     for (auto* child : go->getChildren())
