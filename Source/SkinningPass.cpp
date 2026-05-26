@@ -18,6 +18,7 @@ void SkinningPass::cleanUp() {
         m_paletteNormals[i].Reset();
         m_outputs[i].Reset();
     }
+    m_dummyBuffer.Reset();
     m_rootSig.Reset();
     m_pso.Reset();
 }
@@ -76,25 +77,41 @@ bool SkinningPass::createBuffers(ID3D12Device* device) {
             m_outputs[i]->SetName(name);
         }
     }
+
+    // Dummy buffer: bound to unused SRV slots (bone-weight or morph slots on jobs that don't
+    // need them).  Buffers in COMMON state auto-promote to any read state, so no transition needed.
+    {
+        auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+        auto bd = CD3DX12_RESOURCE_DESC::Buffer(256);
+        HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
+            D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&m_dummyBuffer));
+        if (FAILED(hr)) { LOG("SkinningPass: dummy buffer failed 0x%08X", hr); return false; }
+        m_dummyBuffer->SetName(L"SkinDummy");
+    }
+
     return true;
 }
 
 bool SkinningPass::createPipeline(ID3D12Device* device) {
     // Root signature (no descriptor heap needed — all root descriptors):
-    //   [0] b0 : root constants  4 x uint32  (numVertices, paletteOffset, vertexOffset, pad)
-    //   [1] t0 : root SRV        StructuredBuffer<float4x4>   (palette)
-    //   [2] t1 : root SRV        StructuredBuffer<float4x4>   (paletteNormal)
-    //   [3] t2 : root SRV        StructuredBuffer<Vertex>     (input vertices)
-    //   [4] t3 : root SRV        StructuredBuffer<BoneWeight> (bone weights)
-    //   [5] u0 : root UAV        RWStructuredBuffer<Vertex>   (output)
+    //   [0] b0 : root constants  5 x uint32  (numVertices, paletteOffset, vertexOffset, numMorphTargets, numJoints)
+    //   [1] t0 : root SRV        StructuredBuffer<float4x4>    (palette)
+    //   [2] t1 : root SRV        StructuredBuffer<float4x4>    (paletteNormal)
+    //   [3] t2 : root SRV        StructuredBuffer<Vertex>      (input vertices)
+    //   [4] t3 : root SRV        StructuredBuffer<BoneWeight>  (bone weights)
+    //   [5] u0 : root UAV        RWStructuredBuffer<Vertex>    (output)
+    //   [6] t4 : root SRV        StructuredBuffer<MorphVertex> (morph target deltas)
+    //   [7] t5 : root SRV        StructuredBuffer<float>       (morph blend weights)
     {
-        CD3DX12_ROOT_PARAMETER params[6] = {};
-        params[0].InitAsConstants(4, 0);              // b0
+        CD3DX12_ROOT_PARAMETER params[8] = {};
+        params[0].InitAsConstants(5, 0);              // b0 — 5 DWORDs
         params[1].InitAsShaderResourceView(0);        // t0 palette
         params[2].InitAsShaderResourceView(1);        // t1 paletteNormal
         params[3].InitAsShaderResourceView(2);        // t2 inVertex
         params[4].InitAsShaderResourceView(3);        // t3 boneWeights
         params[5].InitAsUnorderedAccessView(0);       // u0 outVertex
+        params[6].InitAsShaderResourceView(4);        // t4 morphVertices
+        params[7].InitAsShaderResourceView(5);        // t5 morphWeights
 
         CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
         rsDesc.Init(_countof(params), params, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
@@ -143,8 +160,9 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
     uint8_t* paletteDst       = m_uploadMapped + paletteUploadOff;
     uint8_t* paletteNormalDst = m_uploadMapped + paletteNormalUploadOff;
 
-    // ---- 1. Build matrix palettes on CPU ----
+    // ---- 1. Build matrix palettes on CPU (skip morph-only jobs that have no skin) ----
     for (const auto& job : jobs) {
+        if (!job.skin) continue;
         const uint32_t jointCount = static_cast<uint32_t>(job.skin->jointNodeIndices.size());
         for (uint32_t j = 0; j < jointCount; ++j) {
             Matrix m = job.skin->inverseBindMatrices[j] * job.jointWorldMatrices[j];
@@ -194,26 +212,45 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
     // Output UAV is shared for all jobs — per-mesh offset handled via g_vertexOffset.
     cmd->SetComputeRootUnorderedAccessView(5, m_outputs[frameIndex]->GetGPUVirtualAddress());
 
-    for (const auto& job : jobs) {
-        if (!job.mesh || !job.mesh->hasBoneWeights()) continue;
+    const D3D12_GPU_VIRTUAL_ADDRESS dummyVA = m_dummyBuffer->GetGPUVirtualAddress();
 
-        const uint32_t vertexCount = job.mesh->getVertexCount();
+    for (const auto& job : jobs) {
+        if (!job.mesh) continue;
+
+        const bool hasSkin  = (job.skin != nullptr) && !job.jointWorldMatrices.empty();
+        const bool hasMorph = job.mesh->hasMorphTargets();
+        if (!hasSkin && !hasMorph) continue;
+
+        const uint32_t vertexCount     = job.mesh->getVertexCount();
+        const uint32_t numMorphTargets = hasMorph ? job.mesh->getNumMorphTargets() : 0u;
+        const uint32_t numJoints       = hasSkin  ? static_cast<uint32_t>(job.skin->jointNodeIndices.size()) : 0u;
         if (vertexCount == 0) continue;
 
         const D3D12_GPU_VIRTUAL_ADDRESS vertexVA = job.mesh->getVertexBufferVA();
-        const D3D12_GPU_VIRTUAL_ADDRESS bwVA     = job.mesh->getBoneWeightBufferVA();
-        if (vertexVA == 0 || bwVA == 0) continue;
+        if (vertexVA == 0) continue;
 
-        // Root constants: numVertices, paletteOffset, vertexOffset, pad.
-        const uint32_t constants[4] = { vertexCount, job.paletteOffset, job.vertexOffset, 0u };
-        cmd->SetComputeRoot32BitConstants(0, 4, constants, 0);
+        // Bone-weight buffer: required for skin jobs, dummy for morph-only jobs.
+        const D3D12_GPU_VIRTUAL_ADDRESS rawBwVA = job.mesh->getBoneWeightBufferVA();
+        if (hasSkin && rawBwVA == 0) continue;  // skin job but bone weights not on GPU yet
+        const D3D12_GPU_VIRTUAL_ADDRESS bwVA = hasSkin ? rawBwVA : dummyVA;
 
-        // Per-job palette SRVs offset to this skin's base joint.
+        // Morph buffers: real VAs when present, dummy when not.
+        const D3D12_GPU_VIRTUAL_ADDRESS morphVtxVA = hasMorph ? job.mesh->getMorphTargetBufferVA() : dummyVA;
+        const D3D12_GPU_VIRTUAL_ADDRESS morphWgtVA = (hasMorph && job.morphWeightsVA != 0) ? job.morphWeightsVA : dummyVA;
+
+        // Root constants: numVertices, paletteOffset, vertexOffset, numMorphTargets, numJoints.
+        const uint32_t constants[5] = { vertexCount, job.paletteOffset, job.vertexOffset, numMorphTargets, numJoints };
+        cmd->SetComputeRoot32BitConstants(0, 5, constants, 0);
+
+        // Per-job palette SRVs offset to this skin's base joint (harmless at offset 0 for morph-only jobs).
         const UINT64 paletteJointOff = UINT64(job.paletteOffset) * sizeof(Matrix);
         cmd->SetComputeRootShaderResourceView(1, m_palettes[frameIndex]->GetGPUVirtualAddress() + paletteJointOff);
         cmd->SetComputeRootShaderResourceView(2, m_paletteNormals[frameIndex]->GetGPUVirtualAddress() + paletteJointOff);
         cmd->SetComputeRootShaderResourceView(3, vertexVA);
         cmd->SetComputeRootShaderResourceView(4, bwVA);
+        // [5] u0 already bound above
+        cmd->SetComputeRootShaderResourceView(6, morphVtxVA);
+        cmd->SetComputeRootShaderResourceView(7, morphWgtVA);
 
         const UINT groups = (vertexCount + THREAD_GROUP_SIZE - 1) / THREAD_GROUP_SIZE;
         cmd->Dispatch(groups, 1, 1);

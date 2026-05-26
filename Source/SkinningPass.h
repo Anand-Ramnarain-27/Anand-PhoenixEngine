@@ -23,12 +23,15 @@ public:
     // One SkinJob describes one skinned-mesh instance to process this frame.
     // paletteOffset and vertexOffset are assigned by the caller when building the job list
     // (pack all jobs into the combined palette/output buffers without gaps).
+    // A job may be skin-only (skin != nullptr, no morph targets), morph-only (skin == nullptr,
+    // mesh->hasMorphTargets()), or both.
     struct SkinJob {
-        const ResourceModel::Skin*  skin;                // inverse bind matrices + joint count
+        const ResourceModel::Skin*  skin;                // inverse bind matrices + joint count; null for morph-only jobs
         std::vector<Matrix>         jointWorldMatrices;  // world matrix per joint, in joint order
-        Mesh*                       mesh;                // source mesh (must have bone weights on GPU)
+        Mesh*                       mesh;                // source mesh
         uint32_t                    paletteOffset;       // first joint index in the combined palette
         uint32_t                    vertexOffset;        // first vertex index in the combined output
+        D3D12_GPU_VIRTUAL_ADDRESS   morphWeightsVA = 0;  // GPU float[] of per-target weights; 0 when no morph targets
     };
 
     bool init(ID3D12Device* device);
@@ -65,6 +68,10 @@ private:
 
     // Per-frame skinned-vertex output buffers (default heap, UAV + VBV).
     ComPtr<ID3D12Resource> m_outputs[FRAMES_IN_FLIGHT];
+
+    // Small zeroed buffer bound to unused root SRV slots (morph or bone-weight slots on jobs
+    // that don't use them) so every slot always has a valid GPU VA.
+    ComPtr<ID3D12Resource> m_dummyBuffer;
 
     ComPtr<ID3D12RootSignature> m_rootSig;
     ComPtr<ID3D12PipelineState> m_pso;
