@@ -53,6 +53,25 @@ void Mesh::setBoneWeights(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* st
     m_hasBoneWeightBuffer = (m_boneWeightBufferView.BufferLocation != 0);
 }
 
+void Mesh::setMorphTargets(const std::vector<MorphTarget>& targets, const std::vector<MorphVertex>& vertexData) {
+    m_morphTargets    = targets;
+    m_morphVertexData = vertexData;
+    m_numMorphTargets = (uint32_t)targets.size();
+    m_hasMorphTargetBuffer = false;
+    m_morphTargetBuffer.Reset();
+    if (!vertexData.empty()) {
+        if (ModuleGPUResources* gpu = app->getGPUResources()) {
+            m_morphTargetBuffer = gpu->createDefaultBuffer(
+                vertexData.data(), vertexData.size() * sizeof(MorphVertex), "MorphTargetBuffer");
+            m_hasMorphTargetBuffer = (m_morphTargetBuffer != nullptr);
+        }
+    }
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS Mesh::getMorphTargetBufferVA() const {
+    return m_morphTargetBuffer ? m_morphTargetBuffer->GetGPUVirtualAddress() : 0;
+}
+
 void Mesh::uploadToGPU(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer) {
     if (!staticBuffer) return;
     if (!m_hasVertexBuffer && !m_vertices.empty()) {
@@ -67,6 +86,13 @@ void Mesh::uploadToGPU(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* stati
         const size_t sz = m_boneWeights.size() * sizeof(BoneWeight);
         m_boneWeightBufferView = staticBuffer->allocVertexBuffer(cmd, m_boneWeights.data(), sz, sizeof(BoneWeight), "MeshBoneWeightVB");
         m_hasBoneWeightBuffer = (m_boneWeightBufferView.BufferLocation != 0);
+    }
+    if (!m_hasMorphTargetBuffer && !m_morphVertexData.empty()) {
+        if (ModuleGPUResources* gpu = app->getGPUResources()) {
+            m_morphTargetBuffer = gpu->createDefaultBuffer(
+                m_morphVertexData.data(), m_morphVertexData.size() * sizeof(MorphVertex), "MorphTargetBuffer");
+            m_hasMorphTargetBuffer = (m_morphTargetBuffer != nullptr);
+        }
     }
 }
 

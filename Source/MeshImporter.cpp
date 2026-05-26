@@ -57,6 +57,38 @@ static bool LoadSkin(const std::string& meshFile, std::vector<Mesh::BoneWeight>&
     memcpy(outBW.data(), raw.data() + sizeof(SkinDataHeader), hdr.vertexCount * sizeof(Mesh::BoneWeight));
     return true;
 }
+
+struct MorphDataHeader {
+    uint32_t magic       = 0x4850524D; // 'MRPH'
+    uint32_t version     = 1;
+    uint32_t numTargets  = 0;
+    uint32_t vertexCount = 0;
+};
+
+static bool SaveMorph(uint32_t numTargets, uint32_t vertexCount,
+                      const std::vector<Mesh::MorphVertex>& verts, const std::string& meshFile) {
+    std::string morphFile = meshFile.substr(0, meshFile.rfind('.')) + ".morph";
+    MorphDataHeader hdr; hdr.numTargets = numTargets; hdr.vertexCount = vertexCount;
+    std::vector<char> payload(verts.size() * sizeof(Mesh::MorphVertex));
+    memcpy(payload.data(), verts.data(), payload.size());
+    return ImporterUtils::SaveBuffer(morphFile, hdr, payload);
+}
+
+static bool LoadMorph(const std::string& meshFile,
+                      std::vector<Mesh::MorphTarget>& outTargets,
+                      std::vector<Mesh::MorphVertex>& outVerts) {
+    std::string morphFile = meshFile.substr(0, meshFile.rfind('.')) + ".morph";
+    MorphDataHeader hdr;
+    std::vector<char> raw;
+    if (!ImporterUtils::LoadBuffer(morphFile, hdr, raw)) return false;
+    if (hdr.magic != 0x4850524D || hdr.version == 0 || hdr.numTargets == 0 || hdr.vertexCount == 0) return false;
+    const size_t expected = sizeof(MorphDataHeader) + hdr.numTargets * hdr.vertexCount * sizeof(Mesh::MorphVertex);
+    if (raw.size() != expected) return false;
+    outTargets.resize(hdr.numTargets);
+    outVerts.resize(hdr.numTargets * hdr.vertexCount);
+    memcpy(outVerts.data(), raw.data() + sizeof(MorphDataHeader), outVerts.size() * sizeof(Mesh::MorphVertex));
+    return true;
+}
 } // namespace
 
 bool MeshImporter::Import(const tinygltf::Primitive& primitive, const tinygltf::Model& model, const std::string& outputFile) {
@@ -118,6 +150,26 @@ bool MeshImporter::Import(const tinygltf::Primitive& primitive, const tinygltf::
             });
     }
 
+    // Morph targets — packed flat: [Target0_V0..Target0_Vn | Target1_V0..Target1_Vn | ...]
+    std::vector<Mesh::MorphVertex> morphVerts;
+    const uint32_t numMorphTargets = (uint32_t)primitive.targets.size();
+    if (numMorphTargets > 0) {
+        morphVerts.resize(numMorphTargets * vertexCount);
+        for (uint32_t t = 0; t < numMorphTargets; ++t) {
+            const auto& target = primitive.targets[t];
+            const size_t base = t * vertexCount;
+            if (target.count("POSITION"))
+                readAccessor<float>(model, model.accessors[target.at("POSITION")], sizeof(float) * 3, vertexCount,
+                    [&](size_t i, const float* e) { morphVerts[base + i].deltaPosition = { e[0], e[1], e[2] }; });
+            if (target.count("NORMAL"))
+                readAccessor<float>(model, model.accessors[target.at("NORMAL")], sizeof(float) * 3, vertexCount,
+                    [&](size_t i, const float* e) { morphVerts[base + i].deltaNormal = { e[0], e[1], e[2] }; });
+            if (target.count("TANGENT"))
+                readAccessor<float>(model, model.accessors[target.at("TANGENT")], sizeof(float) * 3, vertexCount,
+                    [&](size_t i, const float* e) { morphVerts[base + i].deltaTangent = { e[0], e[1], e[2] }; });
+        }
+    }
+
     MeshHeader header;
     header.vertexCount = (uint32_t)vertices.size();
     header.indexCount = (uint32_t)indices.size();
@@ -130,6 +182,8 @@ bool MeshImporter::Import(const tinygltf::Primitive& primitive, const tinygltf::
     bool ok = Save(header, vertices, indices, outputFile);
     if (ok && !boneWeights.empty())
         SaveSkin(header.vertexCount, boneWeights, outputFile);
+    if (ok && numMorphTargets > 0)
+        SaveMorph(numMorphTargets, header.vertexCount, morphVerts, outputFile);
     return ok;
 }
 
@@ -165,6 +219,10 @@ bool MeshImporter::Load(const std::string& file, ID3D12GraphicsCommandList* cmd,
     std::vector<Mesh::BoneWeight> boneWeights;
     if (LoadSkin(file, boneWeights))
         outMesh->setBoneWeights(cmd, staticBuffer, boneWeights);
+    std::vector<Mesh::MorphTarget> morphTargets;
+    std::vector<Mesh::MorphVertex> morphVerts;
+    if (LoadMorph(file, morphTargets, morphVerts))
+        outMesh->setMorphTargets(morphTargets, morphVerts);
     return true;
 }
 
@@ -178,6 +236,10 @@ bool MeshImporter::Load(const std::string& file, std::unique_ptr<Mesh>& outMesh)
     std::vector<Mesh::BoneWeight> boneWeights;
     if (LoadSkin(file, boneWeights))
         outMesh->setBoneWeights(nullptr, nullptr, boneWeights);  // CPU-side only; GPU upload deferred to uploadToGPU
+    std::vector<Mesh::MorphTarget> morphTargets;
+    std::vector<Mesh::MorphVertex> morphVerts;
+    if (LoadMorph(file, morphTargets, morphVerts))
+        outMesh->setMorphTargets(morphTargets, morphVerts);
     return true;
 }
 

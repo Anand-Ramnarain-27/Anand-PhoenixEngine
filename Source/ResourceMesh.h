@@ -1,5 +1,6 @@
 #pragma once
 #include "ResourceCommon.h"
+#include <cstdint>
 #include <memory>
 #include <d3d12.h>
 
@@ -17,6 +18,9 @@ public:
 
     Mesh* getMesh() const { return m_mesh.get(); }
     bool isOnGPU() const;
+
+    uint32_t getNumMorphTargets() const;
+    D3D12_GPU_VIRTUAL_ADDRESS getMorphTargetBufferVA() const;
 
 private:
     std::unique_ptr<Mesh> m_mesh;
