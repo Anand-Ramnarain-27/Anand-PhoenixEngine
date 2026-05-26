@@ -883,11 +883,19 @@ GameObject* ModuleEditor::spawnModel(const std::string& path) {
         for (const auto& n : model->getNodes())
             if (!n.meshes.empty()) ++meshNodeCount;
 
-        bool needsHierarchy = meshNodeCount > 1 || !model->getSkins().empty();
+        bool hasAnimations  = (app->getAssets()->findSubUID(path, "anim", 0) != 0);
+        bool hasSkin        = !model->getSkins().empty();
+        bool needsHierarchy = meshNodeCount > 1 || hasSkin || hasAnimations;
         if (needsHierarchy) {
             GameObject* root = model->spawnIntoScene(scene);
             app->getResources()->ReleaseResource(model);
             if (root) {
+                bool animComp = root->getComponent<ComponentAnimation>() != nullptr;
+                LOG("spawnModel '%s': meshNodes=%d skin=%s anim=%s AnimComponent=%s",
+                    stem.c_str(), meshNodeCount,
+                    hasSkin       ? "yes" : "no",
+                    hasAnimations ? "yes" : "no",
+                    animComp      ? "yes" : "no");
                 log(("Added: " + stem).c_str(), EditorColors::Success);
                 return root;
             }

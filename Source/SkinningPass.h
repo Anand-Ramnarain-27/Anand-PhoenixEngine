@@ -27,11 +27,11 @@ public:
     // A job may be skin-only (skin != nullptr, no morph targets), morph-only (skin == nullptr,
     // mesh->hasMorphTargets()), or both.
     struct SkinJob {
-        const ResourceModel::Skin*  skin;                // inverse bind matrices + joint count; null for morph-only jobs
-        std::vector<Matrix>         jointWorldMatrices;  // world matrix per joint, in joint order
-        Mesh*                       mesh;                // source mesh
-        uint32_t                    paletteOffset;       // first joint index in the combined palette
-        uint32_t                    vertexOffset;        // first vertex index in the combined output
+        const ResourceModel::Skin*  skin             = nullptr; // null for morph-only jobs
+        std::vector<Matrix>         jointWorldMatrices;         // world matrix per joint, in joint order
+        Mesh*                       mesh             = nullptr; // source mesh
+        uint32_t                    paletteOffset    = 0;       // first joint index in the combined palette
+        uint32_t                    vertexOffset     = 0;       // first vertex index in the combined output
         // CPU-side per-target blend weights.  SkinningPass uploads these into the extended palette
         // buffer each frame.  Size == number of morph targets actually used; empty = no morphing.
         std::vector<float>          morphWeights;

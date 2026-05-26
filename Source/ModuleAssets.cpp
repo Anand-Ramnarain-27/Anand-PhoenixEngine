@@ -126,6 +126,16 @@ static bool materialCacheNeedsUpgrade(const std::string& sceneName) {
     return magic != 0x4D415452 || version < 7;
 }
 
+// Returns true when the scene.meta predates animation-library support (version < 3).
+// Morph-only animations were silently skipped by the old importer (validCount==0 early-exit),
+// so any cache from before version 3 may be missing .anim files even though the glTF has
+// weight channels.  Triggering a reimport fixes this automatically.
+static bool animCacheNeedsUpgrade(const std::string& sceneName) {
+    SceneImporter::SceneHeader header;
+    if (!SceneImporter::LoadSceneMetadata(sceneName, header)) return false;
+    return header.version < 3;
+}
+
 void ModuleAssets::refreshAssets() {
     std::string assetsRoot = app->getFileSystem()->GetAssetsPath();
     if (!fs::exists(assetsRoot)) return;
@@ -147,7 +157,8 @@ void ModuleAssets::refreshAssets() {
 
         if (isModelExtension(ext)) {
             std::string sceneName = entry.path().stem().string();
-            if (!sceneExists(sceneName) || needsReimport(path) || materialCacheNeedsUpgrade(sceneName)) {
+            if (!sceneExists(sceneName) || needsReimport(path) ||
+                materialCacheNeedsUpgrade(sceneName) || animCacheNeedsUpgrade(sceneName)) {
                 LOG("ModuleAssets: (Re)importing model %s", path.c_str());
                 importAsset(path.c_str());
             }

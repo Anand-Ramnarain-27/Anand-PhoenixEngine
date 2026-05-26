@@ -45,6 +45,32 @@ void ComponentAnimation::update(float deltaTime) {
 
     for (auto* child : owner->getChildren())
         applyAnimation(child);
+
+    // Diagnostic: log morph weights once per second so we can see what the animation is driving.
+    m_logTimer += deltaTime;
+    if (m_logTimer >= 1.f) {
+        m_logTimer = 0.f;
+        std::function<void(GameObject*)> logWeights = [&](GameObject* go) {
+            if (auto* cm = go->getComponent<ComponentMesh>()) {
+                const auto& entries = cm->getEntries();
+                if (!entries.empty() && entries[0].meshRes) {
+                    const uint32_t n = entries[0].meshRes->getNumMorphTargets();
+                    if (n > 0) {
+                        const float* w = cm->getMorphWeights();
+                        std::string ws;
+                        for (uint32_t i = 0; i < n && i < 8; ++i) {
+                            ws += std::to_string(w[i]);
+                            if (i + 1 < n && i + 1 < 8) ws += ", ";
+                        }
+                        LOG("ComponentAnimation '%s': node='%s' morph weights=[%s]",
+                            owner->getName().c_str(), go->getName().c_str(), ws.c_str());
+                    }
+                }
+            }
+            for (auto* child : go->getChildren()) logWeights(child);
+        };
+        for (auto* child : owner->getChildren()) logWeights(child);
+    }
 }
 
 void ComponentAnimation::applyAnimation(GameObject* go) {

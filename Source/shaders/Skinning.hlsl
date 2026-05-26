@@ -71,9 +71,14 @@ Vertex morphVertex(uint index)
         deltaTan += w * mv.deltaTangent;
     }
 
-    v.position    += deltaPos;
-    v.normal       = normalize(v.normal      + deltaNrm);
-    v.tangent.xyz  = normalize(v.tangent.xyz + deltaTan);
+    v.position += deltaPos;
+    // Guard: if the delta is extreme or produces NaN (degenerate morph data), fall back to T-pose position.
+    if (dot(deltaPos, deltaPos) > 1.0e8f || isnan(v.position.x) || isnan(v.position.y) || isnan(v.position.z))
+        v.position = inVertex[index].position;
+    float3 blendedNrm = v.normal + deltaNrm;
+    v.normal = (dot(blendedNrm, blendedNrm) > 1e-12f) ? normalize(blendedNrm) : v.normal;
+    float3 blendedTan = v.tangent.xyz + deltaTan;
+    v.tangent.xyz = (dot(blendedTan, blendedTan) > 1e-12f) ? normalize(blendedTan) : v.tangent.xyz;
     return v;
 }
 

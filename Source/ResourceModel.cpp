@@ -129,6 +129,13 @@ GameObject* ResourceModel::spawnIntoScene(ModuleScene* scene, GameObject* parent
         cm->setSkinData(skin, std::move(joints));
     }
 
+    // Log node summary so we can see which nodes have skins and which have meshes.
+    for (size_t i = 0; i < m_nodes.size(); ++i) {
+        const Node& n = m_nodes[i];
+        LOG("ResourceModel: node[%zu] name='%s' skin=%d meshes=%zu",
+            i, n.name.c_str(), n.skinIndex, n.meshes.size());
+    }
+
     // Attach ComponentAnimation to the root if this model has any animations.
     std::vector<UID> animUIDs;
     for (int i = 0; ; ++i) {
@@ -136,10 +143,17 @@ GameObject* ResourceModel::spawnIntoScene(ModuleScene* scene, GameObject* parent
         if (uid == 0) break;
         animUIDs.push_back(uid);
     }
+    LOG("ResourceModel: spawning '%s' — found %d anim UID(s) via findSubUID",
+        modelName.c_str(), (int)animUIDs.size());
     if (!animUIDs.empty()) {
         auto* animComp = root->createComponent<ComponentAnimation>();
         animComp->setAnimationList(animUIDs);
         animComp->OnPlay(animUIDs[0], /*loop=*/true);
+        LOG("ResourceModel: ComponentAnimation added to root '%s' — playing anim[0]", modelName.c_str());
+    } else {
+        LOG("ResourceModel: no anim UIDs — ComponentAnimation NOT created. "
+            "Delete Library/Animations/%s/ and re-import to regenerate.",
+            modelName.c_str());
     }
 
     return root;

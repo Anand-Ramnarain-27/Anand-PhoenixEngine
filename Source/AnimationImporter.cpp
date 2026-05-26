@@ -112,8 +112,53 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
             UINT timeCnt = 0, valCnt = 0;
             std::unique_ptr<float[]> times, values;
 
-            if (!loadAccessorTyped(times,  timeCnt, gltfModel, sampler.input))  continue;
-            if (!loadAccessorTyped(values, valCnt,  gltfModel, sampler.output)) continue;
+            if (!loadAccessorTyped(times, timeCnt, gltfModel, sampler.input)) continue;
+
+            // Weight output accessors may be quantized (e.g. UNSIGNED_BYTE normalized in
+            // KHR_mesh_quantization). loadAccessorTyped<float[]> requires stride==sizeof(float)
+            // and silently fails for 1- or 2-byte component types, so read raw then convert.
+            {
+                const tinygltf::Accessor& outAcc = gltfModel.accessors[sampler.output];
+                valCnt = (UINT)outAcc.count;
+                const int compType  = outAcc.componentType;
+                const bool normalized = outAcc.normalized;
+                const bool isFloat  = (compType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+
+                if (isFloat) {
+                    values = std::make_unique<float[]>(valCnt);
+                    if (!loadAccessorData(reinterpret_cast<uint8_t*>(values.get()),
+                                          sizeof(float), sizeof(float), valCnt, gltfModel, sampler.output))
+                        continue;
+                } else {
+                    // Convert quantized integer components to float.
+                    size_t compSize = tinygltf::GetComponentSizeInBytes(compType);
+                    std::vector<uint8_t> raw(valCnt * compSize);
+                    if (!loadAccessorData(raw.data(), compSize, compSize, valCnt, gltfModel, sampler.output))
+                        continue;
+                    values = std::make_unique<float[]>(valCnt);
+                    for (UINT vi = 0; vi < valCnt; ++vi) {
+                        const uint8_t* p = raw.data() + vi * compSize;
+                        float f = 0.f;
+                        if (compType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+                            f = normalized ? (*p / 255.0f) : (float)*p;
+                        } else if (compType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+                            uint16_t v16; memcpy(&v16, p, 2);
+                            f = normalized ? (v16 / 65535.0f) : (float)v16;
+                        } else if (compType == TINYGLTF_COMPONENT_TYPE_BYTE) {
+                            int8_t s8; memcpy(&s8, p, 1);
+                            f = normalized ? std::max(s8 / 127.0f, -1.0f) : (float)s8;
+                        } else if (compType == TINYGLTF_COMPONENT_TYPE_SHORT) {
+                            int16_t s16; memcpy(&s16, p, 2);
+                            f = normalized ? std::max(s16 / 32767.0f, -1.0f) : (float)s16;
+                        } else {
+                            f = (float)*p; // fallback
+                        }
+                        values[vi] = f;
+                    }
+                    LOG("AnimationImporter: quantized weights accessor (compType=%d normalized=%d) — converted %u values to float",
+                        compType, (int)normalized, valCnt);
+                }
+            }
             if (timeCnt == 0 || valCnt == 0) continue;
 
             const uint32_t numTargets = valCnt / timeCnt;
@@ -222,13 +267,32 @@ int AnimationImporter::ImportAll(const tinygltf::Model& gltfModel, const std::st
     fs->CreateDir(animsDir.c_str());
     fs->CreateDir(sceneDir.c_str());
 
+    LOG("AnimationImporter: '%s' — %d animation(s) in glTF", sceneName.c_str(), (int)gltfModel.animations.size());
+
     int count = 0;
     for (int i = 0; i < (int)gltfModel.animations.size(); ++i) {
+        const auto& anim = gltfModel.animations[i];
+
+        // Log each channel's target node name and path so mismatches are visible immediately.
+        std::string channelSummary;
+        for (const auto& ch : anim.channels) {
+            const std::string& nodeName = (ch.target_node >= 0 && ch.target_node < (int)gltfModel.nodes.size())
+                ? (gltfModel.nodes[ch.target_node].name.empty()
+                    ? ("Node_" + std::to_string(ch.target_node))
+                    : gltfModel.nodes[ch.target_node].name)
+                : "?";
+            channelSummary += nodeName + ":" + ch.target_path + " ";
+        }
+        LOG("AnimationImporter: anim[%d] '%s' — %d channel(s): %s",
+            i, anim.name.c_str(), (int)anim.channels.size(), channelSummary.c_str());
+
         std::string outPath = ImporterUtils::IndexedPath(sceneDir, i, ".anim");
         if (importOne(gltfModel, i, sceneName, outPath))
             ++count;
         else
-            LOG("AnimationImporter: Skipped animation %d for '%s' (no keyframes)", i, sceneName.c_str());
+            LOG("AnimationImporter: Skipped animation %d '%s' for '%s' (no valid keyframes)",
+                i, anim.name.c_str(), sceneName.c_str());
     }
+    LOG("AnimationImporter: '%s' — wrote %d .anim file(s)", sceneName.c_str(), count);
     return count;
 }

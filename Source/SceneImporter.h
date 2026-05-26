@@ -12,7 +12,9 @@ class SceneImporter {
 public:
     struct SceneHeader {
         uint32_t magic = 0x53434E45;
-        uint32_t version = 2;
+        // v3: animation library added; any cache with version < 3 triggers a full reimport
+        //     so that morph-only animations that were silently skipped get re-exported.
+        uint32_t version = 3;
         uint32_t meshCount = 0;
         uint32_t materialCount = 0;
     };

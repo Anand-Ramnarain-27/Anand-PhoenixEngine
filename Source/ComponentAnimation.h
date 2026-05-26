@@ -38,6 +38,7 @@ private:
     std::vector<UID>         m_animUIDs;
     std::vector<std::string> m_animNames; // parallel to m_animUIDs
 
-    bool m_drawBones      = false;
-    bool m_drawAxisTriads = false;
+    bool  m_drawBones      = false;
+    bool  m_drawAxisTriads = false;
+    float m_logTimer       = 0.f; // diagnostic: throttle per-second weight log
 };

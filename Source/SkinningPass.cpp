@@ -251,13 +251,27 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
 
         // Morph vertex deltas: per-mesh buffer uploaded at import time.
         // Morph weights: live in the extended section of the per-frame palette buffer.
-        const D3D12_GPU_VIRTUAL_ADDRESS morphVtxVA = hasMorph ? job.mesh->getMorphTargetBufferVA() : dummyVA;
-        const D3D12_GPU_VIRTUAL_ADDRESS morphWgtVA = hasMorph
+        // Guard: morph vertex buffer must be on GPU. If it isn't (upload deferred), fall back to no-morph
+        // so we bind a valid VA rather than 0 which would cause a GPU page fault.
+        const D3D12_GPU_VIRTUAL_ADDRESS morphVtxRaw = hasMorph ? job.mesh->getMorphTargetBufferVA() : 0;
+        const bool validMorph = hasMorph && (morphVtxRaw != 0);
+        if (hasMorph && !validMorph)
+            LOG("SkinningPass: getMorphTargetBufferVA()==0 — morph disabled this frame (buffer still uploading?)");
+        const D3D12_GPU_VIRTUAL_ADDRESS morphVtxVA = validMorph ? morphVtxRaw : dummyVA;
+        const D3D12_GPU_VIRTUAL_ADDRESS morphWgtVA = validMorph
             ? m_palettes[frameIndex]->GetGPUVirtualAddress() + jointSz + UINT64(job.morphWeightOffset) * sizeof(float)
             : dummyVA;
+        const uint32_t effectiveMorphTargets = validMorph ? numMorphTargets : 0u;
+
+        if (validMorph) {
+            LOG("SkinningPass morph dispatch: verts=%u targets=%u joints=%u wgtOff=%u vtxVA=%llu wgtVA=%llu w[0]=%.4f",
+                vertexCount, effectiveMorphTargets, numJoints, job.morphWeightOffset,
+                (unsigned long long)morphVtxVA, (unsigned long long)morphWgtVA,
+                !job.morphWeights.empty() ? job.morphWeights[0] : 0.f);
+        }
 
         // Root constants: numVertices, paletteOffset, vertexOffset, numMorphTargets, numJoints.
-        const uint32_t constants[5] = { vertexCount, job.paletteOffset, job.vertexOffset, numMorphTargets, numJoints };
+        const uint32_t constants[5] = { vertexCount, job.paletteOffset, job.vertexOffset, effectiveMorphTargets, numJoints };
         cmd->SetComputeRoot32BitConstants(0, 5, constants, 0);
 
         // Per-job palette SRVs offset to this skin's base joint (harmless at offset 0 for morph-only jobs).

@@ -133,6 +133,21 @@ bool ResourceAnimation::LoadInMemory() {
         }
     }
 
+    // Diagnostic: log what was loaded so node-name mismatches show up at load time.
+    if (!m_morphChannels.empty()) {
+        std::string nodeList;
+        for (const auto& [name, mc] : m_morphChannels) {
+            if (!nodeList.empty()) nodeList += ", ";
+            nodeList += "'" + name + "'(" + std::to_string(mc.numTargets) + " targets/"
+                      + std::to_string(mc.numTime) + " keys)";
+        }
+        LOG("ResourceAnimation '%s': %zu morph channel(s) — %s",
+            m_name.c_str(), m_morphChannels.size(), nodeList.c_str());
+    } else if (!m_channels.empty()) {
+        LOG("ResourceAnimation '%s': %zu transform channel(s), no morph channels",
+            m_name.c_str(), m_channels.size());
+    }
+
     return !m_channels.empty() || !m_morphChannels.empty();
 }
 

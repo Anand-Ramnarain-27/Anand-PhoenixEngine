@@ -31,6 +31,18 @@ void AnimationController::Play(UID uid, bool loop) {
     if (!m_animation) {
         LOG("AnimationController: Failed to load animation uid=%llu", uid);
         m_playing = false;
+        return;
+    }
+
+    // Log morph channels so node-name mismatches are immediately visible in the console.
+    const auto& morphChs = m_animation->getMorphChannels();
+    if (morphChs.empty()) {
+        LOG("AnimationController: '%s' — no morph-weight channels", m_animation->getAnimName().c_str());
+    } else {
+        LOG("AnimationController: '%s' — %d morph channel(s):", m_animation->getAnimName().c_str(), (int)morphChs.size());
+        for (const auto& [nodeName, mc] : morphChs)
+            LOG("  morph channel node='%s'  keyframes=%u  targets=%u",
+                nodeName.c_str(), mc.numTime, mc.numTargets);
     }
 }
 
