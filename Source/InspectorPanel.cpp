@@ -26,6 +26,8 @@
 #include "EditorSelection.h"
 #include "PrefabEditSession.h"
 #include "ComponentScript.h"
+#include "ComponentCharacterMotion.h"
+#include "ComponentSimpleCharacterController.h"
 #include <filesystem>
 #include <algorithm>
 
@@ -166,6 +168,8 @@ void InspectorPanel::drawContent() {
             comp->getType() == Component::Type::SpotLight ? "Spot Light" :
             comp->getType() == Component::Type::Script ? "Script" :
             comp->getType() == Component::Type::Animation ? "Animation" :
+            comp->getType() == Component::Type::CharacterMotion ? "Character Motion" :
+            comp->getType() == Component::Type::SimpleCharacterController ? "Character Controller" :
             "Component";
 
         ImGui::PushID((int)comp->getType());
@@ -275,6 +279,8 @@ void InspectorPanel::drawAddComponentMenu() {
     addComp("Camera", Component::Type::Camera, go->getComponent<ComponentCamera>() != nullptr);
     addComp("Mesh", Component::Type::Mesh, go->getComponent<ComponentMesh>() != nullptr);
     addComp("Animation", Component::Type::Animation, go->getComponent<ComponentAnimation>() != nullptr);
+    addComp("Character Motion", Component::Type::CharacterMotion, go->getComponent<ComponentCharacterMotion>() != nullptr);
+    addComp("Character Controller", Component::Type::SimpleCharacterController, go->getComponent<ComponentSimpleCharacterController>() != nullptr);
     ImGui::Separator();
     addComp("Directional Light", Component::Type::DirectionalLight, go->getComponent<ComponentDirectionalLight>() != nullptr);
     addComp("Point Light", Component::Type::PointLight, go->getComponent<ComponentPointLight>() != nullptr);

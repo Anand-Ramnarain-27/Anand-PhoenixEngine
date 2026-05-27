@@ -269,6 +269,8 @@
     <ClInclude Include="ResourceCommon.h" />
     <ClInclude Include="AnimationController.h" />
     <ClInclude Include="ComponentAnimation.h" />
+    <ClInclude Include="ComponentCharacterMotion.h" />
+    <ClInclude Include="ComponentSimpleCharacterController.h" />
     <ClInclude Include="SkinningPass.h" />
     <ClInclude Include="AnimationImporter.h" />
     <ClInclude Include="ResourceAnimation.h" />
@@ -428,6 +430,8 @@
     <ClCompile Include="RenderTexture.cpp" />
     <ClCompile Include="AnimationController.cpp" />
     <ClCompile Include="ComponentAnimation.cpp" />
+    <ClCompile Include="ComponentCharacterMotion.cpp" />
+    <ClCompile Include="ComponentSimpleCharacterController.cpp" />
     <ClCompile Include="SkinningPass.cpp" />
     <ClCompile Include="AnimationImporter.cpp" />
     <ClCompile Include="ResourceAnimation.cpp" />
