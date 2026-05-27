@@ -77,14 +77,10 @@ void Mesh::uploadToGPU(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* stati
     if (!m_hasVertexBuffer && !m_vertices.empty()) {
         m_vertexBufferView = staticBuffer->allocVertexBuffer(cmd, m_vertices.data(), m_vertices.size() * sizeof(Vertex), sizeof(Vertex), "MeshVB");
         m_hasVertexBuffer = (m_vertexBufferView.BufferLocation != 0);
-        LOG("Mesh::uploadToGPU: verts=%u VA=%llu hasVB=%d sbInit=%d",
-            (uint32_t)m_vertices.size(), m_vertexBufferView.BufferLocation, (int)m_hasVertexBuffer, (int)staticBuffer->isInitialized());
         if (!m_indices.empty()) {
             m_indexBufferView = staticBuffer->allocIndexBuffer(cmd, m_indices.data(), m_indices.size() * sizeof(uint32_t), DXGI_FORMAT_R32_UINT, "MeshIB");
             m_hasIndexBuffer = (m_indexBufferView.BufferLocation != 0);
         }
-    } else if (!m_hasVertexBuffer) {
-        LOG("Mesh::uploadToGPU: SKIPPED — m_vertices.empty()=%d m_hasVB=%d", (int)m_vertices.empty(), (int)m_hasVertexBuffer);
     }
     if (!m_hasBoneWeightBuffer && !m_boneWeights.empty()) {
         const size_t sz = m_boneWeights.size() * sizeof(BoneWeight);

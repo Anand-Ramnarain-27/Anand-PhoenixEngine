@@ -263,16 +263,6 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
             : dummyVA;
         const uint32_t effectiveMorphTargets = validMorph ? numMorphTargets : 0u;
 
-        if (validMorph) {
-            LOG("SkinningPass morph dispatch: verts=%u targets=%u joints=%u wgtOff=%u vtxVA=%llu wgtVA=%llu w[0]=%.4f",
-                vertexCount, effectiveMorphTargets, numJoints, job.morphWeightOffset,
-                (unsigned long long)morphVtxVA, (unsigned long long)morphWgtVA,
-                !job.morphWeights.empty() ? job.morphWeights[0] : 0.f);
-        }
-
-        // Root constants: numVertices, paletteOffset, vertexOffset, numMorphTargets, numJoints.
-        LOG("SkinConstants: numVertices=%u paletteOff=%u vtxOff=%u numMorphTargets=%u numJoints=%u",
-            vertexCount, job.paletteOffset, job.vertexOffset, effectiveMorphTargets, numJoints);
         const uint32_t constants[5] = { vertexCount, job.paletteOffset, job.vertexOffset, effectiveMorphTargets, numJoints };
         cmd->SetComputeRoot32BitConstants(0, 5, constants, 0);
 

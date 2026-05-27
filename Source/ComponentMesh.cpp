@@ -215,7 +215,6 @@ void ComponentMesh::setMorphWeight(int index, float weight) {
     if (index < 0 || index >= MAX_MORPH_WEIGHTS) return;
     m_morphWeights[index] = weight;
     m_morphWeightsDirty   = true;
-    LOG("SetMorphWeight[%d] = %.3f, dirty=%d", index, weight, (int)m_morphWeightsDirty);
 }
 
 void ComponentMesh::setProceduralModel(std::unique_ptr<Model> model) {

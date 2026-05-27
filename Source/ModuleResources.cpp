@@ -68,12 +68,7 @@ void ModuleResources::uploadPendingMeshes(ID3D12GraphicsCommandList* cmd, Module
     for (auto& [uid, res] : m_resources) {
         if (res->type != ResourceBase::Type::Mesh) continue;
         auto* rm = static_cast<ResourceMesh*>(res);
-        const bool hasMesh = rm->getMesh() != nullptr;
-        const bool onGPU   = rm->isOnGPU();
-        if (hasMesh && !onGPU) {
-            LOG("uploadPendingMeshes: uid=%llu uploading (hasMesh=%d onGPU=%d)", uid, (int)hasMesh, (int)onGPU);
-            rm->LoadInMemory(cmd, staticBuffer);
-        }
+        if (rm->getMesh() && !rm->isOnGPU()) rm->LoadInMemory(cmd, staticBuffer);
     }
 }
 

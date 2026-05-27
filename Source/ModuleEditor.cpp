@@ -443,11 +443,6 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                                 curMorphWeightOffset += numTargets;
                             }
 
-                            job.dbgGoName = node->getName();
-                            LOG("SkinningPass dispatching: GO='%s' joints=%u morphTargets=%u",
-                                node->getName().c_str(),
-                                hasBones ? (uint32_t)cm->getLocalSkin().jointNodeIndices.size() : 0u,
-                                (uint32_t)job.morphWeights.size());
                             skinJobEntryIdx.push_back(ownedEntries.size());
                             skinJobs.push_back(std::move(job));
 
@@ -455,9 +450,6 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                                 curPaletteOffset += (uint32_t)cm->getLocalSkin().jointNodeIndices.size();
                             curVertexOffset += mesh->getVertexCount();
                         } else {
-                            if (mesh && mesh->hasMorphTargets())
-                                LOG("RenderSubmit: GO='%s' using INPUT buffer (vertexReady=%d shouldMorph=%d)",
-                                    node->getName().c_str(), (int)vertexReady, (int)shouldMorph);
                             memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));
                         }
                         ownedEntries.push_back(std::move(e));
@@ -478,12 +470,9 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
 
         D3D12_GPU_VIRTUAL_ADDRESS outputVA =
             m_skinningPass->getOutputBuffer(frameIndex)->GetGPUVirtualAddress();
-        for (size_t i = 0; i < skinJobs.size(); ++i) {
+        for (size_t i = 0; i < skinJobs.size(); ++i)
             ownedEntries[skinJobEntryIdx[i]].skinnedVA =
                 outputVA + skinJobs[i].vertexOffset * sizeof(Mesh::Vertex);
-            LOG("RenderSubmit: GO='%s' using OUTPUT buffer (vtxOff=%u)",
-                skinJobs[i].dbgGoName.c_str(), skinJobs[i].vertexOffset);
-        }
     }
 
     const EnvironmentSystem* envForIBL =
