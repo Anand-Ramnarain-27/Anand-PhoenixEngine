@@ -271,6 +271,8 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
         }
 
         // Root constants: numVertices, paletteOffset, vertexOffset, numMorphTargets, numJoints.
+        LOG("SkinConstants: numVertices=%u paletteOff=%u vtxOff=%u numMorphTargets=%u numJoints=%u",
+            vertexCount, job.paletteOffset, job.vertexOffset, effectiveMorphTargets, numJoints);
         const uint32_t constants[5] = { vertexCount, job.paletteOffset, job.vertexOffset, effectiveMorphTargets, numJoints };
         cmd->SetComputeRoot32BitConstants(0, 5, constants, 0);
 

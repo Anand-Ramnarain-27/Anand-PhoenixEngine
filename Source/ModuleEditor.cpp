@@ -371,8 +371,19 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                 }
                 else {
                     const bool isSkinned = m_skinningPass && cm->hasSkinData();
+
+                    // Capture and clear the component-level morph dirty flag once before iterating
+                    // primitives. Clearing inside the loop would prevent later primitives of the
+                    // same ComponentMesh from seeing the flag on the same frame.
+                    const bool morphDirtyThisFrame = m_skinningPass && cm->getMorphWeightsDirty();
+                    if (morphDirtyThisFrame) cm->clearMorphWeightsDirty();
+
                     for (const auto& src : cm->getEntries()) {
-                        if (!src.meshRes || !src.materialRes) continue;
+                        // materialRes may be null when materialUID wasn't found in the sub-UID
+                        // registry (e.g. simple/un-textured glTF materials).  GBufferPass
+                        // handles this gracefully via instanceMaterial (always created by
+                        // rebuildEntry), so only skip truly unrenderable entries.
+                        if (!src.meshRes || !src.meshRes->getMesh()) continue;
                         MeshEntry e;
                         e.meshUID     = src.meshUID;
                         e.materialUID = src.materialUID;
@@ -384,21 +395,24 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                         Mesh* mesh = src.meshRes->getMesh();
                         const bool hasBones = isSkinned && mesh && mesh->getBoneWeightBufferVA() != 0;
 
-                        // Evaluate morph: only active when weights are non-zero or freshly written.
-                        // Clears dirty flag so next frame only re-dispatches on new animation input.
+                        // Evaluate morph: active when weights are non-zero or the dirty flag was
+                        // set this frame (covers the frame where weights transition back to zero).
                         bool shouldMorph = false;
                         if (m_skinningPass && mesh && mesh->hasMorphTargets()) {
-                            shouldMorph = cm->getMorphWeightsDirty();
+                            shouldMorph = morphDirtyThisFrame;
                             if (!shouldMorph) {
                                 const float* w = cm->getMorphWeights();
                                 const uint32_t n = mesh->getNumMorphTargets();
                                 for (uint32_t t = 0; t < n && !shouldMorph; ++t)
                                     shouldMorph = (w[t] != 0.f);
                             }
-                            cm->clearMorphWeightsDirty();
                         }
 
-                        const bool needsGpuJob = hasBones || shouldMorph;
+                        // Only create a GPU job when the vertex buffer is on the GPU.
+                        // SkinningPass skips jobs whose vertexVA==0 but the post-dispatch loop still
+                        // assigns skinnedVA, which would cause drawSkinned() to read stale data.
+                        const bool vertexReady = mesh && (mesh->getVertexBufferVA() != 0);
+                        const bool needsGpuJob = vertexReady && (hasBones || shouldMorph);
 
                         if (needsGpuJob) {
                             e.isSkinned = true; // skinnedVA filled after dispatch
@@ -429,6 +443,11 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                                 curMorphWeightOffset += numTargets;
                             }
 
+                            job.dbgGoName = node->getName();
+                            LOG("SkinningPass dispatching: GO='%s' joints=%u morphTargets=%u",
+                                node->getName().c_str(),
+                                hasBones ? (uint32_t)cm->getLocalSkin().jointNodeIndices.size() : 0u,
+                                (uint32_t)job.morphWeights.size());
                             skinJobEntryIdx.push_back(ownedEntries.size());
                             skinJobs.push_back(std::move(job));
 
@@ -436,6 +455,9 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                                 curPaletteOffset += (uint32_t)cm->getLocalSkin().jointNodeIndices.size();
                             curVertexOffset += mesh->getVertexCount();
                         } else {
+                            if (mesh && mesh->hasMorphTargets())
+                                LOG("RenderSubmit: GO='%s' using INPUT buffer (vertexReady=%d shouldMorph=%d)",
+                                    node->getName().c_str(), (int)vertexReady, (int)shouldMorph);
                             memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));
                         }
                         ownedEntries.push_back(std::move(e));
@@ -456,9 +478,12 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
 
         D3D12_GPU_VIRTUAL_ADDRESS outputVA =
             m_skinningPass->getOutputBuffer(frameIndex)->GetGPUVirtualAddress();
-        for (size_t i = 0; i < skinJobs.size(); ++i)
+        for (size_t i = 0; i < skinJobs.size(); ++i) {
             ownedEntries[skinJobEntryIdx[i]].skinnedVA =
                 outputVA + skinJobs[i].vertexOffset * sizeof(Mesh::Vertex);
+            LOG("RenderSubmit: GO='%s' using OUTPUT buffer (vtxOff=%u)",
+                skinJobs[i].dbgGoName.c_str(), skinJobs[i].vertexOffset);
+        }
     }
 
     const EnvironmentSystem* envForIBL =

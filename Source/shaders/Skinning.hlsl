@@ -72,8 +72,11 @@ Vertex morphVertex(uint index)
     }
 
     v.position += deltaPos;
-    // Guard: if the delta is extreme or produces NaN (degenerate morph data), fall back to T-pose position.
-    if (dot(deltaPos, deltaPos) > 1.0e8f || isnan(v.position.x) || isnan(v.position.y) || isnan(v.position.z))
+    // Guard: if the accumulated delta is too large, infinite, or NaN, fall back to T-pose position.
+    // Threshold sqrt(1e6) ≈ 1000 units per component — catches garbage morph data before it
+    // displaces vertices outside the frustum without blocking legitimate large-scale morphs.
+    if (dot(deltaPos, deltaPos) > 1.0e6f
+        || any(isinf(v.position)) || any(isnan(v.position)))
         v.position = inVertex[index].position;
     float3 blendedNrm = v.normal + deltaNrm;
     v.normal = (dot(blendedNrm, blendedNrm) > 1e-12f) ? normalize(blendedNrm) : v.normal;

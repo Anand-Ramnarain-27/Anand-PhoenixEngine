@@ -36,6 +36,7 @@ public:
         // buffer each frame.  Size == number of morph targets actually used; empty = no morphing.
         std::vector<float>          morphWeights;
         uint32_t                    morphWeightOffset = 0; // first float slot in the combined weight section
+        std::string                 dbgGoName;             // GO name for debug logs (temporary)
     };
 
     bool init(ID3D12Device* device);

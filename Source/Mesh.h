@@ -73,7 +73,13 @@ public:
     bool hasMorphTargets() const { return m_numMorphTargets > 0; }
 
     // GPU virtual addresses — valid after uploadToGPU() or setData() with a command list.
-    D3D12_GPU_VIRTUAL_ADDRESS getVertexBufferVA()       const { return m_vertexBufferView.BufferLocation; }
+    // Falls back to the legacy (createDefaultBuffer) buffer so morph/skin jobs can dispatch
+    // even when the static-buffer upload hasn't completed yet.  Legacy buffers are in
+    // D3D12_RESOURCE_STATE_COMMON and auto-promote to NON_PIXEL_SHADER_RESOURCE for the CS read.
+    D3D12_GPU_VIRTUAL_ADDRESS getVertexBufferVA() const {
+        if (m_vertexBufferView.BufferLocation != 0) return m_vertexBufferView.BufferLocation;
+        return m_legacyVertexBuffer ? m_legacyVertexBuffer->GetGPUVirtualAddress() : 0;
+    }
     D3D12_GPU_VIRTUAL_ADDRESS getBoneWeightBufferVA()   const { return m_boneWeightBufferView.BufferLocation; }
     D3D12_GPU_VIRTUAL_ADDRESS getMorphTargetBufferVA()  const;
 
