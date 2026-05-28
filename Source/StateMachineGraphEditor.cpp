@@ -39,7 +39,7 @@ void StateMachineGraphEditor::Shutdown() {
 
 // ─── Draw ─────────────────────────────────────────────────────────────────────
 
-void StateMachineGraphEditor::Draw(ResourceStateMachine& sm) {
+void StateMachineGraphEditor::Draw(ResourceStateMachine& sm, const HashString* activeState) {
     if (!m_context) return;
 
     ed::SetCurrentEditor(m_context);
@@ -67,14 +67,20 @@ void StateMachineGraphEditor::Draw(ResourceStateMachine& sm) {
         ImGui::SameLine();
 
         // Node body
+        const bool isActive = activeState && (st.name == *activeState);
+        static constexpr ImVec4 kGreen { 0.2f, 1.f, 0.4f, 1.f };
         ImGui::BeginGroup();
-        if (isDef)
+        if (isActive)
+            ImGui::TextColored(kGreen, "%s", st.name.str.c_str());
+        else if (isDef)
             ImGui::TextColored(kYellow, "%s", st.name.str.c_str());
         else
             ImGui::Text("%s", st.name.str.c_str());
         if (!st.clipName.empty())
             ImGui::TextDisabled("[%s]", st.clipName.str.c_str());
-        if (isDef)
+        if (isActive)
+            ImGui::TextColored(kGreen, "ACTIVE");
+        else if (isDef)
             ImGui::TextColored(kYellow, "Default");
         ImGui::EndGroup();
 

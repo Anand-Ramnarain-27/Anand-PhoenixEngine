@@ -285,6 +285,7 @@
     <ClInclude Include="SceneViewPanel.h" />
     <ClInclude Include="ResourceStateMachine.h" />
     <ClInclude Include="StateMachineGraphEditor.h" />
+    <ClInclude Include="TestSceneSetup.h" />
     <ClInclude Include="ScriptExport.h" />
     <ClInclude Include="ShaderTableDesc.h" />
     <ClInclude Include="SimpleMath.h" />
@@ -445,6 +446,7 @@
     <ClCompile Include="SceneSettingsPanel.cpp" />
     <ClCompile Include="SceneViewPanel.cpp" />
     <ClCompile Include="StateMachineGraphEditor.cpp" />
+    <ClCompile Include="TestSceneSetup.cpp" />
     <ClCompile Include="3rdParty\imgui-node-editor-master\imgui_node_editor.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"></PrecompiledHeaderFile>

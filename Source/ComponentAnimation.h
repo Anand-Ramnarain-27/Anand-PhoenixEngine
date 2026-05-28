@@ -5,8 +5,10 @@
 #include "ResourceStateMachine.h"
 #include <vector>
 #include <string>
+#include <memory>
 
 class ResourceAnimation;
+class StateMachineGraphEditor;
 
 // One node in the cross-fade linked list.  head = newest, tail = oldest (base).
 struct AnimLayer {
@@ -33,6 +35,21 @@ public:
 
     // Bind a state machine resource. Does NOT take ownership.
     void SetStateMachine(ResourceStateMachine* sm) { m_stateMachine = sm; }
+
+    // Load and own a ResourceStateMachine directly from an absolute file path.
+    // Calls SetStateMachine() and then OnPlay() to start the default state.
+    void LoadStateMachineFromPath(const std::string& path);
+
+    // Accessors for debug/validation/editor systems.
+    ResourceStateMachine*       getStateMachine()  { return m_stateMachine; }
+    const ResourceStateMachine* getStateMachine()  const { return m_stateMachine; }
+    const HashString&           getActiveState()   const { return m_activeState; }
+    const AnimLayer*            getLayerHead()     const { return m_layerHead; }
+    int getLayerCount() const {
+        int n = 0;
+        for (const AnimLayer* l = m_layerHead; l; l = l->next) ++n;
+        return n;
+    }
 
     // Fire a trigger: finds source==activeState && trigger match, starts cross-fade.
     // Silently ignored if no transition matches.
@@ -79,9 +96,13 @@ private:
     std::vector<UID>         m_animUIDs;
     std::vector<std::string> m_animNames;
 
-    ResourceStateMachine*    m_stateMachine = nullptr;
-    HashString               m_activeState;
-    AnimLayer*               m_layerHead    = nullptr;
+    ResourceStateMachine*                    m_stateMachine      = nullptr;
+    std::unique_ptr<ResourceStateMachine>    m_ownedStateMachine;
+    std::string                              m_stateMachinePath;
+    HashString                               m_activeState;
+    AnimLayer*                               m_layerHead         = nullptr;
+
+    std::unique_ptr<StateMachineGraphEditor> m_graphEditor;
 
     bool  m_drawBones      = false;
     bool  m_drawAxisTriads = false;

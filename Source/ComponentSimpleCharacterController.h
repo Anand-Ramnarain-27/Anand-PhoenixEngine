@@ -21,4 +21,7 @@ private:
     ComponentAnimation*       m_anim        = nullptr;
     bool                      m_initialized = false;
     bool                      m_wasMoving   = false;
+    bool                      m_wasRunning  = false;
+    bool                      m_isDead      = false;
+    bool                      m_kWasDown    = false;
 };

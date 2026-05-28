@@ -23,6 +23,21 @@ void ComponentSimpleCharacterController::update(float dt) {
     if (!m_motion) return;
 
     auto kb = DirectX::Keyboard::Get().GetState();
+
+    // K pressed (edge) → die one-shot; after that ignore all input
+    const bool kDown = kb.K;
+    if (kDown && !m_kWasDown && !m_isDead && m_anim) {
+        m_isDead = true;
+        m_anim->SendTrigger(HashString(std::string("die")));
+    }
+    m_kWasDown = kDown;
+
+    if (m_isDead) {
+        m_motion->Move(0.f);
+        m_motion->Rotate(0.f);
+        return;
+    }
+
     float moveInput   = 0.f;
     float rotateInput = 0.f;
 
@@ -44,17 +59,29 @@ void ComponentSimpleCharacterController::update(float dt) {
     m_motion->Rotate(rotateInput);
 
     if (m_anim) {
-        bool isMoving = fabsf(moveInput) > 0.01f || fabsf(rotateInput) > 0.01f;
+        const bool isMoving  = fabsf(moveInput) > 0.01f || fabsf(rotateInput) > 0.01f;
+        const bool isRunning = isMoving && kb.LeftShift;
+
         if (isMoving && !m_wasMoving)
             m_anim->SendTrigger(HashString(std::string("move")));
         else if (!isMoving && m_wasMoving)
             m_anim->SendTrigger(HashString(std::string("stop")));
-        m_wasMoving = isMoving;
+
+        if (isMoving) {
+            if (isRunning && !m_wasRunning)
+                m_anim->SendTrigger(HashString(std::string("run")));
+            else if (!isRunning && m_wasRunning)
+                m_anim->SendTrigger(HashString(std::string("walk")));
+        }
+
+        m_wasMoving  = isMoving;
+        m_wasRunning = isRunning;
     }
 }
 
 void ComponentSimpleCharacterController::onEditor() {
     ImGui::TextDisabled("Arrow keys / WASD + left gamepad stick.");
+    ImGui::TextDisabled("Left Shift: run.  K: die (one-shot).");
     ImGui::TextDisabled("Requires ComponentCharacterMotion on same object.");
     ensureInit();
     if (m_motion)

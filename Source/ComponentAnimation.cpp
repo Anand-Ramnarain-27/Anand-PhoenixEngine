@@ -1,5 +1,7 @@
 #include "Globals.h"
 #include "ComponentAnimation.h"
+#include "StateMachineGraphEditor.h"
+#include "ModuleFileSystem.h"
 #include "GameObject.h"
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
@@ -174,6 +176,21 @@ void ComponentAnimation::SendTrigger(const HashString& trigger) {
         return;  // only the first matching transition fires
     }
     // No matching transition → silent no-op.
+}
+
+// ─── State machine from path ─────────────────────────────────────────────────
+
+void ComponentAnimation::LoadStateMachineFromPath(const std::string& path) {
+    if (path.empty()) return;
+    auto sm = std::make_unique<ResourceStateMachine>(0);
+    if (!sm->Load(path)) {
+        LOG("ComponentAnimation: failed to load SM from '%s'", path.c_str());
+        return;
+    }
+    m_ownedStateMachine = std::move(sm);
+    m_stateMachinePath  = path;
+    m_stateMachine      = m_ownedStateMachine.get();
+    OnPlay();
 }
 
 // ─── Animation list (inspector) ───────────────────────────────────────────────
@@ -438,23 +455,48 @@ void ComponentAnimation::onEditor() {
     }
 
     ImGui::Spacing();
-
-    // SM diagnostic: show active state and layer depth.
-    if (m_stateMachine) {
-        ImGui::Separator();
-        ImGui::TextDisabled("SM active state: %s",
-            m_activeState.empty() ? "(none)" : m_activeState.str.c_str());
-        int depth = 0;
-        for (AnimLayer* l = m_layerHead; l; l = l->next) ++depth;
-        if (depth > 1)
-            ImGui::TextDisabled("Blend layers: %d", depth);
-    }
-
-    ImGui::Spacing();
     ImGui::Separator();
     ImGui::SliderFloat("Speed", &mSpeed, 0.f, 4.f, "%.2f");
     ImGui::Checkbox("Draw Bones",       &m_drawBones);
     ImGui::Checkbox("Draw Axis Triads", &m_drawAxisTriads);
+
+    // ── State Machine section ─────────────────────────────────────────────────
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Text("State Machine");
+
+    char smBuf[512] = {};
+    strncpy_s(smBuf, m_stateMachinePath.c_str(), sizeof(smBuf) - 1);
+    ImGui::SetNextItemWidth(-70.f);
+    ImGui::InputText("##smpath", smBuf, sizeof(smBuf));
+    ImGui::SameLine();
+    if (ImGui::Button("Load##sm")) {
+        LoadStateMachineFromPath(std::string(smBuf));
+    }
+
+    if (m_stateMachine) {
+        ImGui::TextDisabled("Active: %s",
+            m_activeState.empty() ? "(none)" : m_activeState.str.c_str());
+        int depth = getLayerCount();
+        if (depth > 1)
+            ImGui::TextDisabled("Blend layers: %d", depth);
+
+        // Lazy-init node editor (persists node positions per GO).
+        if (!m_graphEditor) {
+            m_graphEditor = std::make_unique<StateMachineGraphEditor>();
+            std::string settingsPath = app->getFileSystem()->GetLibraryPath()
+                + "smgraph_" + std::to_string(owner->getUID()) + ".ini";
+            m_graphEditor->Init(settingsPath);
+        }
+
+        ImGui::Spacing();
+        ImGui::Text("Graph:");
+        if (ImGui::BeginChild("##SMGraph", ImVec2(0.f, 260.f), false,
+                              ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+            m_graphEditor->Draw(*m_stateMachine, &m_activeState);
+        }
+        ImGui::EndChild();
+    }
 }
 
 // ─── Gizmos ───────────────────────────────────────────────────────────────────
@@ -496,6 +538,7 @@ void ComponentAnimation::onSave(std::string& outJson) const {
     doc.AddMember("playing",     Value(m_controller.isPlaying()), a);
     doc.AddMember("currentTime", Value(m_controller.CurrentTime), a);
     doc.AddMember("speed",       Value(mSpeed), a);
+    doc.AddMember("smPath",      Value(m_stateMachinePath.c_str(), a), a);
 
     Value uids(kArrayType);
     for (UID uid : m_animUIDs) uids.PushBack(Value(static_cast<uint64_t>(uid)), a);
@@ -514,6 +557,11 @@ void ComponentAnimation::onLoad(const std::string& json) {
         for (const auto& v : doc["animUIDs"].GetArray())
             uids.push_back(static_cast<UID>(v.GetUint64()));
         setAnimationList(uids);
+    }
+
+    if (doc.HasMember("smPath") && doc["smPath"].IsString()) {
+        std::string path = doc["smPath"].GetString();
+        if (!path.empty()) LoadStateMachineFromPath(path);
     }
 
     UID   uid     = doc.HasMember("animUID")     ? static_cast<UID>(doc["animUID"].GetUint64()) : 0;

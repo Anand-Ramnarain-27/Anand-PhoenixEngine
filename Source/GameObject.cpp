@@ -111,6 +111,8 @@ template ComponentDirectionalLight* GameObject::createComponent<ComponentDirecti
 template ComponentPointLight* GameObject::createComponent<ComponentPointLight>();
 template ComponentSpotLight* GameObject::createComponent<ComponentSpotLight>();
 template ComponentAnimation* GameObject::createComponent<ComponentAnimation>();
+template ComponentCharacterMotion* GameObject::createComponent<ComponentCharacterMotion>();
+template ComponentSimpleCharacterController* GameObject::createComponent<ComponentSimpleCharacterController>();
 
 template ComponentTransform* GameObject::getComponent<ComponentTransform>() const;
 template ComponentMesh* GameObject::getComponent<ComponentMesh>() const;
@@ -128,3 +130,5 @@ template bool GameObject::removeComponent<ComponentDirectionalLight>();
 template bool GameObject::removeComponent<ComponentPointLight>();
 template bool GameObject::removeComponent<ComponentSpotLight>();
 template bool GameObject::removeComponent<ComponentAnimation>();
+template bool GameObject::removeComponent<ComponentCharacterMotion>();
+template bool GameObject::removeComponent<ComponentSimpleCharacterController>();

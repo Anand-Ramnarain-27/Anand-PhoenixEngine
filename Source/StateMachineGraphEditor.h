@@ -1,8 +1,8 @@
 #pragma once
 #include <imgui.h>
 #include <string>
+#include "ResourceStateMachine.h"
 
-struct ResourceStateMachine;
 namespace ax { namespace NodeEditor { struct EditorContext; } }
 
 class StateMachineGraphEditor {
@@ -15,7 +15,8 @@ public:
 
     // Draws the full immediate-mode node canvas and all context menus.
     // Call once per frame while the owning window is open.
-    void Draw(ResourceStateMachine& sm);
+    // Pass activeState to highlight the currently-playing state node in green.
+    void Draw(ResourceStateMachine& sm, const HashString* activeState = nullptr);
 
 private:
     ax::NodeEditor::EditorContext* m_context = nullptr;

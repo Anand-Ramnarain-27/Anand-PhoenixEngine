@@ -270,6 +270,88 @@ void ModuleEditor::preRender() {
     }
     // --- End Morph Target Debug Window ---
 
+    // --- Animation Debug Window ---
+    {
+        ModuleScene* animScene = getActiveModuleScene();
+        if (animScene) {
+            struct AnimEntry { GameObject* go; ComponentAnimation* anim; };
+            std::vector<AnimEntry> entries;
+            std::function<void(GameObject*)> collectAnims = [&](GameObject* node) {
+                if (!node || !node->isActive()) return;
+                if (auto* anim = node->getComponent<ComponentAnimation>())
+                    entries.push_back({ node, anim });
+                for (auto* c : node->getChildren()) collectAnims(c);
+            };
+            collectAnims(animScene->getRoot());
+
+            if (!entries.empty()) {
+                ImGui::Begin("Animation Debug");
+                for (auto& e : entries) {
+                    ImGui::PushID(e.go);
+                    ImGui::Text("%s", e.go->getName().c_str());
+                    ImGui::Indent();
+
+                    ResourceStateMachine* sm = e.anim->getStateMachine();
+                    if (sm) {
+                        // SM-driven character
+                        const HashString& active = e.anim->getActiveState();
+                        ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f), "State: %s",
+                            active.empty() ? "(none)" : active.str.c_str());
+                        ImGui::Text("Layers: %d", e.anim->getLayerCount());
+
+                        const AnimLayer* head = e.anim->getLayerHead();
+                        if (head) {
+                            ImGui::Text("Head time: %.1f ms", head->currentTimeMs);
+                            float w = (head->transitionTimeMs > 0.f)
+                                ? std::min(1.f, head->fadeTimeMs / head->transitionTimeMs)
+                                : 1.f;
+                            ImGui::Text("Blend weight: %.2f", w);
+                        }
+
+                        ImGui::Spacing();
+                        ImGui::TextDisabled("Triggers:");
+                        static const char* kTriggers[] = { "move", "stop", "run", "walk", "die" };
+                        for (const char* t : kTriggers) {
+                            if (ImGui::SmallButton(t))
+                                e.anim->SendTrigger(HashString(std::string(t)));
+                            ImGui::SameLine();
+                        }
+                        ImGui::NewLine();
+                    } else {
+                        // Morph-target face or direct-play animation
+                        float t = e.anim->getController().CurrentTime;
+                        ImGui::Text("Anim time: %.3f s", t);
+
+                        // Walk children to find morph weights
+                        std::function<void(GameObject*)> showMorphs = [&](GameObject* node) {
+                            if (auto* cm = node->getComponent<ComponentMesh>()) {
+                                for (const auto& en : cm->getEntries()) {
+                                    if (!en.meshRes) continue;
+                                    const uint32_t n = en.meshRes->getNumMorphTargets();
+                                    if (n > 0) {
+                                        ImGui::Text("  %s:", node->getName().c_str());
+                                        const float* w = cm->getMorphWeights();
+                                        for (uint32_t i = 0; i < n && i < 8; ++i)
+                                            ImGui::Text("    Target %u: %.3f", i, w[i]);
+                                        break;
+                                    }
+                                }
+                            }
+                            for (auto* child : node->getChildren()) showMorphs(child);
+                        };
+                        for (auto* child : e.go->getChildren()) showMorphs(child);
+                    }
+
+                    ImGui::Unindent();
+                    ImGui::Separator();
+                    ImGui::PopID();
+                }
+                ImGui::End();
+            }
+        }
+    }
+    // --- End Animation Debug Window ---
+
     handleDialogs();
 }
 
