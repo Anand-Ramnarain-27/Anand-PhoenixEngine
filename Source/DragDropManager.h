@@ -1,26 +1,38 @@
 #pragma once
 #include <filesystem>
 #include <vector>
+#include <deque>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 #include <atomic>
 #include <string>
 #include <functional>
 #include <chrono>
+#include <array>
 
 // Manages drag-and-drop file ingestion: tracks hover state, queues files for
 // background import, and exposes progress state for the ImGui overlay drawn by
-// ModuleEditor.  Thread-safety contract: worker writes progress fields under
-// m_progressMutex; main thread reads via GetProgress().  All other methods are
-// main-thread-only unless noted.
+// ModuleEditor.
+//
+// Threading model:
+//   - kNumWorkers persistent worker threads pull tasks from m_taskQueue.
+//   - importAsset calls are serialized under m_importMutex (not guaranteed
+//     thread-safe in the asset pipeline); file-copy I/O runs concurrently.
+//   - Each per-file import runs in a detached sub-thread so a 30-second
+//     timeout can move the queue forward even if an importer hangs.
+//   - Main thread reads progress via GetProgress(), which uses try_lock and
+//     falls back to a cached snapshot so it never stalls on a held mutex.
 class DragDropManager {
 public:
     struct ImportProgress {
-        int         current      = 0;
+        int         current      = 0;    // files completed
         int         total        = 0;
         std::string currentFile;
-        bool        active       = false;  // worker is running
-        bool        showComplete = false;  // done, panel shown briefly
+        bool        active       = false;
+        bool        showComplete = false;
+        // Last up-to-6 completed filenames for the overlay list (oldest first).
+        std::vector<std::string> completedFiles;
     };
 
     static DragDropManager& Get();
@@ -29,37 +41,29 @@ public:
     void SetDragging(bool dragging);
     bool IsDragging() const;
 
-    // A single item from a drop event — either an individual file or a whole
-    // folder.  Folders are copied intact to Assets/Models/<name>/ to preserve
-    // relative texture / .bin references; individual files are routed by
-    // extension.
     struct DropItem {
         std::filesystem::path path;
         bool isFolder = false;
     };
 
     // Primary entry point called by EngineDropTarget::Drop.
-    // Folders must NOT be pre-expanded; pass them as DropItem{path, true} so
-    // the worker can copy the entire directory tree.
     void QueueItems(std::vector<DropItem> items);
 
     // Convenience wrapper for callers that only have individual file paths.
     void QueueFiles(const std::vector<std::filesystem::path>& paths);
 
-    // Called every frame from ModuleEditor::preRender(). Handles completion
-    // detection and triggers the asset-browser refresh callback.
+    // Called every frame from ModuleEditor::preRender().
     void Update();
 
-    // Thread-safe snapshot of current import state (safe to call any frame).
+    // Thread-safe snapshot via try_lock; returns cached copy if lock is busy.
     ImportProgress GetProgress();
 
-    // Callback invoked on main thread (via Update) once all imports finish.
+    // Callback invoked on the main thread (via Update) once all imports finish.
     void SetRefreshCallback(std::function<void()> cb);
 
-    // Called from ModuleEditor::cleanUp() — blocks until the worker exits.
+    // Called from ModuleEditor::cleanUp() — stops workers and joins them.
     void Shutdown();
 
-    // Returns true for extensions the importer pipeline can handle.
     static bool IsSupportedExtension(const std::string& ext);
 
 private:
@@ -68,20 +72,35 @@ private:
     DragDropManager(const DragDropManager&)            = delete;
     DragDropManager& operator=(const DragDropManager&) = delete;
 
-    void workerProc(std::vector<DropItem> items);
+    void workerFunc();
 
     std::atomic<bool> m_isDragging{false};
 
-    std::mutex  m_workerMutex;   // serialises start / join of m_worker
-    std::thread m_worker;
+    // Thread pool — workers start once and run until Shutdown().
+    static constexpr int kNumWorkers       = 3;
+    static constexpr int kImportTimeoutSecs = 30;
+    std::array<std::thread, kNumWorkers> m_workerPool;
+    std::atomic<bool> m_stopWorkers{false};
+    std::atomic<bool> m_poolStarted{false};
+
+    // Shared task queue consumed by pool workers.
+    std::mutex              m_queueMutex;
+    std::condition_variable m_queueCV;
+    std::deque<DropItem>    m_taskQueue;
+
+    // Serialises importAsset calls across concurrent workers.
+    std::mutex m_importMutex;
+
+    // Decremented by each worker when a task finishes; hits 0 when batch done.
+    std::atomic<int> m_tasksRemaining{0};
 
     std::mutex     m_progressMutex;
-    ImportProgress m_progress;   // written by worker, read by main via GetProgress()
+    ImportProgress m_progress;
+    ImportProgress m_cachedProgress;  // last snapshot taken under a successful lock
 
-    std::atomic<bool> m_allDone{false};  // worker sets true when finished
+    std::atomic<bool> m_allDone{false};
 
-    // main-thread state for the "complete" banner timer
-    bool m_showingComplete  = false;
+    bool m_showingComplete = false;
     std::chrono::steady_clock::time_point m_completeTime;
     static constexpr float kCompleteBannerSecs = 3.0f;
 

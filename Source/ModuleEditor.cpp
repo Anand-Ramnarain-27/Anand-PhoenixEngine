@@ -1403,52 +1403,84 @@ void ModuleEditor::drawDragDropOverlay()
                     IM_COL32(120, 145, 185, 200), kLine2);
     }
 
-    // ---- Import progress panel (bottom-right corner) ------------------------
+    // ---- Import progress modal (centered, 500x200) --------------------------
+    // Sits on top of the same semi-transparent backdrop drawn by the hover
+    // section above; no second dim layer is added here.
     const DragDropManager::ImportProgress prog = ddm.GetProgress();
     if (prog.active || prog.showComplete) {
-        const float panelW = 300.f;
-        const float panelH = 76.f;
-        const float margin = 12.f;
-
+        constexpr float kW = 500.f, kH = 200.f;
         ImGui::SetNextWindowPos(
-            { dsz.x - panelW - margin, dsz.y - panelH - margin },
+            { dsz.x * 0.5f - kW * 0.5f, dsz.y * 0.5f - kH * 0.5f },
             ImGuiCond_Always);
-        ImGui::SetNextWindowSize({ panelW, panelH }, ImGuiCond_Always);
-        ImGui::SetNextWindowBgAlpha(0.88f);
+        ImGui::SetNextWindowSize({ kW, kH }, ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.93f);
 
         constexpr ImGuiWindowFlags kFlags =
-            ImGuiWindowFlags_NoDecoration       |
             ImGuiWindowFlags_NoMove             |
+            ImGuiWindowFlags_NoResize           |
+            ImGuiWindowFlags_NoCollapse         |
+            ImGuiWindowFlags_NoTitleBar         |
             ImGuiWindowFlags_NoSavedSettings    |
             ImGuiWindowFlags_NoFocusOnAppearing |
             ImGuiWindowFlags_NoNav              |
             ImGuiWindowFlags_NoInputs;
 
-        if (ImGui::Begin("##DDProgress", nullptr, kFlags)) {
+        if (ImGui::Begin("##DDProgressModal", nullptr, kFlags)) {
             if (prog.active) {
-                char title[64];
-                snprintf(title, sizeof(title),
-                         "Importing  %d / %d", prog.current + 1, prog.total);
-                ImGui::TextUnformatted(title);
-
+                // Large bold filename (truncated to 60 chars with leading "…")
                 std::string fname = prog.currentFile;
-                if (fname.size() > 36)
-                    fname = "..." + fname.substr(fname.size() - 33);
-                ImGui::TextColored({ 0.55f, 0.72f, 0.95f, 1.f },
-                                   "%s", fname.c_str());
+                if (fname.size() > 60)
+                    fname = "\xe2\x80\xa6" + fname.substr(fname.size() - 59);
+
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.85f, 0.92f, 1.0f, 1.f));
+                ImGui::SetWindowFontScale(1.25f);
+                ImGui::TextUnformatted(fname.c_str());
+                ImGui::SetWindowFontScale(1.0f);
+                ImGui::PopStyleColor();
+
+                ImGui::Spacing();
+
+                char subtitle[64];
+                snprintf(subtitle, sizeof(subtitle),
+                         "Importing %d of %d file%s",
+                         prog.current + 1, prog.total,
+                         prog.total == 1 ? "" : "s");
+                ImGui::TextColored({ 0.65f, 0.72f, 0.82f, 1.f }, "%s", subtitle);
+
+                ImGui::Spacing();
 
                 const float pct = (prog.total > 0)
                     ? static_cast<float>(prog.current) / static_cast<float>(prog.total)
                     : 0.f;
-                ImGui::ProgressBar(pct, { -1.f, 10.f });
+                ImGui::ProgressBar(pct, { -1.f, 0.f });
+
             } else {
-                // showComplete — brief "done" banner
-                char done[64];
-                snprintf(done, sizeof(done),
-                         "Import complete  (%d file%s)",
+                // showComplete banner
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.35f, 0.92f, 0.45f, 1.f));
+                ImGui::SetWindowFontScale(1.25f);
+                char done[80];
+                snprintf(done, sizeof(done), "Import complete  (%d file%s)",
                          prog.total, prog.total == 1 ? "" : "s");
-                ImGui::TextColored({ 0.4f, 0.95f, 0.5f, 1.f }, "%s", done);
-                ImGui::ProgressBar(1.f, { -1.f, 10.f });
+                ImGui::TextUnformatted(done);
+                ImGui::SetWindowFontScale(1.0f);
+                ImGui::PopStyleColor();
+
+                ImGui::Spacing();
+                ImGui::ProgressBar(1.f, { -1.f, 0.f });
+            }
+
+            // Scrollable list of the last 6 completed files
+            if (!prog.completedFiles.empty()) {
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::Spacing();
+                ImGui::BeginChild("##DDDoneList", { 0.f, 0.f }, false,
+                                  ImGuiWindowFlags_NoScrollbar);
+                for (const auto& cf : prog.completedFiles) {
+                    ImGui::TextColored({ 0.45f, 0.88f, 0.52f, 1.f },
+                                       "\xe2\x9c\x93 %s", cf.c_str());
+                }
+                ImGui::EndChild();
             }
         }
         ImGui::End();

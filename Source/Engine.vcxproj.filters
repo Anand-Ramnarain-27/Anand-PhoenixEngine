@@ -331,6 +331,14 @@
     <ClCompile Include="ViewportPanel.cpp">
       <Filter>Engine\Editor\Panels\Viewports</Filter>
     </ClCompile>
+    <!-- Engine\Editor\Managers -->
+    <ClCompile Include="DragDropManager.cpp">
+      <Filter>Engine\Editor\Managers</Filter>
+    </ClCompile>
+    <!-- Engine\Editor\Platform -->
+    <ClCompile Include="EngineDropTarget.cpp">
+      <Filter>Engine\Editor\Platform</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <!-- ============================================================ -->
@@ -774,6 +782,14 @@
     <ClInclude Include="ViewportPanel.h">
       <Filter>Engine\Editor\Panels\Viewports</Filter>
     </ClInclude>
+    <!-- Engine\Editor\Managers -->
+    <ClInclude Include="DragDropManager.h">
+      <Filter>Engine\Editor\Managers</Filter>
+    </ClInclude>
+    <!-- Engine\Editor\Platform -->
+    <ClInclude Include="EngineDropTarget.h">
+      <Filter>Engine\Editor\Platform</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -974,6 +990,12 @@
     </Filter>
     <Filter Include="Engine\Editor\Panels\Viewports">
       <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000027}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Editor\Managers">
+      <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000035}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Editor\Platform">
+      <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000036}</UniqueIdentifier>
     </Filter>
     <Filter Include="Engine\UI">
       <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000028}</UniqueIdentifier>
