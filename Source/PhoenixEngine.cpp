@@ -49,7 +49,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     LoadStringW(hInstance, IDC_ENGINEDX, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
 
-    if (CoInitialize(nullptr) != S_OK)
+    // OleInitialize is a superset of CoInitialize; it is required by
+    // RegisterDragDrop (called later in ModuleEditor::init).
+    if (FAILED(OleInitialize(nullptr)))
     {
         return FALSE;
     }
@@ -75,6 +77,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     }
 
     delete app;
+
+    OleUninitialize();
 
     return (int)msg.wParam;
 }

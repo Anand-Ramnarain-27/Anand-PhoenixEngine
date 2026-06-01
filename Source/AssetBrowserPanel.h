@@ -16,6 +16,10 @@ public:
     explicit AssetBrowserPanel(ModuleEditor* editor) : EditorPanel(editor) {}
     const char* getName() const override { return "Asset Browser"; }
 
+    // Called after a background import completes to force the panel to
+    // re-scan its current directory on the next draw.
+    void markDirty() { m_dirty = true; }
+
 protected:
     void drawContent() override;
 

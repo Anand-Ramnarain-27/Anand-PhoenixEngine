@@ -1,6 +1,9 @@
 ﻿#include "Globals.h"
 #include "ModuleEditor.h"
 #include "Application.h"
+#include <ole2.h>
+#include "DragDropManager.h"
+#include "EngineDropTarget.h"
 #include "ModuleD3D12.h"
 #include "ComponentAnimation.h"
 #include "ModuleShaderDescriptors.h"
@@ -135,21 +138,47 @@ bool ModuleEditor::init() {
     m_saveDialog->setExtensionFilter(".json");
     m_loadDialog->setExtensionFilter(".json");
 
-    m_sceneView = addPanel<SceneViewPanel>(this);
-    m_gameView = addPanel<GameViewPanel>(this);
+    m_sceneView    = addPanel<SceneViewPanel>(this);
+    m_gameView     = addPanel<GameViewPanel>(this);
     addPanel<HierarchyPanel>(this);
     addPanel<InspectorPanel>(this);
-    m_console = addPanel<ConsolePanel>(this);
-    m_performance = addPanel<PerformancePanel>(this);
-    addPanel<AssetBrowserPanel>(this);
+    m_console      = addPanel<ConsolePanel>(this);
+    m_performance  = addPanel<PerformancePanel>(this);
+    m_assetBrowser = addPanel<AssetBrowserPanel>(this);
     addPanel<SceneSettingsPanel>(this);
     addPanel<ResourcesPanel>(this);
+
+    // Register OLE drop target so we get DragEnter/DragOver/DragLeave/Drop
+    // callbacks that drive the real-time drag overlay and background imports.
+    HWND hwnd = app->getD3D12()->getHWnd();
+    m_dropTarget = new EngineDropTarget();
+    if (FAILED(RegisterDragDrop(hwnd, m_dropTarget))) {
+        m_dropTarget->Release();
+        m_dropTarget = nullptr;
+        log("[Editor] RegisterDragDrop failed — drag-drop overlay disabled", EditorColors::Warning);
+    }
+
+    // When background imports finish, mark the asset browser dirty so it
+    // re-scans its directory without needing a restart.
+    DragDropManager::Get().SetRefreshCallback([this]() {
+        if (m_assetBrowser) m_assetBrowser->markDirty();
+    });
 
     log("[Editor] Initialized", EditorColors::Success);
     return true;
 }
 
 bool ModuleEditor::cleanUp() {
+    // Shut down background import worker before any module state is torn down.
+    DragDropManager::Get().Shutdown();
+
+    // Revoke the OLE drop target before destroying the window resources.
+    if (m_dropTarget) {
+        RevokeDragDrop(app->getD3D12()->getHWnd());
+        m_dropTarget->Release();
+        m_dropTarget = nullptr;
+    }
+
     m_ownedPanels.clear();
     m_panels.clear();
     m_envSystem.reset();
@@ -189,6 +218,11 @@ void ModuleEditor::preRender() {
         m_sceneManager->updateAnimations(dt);
     }
     m_performance->pushFPS(app->getFPS());
+
+    // Tick drag-drop manager: detects worker completion, triggers refresh
+    // callback, and expires the "complete" progress banner.
+    DragDropManager::Get().Update();
+
     drawDockspace();
     drawMenuBar();
     for (EditorPanel* p : m_panels) if (p->open) p->draw();
@@ -355,6 +389,9 @@ void ModuleEditor::preRender() {
     // --- End Animation Debug Window ---
 
     handleDialogs();
+
+    // Drag-drop overlay: drawn last so it sits on top of all panels.
+    drawDragDropOverlay();
 }
 
 void ModuleEditor::render() {
@@ -1304,4 +1341,116 @@ void ModuleEditor::notifyScriptComponentsReload(const std::string& /*dllPath*/) 
             visit(child);
         };
     visit(scene->getRoot());
+}
+
+// ---------------------------------------------------------------------------
+// Drag-drop overlay
+// ---------------------------------------------------------------------------
+static void drawDashedRect(ImDrawList* dl, ImVec2 a, ImVec2 b,
+                            ImU32 col, float thick, float dash, float gap)
+{
+    auto seg = [&](ImVec2 p0, ImVec2 p1) {
+        float dx = p1.x - p0.x, dy = p1.y - p0.y;
+        float len = sqrtf(dx * dx + dy * dy);
+        if (len < 0.001f) return;
+        float nx = dx / len, ny = dy / len, t = 0.f;
+        bool on = true;
+        while (t < len) {
+            float end = (std::min)(t + (on ? dash : gap), len);
+            if (on)
+                dl->AddLine({ p0.x + nx * t, p0.y + ny * t },
+                             { p0.x + nx * end, p0.y + ny * end },
+                             col, thick);
+            t = end;
+            on = !on;
+        }
+    };
+    seg({ a.x, a.y }, { b.x, a.y });
+    seg({ b.x, a.y }, { b.x, b.y });
+    seg({ b.x, b.y }, { a.x, b.y });
+    seg({ a.x, b.y }, { a.x, a.y });
+}
+
+void ModuleEditor::drawDragDropOverlay()
+{
+    auto& ddm    = DragDropManager::Get();
+    ImDrawList* fg = ImGui::GetForegroundDrawList();
+    const ImVec2 dsz = ImGui::GetIO().DisplaySize;
+
+    // ---- Drag-hover overlay -------------------------------------------------
+    if (ddm.IsDragging()) {
+        // Semi-transparent full-screen dim (~40 % opacity)
+        fg->AddRectFilled({ 0.f, 0.f }, dsz, IM_COL32(0, 0, 0, 100));
+
+        // Centred drop box
+        constexpr float bW = 440.f, bH = 130.f;
+        const ImVec2 bMin{ dsz.x * 0.5f - bW * 0.5f, dsz.y * 0.5f - bH * 0.5f };
+        const ImVec2 bMax{ dsz.x * 0.5f + bW * 0.5f, dsz.y * 0.5f + bH * 0.5f };
+
+        fg->AddRectFilled(bMin, bMax, IM_COL32(18, 20, 30, 225), 10.f);
+        drawDashedRect(fg, bMin, bMax, IM_COL32(80, 160, 255, 220), 2.f, 14.f, 6.f);
+
+        const char* kLine1 = "Drop Assets to Import";
+        const char* kLine2 = ".gltf  .glb  .fbx  .obj  .png  .jpg  .tga  .dds  .hdr";
+        const ImVec2 s1 = ImGui::CalcTextSize(kLine1);
+        const ImVec2 s2 = ImGui::CalcTextSize(kLine2);
+        const float cx = (bMin.x + bMax.x) * 0.5f;
+        const float cy = (bMin.y + bMax.y) * 0.5f;
+
+        fg->AddText({ cx - s1.x * 0.5f, cy - s1.y - 6.f },
+                    IM_COL32(210, 225, 255, 255), kLine1);
+        fg->AddText({ cx - s2.x * 0.5f, cy + 6.f },
+                    IM_COL32(120, 145, 185, 200), kLine2);
+    }
+
+    // ---- Import progress panel (bottom-right corner) ------------------------
+    const DragDropManager::ImportProgress prog = ddm.GetProgress();
+    if (prog.active || prog.showComplete) {
+        const float panelW = 300.f;
+        const float panelH = 76.f;
+        const float margin = 12.f;
+
+        ImGui::SetNextWindowPos(
+            { dsz.x - panelW - margin, dsz.y - panelH - margin },
+            ImGuiCond_Always);
+        ImGui::SetNextWindowSize({ panelW, panelH }, ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.88f);
+
+        constexpr ImGuiWindowFlags kFlags =
+            ImGuiWindowFlags_NoDecoration       |
+            ImGuiWindowFlags_NoMove             |
+            ImGuiWindowFlags_NoSavedSettings    |
+            ImGuiWindowFlags_NoFocusOnAppearing |
+            ImGuiWindowFlags_NoNav              |
+            ImGuiWindowFlags_NoInputs;
+
+        if (ImGui::Begin("##DDProgress", nullptr, kFlags)) {
+            if (prog.active) {
+                char title[64];
+                snprintf(title, sizeof(title),
+                         "Importing  %d / %d", prog.current + 1, prog.total);
+                ImGui::TextUnformatted(title);
+
+                std::string fname = prog.currentFile;
+                if (fname.size() > 36)
+                    fname = "..." + fname.substr(fname.size() - 33);
+                ImGui::TextColored({ 0.55f, 0.72f, 0.95f, 1.f },
+                                   "%s", fname.c_str());
+
+                const float pct = (prog.total > 0)
+                    ? static_cast<float>(prog.current) / static_cast<float>(prog.total)
+                    : 0.f;
+                ImGui::ProgressBar(pct, { -1.f, 10.f });
+            } else {
+                // showComplete — brief "done" banner
+                char done[64];
+                snprintf(done, sizeof(done),
+                         "Import complete  (%d file%s)",
+                         prog.total, prog.total == 1 ? "" : "s");
+                ImGui::TextColored({ 0.4f, 0.95f, 0.5f, 1.f }, "%s", done);
+                ImGui::ProgressBar(1.f, { -1.f, 10.f });
+            }
+        }
+        ImGui::End();
+    }
 }

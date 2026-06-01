@@ -175,6 +175,8 @@
     <ClInclude Include="3rdParty\imgui-node-editor-master\imgui_node_editor_internal.h" />
     <ClInclude Include="Application.h" />
     <ClInclude Include="AssetBrowserPanel.h" />
+    <ClInclude Include="DragDropManager.h" />
+    <ClInclude Include="EngineDropTarget.h" />
     <ClInclude Include="CommandContext.h" />
     <ClInclude Include="Component.h" />
     <ClInclude Include="ComponentCamera.h" />
@@ -357,6 +359,8 @@
     </ClCompile>
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="AssetBrowserPanel.cpp" />
+    <ClCompile Include="DragDropManager.cpp" />
+    <ClCompile Include="EngineDropTarget.cpp" />
     <ClCompile Include="CommandContext.cpp" />
     <ClCompile Include="ComponentCamera.cpp" />
     <ClCompile Include="ComponentFactory.cpp" />

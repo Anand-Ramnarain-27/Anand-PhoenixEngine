@@ -41,11 +41,13 @@ class RenderTexture;
 class EditorPanel;
 class SceneViewPanel;
 class GameViewPanel;
+class AssetBrowserPanel;
 class GameObject;
 class ComponentCamera;
 class ComponentMesh;
 class ModuleScene;
 class FileDialog;
+class EngineDropTarget;
 
 class ModuleEditor : public Module {
 public:
@@ -122,10 +124,13 @@ private:
     std::vector<std::unique_ptr<EditorPanel>> m_ownedPanels;
     std::vector<EditorPanel*>                 m_panels;
 
-    SceneViewPanel* m_sceneView = nullptr;
-    GameViewPanel* m_gameView = nullptr;
-    ConsolePanel* m_console = nullptr;
-    PerformancePanel* m_performance = nullptr;
+    SceneViewPanel*   m_sceneView    = nullptr;
+    GameViewPanel*    m_gameView     = nullptr;
+    ConsolePanel*     m_console      = nullptr;
+    PerformancePanel* m_performance  = nullptr;
+    AssetBrowserPanel* m_assetBrowser = nullptr;
+
+    EngineDropTarget* m_dropTarget   = nullptr;
 
     template<typename T, typename... Args>
     T* addPanel(Args&&... args) {
@@ -170,6 +175,7 @@ private:
     void handleDialogs();
     void flushExitPrefabEdit();
     void handleShortcuts();
+    void drawDragDropOverlay();
 
     std::vector<ComPtr<ID3D12Resource>> m_frameTransientBuffers;
 };
