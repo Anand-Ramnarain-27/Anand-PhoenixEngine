@@ -7,8 +7,7 @@
 #include "ModuleShaderDescriptors.h"
 #include "ModuleD3D12.h"
 
-void RenderTexture::resize(UINT width, UINT height)
-{
+void RenderTexture::resize(UINT width, UINT height){
     if (m_width == width && m_height == height) return;
     m_width = width;
     m_height = height;
@@ -50,11 +49,10 @@ void RenderTexture::resize(UINT width, UINT height)
     m_handlesValid = false;
 }
 
-void RenderTexture::releaseResources()
-{
+void RenderTexture::releaseResources(){
     auto* resources = app->getGPUResources();
-    if (m_textures.texture)      resources->deferRelease(m_textures.texture);
-    if (m_textures.resolved)     resources->deferRelease(m_textures.resolved);
+    if (m_textures.texture) resources->deferRelease(m_textures.texture);
+    if (m_textures.resolved) resources->deferRelease(m_textures.resolved);
     if (m_textures.depthTexture) resources->deferRelease(m_textures.depthTexture);
     m_srvDesc.reset();
     m_rtvDesc.reset();
@@ -63,16 +61,14 @@ void RenderTexture::releaseResources()
     m_handlesValid = false;
 }
 
-void RenderTexture::updateCachedHandles() const
-{
-    if (m_rtvDesc)           m_cachedRTV = m_rtvDesc.getCPUHandle();
-    if (m_dsvDesc)           m_cachedDSV = m_dsvDesc.getCPUHandle();
+void RenderTexture::updateCachedHandles() const{
+    if (m_rtvDesc) m_cachedRTV = m_rtvDesc.getCPUHandle();
+    if (m_dsvDesc) m_cachedDSV = m_dsvDesc.getCPUHandle();
     if (m_srvDesc.isValid()) m_cachedSRV = m_srvDesc.getGPUHandle();
     m_handlesValid = true;
 }
 
-void RenderTexture::beginRender(ID3D12GraphicsCommandList* cmdList, bool clear)
-{
+void RenderTexture::beginRender(ID3D12GraphicsCommandList* cmdList, bool clear){
     if (!isValid()) return;
 
     std::vector<CD3DX12_RESOURCE_BARRIER> barriers;
@@ -112,8 +108,7 @@ void RenderTexture::beginRender(ID3D12GraphicsCommandList* cmdList, bool clear)
     cmdList->RSSetScissorRects(1, &sc);
 }
 
-void RenderTexture::endRender(ID3D12GraphicsCommandList* cmdList)
-{
+void RenderTexture::endRender(ID3D12GraphicsCommandList* cmdList){
     if (!isValid()) return;
 
     if (m_msaa && m_autoResolveMSAA && m_textures.resolved)
@@ -131,20 +126,18 @@ void RenderTexture::endRender(ID3D12GraphicsCommandList* cmdList)
     }
 }
 
-void RenderTexture::bindAsShaderResource(ID3D12GraphicsCommandList* cmdList, int slot)
-{
+void RenderTexture::bindAsShaderResource(ID3D12GraphicsCommandList* cmdList, int slot){
     if (!isValid()) return;
     ensureHandles();
     cmdList->SetGraphicsRootDescriptorTable(slot, m_cachedSRV);
 }
 
-void RenderTexture::resolveMSAA(ID3D12GraphicsCommandList* cmdList)
-{
+void RenderTexture::resolveMSAA(ID3D12GraphicsCommandList* cmdList){
     if (!m_textures.resolved) return;
 
     CD3DX12_RESOURCE_BARRIER barriers[2] = {
         CD3DX12_RESOURCE_BARRIER::Transition(m_textures.texture.Get(),
-            D3D12_RESOURCE_STATE_RENDER_TARGET,        D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
+            D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
         CD3DX12_RESOURCE_BARRIER::Transition(m_textures.resolved.Get(),
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RESOLVE_DEST),
     };

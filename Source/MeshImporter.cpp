@@ -31,10 +31,10 @@ static void readAccessor(const tinygltf::Model& model, const tinygltf::Accessor&
 
 namespace {
 struct SkinDataHeader {
-    uint32_t magic       = 0x534B494E; // 'SKIN'
-    uint32_t version     = 1;
+    uint32_t magic = 0x534B494E; // 'SKIN'
+    uint32_t version = 1;
     uint32_t vertexCount = 0;
-    uint32_t pad         = 0;
+    uint32_t pad = 0;
 };
 
 static bool SaveSkin(uint32_t vertexCount, const std::vector<Mesh::BoneWeight>& bw, const std::string& meshFile) {
@@ -59,9 +59,9 @@ static bool LoadSkin(const std::string& meshFile, std::vector<Mesh::BoneWeight>&
 }
 
 struct MorphDataHeader {
-    uint32_t magic       = 0x4850524D; // 'MRPH'
-    uint32_t version     = 1;
-    uint32_t numTargets  = 0;
+    uint32_t magic = 0x4850524D; // 'MRPH'
+    uint32_t version = 1;
+    uint32_t numTargets = 0;
     uint32_t vertexCount = 0;
 };
 
@@ -111,7 +111,7 @@ bool MeshImporter::Import(const tinygltf::Primitive& primitive, const tinygltf::
         for (size_t i = 0; i < acc.count; ++i) {
             const unsigned char* e = data + i * stride;
             if (type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
-                indices[i] = *reinterpret_cast<const uint8_t*>(e);  
+                indices[i] = *reinterpret_cast<const uint8_t*>(e);
             else if (type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
                 indices[i] = *reinterpret_cast<const uint16_t*>(e);
             else if (type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
@@ -235,7 +235,7 @@ bool MeshImporter::Load(const std::string& file, std::unique_ptr<Mesh>& outMesh)
     outMesh->setData(vertices, indices, header.materialIndex);
     std::vector<Mesh::BoneWeight> boneWeights;
     if (LoadSkin(file, boneWeights))
-        outMesh->setBoneWeights(nullptr, nullptr, boneWeights);  // CPU-side only; GPU upload deferred to uploadToGPU
+        outMesh->setBoneWeights(nullptr, nullptr, boneWeights); // CPU-side only; GPU upload deferred to uploadToGPU
     std::vector<Mesh::MorphTarget> morphTargets;
     std::vector<Mesh::MorphVertex> morphVerts;
     if (LoadMorph(file, morphTargets, morphVerts))

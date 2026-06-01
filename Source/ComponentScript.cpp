@@ -38,23 +38,23 @@ void ComponentScript::setScriptClass(const std::string& className,
 void ComponentScript::onDllReloaded(HotReloadManager* mgr) {
     std::string savedState;
     if (m_script) {
-        savedState = m_script->Save(); 
+        savedState = m_script->Save();
         m_script->Destroy();
         delete m_script;
         m_script = nullptr;
         m_started = false;
     }
     if (!m_className.empty() && mgr) {
-        m_script = mgr->createScript(m_className);   
+        m_script = mgr->createScript(m_className);
         if (m_script && !savedState.empty())
-            m_script->Load(savedState);        
+            m_script->Load(savedState);
     }
 }
 
 void ComponentScript::update(float dt) {
     if (!m_script) return;
     if (!m_started) {
-        m_script->Start(owner); 
+        m_script->Start(owner);
         m_started = true;
     }
     m_script->Update(dt);
@@ -68,7 +68,7 @@ void ComponentScript::onEditor() {
         return;
     }
     ImGui::Separator();
-    m_script->Editor();  
+    m_script->Editor();
 }
 
 void ComponentScript::onSave(std::string& outJson) const {

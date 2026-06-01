@@ -21,18 +21,18 @@ public:
 
     struct NodeInfo {
         std::string name;
-        int         parentIndex   = -1; // -1 = root
-        int         meshFileStart = -1; // -1 = no mesh
-        int         meshFileCount = 0;
-        int         skinIndex     = -1; // -1 = not skinned
-        Vector3     translation;
-        Quaternion  rotation;
-        Vector3     scale;
+        int parentIndex = -1; // -1 = root
+        int meshFileStart = -1; // -1 = no mesh
+        int meshFileCount = 0;
+        int skinIndex = -1; // -1 = not skinned
+        Vector3 translation;
+        Quaternion rotation;
+        Vector3 scale;
     };
 
     struct SkinInfo {
-        std::string         name;
-        std::vector<int>    jointNodeIndices;   // node indices of each joint
+        std::string name;
+        std::vector<int> jointNodeIndices; // node indices of each joint
         std::vector<Matrix> inverseBindMatrices; // row-major, one per joint
     };
 

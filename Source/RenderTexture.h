@@ -12,25 +12,25 @@ class RenderTexture
         ComPtr<ID3D12Resource> depthTexture;
     };
 
-    TexturePair      m_textures;
-    UINT             m_width = 0;
-    UINT             m_height = 0;
-    DXGI_FORMAT      m_format;
-    DXGI_FORMAT      m_depthFormat;
+    TexturePair m_textures;
+    UINT m_width = 0;
+    UINT m_height = 0;
+    DXGI_FORMAT m_format;
+    DXGI_FORMAT m_depthFormat;
     const char* m_name;
-    Vector4          m_clearColor;
-    FLOAT            m_clearDepth;
-    bool             m_autoResolveMSAA = false;
-    bool             m_msaa = false;
+    Vector4 m_clearColor;
+    FLOAT m_clearDepth;
+    bool m_autoResolveMSAA = false;
+    bool m_msaa = false;
 
-    ShaderTableDesc  m_srvDesc;
+    ShaderTableDesc m_srvDesc;
     RenderTargetDesc m_rtvDesc;
     DepthStencilDesc m_dsvDesc;
 
     mutable D3D12_CPU_DESCRIPTOR_HANDLE m_cachedRTV = {};
     mutable D3D12_CPU_DESCRIPTOR_HANDLE m_cachedDSV = {};
     mutable D3D12_GPU_DESCRIPTOR_HANDLE m_cachedSRV = {};
-    mutable bool                        m_handlesValid = false;
+    mutable bool m_handlesValid = false;
 
 public:
     RenderTexture(const char* name, DXGI_FORMAT format, const Vector4& clearColor,
@@ -45,26 +45,26 @@ public:
     ~RenderTexture() = default;
 
     bool isValid() const { return m_width > 0 && m_height > 0 && m_srvDesc.isValid(); }
-    bool isMSAA()  const { return m_msaa; }
+    bool isMSAA() const { return m_msaa; }
 
     void resize(UINT width, UINT height);
     void beginRender(ID3D12GraphicsCommandList* cmdList, bool clear = true);
     void endRender(ID3D12GraphicsCommandList* cmdList);
     void bindAsShaderResource(ID3D12GraphicsCommandList* cmdList, int slot);
 
-    UINT getWidth()  const { return m_width; }
+    UINT getWidth() const { return m_width; }
     UINT getHeight() const { return m_height; }
 
     D3D12_GPU_DESCRIPTOR_HANDLE getSrvHandle() const { ensureHandles(); return m_cachedSRV; }
     D3D12_CPU_DESCRIPTOR_HANDLE getRtvHandle() const { ensureHandles(); return m_cachedRTV; }
     D3D12_CPU_DESCRIPTOR_HANDLE getDsvHandle() const { ensureHandles(); return m_cachedDSV; }
 
-    ID3D12Resource* getTexture()      const { return m_textures.texture.Get(); }
+    ID3D12Resource* getTexture() const { return m_textures.texture.Get(); }
     ID3D12Resource* getDepthTexture() const { return m_textures.depthTexture.Get(); }
 
     const ShaderTableDesc& getSrvTableDesc() const { return m_srvDesc; }
-    const RenderTargetDesc& getRtvDesc()      const { return m_rtvDesc; }
-    const DepthStencilDesc& getDsvDesc()      const { return m_dsvDesc; }
+    const RenderTargetDesc& getRtvDesc() const { return m_rtvDesc; }
+    const DepthStencilDesc& getDsvDesc() const { return m_dsvDesc; }
 
 private:
     void releaseResources();

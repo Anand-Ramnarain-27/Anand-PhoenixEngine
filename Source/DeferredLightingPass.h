@@ -18,9 +18,9 @@ public:
         uint32_t pointLightCount;
         uint32_t spotLightCount;
         uint32_t envRoughnessLevels;
-        Vector3  cameraPosition;
+        Vector3 cameraPosition;
         uint32_t framePad;
-        Matrix   invViewProj;
+        Matrix invViewProj;
     };
 
     bool init(ID3D12Device* device);
@@ -50,9 +50,9 @@ private:
     ComPtr<ID3D12Resource> m_dirLightBuf;
     ComPtr<ID3D12Resource> m_pointLightBuf;
     ComPtr<ID3D12Resource> m_spotLightBuf;
-    void* m_dirLightMapped   = nullptr;
+    void* m_dirLightMapped = nullptr;
     void* m_pointLightMapped = nullptr;
-    void* m_spotLightMapped  = nullptr;
+    void* m_spotLightMapped = nullptr;
 
     ShaderTableDesc m_dirLightSRV;
     ShaderTableDesc m_pointLightSRV;

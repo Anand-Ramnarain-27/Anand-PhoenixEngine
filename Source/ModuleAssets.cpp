@@ -353,7 +353,7 @@ void ModuleAssets::deleteAsset(const std::string& assetPath) {
         deleteIfExists(path);
         for (int i = 0; ; ++i) {
             bool anyMesh = m_subUIDs.erase(path + "|mesh|" + std::to_string(i)) > 0;
-            bool anyMat  = m_subUIDs.erase(path + "|mat|"  + std::to_string(i)) > 0;
+            bool anyMat = m_subUIDs.erase(path + "|mat|" + std::to_string(i)) > 0;
             bool anyAnim = m_subUIDs.erase(path + "|anim|" + std::to_string(i)) > 0;
             if (!anyMesh && !anyMat && !anyAnim) break;
         }

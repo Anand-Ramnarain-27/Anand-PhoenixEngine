@@ -35,8 +35,7 @@ bool SceneSerializer::SaveScene(const ModuleScene* scene, const std::string& fil
         sceneObj.AddMember("Version", 1, a);
         Value goArray(kArrayType);
 
-        std::function<void(GameObject*)> serialize = [&](GameObject* go)
-            {
+        std::function<void(GameObject*)> serialize = [&](GameObject* go){
                 if (go == scene->getRoot()) return;
                 Value node(kObjectType);
                 node.AddMember("UID", go->getUID(), a);

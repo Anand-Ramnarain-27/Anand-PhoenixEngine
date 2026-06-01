@@ -94,9 +94,9 @@ void SceneSettingsPanel::drawSkyboxSection() {
                 std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
                 if (ext == ".hdr")
-                    env->loadHDR(fullPath);   
+                    env->loadHDR(fullPath);
                 else
-                    env->load(fullPath);     
+                    env->load(fullPath);
 
                 m_editor->log(("Skybox loaded: " + m_skyboxFiles[m_selectedSkybox]).c_str(),
                     EditorColors::Success);

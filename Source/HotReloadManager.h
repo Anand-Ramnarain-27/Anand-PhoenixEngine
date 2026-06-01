@@ -6,17 +6,17 @@
 #include <functional>
 #include <vector>
 #include <windows.h>
- 
+
 struct ScriptLibrary {
-    HMODULE     handle = nullptr;
+    HMODULE handle = nullptr;
     std::string dllPath;
-    std::string pdbPath;     
-     
+    std::string pdbPath;
+
     std::unordered_map<std::string, ScriptFactoryFn> factories;
 };
- 
+
 class HotReloadManager {
-public: 
+public:
     using ReloadCallback = std::function<void(const std::string& dllPath)>;
 
     HotReloadManager() = default;
@@ -36,10 +36,10 @@ public:
     bool isLoaded(const std::string& dllPath) const;
 
 private:
-    bool        loadLibraryInternal(const std::string& dllPath, ScriptLibrary& out);
+    bool loadLibraryInternal(const std::string& dllPath, ScriptLibrary& out);
     std::string versionedPdbPath(const std::string& dllPath);
 
-    std::unordered_map<std::string, ScriptLibrary> m_libraries;  
+    std::unordered_map<std::string, ScriptLibrary> m_libraries;
     ReloadCallback m_reloadCb;
-    int            m_pdbVersion = 0;
+    int m_pdbVersion = 0;
 };

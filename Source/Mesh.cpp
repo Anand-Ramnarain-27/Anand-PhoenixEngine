@@ -6,15 +6,15 @@
 #include <d3dx12.h>
 
 const D3D12_INPUT_ELEMENT_DESC Mesh::InputLayout[4] = {
-    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-    { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,        0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-    { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-    { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 };
 
 const D3D12_INPUT_ELEMENT_DESC Mesh::BoneWeightInputLayout[2] = {
-    { "BLENDINDICES", 0, DXGI_FORMAT_R32G32B32A32_SINT,  1, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-    { "BLENDWEIGHT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "BLENDINDICES", 0, DXGI_FORMAT_R32G32B32A32_SINT, 1, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "BLENDWEIGHT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 };
 
 void Mesh::setData(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, int materialIndex) {
@@ -58,8 +58,8 @@ void Mesh::setBoneWeights(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* st
             boneWeights.data(), boneWeights.size() * sizeof(BoneWeight), "MeshBoneWeightVB");
         if (m_boneWeightBuffer) {
             m_boneWeightBufferView.BufferLocation = m_boneWeightBuffer->GetGPUVirtualAddress();
-            m_boneWeightBufferView.SizeInBytes    = (UINT)(boneWeights.size() * sizeof(BoneWeight));
-            m_boneWeightBufferView.StrideInBytes  = sizeof(BoneWeight);
+            m_boneWeightBufferView.SizeInBytes = (UINT)(boneWeights.size() * sizeof(BoneWeight));
+            m_boneWeightBufferView.StrideInBytes = sizeof(BoneWeight);
             m_hasBoneWeightBuffer = true;
             return;
         }
@@ -74,7 +74,7 @@ void Mesh::setBoneWeights(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* st
 }
 
 void Mesh::setMorphTargets(const std::vector<MorphTarget>& targets, const std::vector<MorphVertex>& vertexData) {
-    m_morphTargets    = targets;
+    m_morphTargets = targets;
     m_morphVertexData = vertexData;
     m_numMorphTargets = (uint32_t)targets.size();
     m_hasMorphTargetBuffer = false;
@@ -109,8 +109,8 @@ void Mesh::uploadToGPU(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* stati
                 m_boneWeights.data(), m_boneWeights.size() * sizeof(BoneWeight), "MeshBoneWeightVB");
             if (m_boneWeightBuffer) {
                 m_boneWeightBufferView.BufferLocation = m_boneWeightBuffer->GetGPUVirtualAddress();
-                m_boneWeightBufferView.SizeInBytes    = (UINT)(m_boneWeights.size() * sizeof(BoneWeight));
-                m_boneWeightBufferView.StrideInBytes  = sizeof(BoneWeight);
+                m_boneWeightBufferView.SizeInBytes = (UINT)(m_boneWeights.size() * sizeof(BoneWeight));
+                m_boneWeightBufferView.StrideInBytes = sizeof(BoneWeight);
                 m_hasBoneWeightBuffer = true;
             }
         }

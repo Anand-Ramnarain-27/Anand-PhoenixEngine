@@ -128,7 +128,7 @@ bool ComponentMesh::loadModel(const char* filePath) {
     for (int i = 0; i < meshCount; ++i) {
         MeshEntry e;
         e.meshUID = app->getAssets()->findSubUID(canonicalPath, "mesh", i);
-        e.materialUID = 0; 
+        e.materialUID = 0;
 
         if (e.meshUID)
             e.meshRes = app->getResources()->RequestMesh(e.meshUID);
@@ -197,24 +197,24 @@ bool ComponentMesh::loadMeshSubset(const std::string& assetPath, int startMesh, 
 
 void ComponentMesh::addMeshEntry(UID meshUID, UID materialUID) {
     MeshEntry e;
-    e.meshUID     = meshUID;
+    e.meshUID = meshUID;
     e.materialUID = materialUID;
-    if (e.meshUID)     e.meshRes     = app->getResources()->RequestMesh(e.meshUID);
+    if (e.meshUID) e.meshRes = app->getResources()->RequestMesh(e.meshUID);
     if (e.materialUID) e.materialRes = app->getResources()->RequestMaterial(e.materialUID);
     rebuildEntry(e);
     m_entries.push_back(std::move(e));
 }
 
 void ComponentMesh::setSkinData(const ResourceModel::Skin& skin, std::vector<GameObject*> joints) {
-    m_localSkin   = skin;
-    m_skinJoints  = std::move(joints);
-    m_hasSkin     = true;
+    m_localSkin = skin;
+    m_skinJoints = std::move(joints);
+    m_hasSkin = true;
 }
 
 void ComponentMesh::setMorphWeight(int index, float weight) {
     if (index < 0 || index >= MAX_MORPH_WEIGHTS) return;
     m_morphWeights[index] = weight;
-    m_morphWeightsDirty   = true;
+    m_morphWeightsDirty = true;
 }
 
 void ComponentMesh::setProceduralModel(std::unique_ptr<Model> model) {
@@ -340,15 +340,15 @@ void ComponentMesh::onLoad(const std::string& jsonStr) {
         releaseEntries();
         const auto& arr = doc["Entries"].GetArray();
         for (const auto& ev : arr) {
-            UID meshUID = ev.HasMember("meshUID")     ? ev["meshUID"].GetUint64()     : 0;
-            UID matUID  = ev.HasMember("materialUID") ? ev["materialUID"].GetUint64() : 0;
+            UID meshUID = ev.HasMember("meshUID") ? ev["meshUID"].GetUint64() : 0;
+            UID matUID = ev.HasMember("materialUID") ? ev["materialUID"].GetUint64() : 0;
             if (meshUID) addMeshEntry(meshUID, matUID);
         }
         computeLocalAABB();
     }
 
     if (doc.HasMember("SkinJointNames") && doc.HasMember("SkinIBMs")) {
-        const auto& names  = doc["SkinJointNames"].GetArray();
+        const auto& names = doc["SkinJointNames"].GetArray();
         const auto& ibmsArr = doc["SkinIBMs"].GetArray();
         if (names.Size() == ibmsArr.Size() && names.Size() > 0) {
             ResourceModel::Skin skin;

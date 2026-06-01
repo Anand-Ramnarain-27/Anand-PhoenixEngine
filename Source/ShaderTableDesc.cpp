@@ -24,13 +24,11 @@ ShaderTableDesc::ShaderTableDesc(ShaderTableDesc&& other) noexcept
     other.m_manager = nullptr;
 }
 
-ShaderTableDesc::~ShaderTableDesc()
-{
+ShaderTableDesc::~ShaderTableDesc(){
     release();
 }
 
-ShaderTableDesc& ShaderTableDesc::operator=(const ShaderTableDesc& other)
-{
+ShaderTableDesc& ShaderTableDesc::operator=(const ShaderTableDesc& other){
     if (this != &other)
     {
         release();
@@ -42,8 +40,7 @@ ShaderTableDesc& ShaderTableDesc::operator=(const ShaderTableDesc& other)
     return *this;
 }
 
-ShaderTableDesc& ShaderTableDesc::operator=(ShaderTableDesc&& other) noexcept
-{
+ShaderTableDesc& ShaderTableDesc::operator=(ShaderTableDesc&& other) noexcept{
     if (this != &other)
     {
         release();
@@ -57,13 +54,11 @@ ShaderTableDesc& ShaderTableDesc::operator=(ShaderTableDesc&& other) noexcept
     return *this;
 }
 
-void ShaderTableDesc::addRef()
-{
+void ShaderTableDesc::addRef(){
     if (m_refCount) ++(*m_refCount);
 }
 
-void ShaderTableDesc::release()
-{
+void ShaderTableDesc::release(){
     if (!m_refCount) return;
     if (--(*m_refCount) == 0 && m_manager)
         m_manager->releaseTable(m_handle);
@@ -72,23 +67,19 @@ void ShaderTableDesc::release()
     m_manager = nullptr;
 }
 
-bool ShaderTableDesc::isValidSlot(UINT slot) const
-{
+bool ShaderTableDesc::isValidSlot(UINT slot) const{
     return slot < ModuleShaderDescriptors::SLOTS_PER_TABLE;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE ShaderTableDesc::getGPUHandle(UINT slot) const
-{
+D3D12_GPU_DESCRIPTOR_HANDLE ShaderTableDesc::getGPUHandle(UINT slot) const{
     return m_manager ? m_manager->getGPUHandle(m_handle, slot) : D3D12_GPU_DESCRIPTOR_HANDLE{ 0 };
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE ShaderTableDesc::getCPUHandle(UINT slot) const
-{
+D3D12_CPU_DESCRIPTOR_HANDLE ShaderTableDesc::getCPUHandle(UINT slot) const{
     return m_manager ? m_manager->getCPUHandle(m_handle, slot) : D3D12_CPU_DESCRIPTOR_HANDLE{ 0 };
 }
 
-void ShaderTableDesc::createCBV(ID3D12Resource* buffer, UINT slot, UINT64 size, UINT64 offset)
-{
+void ShaderTableDesc::createCBV(ID3D12Resource* buffer, UINT slot, UINT64 size, UINT64 offset){
     if (!isValid() || !isValidSlot(slot)) return;
 
     D3D12_CONSTANT_BUFFER_VIEW_DESC desc{};
@@ -103,21 +94,18 @@ void ShaderTableDesc::createCBV(ID3D12Resource* buffer, UINT slot, UINT64 size, 
     device->CreateConstantBufferView(buffer ? &desc : nullptr, getCPUHandle(slot));
 }
 
-void ShaderTableDesc::createSRV(ID3D12Resource* resource, UINT slot, const D3D12_SHADER_RESOURCE_VIEW_DESC* desc)
-{
+void ShaderTableDesc::createSRV(ID3D12Resource* resource, UINT slot, const D3D12_SHADER_RESOURCE_VIEW_DESC* desc){
     if (!isValid() || !isValidSlot(slot)) return;
     app->getD3D12()->getDevice()->CreateShaderResourceView(resource, desc, getCPUHandle(slot));
 }
 
-void ShaderTableDesc::createUAV(ID3D12Resource* resource, UINT slot, const D3D12_UNORDERED_ACCESS_VIEW_DESC* desc)
-{
+void ShaderTableDesc::createUAV(ID3D12Resource* resource, UINT slot, const D3D12_UNORDERED_ACCESS_VIEW_DESC* desc){
     if (!isValid() || !isValidSlot(slot)) return;
     app->getD3D12()->getDevice()->CreateUnorderedAccessView(resource, nullptr, desc, getCPUHandle(slot));
 }
 
 void ShaderTableDesc::createBufferSRV(ID3D12Resource* buffer, UINT slot,
-    UINT firstElement, UINT numElements, UINT stride)
-{
+    UINT firstElement, UINT numElements, UINT stride){
     if (!buffer || !isValid() || !isValidSlot(slot)) return;
 
     D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
@@ -133,8 +121,7 @@ void ShaderTableDesc::createBufferSRV(ID3D12Resource* buffer, UINT slot,
 }
 
 void ShaderTableDesc::createTexture2DSRV(ID3D12Resource* texture, UINT slot,
-    DXGI_FORMAT format, UINT mipLevels)
-{
+    DXGI_FORMAT format, UINT mipLevels){
     if (!texture || !isValid() || !isValidSlot(slot)) return;
 
     D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
@@ -149,8 +136,7 @@ void ShaderTableDesc::createTexture2DSRV(ID3D12Resource* texture, UINT slot,
     createSRV(texture, slot, &desc);
 }
 
-void ShaderTableDesc::createNullSRV(UINT slot)
-{
+void ShaderTableDesc::createNullSRV(UINT slot){
     if (!isValid() || !isValidSlot(slot)) return;
 
     D3D12_SHADER_RESOURCE_VIEW_DESC desc{};

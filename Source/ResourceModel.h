@@ -9,23 +9,23 @@ class GameObject;
 class ResourceModel : public ResourceBase {
 public:
     struct MeshPair {
-        UID meshUID     = 0;
+        UID meshUID = 0;
         UID materialUID = 0;
     };
 
     struct Node {
-        std::string       name;
-        Vector3           translation = {};
-        Quaternion        rotation    = Quaternion::Identity;
-        Vector3           scale       = { 1.f, 1.f, 1.f };
-        int               parentIndex = -1;
-        int               skinIndex   = -1;  // index into m_skins; -1 if not skinned
+        std::string name;
+        Vector3 translation = {};
+        Quaternion rotation = Quaternion::Identity;
+        Vector3 scale = { 1.f, 1.f, 1.f };
+        int parentIndex = -1;
+        int skinIndex = -1; // index into m_skins; -1 if not skinned
         std::vector<MeshPair> meshes;
     };
 
     struct Skin {
-        std::string         name;
-        std::vector<int>    jointNodeIndices;    // indices into m_nodes
+        std::string name;
+        std::vector<int> jointNodeIndices; // indices into m_nodes
         std::vector<Matrix> inverseBindMatrices; // row-major, one per joint
     };
 

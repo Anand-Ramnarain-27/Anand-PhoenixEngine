@@ -5,14 +5,12 @@
 #include "ModuleD3D12.h"
 #include <algorithm>
 
-ModuleShaderDescriptors::ModuleShaderDescriptors()
-{
+ModuleShaderDescriptors::ModuleShaderDescriptors(){
     for (UINT i = 0; i < MAX_TABLES; ++i)
         m_freeHandles.push(i);
 }
 
-bool ModuleShaderDescriptors::init()
-{
+bool ModuleShaderDescriptors::init(){
     auto d3d12 = app->getD3D12();
     if (!d3d12) return false;
 
@@ -33,8 +31,7 @@ bool ModuleShaderDescriptors::init()
     return true;
 }
 
-void ModuleShaderDescriptors::preRender()
-{
+void ModuleShaderDescriptors::preRender(){
     ++m_currentFrame;
 
     const UINT FRAME_DELAY = 3;
@@ -50,9 +47,8 @@ void ModuleShaderDescriptors::preRender()
     }
 }
 
-ShaderTableDesc ModuleShaderDescriptors::allocTable(const char* name)
-{
-    if (m_freeHandles.empty()) return ShaderTableDesc(); 
+ShaderTableDesc ModuleShaderDescriptors::allocTable(const char* name){
+    if (m_freeHandles.empty()) return ShaderTableDesc();
 
     UINT handle = m_freeHandles.front();
     m_freeHandles.pop();
@@ -65,8 +61,7 @@ ShaderTableDesc ModuleShaderDescriptors::allocTable(const char* name)
     return ShaderTableDesc(handle, &t.refCount, this);
 }
 
-void ModuleShaderDescriptors::releaseTable(UINT handle)
-{
+void ModuleShaderDescriptors::releaseTable(UINT handle){
     if (handle >= MAX_TABLES) return;
 
     auto& t = m_tables[handle];
@@ -74,14 +69,12 @@ void ModuleShaderDescriptors::releaseTable(UINT handle)
         t.frameFreed = m_currentFrame;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE ModuleShaderDescriptors::getGPUHandle(UINT handle, UINT slot) const
-{
+D3D12_GPU_DESCRIPTOR_HANDLE ModuleShaderDescriptors::getGPUHandle(UINT handle, UINT slot) const{
     if (!isValidHandle(handle) || slot >= SLOTS_PER_TABLE) return {};
     return CD3DX12_GPU_DESCRIPTOR_HANDLE(m_gpuStart, static_cast<INT>(handle * SLOTS_PER_TABLE + slot), m_descriptorSize);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE ModuleShaderDescriptors::getCPUHandle(UINT handle, UINT slot) const
-{
+D3D12_CPU_DESCRIPTOR_HANDLE ModuleShaderDescriptors::getCPUHandle(UINT handle, UINT slot) const{
     if (!isValidHandle(handle) || slot >= SLOTS_PER_TABLE) return {};
     return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_cpuStart, static_cast<INT>(handle * SLOTS_PER_TABLE + slot), m_descriptorSize);
 }

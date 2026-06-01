@@ -206,7 +206,7 @@ static const GameObject* findPrefabRoot(const GameObject* go) {
     const GameObject* cur = go;
     while (cur) {
         if (PrefabManager::isPrefabInstance(cur))
-            root = cur; 
+            root = cur;
         cur = cur->getParent();
     }
     return root;
@@ -217,7 +217,7 @@ bool PrefabManager::applyToPrefab(const GameObject* go, bool respectOverrides) {
     if (!inst || inst->prefabName.empty()) {
         const GameObject* root = findPrefabRoot(go);
         if (root && root != go) {
-            LOG("PrefabManager::applyToPrefab: '%s' is a child — applying from prefab root '%s'",
+            LOG("PrefabManager::applyToPrefab: '%s' is a child ï¿½ applying from prefab root '%s'",
                 go ? go->getName().c_str() : "null", root->getName().c_str());
             return applyToPrefab(root, respectOverrides);
         }
@@ -263,7 +263,7 @@ bool PrefabManager::revertToPrefab(GameObject* go, ModuleScene* scene) {
     if (!inst || inst->prefabName.empty()) {
         const GameObject* root = findPrefabRoot(go);
         if (root && root != go) {
-            LOG("PrefabManager::revertToPrefab: '%s' is a child — reverting from prefab root '%s'",
+            LOG("PrefabManager::revertToPrefab: '%s' is a child ï¿½ reverting from prefab root '%s'",
                 go ? go->getName().c_str() : "null", root->getName().c_str());
             return revertToPrefab(const_cast<GameObject*>(root), scene);
         }
@@ -457,8 +457,7 @@ std::vector<std::string> PrefabManager::listPrefabs() {
     return names;
 }
 
-void PrefabManager::markComponentAdded(GameObject* go, int componentType)
-{
+void PrefabManager::markComponentAdded(GameObject* go, int componentType){
     PrefabInstanceData* inst = getInstanceDataMutable(go);
     if (!inst) return;
 
@@ -470,8 +469,7 @@ void PrefabManager::markComponentAdded(GameObject* go, int componentType)
     r.erase(std::remove(r.begin(), r.end(), componentType), r.end());
 }
 
-void PrefabManager::markComponentRemoved(GameObject* go, int componentType)
-{
+void PrefabManager::markComponentRemoved(GameObject* go, int componentType){
     PrefabInstanceData* inst = getInstanceDataMutable(go);
     if (!inst) return;
 

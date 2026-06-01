@@ -12,16 +12,15 @@ namespace FaceProjection
         DirectX::XMFLOAT3 up;
     };
 
-    inline const std::array<FaceDesc, 6>& faces()
-    {
+    inline const std::array<FaceDesc, 6>& faces(){
         static const std::array<FaceDesc, 6> kFaces =
         { {
-            { {  1,  0,  0 }, {  0,  1,  0 } },   // 0: +X
-            { { -1,  0,  0 }, {  0,  1,  0 } },   // 1: -X
-            { {  0,  1,  0 }, {  0,  0, -1 } },   // 2: +Y
-            { {  0, -1,  0 }, {  0,  0,  1 } },   // 3: -Y
-            { {  0,  0,  1 }, {  0,  1,  0 } },   // 4: +Z
-            { {  0,  0, -1 }, {  0,  1,  0 } },   // 5: -Z
+            { { 1, 0, 0 }, { 0, 1, 0 } }, // 0: +X
+            { { -1, 0, 0 }, { 0, 1, 0 } }, // 1: -X
+            { { 0, 1, 0 }, { 0, 0, -1 } }, // 2: +Y
+            { { 0, -1, 0 }, { 0, 0, 1 } }, // 3: -Y
+            { { 0, 0, 1 }, { 0, 1, 0 } }, // 4: +Z
+            { { 0, 0, -1 }, { 0, 1, 0 } }, // 5: -Z
         } };
         return kFaces;
     }

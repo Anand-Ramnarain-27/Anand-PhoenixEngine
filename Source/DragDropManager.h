@@ -26,11 +26,11 @@
 class DragDropManager {
 public:
     struct ImportProgress {
-        int         current      = 0;    // files completed
-        int         total        = 0;
+        int current = 0; // files completed
+        int total = 0;
         std::string currentFile;
-        bool        active       = false;
-        bool        showComplete = false;
+        bool active = false;
+        bool showComplete = false;
         // Last up-to-6 completed filenames for the overlay list (oldest first).
         std::vector<std::string> completedFiles;
     };
@@ -69,7 +69,7 @@ public:
 private:
     DragDropManager() = default;
     ~DragDropManager() = default;
-    DragDropManager(const DragDropManager&)            = delete;
+    DragDropManager(const DragDropManager&) = delete;
     DragDropManager& operator=(const DragDropManager&) = delete;
 
     void workerFunc();
@@ -77,16 +77,16 @@ private:
     std::atomic<bool> m_isDragging{false};
 
     // Thread pool — workers start once and run until Shutdown().
-    static constexpr int kNumWorkers       = 3;
+    static constexpr int kNumWorkers = 3;
     static constexpr int kImportTimeoutSecs = 30;
     std::array<std::thread, kNumWorkers> m_workerPool;
     std::atomic<bool> m_stopWorkers{false};
     std::atomic<bool> m_poolStarted{false};
 
     // Shared task queue consumed by pool workers.
-    std::mutex              m_queueMutex;
+    std::mutex m_queueMutex;
     std::condition_variable m_queueCV;
-    std::deque<DropItem>    m_taskQueue;
+    std::deque<DropItem> m_taskQueue;
 
     // Serialises importAsset calls across concurrent workers.
     std::mutex m_importMutex;
@@ -94,9 +94,9 @@ private:
     // Decremented by each worker when a task finishes; hits 0 when batch done.
     std::atomic<int> m_tasksRemaining{0};
 
-    std::mutex     m_progressMutex;
+    std::mutex m_progressMutex;
     ImportProgress m_progress;
-    ImportProgress m_cachedProgress;  // last snapshot taken under a successful lock
+    ImportProgress m_cachedProgress; // last snapshot taken under a successful lock
 
     std::atomic<bool> m_allDone{false};
 

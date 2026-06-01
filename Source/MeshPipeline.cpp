@@ -102,37 +102,37 @@ bool MeshPipeline::createTransparentPSO(ID3D12Device* device) {
 	auto ps = DX::ReadData(L"TransparentForwardPS.cso");
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-	desc.pRootSignature        = m_rootSig.Get();
-	desc.InputLayout           = { Mesh::InputLayout, Mesh::InputLayoutCount };
-	desc.VS                    = { vs.data(), vs.size() };
-	desc.PS                    = { ps.data(), ps.size() };
+	desc.pRootSignature = m_rootSig.Get();
+	desc.InputLayout = { Mesh::InputLayout, Mesh::InputLayoutCount };
+	desc.VS = { vs.data(), vs.size() };
+	desc.PS = { ps.data(), ps.size() };
 	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	desc.RTVFormats[0]         = DXGI_FORMAT_R8G8B8A8_UNORM;
-	desc.NumRenderTargets      = 1;
-	desc.DSVFormat             = DXGI_FORMAT_D32_FLOAT;
-	desc.SampleDesc            = { 1, 0 };
-	desc.SampleMask            = UINT_MAX;
+	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	desc.NumRenderTargets = 1;
+	desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+	desc.SampleDesc = { 1, 0 };
+	desc.SampleMask = UINT_MAX;
 
 	desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	desc.RasterizerState.FrontCounterClockwise = TRUE;
 
 	// Alpha blend: src * srcAlpha + dst * (1 - srcAlpha)
 	desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	auto& rt                          = desc.BlendState.RenderTarget[0];
-	rt.BlendEnable                    = TRUE;
-	rt.SrcBlend                       = D3D12_BLEND_SRC_ALPHA;
-	rt.DestBlend                      = D3D12_BLEND_INV_SRC_ALPHA;
-	rt.BlendOp                        = D3D12_BLEND_OP_ADD;
-	rt.SrcBlendAlpha                  = D3D12_BLEND_ONE;
-	rt.DestBlendAlpha                 = D3D12_BLEND_ZERO;
-	rt.BlendOpAlpha                   = D3D12_BLEND_OP_ADD;
-	rt.RenderTargetWriteMask          = D3D12_COLOR_WRITE_ENABLE_ALL;
+	auto& rt = desc.BlendState.RenderTarget[0];
+	rt.BlendEnable = TRUE;
+	rt.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	rt.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	rt.BlendOp = D3D12_BLEND_OP_ADD;
+	rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+	rt.DestBlendAlpha = D3D12_BLEND_ZERO;
+	rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
 	// Depth test ON, depth write OFF — share GBuffer depth read-only
-	desc.DepthStencilState            = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-	desc.DepthStencilState.DepthEnable    = TRUE;
+	desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	desc.DepthStencilState.DepthEnable = TRUE;
 	desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-	desc.DepthStencilState.DepthFunc      = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 
 	HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_transparentPso));
 	if (FAILED(hr)) {

@@ -20,8 +20,7 @@
 void CreateTestScene(ModuleScene* scene,
                      const std::string& charModelPath,
                      const std::string& faceModelPath,
-                     const std::string& smPath)
-{
+                     const std::string& smPath){
     if (!scene) return;
     scene->clear();
 
@@ -41,11 +40,11 @@ void CreateTestScene(ModuleScene* scene,
     // Animation processes triggers and applies bone transforms to child nodes.
     auto* charAnim = character->createComponent<ComponentAnimation>();
     if (!smPath.empty())
-        charAnim->LoadStateMachineFromPath(smPath);   // also calls OnPlay()
+        charAnim->LoadStateMachineFromPath(smPath); // also calls OnPlay()
 
     // Motion integrates the root transform — must come last.
     auto* charMotion = character->createComponent<ComponentCharacterMotion>();
-    charMotion->mLinearSpeed  = 5.f;
+    charMotion->mLinearSpeed = 5.f;
     charMotion->mAngularSpeed = 2.f;
 
     // ── GameObject 2: TestFace ────────────────────────────────────────────────
@@ -70,11 +69,10 @@ void CreateTestScene(ModuleScene* scene,
 
 static void check(bool ok, const char* msg) {
     if (ok) { LOG("[OK]   %s", msg); }
-    else    { LOG("[FAIL] %s", msg); }
+    else { LOG("[FAIL] %s", msg); }
 }
 
-void ValidateAnimationSetup(ModuleScene* scene)
-{
+void ValidateAnimationSetup(ModuleScene* scene){
     LOG("=== ValidateAnimationSetup ===");
 
     if (!scene) { LOG("[FAIL] scene is null"); return; }
@@ -87,12 +85,12 @@ void ValidateAnimationSetup(ModuleScene* scene)
 
     // ── Character checks ──────────────────────────────────────────────────────
     if (charGO) {
-        auto* charAnim    = charGO->getComponent<ComponentAnimation>();
-        auto* charMotion  = charGO->getComponent<ComponentCharacterMotion>();
-        auto* charCtrl    = charGO->getComponent<ComponentSimpleCharacterController>();
+        auto* charAnim = charGO->getComponent<ComponentAnimation>();
+        auto* charMotion = charGO->getComponent<ComponentCharacterMotion>();
+        auto* charCtrl = charGO->getComponent<ComponentSimpleCharacterController>();
 
-        check(charCtrl   != nullptr, "ComponentSimpleCharacterController on TestCharacter");
-        check(charAnim   != nullptr, "ComponentAnimation on TestCharacter");
+        check(charCtrl != nullptr, "ComponentSimpleCharacterController on TestCharacter");
+        check(charAnim != nullptr, "ComponentAnimation on TestCharacter");
         check(charMotion != nullptr, "ComponentCharacterMotion on TestCharacter");
 
         // Update order (component vector order determines per-frame call order)
@@ -100,9 +98,9 @@ void ValidateAnimationSetup(ModuleScene* scene)
             const auto& comps = charGO->getComponents();
             int ctrlIdx = -1, animIdx = -1, motionIdx = -1;
             for (int i = 0; i < (int)comps.size(); ++i) {
-                if (comps[i].get() == charCtrl)   ctrlIdx  = i;
-                if (comps[i].get() == charAnim)    animIdx  = i;
-                if (comps[i].get() == charMotion)  motionIdx = i;
+                if (comps[i].get() == charCtrl) ctrlIdx = i;
+                if (comps[i].get() == charAnim) animIdx = i;
+                if (comps[i].get() == charMotion) motionIdx = i;
             }
             check(ctrlIdx < animIdx && animIdx < motionIdx,
                   "Update order: Controller < Animation < Motion");

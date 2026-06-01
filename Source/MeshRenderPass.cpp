@@ -310,16 +310,16 @@ void MeshRenderPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12Pipelin
 
 	cmd->SetGraphicsRootConstantBufferView(MeshPipeline::SLOT_PERFRAME_CB, m_perFrameCB->GetGPUVirtualAddress());
 
-	cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_DIR_LIGHTS,   m_dirLightSRV.getGPUHandle(0));
+	cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_DIR_LIGHTS, m_dirLightSRV.getGPUHandle(0));
 	cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_POINT_LIGHTS, m_pointLightSRV.getGPUHandle(0));
-	cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_SPOT_LIGHTS,  m_spotLightSRV.getGPUHandle(0));
+	cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_SPOT_LIGHTS, m_spotLightSRV.getGPUHandle(0));
 
 	if (env && env->hasIBL()) {
 		m_pipeline.bindIBL(cmd, env);
 	} else {
 		cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_IRRADIANCE, m_fallbackIrradianceSRV.getGPUHandle(0));
-		cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_PREFILTER,  m_fallbackPrefilterSRV.getGPUHandle(0));
-		cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_BRDF_LUT,   m_fallbackBRDFSRV.getGPUHandle(0));
+		cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_PREFILTER, m_fallbackPrefilterSRV.getGPUHandle(0));
+		cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_BRDF_LUT, m_fallbackBRDFSRV.getGPUHandle(0));
 	}
 
 	cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_SAMPLER,
@@ -342,7 +342,7 @@ void MeshRenderPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12Pipelin
 		D3D12_GPU_VIRTUAL_ADDRESS mvpVA, instVA;
 		writePerDrawCBs(*entry, viewProj, slot, mvpVA, instVA);
 
-		cmd->SetGraphicsRootConstantBufferView(MeshPipeline::SLOT_MVP_CB,        mvpVA);
+		cmd->SetGraphicsRootConstantBufferView(MeshPipeline::SLOT_MVP_CB, mvpVA);
 		cmd->SetGraphicsRootConstantBufferView(MeshPipeline::SLOT_PERINSTANCE_CB, instVA);
 
 		ShaderTableDesc& matTable = m_matRing[slot];
@@ -353,16 +353,16 @@ void MeshRenderPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12Pipelin
 
 		writeFallbackTex2DSRV(matTable, MAT_SLOT_BASECOLOR, m_fallbackTex2D.Get());
 		writeFallbackTex2DSRV(matTable, MAT_SLOT_METALROUGH, m_fallbackTex2D.Get());
-		writeFallbackTex2DSRV(matTable, MAT_SLOT_NORMAL,     m_fallbackTex2D.Get());
-		writeFallbackTex2DSRV(matTable, MAT_SLOT_AO,         m_fallbackTex2D.Get());
-		writeFallbackTex2DSRV(matTable, MAT_SLOT_EMISSIVE,   m_fallbackTex2D.Get());
+		writeFallbackTex2DSRV(matTable, MAT_SLOT_NORMAL, m_fallbackTex2D.Get());
+		writeFallbackTex2DSRV(matTable, MAT_SLOT_AO, m_fallbackTex2D.Get());
+		writeFallbackTex2DSRV(matTable, MAT_SLOT_EMISSIVE, m_fallbackTex2D.Get());
 
 		if (mat) {
-			if (mat->hasTexture()      && mat->getBaseColorResource())  writeTex2DSRV(matTable, MAT_SLOT_BASECOLOR, mat->getBaseColorResource());
+			if (mat->hasTexture() && mat->getBaseColorResource()) writeTex2DSRV(matTable, MAT_SLOT_BASECOLOR, mat->getBaseColorResource());
 			if (mat->hasMetalRoughMap()&& mat->getMetalRoughResource()) writeTex2DSRV(matTable, MAT_SLOT_METALROUGH, mat->getMetalRoughResource());
-			if (mat->hasNormalMap()    && mat->getNormalMapResource())  writeTex2DSRV(matTable, MAT_SLOT_NORMAL,    mat->getNormalMapResource());
-			if (mat->hasAOMap()        && mat->getAOMapResource())      writeTex2DSRV(matTable, MAT_SLOT_AO,        mat->getAOMapResource());
-			if (mat->hasEmissive()     && mat->getEmissiveResource())   writeTex2DSRV(matTable, MAT_SLOT_EMISSIVE,  mat->getEmissiveResource());
+			if (mat->hasNormalMap() && mat->getNormalMapResource()) writeTex2DSRV(matTable, MAT_SLOT_NORMAL, mat->getNormalMapResource());
+			if (mat->hasAOMap() && mat->getAOMapResource()) writeTex2DSRV(matTable, MAT_SLOT_AO, mat->getAOMapResource());
+			if (mat->hasEmissive() && mat->getEmissiveResource()) writeTex2DSRV(matTable, MAT_SLOT_EMISSIVE, mat->getEmissiveResource());
 		}
 
 		cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_MAT_TEXTURES, matTable.getGPUHandle(0));

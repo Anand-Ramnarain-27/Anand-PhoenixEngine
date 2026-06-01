@@ -59,22 +59,22 @@ public:
     void preRender() override;
     void render() override;
 
-    SceneManager* getSceneManager()    const { return m_sceneManager.get(); }
-    MeshRenderPass* getMeshRenderPass()   const { return m_meshRenderPass.get(); }
-    MeshPipeline* getMeshPipeline()     const { return m_meshRenderPass ? &m_meshRenderPass->getPipeline() : nullptr; }
-    EnvironmentSystem* getEnvSystem()        const { return m_envSystem.get(); }
-    DebugDrawPass* getDebugDraw()        const { return m_debugDraw.get(); }
+    SceneManager* getSceneManager() const { return m_sceneManager.get(); }
+    MeshRenderPass* getMeshRenderPass() const { return m_meshRenderPass.get(); }
+    MeshPipeline* getMeshPipeline() const { return m_meshRenderPass ? &m_meshRenderPass->getPipeline() : nullptr; }
+    EnvironmentSystem* getEnvSystem() const { return m_envSystem.get(); }
+    DebugDrawPass* getDebugDraw() const { return m_debugDraw.get(); }
     EditorSelection& getSelection() { return m_selection; }
-    double             getGpuFrameTimeMs()   const { return m_gpuFrameTimeMs; }
-    int                getSamplerType()      const { return m_samplerType; }
-    void               setSamplerType(int t) { m_samplerType = t; }
+    double getGpuFrameTimeMs() const { return m_gpuFrameTimeMs; }
+    int getSamplerType() const { return m_samplerType; }
+    void setSamplerType(int t) { m_samplerType = t; }
     ModuleScene* getActiveModuleScene()const;
-    ImVec2             getSceneViewSize()    const;
+    ImVec2 getSceneViewSize() const;
 
     void renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras, RenderTexture* outputRT = nullptr);
 
-    GBufferPass*            getGBufferPass()           const { return m_gbufferPass.get(); }
-    DeferredLightingPass*   getDeferredLightingPass()  const { return m_deferredLightingPass.get(); }
+    GBufferPass* getGBufferPass() const { return m_gbufferPass.get(); }
+    DeferredLightingPass* getDeferredLightingPass() const { return m_deferredLightingPass.get(); }
 
     void log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
     GameObject* createEmptyGameObject(const char* name = "Empty", GameObject* parent = nullptr);
@@ -101,36 +101,36 @@ public:
     void notifyScriptComponentsReload(const std::string& dllPath);
 
 private:
-    std::unique_ptr<ImGuiPass>       m_imguiPass;
-    std::unique_ptr<DebugDrawPass>   m_debugDraw;
-    std::unique_ptr<SceneManager>    m_sceneManager;
-    std::unique_ptr<MeshRenderPass>  m_meshRenderPass;
-    std::unique_ptr<GBufferPass>          m_gbufferPass;
+    std::unique_ptr<ImGuiPass> m_imguiPass;
+    std::unique_ptr<DebugDrawPass> m_debugDraw;
+    std::unique_ptr<SceneManager> m_sceneManager;
+    std::unique_ptr<MeshRenderPass> m_meshRenderPass;
+    std::unique_ptr<GBufferPass> m_gbufferPass;
     std::unique_ptr<DeferredLightingPass> m_deferredLightingPass;
     std::unique_ptr<EnvironmentSystem> m_envSystem;
     std::unique_ptr<HotReloadManager> m_hotReload;
-    std::unique_ptr<SkinningPass>    m_skinningPass;
+    std::unique_ptr<SkinningPass> m_skinningPass;
 
     FileWatcher m_scriptWatcher;
 
     ShaderTableDesc m_descTable;
 
     ComPtr<ID3D12QueryHeap> m_gpuQueryHeap;
-    ComPtr<ID3D12Resource>  m_gpuReadback;
+    ComPtr<ID3D12Resource> m_gpuReadback;
     double m_gpuFrameTimeMs = 0.0;
-    bool   m_gpuTimerReady = false;
-    float  m_memoryUpdateTimer = 0.0f;
+    bool m_gpuTimerReady = false;
+    float m_memoryUpdateTimer = 0.0f;
 
     std::vector<std::unique_ptr<EditorPanel>> m_ownedPanels;
-    std::vector<EditorPanel*>                 m_panels;
+    std::vector<EditorPanel*> m_panels;
 
-    SceneViewPanel*   m_sceneView    = nullptr;
-    GameViewPanel*    m_gameView     = nullptr;
-    ConsolePanel*     m_console      = nullptr;
-    PerformancePanel* m_performance  = nullptr;
+    SceneViewPanel* m_sceneView = nullptr;
+    GameViewPanel* m_gameView = nullptr;
+    ConsolePanel* m_console = nullptr;
+    PerformancePanel* m_performance = nullptr;
     AssetBrowserPanel* m_assetBrowser = nullptr;
 
-    EngineDropTarget* m_dropTarget   = nullptr;
+    EngineDropTarget* m_dropTarget = nullptr;
 
     template<typename T, typename... Args>
     T* addPanel(Args&&... args) {
@@ -142,8 +142,8 @@ private:
     }
 
     EditorSelection m_selection;
-    FrameLightData  m_frameLights;
-    int  m_samplerType = 0;
+    FrameLightData m_frameLights;
+    int m_samplerType = 0;
     bool m_firstFrame = true;
 
     static constexpr int kMaxUndoSteps = 200;

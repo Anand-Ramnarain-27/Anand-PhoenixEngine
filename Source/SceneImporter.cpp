@@ -15,7 +15,7 @@
 namespace {
     struct NodeFileHeader {
         uint32_t magic = 0x4E4F4445;
-        uint32_t version = 2;          // v1: no skinIndex; v2: skinIndex added
+        uint32_t version = 2; // v1: no skinIndex; v2: skinIndex added
         uint32_t nodeCount = 0;
         uint32_t rootCount = 0;
         uint32_t meshRangeCount = 0;
@@ -26,37 +26,37 @@ namespace {
     };
     // v1 on-disk layout (read-only — used for backward compat)
     struct NodeFileEntryV1 {
-        int32_t  parentIndex;
-        int32_t  meshRangeIdx;
+        int32_t parentIndex;
+        int32_t meshRangeIdx;
         uint32_t nameLen;
-        float    t[3];
-        float    r[4];
-        float    s[3];
+        float t[3];
+        float r[4];
+        float s[3];
     };
     // v2 on-disk layout (current write format)
     struct NodeFileEntry {
-        int32_t  parentIndex;
-        int32_t  meshRangeIdx;
-        int32_t  skinIndex;    // -1 if not skinned
+        int32_t parentIndex;
+        int32_t meshRangeIdx;
+        int32_t skinIndex; // -1 if not skinned
         uint32_t nameLen;
-        float    t[3];
-        float    r[4];
-        float    s[3];
+        float t[3];
+        float r[4];
+        float s[3];
     };
 
     struct SkinFileHeader {
-        uint32_t magic     = 0x534B4E53; // 'SKNS'
-        uint32_t version   = 1;
+        uint32_t magic = 0x534B4E53; // 'SKNS'
+        uint32_t version = 1;
         uint32_t skinCount = 0;
-        uint32_t pad       = 0;
+        uint32_t pad = 0;
     };
 
     struct TempNode {
         std::string name;
         int parentIdx;
-        int gltfNodeIdx;   // original GLTF global node index
+        int gltfNodeIdx; // original GLTF global node index
         int gltfMeshIdx;
-        int skinIdx;       // gltf node.skin (-1 if none)
+        int skinIdx; // gltf node.skin (-1 if none)
         float t[3], r[4], s[3];
     };
 
@@ -65,11 +65,11 @@ namespace {
         if (ni < 0 || ni >= (int)model.nodes.size()) return;
         const auto& n = model.nodes[ni];
         TempNode tn{};
-        tn.name        = n.name.empty() ? ("Node_" + std::to_string(ni)) : n.name;
-        tn.parentIdx   = parentIdx;
+        tn.name = n.name.empty() ? ("Node_" + std::to_string(ni)) : n.name;
+        tn.parentIdx = parentIdx;
         tn.gltfNodeIdx = ni;
         tn.gltfMeshIdx = n.mesh;
-        tn.skinIdx     = n.skin;
+        tn.skinIdx = n.skin;
 
         if (n.matrix.size() == 16) {
             float fm[16];
@@ -118,8 +118,7 @@ bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const
             if (!MeshImporter::Import(
                 prim,
                 gltfModel,
-                ImporterUtils::IndexedPath(meshFolder, currentMeshIndex, ".mesh")))
-            {
+                ImporterUtils::IndexedPath(meshFolder, currentMeshIndex, ".mesh"))){
                 LOG("SceneImporter: Failed to import mesh %d", currentMeshIndex);
             }
 
@@ -199,7 +198,7 @@ bool SceneImporter::SaveNodeMetadata(const std::string& sceneName, const tinyglt
     }
 
     std::vector<TempNode> nodes;
-    std::vector<int32_t>  roots;
+    std::vector<int32_t> roots;
 
     if (!gltfModel.scenes.empty()) {
         int si = (gltfModel.defaultScene >= 0 && gltfModel.defaultScene < (int)gltfModel.scenes.size())
@@ -215,10 +214,10 @@ bool SceneImporter::SaveNodeMetadata(const std::string& sceneName, const tinyglt
     std::string nameBlob;
     for (const auto& tn : nodes) {
         NodeFileEntry e{};
-        e.parentIndex  = tn.parentIdx;
+        e.parentIndex = tn.parentIdx;
         e.meshRangeIdx = (tn.gltfMeshIdx >= 0 && tn.gltfMeshIdx < (int)meshRanges.size())
                          ? tn.gltfMeshIdx : -1;
-        e.skinIndex    = tn.skinIdx;
+        e.skinIndex = tn.skinIdx;
         e.nameLen = (uint32_t)tn.name.size();
         memcpy(e.t, tn.t, 12); memcpy(e.r, tn.r, 16); memcpy(e.s, tn.s, 12);
         entries.push_back(e);
@@ -226,8 +225,8 @@ bool SceneImporter::SaveNodeMetadata(const std::string& sceneName, const tinyglt
     }
 
     NodeFileHeader header;
-    header.nodeCount      = (uint32_t)nodes.size();
-    header.rootCount      = (uint32_t)roots.size();
+    header.nodeCount = (uint32_t)nodes.size();
+    header.rootCount = (uint32_t)roots.size();
     header.meshRangeCount = (uint32_t)meshRanges.size();
 
     // Payload: meshRanges | entries | roots | name blob
@@ -237,9 +236,9 @@ bool SceneImporter::SaveNodeMetadata(const std::string& sceneName, const tinyglt
         payload.insert(payload.end(), p, p + n);
     };
     append(meshRanges.data(), meshRanges.size() * sizeof(NodeFileMeshRange));
-    append(entries.data(),    entries.size()    * sizeof(NodeFileEntry));
-    append(roots.data(),      roots.size()      * sizeof(int32_t));
-    append(nameBlob.data(),   nameBlob.size());
+    append(entries.data(), entries.size() * sizeof(NodeFileEntry));
+    append(roots.data(), roots.size() * sizeof(int32_t));
+    append(nameBlob.data(), nameBlob.size());
 
     std::string path = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/nodes.meta";
     return ImporterUtils::SaveBuffer(path, header, payload);
@@ -272,9 +271,9 @@ bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinyglt
     };
 
     for (const auto& skin : gltfModel.skins) {
-        uint32_t nameLen   = (uint32_t)skin.name.size();
+        uint32_t nameLen = (uint32_t)skin.name.size();
         uint32_t jointCount = (uint32_t)skin.joints.size();
-        append(&nameLen,    sizeof(uint32_t));
+        append(&nameLen, sizeof(uint32_t));
         append(&jointCount, sizeof(uint32_t));
         if (nameLen > 0)
             append(skin.name.data(), nameLen);
@@ -295,7 +294,7 @@ bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinyglt
                 "Re-export from the DCC tool with skinning enabled.",
                 skin.name.c_str());
         } else if (skin.inverseBindMatrices < (int)gltfModel.accessors.size()) {
-            const auto& acc  = gltfModel.accessors[skin.inverseBindMatrices];
+            const auto& acc = gltfModel.accessors[skin.inverseBindMatrices];
             const auto& view = gltfModel.bufferViews[acc.bufferView];
             const uint8_t* data = gltfModel.buffers[view.buffer].data.data()
                                   + view.byteOffset + acc.byteOffset;
@@ -342,11 +341,11 @@ bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinyglt
                             for (int k = 0; k < 16; ++k) fm[k] = (float)an.matrix[k];
                             memcpy(&local, fm, 64);
                         } else {
-                            Vector3    t(0,0,0), s(1,1,1);
+                            Vector3 t(0,0,0), s(1,1,1);
                             Quaternion r(0,0,0,1);
                             if (an.translation.size() >= 3) { t.x=(float)an.translation[0]; t.y=(float)an.translation[1]; t.z=(float)an.translation[2]; }
-                            if (an.rotation.size()    >= 4) { r.x=(float)an.rotation[0];    r.y=(float)an.rotation[1];    r.z=(float)an.rotation[2];    r.w=(float)an.rotation[3]; }
-                            if (an.scale.size()       >= 3) { s.x=(float)an.scale[0];       s.y=(float)an.scale[1];       s.z=(float)an.scale[2]; }
+                            if (an.rotation.size() >= 4) { r.x=(float)an.rotation[0]; r.y=(float)an.rotation[1]; r.z=(float)an.rotation[2]; r.w=(float)an.rotation[3]; }
+                            if (an.scale.size() >= 3) { s.x=(float)an.scale[0]; s.y=(float)an.scale[1]; s.z=(float)an.scale[2]; }
                             local = Matrix::CreateScale(s) * Matrix::CreateFromQuaternion(r) * Matrix::CreateTranslation(t);
                         }
                         armWorld = local * armWorld; // left-multiply to accumulate root→leaf
@@ -402,7 +401,7 @@ bool SceneImporter::LoadSkins(const std::string& sceneName, std::vector<SkinInfo
     for (uint32_t i = 0; i < hdr.skinCount; ++i) {
         if (cur + 8 > end) return false;
         uint32_t nameLen, jointCount;
-        memcpy(&nameLen,    cur, 4); cur += 4;
+        memcpy(&nameLen, cur, 4); cur += 4;
         memcpy(&jointCount, cur, 4); cur += 4;
 
         SkinInfo si;
@@ -441,7 +440,7 @@ bool SceneImporter::LoadMaterialIndices(const std::string& sceneName, std::vecto
     if (!ImporterUtils::LoadBuffer(path, header, raw)) return false;
     if (!ImporterUtils::ValidateHeader(header, 0x53434E45)) return false;
 
-    size_t offset       = sizeof(SceneHeader);
+    size_t offset = sizeof(SceneHeader);
     size_t expectedSize = header.meshCount * sizeof(int32_t);
     if (raw.size() < offset + expectedSize) return false;
 
@@ -460,18 +459,18 @@ bool SceneImporter::LoadNodeTree(const std::string& sceneName, std::vector<NodeI
     const char* cur = raw.data() + sizeof(NodeFileHeader);
     const char* end = raw.data() + raw.size();
 
-    const bool isV2    = (header.version >= 2);
+    const bool isV2 = (header.version >= 2);
     const size_t entrySize = isV2 ? sizeof(NodeFileEntry) : sizeof(NodeFileEntryV1);
 
-    size_t rangesBytes  = header.meshRangeCount * sizeof(NodeFileMeshRange);
-    size_t entriesBytes = header.nodeCount      * entrySize;
-    size_t rootsBytes   = header.rootCount      * sizeof(int32_t);
+    size_t rangesBytes = header.meshRangeCount * sizeof(NodeFileMeshRange);
+    size_t entriesBytes = header.nodeCount * entrySize;
+    size_t rootsBytes = header.rootCount * sizeof(int32_t);
     if (cur + rangesBytes + entriesBytes + rootsBytes > end) return false;
 
-    const auto* ranges  = reinterpret_cast<const NodeFileMeshRange*>(cur); cur += rangesBytes;
-    const char* entryBase = cur;                                            cur += entriesBytes;
+    const auto* ranges = reinterpret_cast<const NodeFileMeshRange*>(cur); cur += rangesBytes;
+    const char* entryBase = cur; cur += entriesBytes;
     cur += rootsBytes; // skip root list — not needed by callers
-    const char* strCur  = cur;
+    const char* strCur = cur;
 
     outNodes.clear();
     outNodes.reserve(header.nodeCount);
@@ -479,8 +478,8 @@ bool SceneImporter::LoadNodeTree(const std::string& sceneName, std::vector<NodeI
         const char* ep = entryBase + i * entrySize;
         NodeInfo ni;
 
-        int32_t  parentIndex, meshRangeIdx;
-        int32_t  skinIndex = -1;
+        int32_t parentIndex, meshRangeIdx;
+        int32_t skinIndex = -1;
         uint32_t nameLen;
         const float* t;
         const float* r;
@@ -488,21 +487,21 @@ bool SceneImporter::LoadNodeTree(const std::string& sceneName, std::vector<NodeI
 
         if (isV2) {
             const NodeFileEntry* e = reinterpret_cast<const NodeFileEntry*>(ep);
-            parentIndex  = e->parentIndex;
+            parentIndex = e->parentIndex;
             meshRangeIdx = e->meshRangeIdx;
-            skinIndex    = e->skinIndex;
-            nameLen      = e->nameLen;
+            skinIndex = e->skinIndex;
+            nameLen = e->nameLen;
             t = e->t; r = e->r; s = e->s;
         } else {
             const NodeFileEntryV1* e = reinterpret_cast<const NodeFileEntryV1*>(ep);
-            parentIndex  = e->parentIndex;
+            parentIndex = e->parentIndex;
             meshRangeIdx = e->meshRangeIdx;
-            nameLen      = e->nameLen;
+            nameLen = e->nameLen;
             t = e->t; r = e->r; s = e->s;
         }
 
         ni.parentIndex = parentIndex;
-        ni.skinIndex   = skinIndex;
+        ni.skinIndex = skinIndex;
         if (meshRangeIdx >= 0 && meshRangeIdx < (int)header.meshRangeCount) {
             ni.meshFileStart = (int)ranges[meshRangeIdx].fileStart;
             ni.meshFileCount = (int)ranges[meshRangeIdx].fileCount;
@@ -515,8 +514,8 @@ bool SceneImporter::LoadNodeTree(const std::string& sceneName, std::vector<NodeI
             strCur += nameLen;
         }
         ni.translation = Vector3(t[0], t[1], t[2]);
-        ni.rotation    = Quaternion(r[0], r[1], r[2], r[3]);
-        ni.scale       = Vector3(s[0], s[1], s[2]);
+        ni.rotation = Quaternion(r[0], r[1], r[2], r[3]);
+        ni.scale = Vector3(s[0], s[1], s[2]);
         outNodes.push_back(std::move(ni));
     }
     return !outNodes.empty();

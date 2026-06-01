@@ -43,7 +43,6 @@ private:
     std::vector<DeferredFree> deferredFrees;
 };
 
-inline ComPtr<ID3D12Resource> ModuleGPUResources::createRenderTarget(DXGI_FORMAT format, size_t width, size_t height, UINT sampleCount, const Vector4& clearColour, const char* name)
-{
+inline ComPtr<ID3D12Resource> ModuleGPUResources::createRenderTarget(DXGI_FORMAT format, size_t width, size_t height, UINT sampleCount, const Vector4& clearColour, const char* name){
     return createRenderTarget(format, width, height, 1, 1, sampleCount, clearColour, name);
 }

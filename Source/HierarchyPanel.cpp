@@ -119,7 +119,7 @@ void HierarchyPanel::itemContextMenu(GameObject* go) {
         ImGui::Separator();
 
         PrefabEditSession* pfSess = m_editor->getPrefabSession();
-     
+
         const PrefabInstanceData* instData = pfSess ? PrefabManager::getInstanceData(pfSess->rootObject) : nullptr;
         bool hasChanges = instData && !instData->overrides.isEmpty();
 

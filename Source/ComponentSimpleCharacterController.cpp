@@ -14,7 +14,7 @@ ComponentSimpleCharacterController::ComponentSimpleCharacterController(GameObjec
 void ComponentSimpleCharacterController::ensureInit() {
     if (m_initialized) return;
     m_motion = owner->getComponent<ComponentCharacterMotion>();
-    m_anim   = owner->getComponent<ComponentAnimation>();
+    m_anim = owner->getComponent<ComponentAnimation>();
     m_initialized = true;
 }
 
@@ -38,28 +38,28 @@ void ComponentSimpleCharacterController::update(float dt) {
         return;
     }
 
-    float moveInput   = 0.f;
+    float moveInput = 0.f;
     float rotateInput = 0.f;
 
-    if (kb.Up    || kb.W) moveInput   += 1.f;
-    if (kb.Down  || kb.S) moveInput   -= 1.f;
+    if (kb.Up || kb.W) moveInput += 1.f;
+    if (kb.Down || kb.S) moveInput -= 1.f;
     if (kb.Right || kb.D) rotateInput += 1.f;
-    if (kb.Left  || kb.A) rotateInput -= 1.f;
+    if (kb.Left || kb.A) rotateInput -= 1.f;
 
     auto pad = DirectX::GamePad::Get().GetState(0);
     if (pad.IsConnected()) {
-        if (fabsf(pad.thumbSticks.leftY) > 0.2f) moveInput   = pad.thumbSticks.leftY;
+        if (fabsf(pad.thumbSticks.leftY) > 0.2f) moveInput = pad.thumbSticks.leftY;
         if (fabsf(pad.thumbSticks.leftX) > 0.2f) rotateInput = pad.thumbSticks.leftX;
     }
 
-    moveInput   = std::max(-1.f, std::min(1.f, moveInput));
+    moveInput = std::max(-1.f, std::min(1.f, moveInput));
     rotateInput = std::max(-1.f, std::min(1.f, rotateInput));
 
     m_motion->Move(moveInput);
     m_motion->Rotate(rotateInput);
 
     if (m_anim) {
-        const bool isMoving  = fabsf(moveInput) > 0.01f || fabsf(rotateInput) > 0.01f;
+        const bool isMoving = fabsf(moveInput) > 0.01f || fabsf(rotateInput) > 0.01f;
         const bool isRunning = isMoving && kb.LeftShift;
 
         if (isMoving && !m_wasMoving)
@@ -74,7 +74,7 @@ void ComponentSimpleCharacterController::update(float dt) {
                 m_anim->SendTrigger(HashString(std::string("walk")));
         }
 
-        m_wasMoving  = isMoving;
+        m_wasMoving = isMoving;
         m_wasRunning = isRunning;
     }
 }

@@ -24,23 +24,22 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #define MAX_LOADSTRING 100
 
 // Global Variables:
-HINSTANCE hInst;                                // current instance
-WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
-WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+HINSTANCE hInst; // current instance
+WCHAR szTitle[MAX_LOADSTRING]; // The title bar text
+WCHAR szWindowClass[MAX_LOADSTRING]; // the main window class name
 
 Application* app = nullptr;
 
 // Forward declarations of functions included in this code module:
-ATOM                MyRegisterClass(HINSTANCE hInstance);
-BOOL                InitInstance(HINSTANCE, int);
-LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+ATOM MyRegisterClass(HINSTANCE hInstance);
+BOOL InitInstance(HINSTANCE, int);
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
-    _In_ LPWSTR    lpCmdLine,
-    _In_ int       nCmdShow)
-{
+    _In_ LPWSTR lpCmdLine,
+    _In_ int nCmdShow){
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
@@ -83,8 +82,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     return (int)msg.wParam;
 }
 
-ATOM MyRegisterClass(HINSTANCE hInstance)
-{
+ATOM MyRegisterClass(HINSTANCE hInstance){
     WNDCLASSEXW wcex;
     wcex.cbSize = sizeof(WNDCLASSEX);
     wcex.style = CS_HREDRAW | CS_VREDRAW;
@@ -101,8 +99,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     return RegisterClassExW(&wcex);
 }
 
-BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
-{
+BOOL InitInstance(HINSTANCE hInstance, int nCmdShow){
     hInst = hInstance;
 
     HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
@@ -135,8 +132,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     return TRUE;
 }
 
-static bool isKnownAssetExtension(const std::string& ext)
-{
+static bool isKnownAssetExtension(const std::string& ext){
     static const char* kKnown[] = {
         // 3-D models
         ".gltf", ".glb", ".fbx", ".obj", ".stl", ".blend",
@@ -151,8 +147,7 @@ static bool isKnownAssetExtension(const std::string& ext)
     return false;
 }
 
-static std::string handleDroppedFile(const char* srcPath)
-{
+static std::string handleDroppedFile(const char* srcPath){
     if (!app || !app->getAssets() || !app->getFileSystem()) return "";
 
     namespace fs = std::filesystem;
@@ -167,7 +162,7 @@ static std::string handleDroppedFile(const char* srcPath)
         return "";
     }
 
-    std::string assetsRoot = fsys->GetAssetsPath();  
+    std::string assetsRoot = fsys->GetAssetsPath();
     std::string subDir;
     if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj" || ext == ".stl" || ext == ".blend")
         subDir = "Models/";
@@ -194,12 +189,11 @@ static std::string handleDroppedFile(const char* srcPath)
     }
     else
     {
-        destPath = srcPath;  
+        destPath = srcPath;
     }
 
     if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj" || ext == ".stl" || ext == ".blend" ||
-        ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".dds" || ext == ".tga" || ext == ".bmp" || ext == ".hdr")
-    {
+        ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".dds" || ext == ".tga" || ext == ".bmp" || ext == ".hdr"){
         UID uid = app->getAssets()->importAsset(destPath.c_str());
         if (uid != 0) {
             LOG("Drop: Imported '%s' (uid=%llu)", destPath.c_str(), uid);
@@ -216,8 +210,7 @@ static std::string handleDroppedFile(const char* srcPath)
     return destPath;
 }
 
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-{
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam){
     if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
         return true;
 
@@ -321,8 +314,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 }
 
 // Message handler for about box.
-INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
+INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam){
     UNREFERENCED_PARAMETER(lParam);
     switch (message)
     {

@@ -29,29 +29,29 @@
 namespace {
 
 struct AnimFileHeader {
-    uint32_t magic        = 0x414E494D; // 'ANIM'
-    uint32_t version      = 2;          // v2 adds morph-channel section after transform channels
-    uint32_t animNameLen  = 0;
+    uint32_t magic = 0x414E494D; // 'ANIM'
+    uint32_t version = 2; // v2 adds morph-channel section after transform channels
+    uint32_t animNameLen = 0;
     uint32_t channelCount = 0;
-    float    duration     = 0.f;
+    float duration = 0.f;
 };
 
 struct NodeAnim {
-    std::string               name;
-    std::unique_ptr<float[]>      posTimes;
-    std::unique_ptr<Vector3[]>    positions;
-    UINT                          posCount = 0;
-    std::unique_ptr<float[]>      rotTimes;
+    std::string name;
+    std::unique_ptr<float[]> posTimes;
+    std::unique_ptr<Vector3[]> positions;
+    UINT posCount = 0;
+    std::unique_ptr<float[]> rotTimes;
     std::unique_ptr<Quaternion[]> rotations;
-    UINT                          rotCount = 0;
+    UINT rotCount = 0;
 };
 
 struct NodeMorph {
-    std::string              name;
+    std::string name;
     std::unique_ptr<float[]> times;
-    std::unique_ptr<float[]> weights;   // flat: [t0_w0, t0_w1, ..., t1_w0, ...]
-    uint32_t                 numTime    = 0;
-    uint32_t                 numTargets = 0;
+    std::unique_ptr<float[]> weights; // flat: [t0_w0, t0_w1, ..., t1_w0, ...]
+    uint32_t numTime = 0;
+    uint32_t numTargets = 0;
 };
 
 static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
@@ -83,29 +83,29 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
 
             if (chan.target_path == "translation") {
                 UINT timeCnt = 0, valCnt = 0;
-                std::unique_ptr<float[]>   times;
+                std::unique_ptr<float[]> times;
                 std::unique_ptr<Vector3[]> values;
 
-                if (!loadAccessorTyped(times,  timeCnt, gltfModel, sampler.input))  continue;
-                if (!loadAccessorTyped(values, valCnt,  gltfModel, sampler.output)) continue;
+                if (!loadAccessorTyped(times, timeCnt, gltfModel, sampler.input)) continue;
+                if (!loadAccessorTyped(values, valCnt, gltfModel, sampler.output)) continue;
 
                 for (UINT i = 0; i < timeCnt; ++i) duration = std::max(duration, times[i]);
-                na.posTimes  = std::move(times);
+                na.posTimes = std::move(times);
                 na.positions = std::move(values);
-                na.posCount  = timeCnt;
+                na.posCount = timeCnt;
 
             } else { // rotation
                 UINT timeCnt = 0, valCnt = 0;
-                std::unique_ptr<float[]>      times;
+                std::unique_ptr<float[]> times;
                 std::unique_ptr<Quaternion[]> values;
 
-                if (!loadAccessorTyped(times,  timeCnt, gltfModel, sampler.input))  continue;
-                if (!loadAccessorTyped(values, valCnt,  gltfModel, sampler.output)) continue;
+                if (!loadAccessorTyped(times, timeCnt, gltfModel, sampler.input)) continue;
+                if (!loadAccessorTyped(values, valCnt, gltfModel, sampler.output)) continue;
 
                 for (UINT i = 0; i < timeCnt; ++i) duration = std::max(duration, times[i]);
-                na.rotTimes   = std::move(times);
-                na.rotations  = std::move(values);
-                na.rotCount   = timeCnt;
+                na.rotTimes = std::move(times);
+                na.rotations = std::move(values);
+                na.rotCount = timeCnt;
             }
 
         } else if (chan.target_path == "weights") {
@@ -120,9 +120,9 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
             {
                 const tinygltf::Accessor& outAcc = gltfModel.accessors[sampler.output];
                 valCnt = (UINT)outAcc.count;
-                const int compType  = outAcc.componentType;
+                const int compType = outAcc.componentType;
                 const bool normalized = outAcc.normalized;
-                const bool isFloat  = (compType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+                const bool isFloat = (compType == TINYGLTF_COMPONENT_TYPE_FLOAT);
 
                 if (isFloat) {
                     values = std::make_unique<float[]>(valCnt);
@@ -184,9 +184,9 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
 
             NodeMorph& nm = morphMap[chan.target_node];
             if (nm.name.empty()) nm.name = getNodeName(chan.target_node);
-            nm.times      = std::move(times);
-            nm.weights    = std::move(values);
-            nm.numTime    = timeCnt;
+            nm.times = std::move(times);
+            nm.weights = std::move(values);
+            nm.numTime = timeCnt;
             nm.numTargets = numTargets;
         }
     }
@@ -205,9 +205,9 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
     std::string animName = anim.name.empty() ? ("Anim_" + std::to_string(animIdx)) : anim.name;
 
     AnimFileHeader header;
-    header.animNameLen  = (uint32_t)animName.size();
+    header.animNameLen = (uint32_t)animName.size();
     header.channelCount = validCount;
-    header.duration     = duration;
+    header.duration = duration;
 
     std::vector<char> payload;
     auto append = [&](const void* d, size_t n) {
@@ -220,22 +220,22 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
     for (const auto& [idx, na] : nodeMap) {
         if (na.posCount == 0 && na.rotCount == 0) continue;
 
-        uint32_t nameLen  = (uint32_t)na.name.size();
+        uint32_t nameLen = (uint32_t)na.name.size();
         uint32_t posCount = na.posCount;
         uint32_t rotCount = na.rotCount;
 
-        append(&nameLen,  sizeof(uint32_t));
+        append(&nameLen, sizeof(uint32_t));
         append(&posCount, sizeof(uint32_t));
         append(&rotCount, sizeof(uint32_t));
         append(na.name.data(), nameLen);
 
         if (posCount > 0) {
-            append(na.posTimes.get(),  posCount * sizeof(float));
+            append(na.posTimes.get(), posCount * sizeof(float));
             append(na.positions.get(), posCount * sizeof(Vector3));
         }
         if (rotCount > 0) {
-            append(na.rotTimes.get(),   rotCount * sizeof(float));
-            append(na.rotations.get(),  rotCount * sizeof(Quaternion));
+            append(na.rotTimes.get(), rotCount * sizeof(float));
+            append(na.rotations.get(), rotCount * sizeof(Quaternion));
         }
     }
 
@@ -244,14 +244,14 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
     append(&morphChannelCount, sizeof(uint32_t));
     for (const auto& [idx, nm] : morphMap) {
         if (nm.numTime == 0) continue;
-        uint32_t nameLen    = (uint32_t)nm.name.size();
-        uint32_t numTime    = nm.numTime;
+        uint32_t nameLen = (uint32_t)nm.name.size();
+        uint32_t numTime = nm.numTime;
         uint32_t numTargets = nm.numTargets;
-        append(&nameLen,    sizeof(uint32_t));
-        append(&numTime,    sizeof(uint32_t));
+        append(&nameLen, sizeof(uint32_t));
+        append(&numTime, sizeof(uint32_t));
         append(&numTargets, sizeof(uint32_t));
         append(nm.name.data(), nameLen);
-        append(nm.times.get(),   numTime * sizeof(float));
+        append(nm.times.get(), numTime * sizeof(float));
         append(nm.weights.get(), numTime * numTargets * sizeof(float));
     }
 

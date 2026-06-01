@@ -39,10 +39,10 @@ public:
 
     // Public state members (as specified).
     float CurrentTime = 0.f;
-    bool  Loop        = false;
-    UID   Resource    = 0;
+    bool Loop = false;
+    UID Resource = 0;
 
 private:
     ResourceAnimation* m_animation = nullptr;
-    bool               m_playing   = false;
+    bool m_playing = false;
 };

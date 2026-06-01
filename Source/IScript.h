@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 
-class GameObject; 
+class GameObject;
 
 class IScript {
 public:

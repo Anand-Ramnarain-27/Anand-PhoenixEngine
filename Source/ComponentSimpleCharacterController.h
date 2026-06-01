@@ -17,11 +17,11 @@ public:
 private:
     void ensureInit();
 
-    ComponentCharacterMotion* m_motion      = nullptr;
-    ComponentAnimation*       m_anim        = nullptr;
-    bool                      m_initialized = false;
-    bool                      m_wasMoving   = false;
-    bool                      m_wasRunning  = false;
-    bool                      m_isDead      = false;
-    bool                      m_kWasDown    = false;
+    ComponentCharacterMotion* m_motion = nullptr;
+    ComponentAnimation* m_anim = nullptr;
+    bool m_initialized = false;
+    bool m_wasMoving = false;
+    bool m_wasRunning = false;
+    bool m_isDead = false;
+    bool m_kWasDown = false;
 };

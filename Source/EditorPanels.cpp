@@ -40,20 +40,20 @@ void ResourcesPanel::drawContent() {
 
 ImVec4 ResourcesPanel::typeColor(ResourceBase::Type t) {
     switch (t) {
-    case ResourceBase::Type::Mesh:     return { 0.6f, 0.9f, 1.0f, 1.f };
+    case ResourceBase::Type::Mesh: return { 0.6f, 0.9f, 1.0f, 1.f };
     case ResourceBase::Type::Material: return { 1.0f, 0.85f, 0.5f, 1.f };
-    case ResourceBase::Type::Texture:  return { 0.8f, 0.6f, 1.0f, 1.f };
-    default:                           return { 0.6f, 1.f, 0.6f, 1.f };
+    case ResourceBase::Type::Texture: return { 0.8f, 0.6f, 1.0f, 1.f };
+    default: return { 0.6f, 1.f, 0.6f, 1.f };
     }
 }
 
 const char* ResourcesPanel::typeName(ResourceBase::Type t) {
     switch (t) {
-    case ResourceBase::Type::Mesh:     return "Mesh";
-    case ResourceBase::Type::Texture:  return "Texture";
+    case ResourceBase::Type::Mesh: return "Mesh";
+    case ResourceBase::Type::Texture: return "Texture";
     case ResourceBase::Type::Material: return "Material";
-    case ResourceBase::Type::Model:    return "Model";
-    case ResourceBase::Type::Scene:    return "Scene";
-    default:                           return "Unknown";
+    case ResourceBase::Type::Model: return "Model";
+    case ResourceBase::Type::Scene: return "Scene";
+    default: return "Unknown";
     }
 }

@@ -11,8 +11,8 @@ class HandleManager
 
     struct Data
     {
-        UINT index : 24;  
-        UINT number : 8;  
+        UINT index : 24;
+        UINT number : 8;
 
         Data() : index(Size), number(0) { ; }
         explicit Data(UINT handle) {
@@ -28,23 +28,21 @@ class HandleManager
     UINT genNumber = 0;
 
 public:
-    HandleManager()
-    {
+    HandleManager(){
         UINT nextIndex = 0;
         for (Data& item : data)
         {
-            item.index = ++nextIndex; 
+            item.index = ++nextIndex;
             item.number = 0;
         }
     }
 
-    UINT allocHandle()
-    {
+    UINT allocHandle(){
         assert(firstFree < Size && "Out of handles");
 
         if (firstFree < Size)
         {
-            UINT index = firstFree;  
+            UINT index = firstFree;
             Data& item = data[index];
 
             firstFree = item.index;
@@ -56,17 +54,16 @@ public:
                 ++genNumber;
             }
 
-            item.index = index;    
+            item.index = index;
             item.number = genNumber;
 
             return static_cast<UINT>(item);
         }
 
-        return 0;  
+        return 0;
     }
 
-    void freeHandle(UINT handle)
-    {
+    void freeHandle(UINT handle){
         assert(validHandle(handle) && "Invalid handle");
 
         Data item(handle);
@@ -77,14 +74,12 @@ public:
         firstFree = index;
     }
 
-    UINT indexFromHandle(UINT handle) const
-    {
+    UINT indexFromHandle(UINT handle) const{
         assert(validHandle(handle) && "Invalid handle");
         return Data(handle).index;
     }
 
-    bool validHandle(UINT handle) const
-    {
+    bool validHandle(UINT handle) const{
         if (handle == 0) return false;
 
         Data item(handle);
@@ -98,8 +93,7 @@ public:
 
     size_t getSize() const { return Size; }
 
-    size_t getFreeCount() const
-    {
+    size_t getFreeCount() const{
         size_t freeCount = 0;
         size_t index = firstFree;
 
@@ -113,8 +107,7 @@ public:
     }
 
 private:
-    bool valid(UINT index, UINT genNumber) const
-    {
+    bool valid(UINT index, UINT genNumber) const{
         return index < Size &&
             data[index].index == index &&
             data[index].number == genNumber;

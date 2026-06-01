@@ -12,12 +12,11 @@ PlayerScript::PlayerScript() = default;
 void PlayerScript::Start(GameObject* owner) {
     m_owner = owner;
     m_timer = 0.0f;
-    //LOG("[PlayerScript] onStart — owner: %s", owner ? owner->getName().c_str() : "null");
+    //LOG("[PlayerScript] onStart ï¿½ owner: %s", owner ? owner->getName().c_str() : "null");
 }
 
 void PlayerScript::Update(float dt) {
     m_timer += dt;
-    // TODO: add real player movement / input here
 }
 
 void PlayerScript::Destroy() {

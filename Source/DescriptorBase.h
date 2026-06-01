@@ -20,16 +20,14 @@ public:
         if (refCount) ++(*refCount);
     }
 
-    DescriptorBase(DescriptorBase&& other) noexcept : handle(other.handle), refCount(other.refCount)
-    {
+    DescriptorBase(DescriptorBase&& other) noexcept : handle(other.handle), refCount(other.refCount){
         other.handle = 0;
         other.refCount = nullptr;
     }
 
     ~DescriptorBase() { release(); }
 
-    DescriptorBase& operator=(const DescriptorBase& other)
-    {
+    DescriptorBase& operator=(const DescriptorBase& other){
         if (this != &other)
         {
             release();
@@ -40,8 +38,7 @@ public:
         return *this;
     }
 
-    DescriptorBase& operator=(DescriptorBase&& other) noexcept
-    {
+    DescriptorBase& operator=(DescriptorBase&& other) noexcept{
         if (this != &other)
         {
             release();
@@ -53,15 +50,13 @@ public:
         return *this;
     }
 
-    explicit operator bool() const
-    {
+    explicit operator bool() const{
         return handle != 0 && Derived::getModule()->isValid(handle);
     }
 
     void reset() { release(); }
 
-    D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const
-    {
+    D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const{
         if (handle == 0) return { 0 };
         return Derived::getModule()->getCPUHandle(handle);
     }
@@ -69,8 +64,7 @@ public:
     UINT getHandle() const { return handle; }
 
 private:
-    void release()
-    {
+    void release(){
         if (refCount && --(*refCount) == 0 && handle != 0)
         {
             Derived::getModule()->release(handle);

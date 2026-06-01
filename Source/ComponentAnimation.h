@@ -12,12 +12,12 @@ class StateMachineGraphEditor;
 
 // One node in the cross-fade linked list.  head = newest, tail = oldest (base).
 struct AnimLayer {
-    ResourceAnimation* anim             = nullptr;
-    float              currentTimeMs    = 0.f;   // playback position (ms)
-    float              fadeTimeMs       = 0.f;   // elapsed fade (wall-clock ms, NOT speed-scaled)
-    float              transitionTimeMs = 0.f;   // total cross-fade duration (ms)
-    bool               loop             = false;
-    AnimLayer*         next             = nullptr;
+    ResourceAnimation* anim = nullptr;
+    float currentTimeMs = 0.f; // playback position (ms)
+    float fadeTimeMs = 0.f; // elapsed fade (wall-clock ms, NOT speed-scaled)
+    float transitionTimeMs = 0.f; // total cross-fade duration (ms)
+    bool loop = false;
+    AnimLayer* next = nullptr;
 };
 
 class ComponentAnimation final : public Component {
@@ -41,10 +41,10 @@ public:
     void LoadStateMachineFromPath(const std::string& path);
 
     // Accessors for debug/validation/editor systems.
-    ResourceStateMachine*       getStateMachine()  { return m_stateMachine; }
-    const ResourceStateMachine* getStateMachine()  const { return m_stateMachine; }
-    const HashString&           getActiveState()   const { return m_activeState; }
-    const AnimLayer*            getLayerHead()     const { return m_layerHead; }
+    ResourceStateMachine* getStateMachine() { return m_stateMachine; }
+    const ResourceStateMachine* getStateMachine() const { return m_stateMachine; }
+    const HashString& getActiveState() const { return m_activeState; }
+    const AnimLayer* getLayerHead() const { return m_layerHead; }
     int getLayerCount() const {
         int n = 0;
         for (const AnimLayer* l = m_layerHead; l; l = l->next) ++n;
@@ -76,7 +76,7 @@ public:
     AnimationController& getController() { return m_controller; }
     const AnimationController& getController() const { return m_controller; }
 
-    bool& drawBones()      { return m_drawBones; }
+    bool& drawBones() { return m_drawBones; }
     bool& drawAxisTriads() { return m_drawAxisTriads; }
 
 private:
@@ -96,19 +96,19 @@ private:
     void applyBlendedAnimation(GameObject* go);
 
     // ── State ─────────────────────────────────────────────────────────────────
-    AnimationController      m_controller;
-    std::vector<UID>         m_animUIDs;
+    AnimationController m_controller;
+    std::vector<UID> m_animUIDs;
     std::vector<std::string> m_animNames;
 
-    ResourceStateMachine*                    m_stateMachine      = nullptr;
-    std::unique_ptr<ResourceStateMachine>    m_ownedStateMachine;
-    std::string                              m_stateMachinePath;
-    HashString                               m_activeState;
-    AnimLayer*                               m_layerHead         = nullptr;
+    ResourceStateMachine* m_stateMachine = nullptr;
+    std::unique_ptr<ResourceStateMachine> m_ownedStateMachine;
+    std::string m_stateMachinePath;
+    HashString m_activeState;
+    AnimLayer* m_layerHead = nullptr;
 
     std::unique_ptr<StateMachineGraphEditor> m_graphEditor;
 
-    bool  m_drawBones      = false;
-    bool  m_drawAxisTriads = false;
-    float m_logTimer       = 0.f;
+    bool m_drawBones = false;
+    bool m_drawAxisTriads = false;
+    float m_logTimer = 0.f;
 };

@@ -29,7 +29,7 @@ static const char linePointSource[] = R"(
         float3 color    : COLOR;
     };
 
-    VertexOutput linePointVS(VertexInput input) 
+    VertexOutput linePointVS(VertexInput input)
     {
         VertexOutput output;
         output.position = mul(float4(input.position, 1.0), mvp);
@@ -63,14 +63,14 @@ static const char textSource[] = R"(
         float2 texCoord : TEXCOORD;
         float3 color : COLOR;
     };
-    
-    VertexOutput textVS(VertexInput input) 
+
+    VertexOutput textVS(VertexInput input)
     {
         VertexOutput output;
 
         float x = ((2.0 * (input.position.x - 0.5)) / screenDimensions.x) - 1.0;
-        float y = 2.0*(1.0-((input.position.y-0.5)/screenDimensions.y))-1.0; 
-        
+        float y = 2.0*(1.0-((input.position.y-0.5)/screenDimensions.y))-1.0;
+
         output.position = float4(x, y, 0.0, 1.0);
         output.texCoord = input.texCoord;
         output.color    = input.color;
@@ -84,9 +84,9 @@ static const char textSource[] = R"(
     float4 textPS(VertexOutput input) : SV_TARGET
     {
         float alpha = glyphTexture.Sample(glyphSampler, input.texCoord).r;
-        return float4(1.0, 1.0, 1.0, alpha); 
+        return float4(1.0, 1.0, 1.0, alpha);
     }
-    
+
 )";
 
 using namespace DirectX;
@@ -96,8 +96,7 @@ class DDRenderInterfaceCoreD3D12 final : public dd::RenderInterface
 public:
     friend class DebugDrawPass;
 
-    DDRenderInterfaceCoreD3D12(ID3D12Device4* _device, ID3D12CommandQueue* _uploadQueue, bool useMSAA, D3D12_CPU_DESCRIPTOR_HANDLE cpuText, D3D12_GPU_DESCRIPTOR_HANDLE gpuText)
-    {
+    DDRenderInterfaceCoreD3D12(ID3D12Device4* _device, ID3D12CommandQueue* _uploadQueue, bool useMSAA, D3D12_CPU_DESCRIPTOR_HANDLE cpuText, D3D12_GPU_DESCRIPTOR_HANDLE gpuText){
         device = _device;
         uploadQueue = _uploadQueue;
         cpuTextHandle = cpuText;
@@ -110,13 +109,11 @@ public:
         setupTextVertexBuffers();
     }
 
-    ~DDRenderInterfaceCoreD3D12()
-    {
+    ~DDRenderInterfaceCoreD3D12(){
         if (uploadEvent) CloseHandle(uploadEvent);
     }
 
-    void setupUploadCommandBuffer()
-    {
+    void setupUploadCommandBuffer(){
         device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator));
         device->CreateCommandList1(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&commandList));
 
@@ -124,8 +121,7 @@ public:
         uploadEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
     }
 
-    void setupTextPipeline(bool useMSAA)
-    {
+    void setupTextPipeline(bool useMSAA){
         ComPtr<ID3DBlob> errorBuff;
 
         unsigned flags = D3DCOMPILE_OPTIMIZATION_LEVEL3 | D3DCOMPILE_ALL_RESOURCES_BOUND;
@@ -161,7 +157,7 @@ public:
         D3D12_GRAPHICS_PIPELINE_STATE_DESC textPSODesc = {};
         textPSODesc.InputLayout = { inputLayout, sizeof(inputLayout) / sizeof(D3D12_INPUT_ELEMENT_DESC) };
         textPSODesc.pRootSignature = textSignature.Get();
-        textPSODesc.VS = { textVS->GetBufferPointer(),  textVS->GetBufferSize() };
+        textPSODesc.VS = { textVS->GetBufferPointer(), textVS->GetBufferSize() };
         textPSODesc.PS = { textPS->GetBufferPointer(), textPS->GetBufferSize() };
         textPSODesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
         textPSODesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -187,8 +183,7 @@ public:
         device->CreateGraphicsPipelineState(&textPSODesc, IID_PPV_ARGS(&textPSO));
     }
 
-    void setupLinePointPipeline(bool useMSAA)
-    {
+    void setupLinePointPipeline(bool useMSAA){
         ComPtr<ID3DBlob> errorBuff;
 
         unsigned flags = D3DCOMPILE_OPTIMIZATION_LEVEL3 | D3DCOMPILE_ALL_RESOURCES_BOUND;
@@ -218,7 +213,7 @@ public:
         D3D12_GRAPHICS_PIPELINE_STATE_DESC pointPSODesc = {};
         pointPSODesc.InputLayout = { inputLayout, UINT(std::size(inputLayout)) };
         pointPSODesc.pRootSignature = pointLineSignature.Get();
-        pointPSODesc.VS = { linePointVS->GetBufferPointer(),  linePointVS->GetBufferSize() };
+        pointPSODesc.VS = { linePointVS->GetBufferPointer(), linePointVS->GetBufferSize() };
         pointPSODesc.PS = { linePointPS->GetBufferPointer(), linePointPS->GetBufferSize() };
         pointPSODesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
         pointPSODesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -246,9 +241,7 @@ public:
         device->CreateGraphicsPipelineState(&linePSODescNoDepth, IID_PPV_ARGS(&linePSONoDepth));
     }
 
-    void createBuffer(unsigned bufferSize, ComPtr<ID3D12Resource>& buffer, D3D12_VERTEX_BUFFER_VIEW& view)
-    {
-        // TODO : Test two-step loading in the Graphics queue and UMA NUMA
+    void createBuffer(unsigned bufferSize, ComPtr<ID3D12Resource>& buffer, D3D12_VERTEX_BUFFER_VIEW& view){
         CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
 
@@ -259,13 +252,11 @@ public:
         view.SizeInBytes = bufferSize;
     }
 
-    void setupTextVertexBuffers()
-    {
+    void setupTextVertexBuffers(){
         createBuffer(DEBUG_DRAW_VERTEX_BUFFER_SIZE * sizeof(dd::DrawVertex), textBuffer, textBufferView);
     }
 
-    void setupLinePointVertexBuffers()
-    {
+    void setupLinePointVertexBuffers(){
         createBuffer(DEBUG_DRAW_VERTEX_BUFFER_SIZE * sizeof(dd::DrawVertex), lineBuffer, lineBufferView);
         createBuffer(DEBUG_DRAW_VERTEX_BUFFER_SIZE * sizeof(dd::DrawVertex), pointBuffer, pointBufferView);
         lineBuffer->SetName(L"DebugDraw LineBuffer");
@@ -273,12 +264,11 @@ public:
     }
 
     void beginDraw() override {}
-    void endDraw()   override {}
+    void endDraw() override {}
 
     void recordCommands(const dd::DrawVertex* vertices, int count, ID3D12Resource* vertexBuffer, const D3D12_VERTEX_BUFFER_VIEW& vertexBufferView,
         ID3D12PipelineState* pso, ID3D12RootSignature* signature, void* rootConstants, uint32_t rootConstantsSize,
-        D3D_PRIMITIVE_TOPOLOGY topology, UINT& memoryOffset, bool isText)
-    {
+        D3D_PRIMITIVE_TOPOLOGY topology, UINT& memoryOffset, bool isText){
         size_t freeSpace = DEBUG_DRAW_VERTEX_BUFFER_SIZE - memoryOffset;
         if (freeSpace < count)
         {
@@ -329,24 +319,21 @@ public:
         }
     }
 
-    void drawPointList(const dd::DrawVertex* points, int count, bool depthEnabled) override
-    {
+    void drawPointList(const dd::DrawVertex* points, int count, bool depthEnabled) override{
         ID3D12PipelineState* pso = depthEnabled ? pointPSO.Get() : pointPSONoDepth.Get();
 
         Matrix mvp = mvpMatrix.Transpose();
         recordCommands(points, count, pointBuffer.Get(), pointBufferView, pso, pointLineSignature.Get(), &mvp, sizeof(Matrix) / sizeof(UINT32), D3D_PRIMITIVE_TOPOLOGY_POINTLIST, pointOffset, false);
     }
 
-    void drawLineList(const dd::DrawVertex* lines, int count, bool depthEnabled) override
-    {
+    void drawLineList(const dd::DrawVertex* lines, int count, bool depthEnabled) override{
         ID3D12PipelineState* pso = depthEnabled ? linePSO.Get() : linePSONoDepth.Get();
 
         Matrix mvp = mvpMatrix.Transpose();
         recordCommands(lines, count, lineBuffer.Get(), lineBufferView, pso, pointLineSignature.Get(), &mvp, sizeof(Matrix) / sizeof(UINT32), D3D_PRIMITIVE_TOPOLOGY_LINELIST, lineOffset, false);
     }
 
-    void drawGlyphList(const dd::DrawVertex* glyphs, int count, dd::GlyphTextureHandle glyphTex) override
-    {
+    void drawGlyphList(const dd::DrawVertex* glyphs, int count, dd::GlyphTextureHandle glyphTex) override{
         Vector2 dim = Vector2(float(width), float(height));
 
         if (cpuTextHandle.ptr)
@@ -355,8 +342,7 @@ public:
         }
     }
 
-    dd::GlyphTextureHandle createGlyphTexture(int width, int height, const void* pixels) override
-    {
+    dd::GlyphTextureHandle createGlyphTexture(int width, int height, const void* pixels) override{
         // Create and upload texture
 
         if (cpuTextHandle.ptr != 0)
@@ -406,7 +392,7 @@ public:
             uploadFence->SetEventOnCompletion(uploadFenceValue, uploadEvent);
             WaitForSingleObject(uploadEvent, INFINITE);
 
-            // Create descriptors 
+            // Create descriptors
             device->CreateShaderResourceView(glyphTexture.Get(), nullptr, cpuTextHandle);
         }
 
@@ -416,74 +402,71 @@ public:
 
 private:
 
-    Matrix                  mvpMatrix;
-    uint32_t                width = 1;
-    uint32_t                height = 1;
-    ComPtr<ID3D12Device4>   device;
-    ComPtr<ID3DBlob>        linePointVS;
-    ComPtr<ID3DBlob>        linePointPS;
-    ComPtr<ID3DBlob>        textVS;
-    ComPtr<ID3DBlob>        textPS;
+    Matrix mvpMatrix;
+    uint32_t width = 1;
+    uint32_t height = 1;
+    ComPtr<ID3D12Device4> device;
+    ComPtr<ID3DBlob> linePointVS;
+    ComPtr<ID3DBlob> linePointPS;
+    ComPtr<ID3DBlob> textVS;
+    ComPtr<ID3DBlob> textPS;
 
     ComPtr<ID3D12GraphicsCommandList> commandList;
-    ComPtr<ID3D12CommandAllocator>    commandAllocator;
-    ComPtr<ID3D12CommandQueue>        uploadQueue;
-    ComPtr<ID3D12CommandAllocator>    uploadCommandAllocator;
-    ComPtr<ID3D12Fence1>              uploadFence;
-    HANDLE                            uploadEvent = NULL;
-    uint32_t                          uploadFenceValue = 0;
-    D3D12_CPU_DESCRIPTOR_HANDLE       cpuTextHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE       gpuTextHandle;
+    ComPtr<ID3D12CommandAllocator> commandAllocator;
+    ComPtr<ID3D12CommandQueue> uploadQueue;
+    ComPtr<ID3D12CommandAllocator> uploadCommandAllocator;
+    ComPtr<ID3D12Fence1> uploadFence;
+    HANDLE uploadEvent = NULL;
+    uint32_t uploadFenceValue = 0;
+    D3D12_CPU_DESCRIPTOR_HANDLE cpuTextHandle;
+    D3D12_GPU_DESCRIPTOR_HANDLE gpuTextHandle;
 
 private:
 
-    ComPtr<ID3D12Resource>       lineBuffer;
-    D3D12_VERTEX_BUFFER_VIEW     lineBufferView;
+    ComPtr<ID3D12Resource> lineBuffer;
+    D3D12_VERTEX_BUFFER_VIEW lineBufferView;
     void* linePtr = nullptr;
-    UINT                         lineOffset = 0;
+    UINT lineOffset = 0;
 
-    ComPtr<ID3D12Resource>       pointBuffer;
-    D3D12_VERTEX_BUFFER_VIEW     pointBufferView;
+    ComPtr<ID3D12Resource> pointBuffer;
+    D3D12_VERTEX_BUFFER_VIEW pointBufferView;
     void* pointPtr = nullptr;
-    UINT                         pointOffset = 0;
+    UINT pointOffset = 0;
 
-    ComPtr<ID3D12Resource>       textBuffer;
-    D3D12_VERTEX_BUFFER_VIEW     textBufferView;
+    ComPtr<ID3D12Resource> textBuffer;
+    D3D12_VERTEX_BUFFER_VIEW textBufferView;
     void* textPtr = nullptr;
-    UINT                         textOffset = 0;
+    UINT textOffset = 0;
 
-    ComPtr<ID3D12RootSignature>  pointLineSignature;
-    ComPtr<ID3D12PipelineState>  pointPSO;
-    ComPtr<ID3D12PipelineState>  pointPSONoDepth;
-    ComPtr<ID3D12PipelineState>  linePSO;
-    ComPtr<ID3D12PipelineState>  linePSONoDepth;
+    ComPtr<ID3D12RootSignature> pointLineSignature;
+    ComPtr<ID3D12PipelineState> pointPSO;
+    ComPtr<ID3D12PipelineState> pointPSONoDepth;
+    ComPtr<ID3D12PipelineState> linePSO;
+    ComPtr<ID3D12PipelineState> linePSONoDepth;
 
-    ComPtr<ID3D12RootSignature>  textSignature;
-    ComPtr<ID3D12PipelineState>  textPSO;
+    ComPtr<ID3D12RootSignature> textSignature;
+    ComPtr<ID3D12PipelineState> textPSO;
 
-    ComPtr<ID3D12Resource>       glyphTexture;
+    ComPtr<ID3D12Resource> glyphTexture;
 
 }; // class DDRenderInterfaceCoreD3D12
 
 DDRenderInterfaceCoreD3D12* DebugDrawPass::implementation = 0;
 
 DebugDrawPass::DebugDrawPass(ID3D12Device4* device, ID3D12CommandQueue* uploadQueue,
-    bool useMSAA, D3D12_CPU_DESCRIPTOR_HANDLE cpuText, D3D12_GPU_DESCRIPTOR_HANDLE gpuText)
-{
+    bool useMSAA, D3D12_CPU_DESCRIPTOR_HANDLE cpuText, D3D12_GPU_DESCRIPTOR_HANDLE gpuText){
     implementation = new DDRenderInterfaceCoreD3D12(device, uploadQueue, useMSAA, cpuText, gpuText);
     dd::initialize(implementation);
 }
 
-DebugDrawPass::~DebugDrawPass()
-{
+DebugDrawPass::~DebugDrawPass(){
     dd::shutdown();
 
     delete implementation;
     implementation = 0;
 }
 
-void DebugDrawPass::record(ID3D12GraphicsCommandList* commandList, uint32_t width, uint32_t height, const Matrix& view, const Matrix& proj)
-{
+void DebugDrawPass::record(ID3D12GraphicsCommandList* commandList, uint32_t width, uint32_t height, const Matrix& view, const Matrix& proj){
     BEGIN_EVENT(commandList, "DebugDraw Pass");
 
     implementation->mvpMatrix = view * proj;

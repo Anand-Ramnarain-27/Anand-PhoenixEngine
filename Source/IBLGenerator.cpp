@@ -70,7 +70,7 @@ bool IBLGenerator::ensurePassCB(ID3D12Device* device) {
     return true;
 }
 
-static bool allocateIBLResources(ID3D12Device* device, EnvironmentMap& env, ComPtr<ID3D12RootSignature>& irradianceRS, ComPtr<ID3D12PipelineState>& irradiancePSO, ComPtr<ID3D12RootSignature>& prefilterRS, ComPtr<ID3D12PipelineState>& prefilterPSO, ComPtr<ID3D12RootSignature>& brdfRS, ComPtr<ID3D12PipelineState>& brdfPSO)  {
+static bool allocateIBLResources(ID3D12Device* device, EnvironmentMap& env, ComPtr<ID3D12RootSignature>& irradianceRS, ComPtr<ID3D12PipelineState>& irradiancePSO, ComPtr<ID3D12RootSignature>& prefilterRS, ComPtr<ID3D12PipelineState>& prefilterPSO, ComPtr<ID3D12RootSignature>& brdfRS, ComPtr<ID3D12PipelineState>& brdfPSO) {
 
     if (!D3D12ResourceFactory::createCubemapRT(device, IBLSettings::IrradianceSize, 1, DXGI_FORMAT_R16G16B16A16_FLOAT, L"IrradianceCubemap", env.irradianceCubemap)) {
         LOG("IBLGenerator: failed to create irradiance cubemap resource");

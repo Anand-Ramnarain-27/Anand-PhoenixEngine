@@ -51,16 +51,16 @@ bool ResourceStateMachine::Save(const std::string& path) const {
     doc.SetObject();
     auto& a = doc.GetAllocator();
 
-    doc.AddMember("Version",      1,                                     a);
-    doc.AddMember("DefaultState", Value(defaultState.str.c_str(), a),   a);
+    doc.AddMember("Version", 1, a);
+    doc.AddMember("DefaultState", Value(defaultState.str.c_str(), a), a);
 
     // Clips
     Value clipArr(kArrayType);
     for (const auto& c : clips) {
         Value obj(kObjectType);
-        obj.AddMember("Name",         Value(c.name.str.c_str(), a), a);
-        obj.AddMember("AnimationUID", c.animationUID,               a);
-        obj.AddMember("Loop",         c.loop,                       a);
+        obj.AddMember("Name", Value(c.name.str.c_str(), a), a);
+        obj.AddMember("AnimationUID", c.animationUID, a);
+        obj.AddMember("Loop", c.loop, a);
         clipArr.PushBack(obj, a);
     }
     doc.AddMember("Clips", clipArr, a);
@@ -69,7 +69,7 @@ bool ResourceStateMachine::Save(const std::string& path) const {
     Value stateArr(kArrayType);
     for (const auto& s : states) {
         Value obj(kObjectType);
-        obj.AddMember("Name", Value(s.name.str.c_str(),     a), a);
+        obj.AddMember("Name", Value(s.name.str.c_str(), a), a);
         obj.AddMember("Clip", Value(s.clipName.str.c_str(), a), a);
         stateArr.PushBack(obj, a);
     }
@@ -79,10 +79,10 @@ bool ResourceStateMachine::Save(const std::string& path) const {
     Value transArr(kArrayType);
     for (const auto& t : transitions) {
         Value obj(kObjectType);
-        obj.AddMember("Source",  Value(t.source.str.c_str(),  a), a);
-        obj.AddMember("Target",  Value(t.target.str.c_str(),  a), a);
+        obj.AddMember("Source", Value(t.source.str.c_str(), a), a);
+        obj.AddMember("Target", Value(t.target.str.c_str(), a), a);
         obj.AddMember("Trigger", Value(t.trigger.str.c_str(), a), a);
-        obj.AddMember("BlendMs", t.interpolationMs,               a);
+        obj.AddMember("BlendMs", t.interpolationMs, a);
         transArr.PushBack(obj, a);
     }
     doc.AddMember("Transitions", transArr, a);
@@ -101,7 +101,7 @@ bool ResourceStateMachine::Load(const std::string& path) {
     transitions.clear();
     defaultState = HashString{};
 
-    char*    buf  = nullptr;
+    char* buf = nullptr;
     unsigned size = app->getFileSystem()->Load(path.c_str(), &buf);
     if (!buf || size == 0) {
         LOG("ResourceStateMachine: could not read '%s'", path.c_str());
@@ -131,9 +131,9 @@ bool ResourceStateMachine::Load(const std::string& path) {
                 continue;
             }
             SMClip c;
-            c.name         = std::string(v["Name"].GetString());
+            c.name = std::string(v["Name"].GetString());
             c.animationUID = v.HasMember("AnimationUID") ? v["AnimationUID"].GetUint64() : 0;
-            c.loop         = !v.HasMember("Loop") || v["Loop"].GetBool();
+            c.loop = !v.HasMember("Loop") || v["Loop"].GetBool();
             clips.push_back(std::move(c));
         }
     }
@@ -149,7 +149,7 @@ bool ResourceStateMachine::Load(const std::string& path) {
                 continue;
             }
             SMState s;
-            s.name     = std::string(v["Name"].GetString());
+            s.name = std::string(v["Name"].GetString());
             s.clipName = (v.HasMember("Clip") && v["Clip"].IsString())
                        ? std::string(v["Clip"].GetString())
                        : std::string{};
@@ -174,9 +174,9 @@ bool ResourceStateMachine::Load(const std::string& path) {
                 continue;
             }
             SMTransition t;
-            t.source          = std::string(v["Source"].GetString());
-            t.target          = std::string(v["Target"].GetString());
-            t.trigger         = (v.HasMember("Trigger") && v["Trigger"].IsString())
+            t.source = std::string(v["Source"].GetString());
+            t.target = std::string(v["Target"].GetString());
+            t.trigger = (v.HasMember("Trigger") && v["Trigger"].IsString())
                               ? std::string(v["Trigger"].GetString())
                               : std::string{};
             t.interpolationMs = v.HasMember("BlendMs") ? v["BlendMs"].GetUint() : 200u;
@@ -209,10 +209,10 @@ void ResourceStateMachine::DrawInspector() {
     if (ImGui::CollapsingHeader("Clips", ImGuiTreeNodeFlags_DefaultOpen)) {
         int removeIdx = -1;
         if (ImGui::BeginTable("##smclips", 4, kTableFlags)) {
-            ImGui::TableSetupColumn("Name",          ImGuiTableColumnFlags_WidthStretch, 2.0f);
+            ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 2.0f);
             ImGui::TableSetupColumn("Animation UID", ImGuiTableColumnFlags_WidthStretch, 3.0f);
-            ImGui::TableSetupColumn("Loop",          ImGuiTableColumnFlags_WidthFixed,  40.0f);
-            ImGui::TableSetupColumn("##del",         ImGuiTableColumnFlags_WidthFixed,  22.0f);
+            ImGui::TableSetupColumn("Loop", ImGuiTableColumnFlags_WidthFixed, 40.0f);
+            ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed, 22.0f);
             ImGui::TableHeadersRow();
 
             for (int i = 0; i < (int)clips.size(); ++i) {
@@ -256,10 +256,10 @@ void ResourceStateMachine::DrawInspector() {
 
         int removeIdx = -1;
         if (ImGui::BeginTable("##smstates", 4, kTableFlags)) {
-            ImGui::TableSetupColumn("Name",    ImGuiTableColumnFlags_WidthStretch, 2.0f);
-            ImGui::TableSetupColumn("Clip",    ImGuiTableColumnFlags_WidthStretch, 2.0f);
-            ImGui::TableSetupColumn("Default", ImGuiTableColumnFlags_WidthFixed,  54.0f);
-            ImGui::TableSetupColumn("##del",   ImGuiTableColumnFlags_WidthFixed,  22.0f);
+            ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 2.0f);
+            ImGui::TableSetupColumn("Clip", ImGuiTableColumnFlags_WidthStretch, 2.0f);
+            ImGui::TableSetupColumn("Default", ImGuiTableColumnFlags_WidthFixed, 54.0f);
+            ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed, 22.0f);
             ImGui::TableHeadersRow();
 
             for (int i = 0; i < (int)states.size(); ++i) {
@@ -298,8 +298,8 @@ void ResourceStateMachine::DrawInspector() {
                 {
                     bool isDefault = (defaultState == state.name);
                     if (ImGui::Checkbox("##d", &isDefault)) {
-                        if (isDefault)                         defaultState = state.name;
-                        else if (defaultState == state.name)  defaultState = HashString{};
+                        if (isDefault) defaultState = state.name;
+                        else if (defaultState == state.name) defaultState = HashString{};
                     }
                 }
 
@@ -342,11 +342,11 @@ void ResourceStateMachine::DrawInspector() {
 
         int removeIdx = -1;
         if (ImGui::BeginTable("##smtrans", 5, kTableFlags)) {
-            ImGui::TableSetupColumn("Source",   ImGuiTableColumnFlags_WidthStretch, 2.0f);
-            ImGui::TableSetupColumn("Target",   ImGuiTableColumnFlags_WidthStretch, 2.0f);
-            ImGui::TableSetupColumn("Trigger",  ImGuiTableColumnFlags_WidthStretch, 2.0f);
-            ImGui::TableSetupColumn("Blend ms", ImGuiTableColumnFlags_WidthFixed,  90.0f);
-            ImGui::TableSetupColumn("##del",    ImGuiTableColumnFlags_WidthFixed,  22.0f);
+            ImGui::TableSetupColumn("Source", ImGuiTableColumnFlags_WidthStretch, 2.0f);
+            ImGui::TableSetupColumn("Target", ImGuiTableColumnFlags_WidthStretch, 2.0f);
+            ImGui::TableSetupColumn("Trigger", ImGuiTableColumnFlags_WidthStretch, 2.0f);
+            ImGui::TableSetupColumn("Blend ms", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+            ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed, 22.0f);
             ImGui::TableHeadersRow();
 
             for (int i = 0; i < (int)transitions.size(); ++i) {

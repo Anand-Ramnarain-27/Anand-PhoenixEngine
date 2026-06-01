@@ -6,15 +6,14 @@
 static constexpr size_t DEFAULT_CAPACITY = 10 * 1024 * 1024;
 static constexpr size_t MIN_ALLOCATION = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
 
-bool ModuleRingBuffer::init()
-{
+bool ModuleRingBuffer::init(){
     auto* d3d12 = app->getD3D12();
     auto* device = d3d12->getDevice();
 
     m_capacity = alignUp(DEFAULT_CAPACITY, 65536);
 
     CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
-    CD3DX12_RESOURCE_DESC   bufDesc = CD3DX12_RESOURCE_DESC::Buffer(m_capacity);
+    CD3DX12_RESOURCE_DESC bufDesc = CD3DX12_RESOURCE_DESC::Buffer(m_capacity);
 
     if (FAILED(device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc,
         D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_buffer)))) return false;
@@ -30,8 +29,7 @@ bool ModuleRingBuffer::init()
     return true;
 }
 
-void ModuleRingBuffer::preRender()
-{
+void ModuleRingBuffer::preRender(){
     auto* d3d12 = app->getD3D12();
     uint32_t completedFrame = (d3d12->getCurrentBackBufferIdx() + 1) % MAX_FRAMES;
     m_currentFrame = d3d12->getCurrentBackBufferIdx();
@@ -45,13 +43,11 @@ void ModuleRingBuffer::preRender()
     }
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS ModuleRingBuffer::allocateConstantBuffer(const void* data, size_t size)
-{
+D3D12_GPU_VIRTUAL_ADDRESS ModuleRingBuffer::allocateConstantBuffer(const void* data, size_t size){
     return allocateRaw(data, alignUp(size, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS ModuleRingBuffer::allocateRaw(const void* data, size_t size)
-{
+D3D12_GPU_VIRTUAL_ADDRESS ModuleRingBuffer::allocateRaw(const void* data, size_t size){
     size = alignUp(size, MIN_ALLOCATION);
 
     if (size > m_capacity) { _ASSERT_EXPR(false, L"Allocation exceeds ring buffer capacity"); return 0; }
@@ -78,7 +74,6 @@ D3D12_GPU_VIRTUAL_ADDRESS ModuleRingBuffer::allocateRaw(const void* data, size_t
     return m_buffer->GetGPUVirtualAddress() + start;
 }
 
-size_t ModuleRingBuffer::alignUp(size_t size, size_t alignment)
-{
+size_t ModuleRingBuffer::alignUp(size_t size, size_t alignment){
     return (size + alignment - 1) & ~(alignment - 1);
 }

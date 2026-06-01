@@ -5,16 +5,13 @@
 #include "ModuleD3D12.h"
 
 
-ModuleSamplerHeap::ModuleSamplerHeap()
-{
+ModuleSamplerHeap::ModuleSamplerHeap(){
 }
 
-ModuleSamplerHeap::~ModuleSamplerHeap()
-{
+ModuleSamplerHeap::~ModuleSamplerHeap(){
 }
 
-bool ModuleSamplerHeap::init()
-{
+bool ModuleSamplerHeap::init(){
     ModuleD3D12* d3d12 = app->getD3D12();
     ID3D12Device* device = d3d12->getDevice();
 
@@ -82,7 +79,6 @@ bool ModuleSamplerHeap::init()
     return true;
 }
 
-bool ModuleSamplerHeap::cleanUp()
-{
+bool ModuleSamplerHeap::cleanUp(){
     return true;
 }

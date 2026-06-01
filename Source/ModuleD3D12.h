@@ -9,34 +9,34 @@ public:
     ModuleD3D12(HWND hWnd);
     ~ModuleD3D12() override;
 
-    bool init()       override;
-    bool cleanUp()    override;
-    void preRender()  override;
+    bool init() override;
+    bool cleanUp() override;
+    void preRender() override;
     void postRender() override;
 
     void resize();
     void toggleFullscreen();
     void flush();
 
-    HWND                        getHWnd()             const { return m_hWnd; }
-    IDXGISwapChain4* getSwapChain()        const { return m_swapChain.Get(); }
-    ID3D12Device5* getDevice()           const { return m_device.Get(); }
-    ID3D12GraphicsCommandList* getCommandList()      const { return m_commandList.Get(); }
+    HWND getHWnd() const { return m_hWnd; }
+    IDXGISwapChain4* getSwapChain() const { return m_swapChain.Get(); }
+    ID3D12Device5* getDevice() const { return m_device.Get(); }
+    ID3D12GraphicsCommandList* getCommandList() const { return m_commandList.Get(); }
     ID3D12CommandAllocator* getCommandAllocator() const { return m_commandAllocators[m_currentBackBufferIdx].Get(); }
-    ID3D12Resource* getBackBuffer()       const { return m_backBuffers[m_currentBackBufferIdx].Get(); }
+    ID3D12Resource* getBackBuffer() const { return m_backBuffers[m_currentBackBufferIdx].Get(); }
     ID3D12CommandQueue* getDrawCommandQueue() const { return m_drawCommandQueue.Get(); }
 
     unsigned getCurrentBackBufferIdx() const { return m_currentBackBufferIdx; }
-    unsigned getCurrentFrame()         const { return m_frameIndex; }
-    unsigned getLastCompletedFrame()   const { return m_lastCompletedFrame; }
-    unsigned getWindowWidth()          const { return m_windowWidth; }
-    unsigned getWindowHeight()         const { return m_windowHeight; }
-    bool     isFullscreen()            const { return m_fullscreen; }
+    unsigned getCurrentFrame() const { return m_frameIndex; }
+    unsigned getLastCompletedFrame() const { return m_lastCompletedFrame; }
+    unsigned getWindowWidth() const { return m_windowWidth; }
+    unsigned getWindowHeight() const { return m_windowHeight; }
+    bool isFullscreen() const { return m_fullscreen; }
 
     D3D12_CPU_DESCRIPTOR_HANDLE getRenderTargetDescriptor() const;
     D3D12_CPU_DESCRIPTOR_HANDLE getDepthStencilDescriptor() const;
 
-    UINT64                     signalDrawQueue();
+    UINT64 signalDrawQueue();
     ID3D12GraphicsCommandList* beginFrameRender();
     void setBackBufferRenderTarget(const Vector4& clearColor = Vector4(0.f, 0.f, 0.f, 1.f));
     void endFrameRender();
@@ -60,25 +60,25 @@ private:
     void getWindowSize(unsigned& width, unsigned& height) const;
     void waitForFrameFence(UINT64 fenceValue);
 
-    HWND     m_hWnd = nullptr;
+    HWND m_hWnd = nullptr;
     unsigned m_windowWidth = 0;
     unsigned m_windowHeight = 0;
-    bool     m_fullscreen = false;
-    RECT     m_lastWindowRect = {};
+    bool m_fullscreen = false;
+    RECT m_lastWindowRect = {};
 
-    ComPtr<IDXGIFactory6>   m_factory;
-    ComPtr<IDXGIAdapter4>   m_adapter;
-    ComPtr<ID3D12Device5>   m_device;
+    ComPtr<IDXGIFactory6> m_factory;
+    ComPtr<IDXGIAdapter4> m_adapter;
+    ComPtr<ID3D12Device5> m_device;
     ComPtr<IDXGISwapChain4> m_swapChain;
 
     ComPtr<ID3D12DescriptorHeap> m_rtDescriptorHeap;
-    ComPtr<ID3D12Resource>       m_backBuffers[FRAMES_IN_FLIGHT];
+    ComPtr<ID3D12Resource> m_backBuffers[FRAMES_IN_FLIGHT];
     ComPtr<ID3D12DescriptorHeap> m_dsDescriptorHeap;
-    ComPtr<ID3D12Resource>       m_depthStencilBuffer;
+    ComPtr<ID3D12Resource> m_depthStencilBuffer;
 
-    ComPtr<ID3D12CommandAllocator>     m_commandAllocators[FRAMES_IN_FLIGHT];
+    ComPtr<ID3D12CommandAllocator> m_commandAllocators[FRAMES_IN_FLIGHT];
     ComPtr<ID3D12GraphicsCommandList4> m_commandList;
-    ComPtr<ID3D12CommandQueue>         m_drawCommandQueue;
+    ComPtr<ID3D12CommandQueue> m_drawCommandQueue;
 
     ComPtr<ID3D12Fence1> m_drawFence;
     HANDLE m_drawEvent = nullptr;

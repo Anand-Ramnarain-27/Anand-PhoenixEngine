@@ -1,4 +1,4 @@
-#include "Globals.h"    
+#include "Globals.h"
 #include "HotReloadManager.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
@@ -13,10 +13,10 @@ static std::string norm(std::string p) {
 }
 
 HotReloadManager::~HotReloadManager() { unloadAll(); }
- 
+
 bool HotReloadManager::loadLibrary(const std::string& dllPath) {
     std::string key = norm(dllPath);
-    if (m_libraries.count(key)) return true;   
+    if (m_libraries.count(key)) return true;
     ScriptLibrary lib;
     if (!loadLibraryInternal(key, lib)) return false;
     m_libraries[key] = std::move(lib);
@@ -27,7 +27,7 @@ bool HotReloadManager::reloadLibrary(const std::string& dllPath) {
     std::string key = norm(dllPath);
     auto it = m_libraries.find(key);
     if (it != m_libraries.end()) {
-        FreeLibrary(it->second.handle);  
+        FreeLibrary(it->second.handle);
         m_libraries.erase(it);
     }
     ScriptLibrary lib;
@@ -37,7 +37,7 @@ bool HotReloadManager::reloadLibrary(const std::string& dllPath) {
     }
     m_libraries[key] = std::move(lib);
     LOG("[HotReload] Reloaded: %s", key.c_str());
-    if (m_reloadCb) m_reloadCb(key);   
+    if (m_reloadCb) m_reloadCb(key);
     return true;
 }
 
@@ -50,7 +50,7 @@ void HotReloadManager::unloadAll() {
 IScript* HotReloadManager::createScript(const std::string& className) const {
     for (const auto& [k, lib] : m_libraries) {
         auto it = lib.factories.find(className);
-        if (it != lib.factories.end()) return it->second(); 
+        if (it != lib.factories.end()) return it->second();
     }
     LOG("[HotReload] Unknown script class: '%s'", className.c_str());
     return nullptr;
@@ -86,7 +86,7 @@ bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLib
     auto dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
     auto nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
     auto& expDir = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
-    if (expDir.VirtualAddress == 0) return true;  
+    if (expDir.VirtualAddress == 0) return true;
 
     auto exp = reinterpret_cast<const IMAGE_EXPORT_DIRECTORY*>(
         base + expDir.VirtualAddress);
@@ -97,7 +97,7 @@ bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLib
         if (strncmp(sym, "Create_", 7) == 0) {
             auto fn = reinterpret_cast<ScriptFactoryFn>(GetProcAddress(out.handle, sym));
             if (fn) {
-                std::string className = sym + 7;  
+                std::string className = sym + 7;
                 out.factories[className] = fn;
                 LOG("[HotReload] Registered script: '%s'", className.c_str());
             }
