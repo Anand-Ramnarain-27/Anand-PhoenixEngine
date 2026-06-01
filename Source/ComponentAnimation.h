@@ -55,6 +55,10 @@ public:
     // Silently ignored if no transition matches.
     void SendTrigger(const HashString& trigger);
 
+    // Draws the SM path input, Load button, active-state readout, and node graph.
+    // Called from InspectorPanel since drawComponentAnimation() bypasses onEditor().
+    void drawStateMachineSection();
+
     // Playback speed multiplier (applies to currentTimeMs only, not fadeTimeMs).
     float mSpeed = 1.f;
 

@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <cstring>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace {
     struct NodeFileHeader {
@@ -284,21 +285,101 @@ bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinyglt
             append(&dfsIdx, sizeof(int32_t));
         }
 
-        // Inverse bind matrices — GLTF MAT4 is column-major; transpose to row-major for DX.
+        // Inverse bind matrices — glTF MAT4 is column-major; memcpy into a row-major Matrix
+        // implicitly transposes, producing the correct DX row-major inverse bind matrix.
+        // Do NOT call Transpose() explicitly — that would revert to column-major (wrong).
         std::vector<Matrix> ibms(jointCount, Matrix::Identity);
-        if (skin.inverseBindMatrices >= 0 &&
-            skin.inverseBindMatrices < (int)gltfModel.accessors.size()) {
+        if (skin.inverseBindMatrices < 0) {
+            LOG("SceneImporter: skin '%s' has no inverseBindMatrices accessor — "
+                "all IBP matrices default to Identity and skinning will be broken. "
+                "Re-export from the DCC tool with skinning enabled.",
+                skin.name.c_str());
+        } else if (skin.inverseBindMatrices < (int)gltfModel.accessors.size()) {
             const auto& acc  = gltfModel.accessors[skin.inverseBindMatrices];
             const auto& view = gltfModel.bufferViews[acc.bufferView];
             const uint8_t* data = gltfModel.buffers[view.buffer].data.data()
                                   + view.byteOffset + acc.byteOffset;
             const size_t stride = view.byteStride ? view.byteStride : 64u;
             const uint32_t count = std::min((uint32_t)acc.count, jointCount);
-            for (uint32_t j = 0; j < count; ++j) {
+            for (uint32_t j = 0; j < count; ++j)
                 memcpy(&ibms[j], data + j * stride, 64);
-                ibms[j] = ibms[j].Transpose(); // GLTF column-major → DX row-major
+        }
+
+        // Armature correction — some exporters (e.g. Blender without "Apply Transform") place
+        // a coordinate-system rotation on the armature object node (the non-joint parent of
+        // the skeleton root) to convert from Z-up to Y-up, but do NOT apply the same rotation
+        // to the mesh vertices.  This leaves the mesh in the exporter's local space while the
+        // IBP matrices are in GLTF world space (which includes the armature rotation).
+        //
+        // Fix: detect the armature parent and pre-multiply every IBP by its DX world matrix.
+        // At T-pose this makes palette[j] = armatureCorrection (not I), so the skinned vertex
+        // is correctly converted from mesh-local space to GLTF Y-up world space.
+        {
+            // Build a set of all joint GLTF indices for this skin.
+            std::unordered_set<int> jointSet(skin.joints.begin(), skin.joints.end());
+
+            // Find the declared skeleton root; fall back to first joint.
+            int skelRoot = (skin.skeleton >= 0) ? skin.skeleton
+                         : (skin.joints.empty() ? -1 : skin.joints[0]);
+
+            if (skelRoot >= 0) {
+                // Find the direct parent of the skeleton root.
+                int armParent = -1;
+                for (int ni = 0; ni < (int)gltfModel.nodes.size() && armParent < 0; ++ni)
+                    for (int ch : gltfModel.nodes[ni].children)
+                        if (ch == skelRoot) { armParent = ni; break; }
+
+                // If that parent is NOT itself a joint, it is the armature object.
+                if (armParent >= 0 && jointSet.find(armParent) == jointSet.end()) {
+                    // Compute the armature's world transform by walking up non-joint ancestors.
+                    Matrix armWorld = Matrix::Identity;
+                    for (int cur = armParent; cur >= 0; ) {
+                        const auto& an = gltfModel.nodes[cur];
+                        Matrix local = Matrix::Identity;
+                        if (an.matrix.size() == 16) {
+                            // Column-major GLTF matrix — memcpy gives the correct DX row-major form.
+                            float fm[16];
+                            for (int k = 0; k < 16; ++k) fm[k] = (float)an.matrix[k];
+                            memcpy(&local, fm, 64);
+                        } else {
+                            Vector3    t(0,0,0), s(1,1,1);
+                            Quaternion r(0,0,0,1);
+                            if (an.translation.size() >= 3) { t.x=(float)an.translation[0]; t.y=(float)an.translation[1]; t.z=(float)an.translation[2]; }
+                            if (an.rotation.size()    >= 4) { r.x=(float)an.rotation[0];    r.y=(float)an.rotation[1];    r.z=(float)an.rotation[2];    r.w=(float)an.rotation[3]; }
+                            if (an.scale.size()       >= 3) { s.x=(float)an.scale[0];       s.y=(float)an.scale[1];       s.z=(float)an.scale[2]; }
+                            local = Matrix::CreateScale(s) * Matrix::CreateFromQuaternion(r) * Matrix::CreateTranslation(t);
+                        }
+                        armWorld = local * armWorld; // left-multiply to accumulate root→leaf
+
+                        // Walk up, stopping at joints or the scene root.
+                        int parent = -1;
+                        for (int ni = 0; ni < (int)gltfModel.nodes.size() && parent < 0; ++ni)
+                            for (int ch : gltfModel.nodes[ni].children)
+                                if (ch == cur) { parent = ni; break; }
+                        if (parent < 0 || jointSet.find(parent) != jointSet.end()) break;
+                        cur = parent;
+                    }
+
+                    // Only apply a correction when the armature has a non-trivial transform.
+                    // Use a loose tolerance so floating-point identity doesn't trigger false positives.
+                    const Matrix& W = armWorld;
+                    const bool isIdentity =
+                        std::abs(W._11-1)<1e-4f && std::abs(W._12)<1e-4f && std::abs(W._13)<1e-4f && std::abs(W._14)<1e-4f &&
+                        std::abs(W._21)<1e-4f && std::abs(W._22-1)<1e-4f && std::abs(W._23)<1e-4f && std::abs(W._24)<1e-4f &&
+                        std::abs(W._31)<1e-4f && std::abs(W._32)<1e-4f && std::abs(W._33-1)<1e-4f && std::abs(W._34)<1e-4f &&
+                        std::abs(W._41)<1e-4f && std::abs(W._42)<1e-4f && std::abs(W._43)<1e-4f && std::abs(W._44-1)<1e-4f;
+
+                    if (!isIdentity) {
+                        LOG("SceneImporter: skin '%s' — armature node has non-identity world transform; "
+                            "baking coordinate correction into IBP matrices.",
+                            skin.name.c_str());
+                        for (auto& ibm : ibms)
+                            ibm = armWorld * ibm;
+                    }
+                }
             }
         }
+
         append(ibms.data(), jointCount * sizeof(Matrix));
     }
 
@@ -336,7 +417,13 @@ bool SceneImporter::LoadSkins(const std::string& sceneName, std::vector<SkinInfo
             memcpy(si.jointNodeIndices.data(), cur, jointCount * sizeof(int32_t));
             cur += jointCount * sizeof(int32_t);
 
-            if (cur + jointCount * sizeof(Matrix) > end) return false;
+            if (cur + jointCount * sizeof(Matrix) > end) {
+                // File has joint indices but no IBP block — stale skins.meta from before IBP support.
+                // Re-import the model (drag-and-drop the glTF again) to regenerate skins.meta.
+                LOG("SceneImporter: stale skins.meta for skin '%s' — no IBP matrix block. "
+                    "Re-import the model to fix.", si.name.c_str());
+                return false;
+            }
             si.inverseBindMatrices.resize(jointCount);
             memcpy(si.inverseBindMatrices.data(), cur, jointCount * sizeof(Matrix));
             cur += jointCount * sizeof(Matrix);

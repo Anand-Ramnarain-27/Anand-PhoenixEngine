@@ -2,6 +2,7 @@
 #include "ComponentAnimation.h"
 #include "StateMachineGraphEditor.h"
 #include "ModuleFileSystem.h"
+#include "AssetBrowserPanel.h"
 #include "GameObject.h"
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
@@ -14,6 +15,7 @@
 #include "3rdParty/rapidjson/stringbuffer.h"
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 
 using namespace rapidjson;
 
@@ -460,22 +462,99 @@ void ComponentAnimation::onEditor() {
     ImGui::Checkbox("Draw Bones",       &m_drawBones);
     ImGui::Checkbox("Draw Axis Triads", &m_drawAxisTriads);
 
-    // ── State Machine section ─────────────────────────────────────────────────
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Text("State Machine");
+    drawStateMachineSection();
+}
 
-    char smBuf[512] = {};
-    strncpy_s(smBuf, m_stateMachinePath.c_str(), sizeof(smBuf) - 1);
-    ImGui::SetNextItemWidth(-70.f);
-    ImGui::InputText("##smpath", smBuf, sizeof(smBuf));
-    ImGui::SameLine();
-    if (ImGui::Button("Load##sm")) {
+void ComponentAnimation::drawStateMachineSection() {
+    namespace fs = std::filesystem;
+    ImGui::Spacing();
+    ImGui::SeparatorText("State Machine");
+
+    // Path input — pre-fill from the current loaded path
+    static char smBuf[512] = {};
+    if (!m_stateMachinePath.empty() && smBuf[0] == '\0')
+        strncpy_s(smBuf, m_stateMachinePath.c_str(), sizeof(smBuf) - 1);
+
+    // ── Row: [path input] [Load] [Pick] ──────────────────────────────────────
+    ImGui::SetNextItemWidth(-140.f);
+    ImGui::InputTextWithHint("##smpath", "Assets/StateMachines/name.json", smBuf, sizeof(smBuf));
+
+    // Drag-and-drop target: accepts any ASSET_PATH payload ending in .json
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload(kDragAsset)) {
+            std::string dropped(static_cast<const char*>(pl->Data), pl->DataSize - 1);
+            if (dropped.size() >= 5 &&
+                dropped.compare(dropped.size() - 5, 5, ".json") == 0) {
+                strncpy_s(smBuf, dropped.c_str(), sizeof(smBuf) - 1);
+                LoadStateMachineFromPath(dropped);
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
+
+    ImGui::SameLine(0, 4);
+    if (ImGui::Button("Load##sm", ImVec2(50, 0))) {
         LoadStateMachineFromPath(std::string(smBuf));
     }
 
+    ImGui::SameLine(0, 4);
+    if (ImGui::Button("Pick##sm", ImVec2(50, 0)))
+        ImGui::OpenPopup("##SMPicker");
+
+    // ── SM file picker popup ──────────────────────────────────────────────────
+    ImGui::SetNextWindowSize(ImVec2(340, 240), ImGuiCond_Appearing);
+    if (ImGui::BeginPopup("##SMPicker")) {
+        ImGui::TextDisabled("State Machine files  (double-click to load)");
+        ImGui::Separator();
+        static char pickerSearch[64] = "";
+        ImGui::SetNextItemWidth(-1);
+        ImGui::InputTextWithHint("##smpksearch", "Search...", pickerSearch, sizeof(pickerSearch));
+        ImGui::Separator();
+
+        // Search in Assets/StateMachines/ for .json files
+        std::string assetsRoot;
+        if (app->getFileSystem()) {
+            assetsRoot = (fs::path(app->getFileSystem()->GetAssetsPath()) / "StateMachines").string();
+        }
+
+        std::string search = pickerSearch;
+        std::transform(search.begin(), search.end(), search.begin(), ::tolower);
+        bool any = false;
+        try {
+            if (fs::exists(assetsRoot)) {
+                for (const auto& entry : fs::directory_iterator(assetsRoot)) {
+                    if (!entry.is_regular_file()) continue;
+                    if (entry.path().extension() != ".json") continue;
+                    std::string name = entry.path().filename().string();
+                    std::string nameLower = name;
+                    std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+                    if (!search.empty() && nameLower.find(search) == std::string::npos) continue;
+
+                    bool isCurrent = (entry.path().string() == m_stateMachinePath);
+                    if (isCurrent) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 1.f, 0.4f, 1.f));
+                    bool clicked = ImGui::Selectable(("  [SM]  " + name).c_str(), isCurrent,
+                                                     ImGuiSelectableFlags_AllowDoubleClick);
+                    if (isCurrent) ImGui::PopStyleColor();
+                    if (clicked && ImGui::IsMouseDoubleClicked(0)) {
+                        std::string fullPath = entry.path().string();
+                        strncpy_s(smBuf, fullPath.c_str(), sizeof(smBuf) - 1);
+                        LoadStateMachineFromPath(fullPath);
+                        pickerSearch[0] = '\0';
+                        ImGui::CloseCurrentPopup();
+                    }
+                    any = true;
+                }
+            }
+        } catch (...) {}
+        if (!any) {
+            ImGui::TextDisabled("    No .json files found in Assets/StateMachines/");
+        }
+        ImGui::EndPopup();
+    }
+
+    // ── Status + graph ────────────────────────────────────────────────────────
     if (m_stateMachine) {
-        ImGui::TextDisabled("Active: %s",
+        ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f), "Active: %s",
             m_activeState.empty() ? "(none)" : m_activeState.str.c_str());
         int depth = getLayerCount();
         if (depth > 1)
@@ -490,12 +569,15 @@ void ComponentAnimation::onEditor() {
         }
 
         ImGui::Spacing();
-        ImGui::Text("Graph:");
+        ImGui::TextDisabled("Graph  (%d states, %d transitions)",
+            (int)m_stateMachine->states.size(), (int)m_stateMachine->transitions.size());
         if (ImGui::BeginChild("##SMGraph", ImVec2(0.f, 260.f), false,
                               ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
             m_graphEditor->Draw(*m_stateMachine, &m_activeState);
         }
         ImGui::EndChild();
+    } else {
+        ImGui::TextDisabled("No SM loaded — drag a .json from the Asset Browser or use Pick");
     }
 }
 

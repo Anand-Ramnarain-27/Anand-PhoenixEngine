@@ -24,6 +24,10 @@ public:
     static bool Load(const std::string& file, ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer, std::unique_ptr<Mesh>& outMesh);
     static bool Load(const std::string& file, std::unique_ptr<Mesh>& outMesh);
 
+    // Loads only the bone-weight sidecar (.skin) for a given .mesh library file.
+    // Returns false if the .skin file does not exist or is malformed.
+    static bool LoadBoneWeights(const std::string& meshLibraryFile, std::vector<Mesh::BoneWeight>& outBW);
+
 private:
     static bool Save(const MeshHeader& header, const std::vector<Mesh::Vertex>& vertices, const std::vector<uint32_t>& indices, const std::string& file);
 };

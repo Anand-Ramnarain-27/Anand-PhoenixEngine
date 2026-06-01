@@ -241,12 +241,11 @@ void MeshRenderPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewP
 	const UINT mvpSz = cbAlign(sizeof(MeshPipeline::CbMVP));
 	const UINT instSz = cbAlign(sizeof(MeshPipeline::CbPerInstance));
 
+	// For skinned meshes, worldMatrix holds the mesh node's world transform which brings
+	// the skinning-CS output (in mesh-node-local space) into engine world space.
+	// For non-skinned meshes, worldMatrix is the node's world transform as usual.
 	Matrix world;
-	if (entry.isSkinned) {
-		world = Matrix::Identity;
-	} else {
-		memcpy(&world, entry.worldMatrix, sizeof(float) * 16);
-	}
+	memcpy(&world, entry.worldMatrix, sizeof(float) * 16);
 
 	{
 		MeshPipeline::CbMVP mvp;

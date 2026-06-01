@@ -1,8 +1,10 @@
 // Skinning.hlsl — GPU skinning + morph-target compute shader
+// Fixed 2026-06-01: removed double-offset bug — palette SRVs are pre-offset by
+// SkinningPass::dispatch() to this job's base joint, so indices must NOT add g_paletteOffset.
 // Root signature (set by SkinningPass):
 //   [0] b0 : root constants   { numVertices, paletteOffset, vertexOffset, numMorphTargets, numJoints }
-//   [1] t0 : StructuredBuffer<float4x4>    — palette      (model-space joint transforms)
-//   [2] t1 : StructuredBuffer<float4x4>    — paletteNormal (inverse-transpose, for normals)
+//   [1] t0 : StructuredBuffer<float4x4>    — palette      (SRV already offset to this skin's base joint)
+//   [2] t1 : StructuredBuffer<float4x4>    — paletteNormal (SRV already offset to this skin's base joint)
 //   [3] t2 : StructuredBuffer<Vertex>      — input vertices (T-pose)
 //   [4] t3 : StructuredBuffer<BoneWeight>  — per-vertex joint indices and weights
 //   [5] u0 : RWStructuredBuffer<Vertex>    — output buffer (world space)
@@ -34,7 +36,7 @@ struct MorphVertex
 cbuffer SkinCB : register(b0)
 {
     uint g_numVertices;
-    uint g_paletteOffset;   // base joint index in the combined palette for this skin
+    uint g_paletteOffset;   // unused for indexing — SRV binding already pre-offsets to this skin's base joint
     uint g_vertexOffset;    // base vertex index in the combined output buffer
     uint g_numMorphTargets;
     uint g_numJoints;
@@ -100,16 +102,16 @@ void main(uint3 DTid : SV_DispatchThreadID)
         BoneWeight bw = boneWeights[vid];
 
         float4x4 skinModel =
-            bw.weights.x * palette[g_paletteOffset + (uint)bw.indices.x] +
-            bw.weights.y * palette[g_paletteOffset + (uint)bw.indices.y] +
-            bw.weights.z * palette[g_paletteOffset + (uint)bw.indices.z] +
-            bw.weights.w * palette[g_paletteOffset + (uint)bw.indices.w];
+            bw.weights.x * palette[(uint)bw.indices.x] +
+            bw.weights.y * palette[(uint)bw.indices.y] +
+            bw.weights.z * palette[(uint)bw.indices.z] +
+            bw.weights.w * palette[(uint)bw.indices.w];
 
         float4x4 skinNrm =
-            bw.weights.x * paletteNormal[g_paletteOffset + (uint)bw.indices.x] +
-            bw.weights.y * paletteNormal[g_paletteOffset + (uint)bw.indices.y] +
-            bw.weights.z * paletteNormal[g_paletteOffset + (uint)bw.indices.z] +
-            bw.weights.w * paletteNormal[g_paletteOffset + (uint)bw.indices.w];
+            bw.weights.x * paletteNormal[(uint)bw.indices.x] +
+            bw.weights.y * paletteNormal[(uint)bw.indices.y] +
+            bw.weights.z * paletteNormal[(uint)bw.indices.z] +
+            bw.weights.w * paletteNormal[(uint)bw.indices.w];
 
         v.position    = mul(float4(v.position, 1.0f), skinModel).xyz;
         v.normal      = normalize(mul(v.normal,      (float3x3)skinNrm));

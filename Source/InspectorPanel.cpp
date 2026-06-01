@@ -7,6 +7,7 @@
 #include "ModuleAssets.h"
 #include "ModuleResources.h"
 #include "ResourceMesh.h"
+#include "Mesh.h"
 #include "ResourceAnimation.h"
 #include "SceneManager.h"
 #include "GameObject.h"
@@ -485,6 +486,42 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
         ImGui::EndPopup();
     }
 
+    // --- Skinning status ---
+    ImGui::Spacing();
+    ImGui::SeparatorText("Skinning");
+    if (mesh->hasSkinData()) {
+        int jointCount = (int)mesh->getSkinJoints().size();
+        ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f), "Skin data: %d joints", jointCount);
+
+        // Per-entry bone weight status
+        const auto& entries = mesh->getEntries();
+        int gpuCount = 0, totalCount = 0;
+        for (const auto& e : entries) {
+            if (!e.meshRes || !e.meshRes->getMesh()) continue;
+            ++totalCount;
+            const Mesh* m = e.meshRes->getMesh();
+            bool onGPU = (m->getBoneWeightBufferVA() != 0);
+            bool hasBW = m->hasBoneWeights();
+            if (onGPU) ++gpuCount;
+            ImGui::PushID(totalCount);
+            if (onGPU)
+                ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f),
+                    "  [%d] Bone weights: GPU", totalCount - 1);
+            else if (hasBW)
+                ImGui::TextColored(ImVec4(1.f, 0.8f, 0.2f, 1.f),
+                    "  [%d] Bone weights: CPU only (uploading...)", totalCount - 1);
+            else
+                ImGui::TextColored(ImVec4(1.f, 0.4f, 0.4f, 1.f),
+                    "  [%d] No bone weights (re-import model)", totalCount - 1);
+            ImGui::PopID();
+        }
+        if (totalCount > 0 && gpuCount < totalCount)
+            ImGui::TextDisabled("  Tip: delete model from Library/ and re-drag to reimport");
+    } else {
+        ImGui::TextColored(ImVec4(1.f, 0.6f, 0.2f, 1.f), "No skin data");
+        ImGui::TextDisabled("  (normal for non-skinned meshes)");
+    }
+
     if (!hasAnything || !hasEntries) return;
     ImGui::Spacing();
     ImGui::SeparatorText("Materials");
@@ -495,7 +532,7 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
         Material* mat = e.instanceMaterial.get();
         if (!mat) mat = e.material;
         if (!mat && e.materialRes) mat = e.materialRes->getMaterial();
-        if (!mat) { ImGui::PushID(mi); ImGui::TextDisabled("Submesh %d  � no material", mi); ImGui::PopID(); continue; }
+        if (!mat) { ImGui::PushID(mi); ImGui::TextDisabled("Submesh %d  (no material)", mi); ImGui::PopID(); continue; }
         Material::Data& data = mat->getData();
 
         ImGui::PushID(mi);
@@ -640,4 +677,7 @@ void InspectorPanel::drawComponentAnimation(ComponentAnimation* anim) {
     ImGui::SeparatorText("Debug");
     ImGui::Checkbox("Draw Bones",        &anim->drawBones());
     ImGui::Checkbox("Draw Axis Triads",  &anim->drawAxisTriads());
+
+    // --- State Machine (path input + Load button + node graph) ---
+    anim->drawStateMachineSection();
 }

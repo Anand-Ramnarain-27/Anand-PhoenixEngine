@@ -243,6 +243,10 @@ bool MeshImporter::Load(const std::string& file, std::unique_ptr<Mesh>& outMesh)
     return true;
 }
 
+bool MeshImporter::LoadBoneWeights(const std::string& meshLibraryFile, std::vector<Mesh::BoneWeight>& outBW) {
+    return LoadSkin(meshLibraryFile, outBW);
+}
+
 bool MeshImporter::Save(const MeshHeader& header, const std::vector<Mesh::Vertex>& vertices, const std::vector<uint32_t>& indices, const std::string& file) {
     std::vector<char> payload(header.vertexCount * sizeof(Mesh::Vertex) + header.indexCount * sizeof(uint32_t));
     char* cursor = payload.data();

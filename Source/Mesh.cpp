@@ -47,7 +47,27 @@ void Mesh::setData(const std::vector<Vertex>& vertices, const std::vector<uint32
 
 void Mesh::setBoneWeights(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer, const std::vector<BoneWeight>& boneWeights) {
     m_boneWeights = boneWeights;
-    if (!cmd || !staticBuffer || boneWeights.empty()) return;
+    m_hasBoneWeightBuffer = false;
+    m_boneWeightBuffer.Reset();
+    m_boneWeightBufferView = {};
+    if (boneWeights.empty()) return;
+
+    // Upload via committed resource (same pattern as morph targets — works without a cmd).
+    if (ModuleGPUResources* gpu = app->getGPUResources()) {
+        m_boneWeightBuffer = gpu->createDefaultBuffer(
+            boneWeights.data(), boneWeights.size() * sizeof(BoneWeight), "MeshBoneWeightVB");
+        if (m_boneWeightBuffer) {
+            m_boneWeightBufferView.BufferLocation = m_boneWeightBuffer->GetGPUVirtualAddress();
+            m_boneWeightBufferView.SizeInBytes    = (UINT)(boneWeights.size() * sizeof(BoneWeight));
+            m_boneWeightBufferView.StrideInBytes  = sizeof(BoneWeight);
+            m_hasBoneWeightBuffer = true;
+            return;
+        }
+        LOG("Mesh::setBoneWeights: createDefaultBuffer failed — falling back to static buffer");
+    }
+
+    // Fallback: static buffer upload (requires a valid cmd).
+    if (!cmd || !staticBuffer) return;
     const size_t sz = boneWeights.size() * sizeof(BoneWeight);
     m_boneWeightBufferView = staticBuffer->allocVertexBuffer(cmd, boneWeights.data(), sz, sizeof(BoneWeight), "MeshBoneWeightVB");
     m_hasBoneWeightBuffer = (m_boneWeightBufferView.BufferLocation != 0);
@@ -83,9 +103,25 @@ void Mesh::uploadToGPU(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* stati
         }
     }
     if (!m_hasBoneWeightBuffer && !m_boneWeights.empty()) {
-        const size_t sz = m_boneWeights.size() * sizeof(BoneWeight);
-        m_boneWeightBufferView = staticBuffer->allocVertexBuffer(cmd, m_boneWeights.data(), sz, sizeof(BoneWeight), "MeshBoneWeightVB");
-        m_hasBoneWeightBuffer = (m_boneWeightBufferView.BufferLocation != 0);
+        // Try committed resource first (doesn't need cmd, same as morph targets).
+        if (ModuleGPUResources* gpu = app->getGPUResources()) {
+            m_boneWeightBuffer = gpu->createDefaultBuffer(
+                m_boneWeights.data(), m_boneWeights.size() * sizeof(BoneWeight), "MeshBoneWeightVB");
+            if (m_boneWeightBuffer) {
+                m_boneWeightBufferView.BufferLocation = m_boneWeightBuffer->GetGPUVirtualAddress();
+                m_boneWeightBufferView.SizeInBytes    = (UINT)(m_boneWeights.size() * sizeof(BoneWeight));
+                m_boneWeightBufferView.StrideInBytes  = sizeof(BoneWeight);
+                m_hasBoneWeightBuffer = true;
+            }
+        }
+        // Fallback: static buffer (only if committed resource failed).
+        if (!m_hasBoneWeightBuffer) {
+            const size_t sz = m_boneWeights.size() * sizeof(BoneWeight);
+            m_boneWeightBufferView = staticBuffer->allocVertexBuffer(cmd, m_boneWeights.data(), sz, sizeof(BoneWeight), "MeshBoneWeightVB");
+            m_hasBoneWeightBuffer = (m_boneWeightBufferView.BufferLocation != 0);
+            if (!m_hasBoneWeightBuffer)
+                LOG("Mesh::uploadToGPU: bone weight upload FAILED via both committed and static buffer");
+        }
     }
     if (!m_hasMorphTargetBuffer && !m_morphVertexData.empty()) {
         if (ModuleGPUResources* gpu = app->getGPUResources()) {

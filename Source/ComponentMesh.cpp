@@ -369,6 +369,9 @@ void ComponentMesh::onLoad(const std::string& jsonStr) {
             }
             if (ok) setSkinData(skin, std::move(joints));
         }
+    } else if (doc.HasMember("SkinJointNames") && !doc.HasMember("SkinIBMs")) {
+        LOG("ComponentMesh: scene JSON has SkinJointNames but no SkinIBMs — "
+            "IBP was not saved. Re-import the model and re-save the scene.");
     }
 }
 

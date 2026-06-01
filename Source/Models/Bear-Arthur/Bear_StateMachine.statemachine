@@ -1,0 +1,270 @@
+{
+    "name": "Bear_StateMachine",
+    "defaultState": "Bear_IDLE",
+    "clips": [
+        {
+            "name": "Bear_stand",
+            "animationUID": {
+                "uid": 12950460726583917666,
+                "libId": "329da2c93abc651e986516be757ed07c"
+            },
+            "loop": true
+        },
+        {
+            "name": "Bear_idle",
+            "animationUID": {
+                "uid": 13408700155962206730,
+                "libId": "ba4547440c12dfb2800e5818ceebc9b8"
+            },
+            "loop": true
+        },
+        {
+            "name": "Bear_attack",
+            "animationUID": {
+                "uid": 14973854340516438937,
+                "libId": "aa3b68eb5806829a1b0d050578e385cd"
+            },
+            "loop": true
+        },
+        {
+            "name": "Bear_walk",
+            "animationUID": {
+                "uid": 10449942996158667634,
+                "libId": "d9e02ed6685aa3531a6cf58794468f47"
+            },
+            "loop": true
+        },
+        {
+            "name": "Bear_death",
+            "animationUID": {
+                "uid": 12872365504509799009,
+                "libId": "475456e3fdb836c384eb7f5cb1a3e523"
+            },
+            "loop": true
+        },
+        {
+            "name": "Bear_hit",
+            "animationUID": {
+                "uid": 11968390018694115058,
+                "libId": "02bd7d246fd40f85b3f65236c0fb34ac"
+            },
+            "loop": true
+        },
+        {
+            "name": "Bear_Tpose",
+            "animationUID": {
+                "uid": 1025501592641869981,
+                "libId": "58cdd76bd3b0b0dc3c1ccf40e1e3ff07"
+            },
+            "loop": true
+        }
+    ],
+    "states": [
+        {
+            "name": "Bear_IDLE",
+            "clipName": "Bear_stand",
+            "speed": 1.0,
+            "behaviourScriptName": "ArthurIdle",
+            "behaviourFieldsJson": "",
+            "overrideLoop": true,
+            "loop": true
+        },
+        {
+            "name": "Bear_EARTH_HAMMER",
+            "clipName": "Bear_idle",
+            "speed": 1.5,
+            "behaviourScriptName": "ArthurEarthHammer",
+            "behaviourFieldsJson": "",
+            "overrideLoop": true,
+            "loop": false
+        },
+        {
+            "name": "Bear_HEAVY_SWIPE",
+            "clipName": "Bear_attack",
+            "speed": 1.0,
+            "behaviourScriptName": "ArthurHeavySwipe",
+            "behaviourFieldsJson": "{\"Damage\":10.0,\"Attack Range\":3.0,\"Attack Half Angle Degrees\":60.0,\"Total Duration\":1.5,\"Hit 1 Time\":0.44999998807907104,\"Hit 2 Time\":0.949999988079071,\"Hit 3 Time\":1.350000023841858,\"Recovery Duration\":0.75,\"Debug Enabled\":true}",
+            "overrideLoop": true,
+            "loop": true
+        },
+        {
+            "name": "Bear_CHASE",
+            "clipName": "Bear_walk",
+            "speed": 1.0,
+            "behaviourScriptName": "ArthurChase",
+            "behaviourFieldsJson": "",
+            "overrideLoop": true,
+            "loop": true
+        },
+        {
+            "name": "Bear_death",
+            "clipName": "Bear_death",
+            "speed": 1.0,
+            "behaviourScriptName": "EnemyDeathState",
+            "behaviourFieldsJson": "{\"Destroy Delay\":2.0,\"Should Drop Health\":false,\"Health Prefab Path\":\"\",\"Health Drop Quantity\":1,\"Drop Heal Amount\":10.0,\"Drop Radius\":2.0,\"Drop Height\":1.0}",
+            "overrideLoop": false,
+            "loop": true
+        },
+        {
+            "name": "Bear_hit",
+            "clipName": "Bear_hit",
+            "speed": 1.0,
+            "behaviourScriptName": "",
+            "behaviourFieldsJson": "",
+            "overrideLoop": false,
+            "loop": true
+        },
+        {
+            "name": "Bear_Tpose",
+            "clipName": "Bear_Tpose",
+            "speed": 1.0,
+            "behaviourScriptName": "",
+            "behaviourFieldsJson": "",
+            "overrideLoop": false,
+            "loop": true
+        },
+        {
+            "name": "Bear_CHARGING_SLAM",
+            "clipName": "Bear_walk",
+            "speed": 1.0,
+            "behaviourScriptName": "ArthurChargingSlam",
+            "behaviourFieldsJson": "",
+            "overrideLoop": true,
+            "loop": true
+        },
+        {
+            "name": "Bear_SIDE_SWEEP",
+            "clipName": "Bear_hit",
+            "speed": 1.0,
+            "behaviourScriptName": "ArthurSideSweep",
+            "behaviourFieldsJson": "",
+            "overrideLoop": true,
+            "loop": false
+        },
+        {
+            "name": "Bear_RECOVERY",
+            "clipName": "Bear_Tpose",
+            "speed": 1.0,
+            "behaviourScriptName": "ArthurRecover",
+            "behaviourFieldsJson": "",
+            "overrideLoop": true,
+            "loop": true
+        }
+    ],
+    "transitions": [
+        {
+            "sourceStateName": "Bear_HEAVY_SWIPE",
+            "targetStateName": "Bear_RECOVERY",
+            "triggerName": "ToRecover",
+            "blendTimeSeconds": 0.25
+        },
+        {
+            "sourceStateName": "Bear_EARTH_HAMMER",
+            "targetStateName": "Bear_RECOVERY",
+            "triggerName": "ToRecover",
+            "blendTimeSeconds": 0.25
+        },
+        {
+            "sourceStateName": "Bear_SIDE_SWEEP",
+            "targetStateName": "Bear_RECOVERY",
+            "triggerName": "ToRecover",
+            "blendTimeSeconds": 0.25
+        },
+        {
+            "sourceStateName": "Bear_CHARGING_SLAM",
+            "targetStateName": "Bear_RECOVERY",
+            "triggerName": "ToRecover",
+            "blendTimeSeconds": 0.25
+        },
+        {
+            "sourceStateName": "Bear_IDLE",
+            "targetStateName": "Bear_CHASE",
+            "triggerName": "ToChase",
+            "blendTimeSeconds": 0.25
+        },
+        {
+            "sourceStateName": "Bear_CHASE",
+            "targetStateName": "Bear_HEAVY_SWIPE",
+            "triggerName": "ToHeavySwipe",
+            "blendTimeSeconds": 0.25
+        },
+        {
+            "sourceStateName": "Bear_CHASE",
+            "targetStateName": "Bear_SIDE_SWEEP",
+            "triggerName": "ToSideSweep",
+            "blendTimeSeconds": 0.25
+        },
+        {
+            "sourceStateName": "Bear_CHASE",
+            "targetStateName": "Bear_CHARGING_SLAM",
+            "triggerName": "ToChargingSlam",
+            "blendTimeSeconds": 0.25
+        },
+        {
+            "sourceStateName": "Bear_CHASE",
+            "targetStateName": "Bear_EARTH_HAMMER",
+            "triggerName": "ToEarthHammer",
+            "blendTimeSeconds": 0.25
+        },
+        {
+            "sourceStateName": "Bear_RECOVERY",
+            "targetStateName": "Bear_CHASE",
+            "triggerName": "ToChase",
+            "blendTimeSeconds": 0.25
+        },
+        {
+            "sourceStateName": "Bear_CHASE",
+            "targetStateName": "Bear_IDLE",
+            "triggerName": "ToIdle",
+            "blendTimeSeconds": 0.25
+        },
+        {
+            "sourceStateName": "Bear_RECOVERY",
+            "targetStateName": "Bear_IDLE",
+            "triggerName": "ToIdle",
+            "blendTimeSeconds": 0.25
+        },
+        {
+            "sourceStateName": "Bear_IDLE",
+            "targetStateName": "Bear_death",
+            "triggerName": "ToDeath",
+            "blendTimeSeconds": 0.25
+        },
+        {
+            "sourceStateName": "Bear_CHASE",
+            "targetStateName": "Bear_death",
+            "triggerName": "ToDeath",
+            "blendTimeSeconds": 0.25
+        },
+        {
+            "sourceStateName": "Bear_RECOVERY",
+            "targetStateName": "Bear_death",
+            "triggerName": "ToDeath",
+            "blendTimeSeconds": 0.25
+        },
+        {
+            "sourceStateName": "Bear_EARTH_HAMMER",
+            "targetStateName": "Bear_death",
+            "triggerName": "ToDeath",
+            "blendTimeSeconds": 0.25
+        },
+        {
+            "sourceStateName": "Bear_HEAVY_SWIPE",
+            "targetStateName": "Bear_death",
+            "triggerName": "ToDeath",
+            "blendTimeSeconds": 0.25
+        },
+        {
+            "sourceStateName": "Bear_SIDE_SWEEP",
+            "targetStateName": "Bear_death",
+            "triggerName": "ToDeath",
+            "blendTimeSeconds": 0.25
+        },
+        {
+            "sourceStateName": "Bear_CHARGING_SLAM",
+            "targetStateName": "Bear_death",
+            "triggerName": "ToDeath",
+            "blendTimeSeconds": 0.25
+        }
+    ]
+}

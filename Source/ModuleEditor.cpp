@@ -272,8 +272,9 @@ void ModuleEditor::preRender() {
 
     // --- Animation Debug Window ---
     {
+        static bool s_showAnimDebug = true;
         ModuleScene* animScene = getActiveModuleScene();
-        if (animScene) {
+        if (animScene && s_showAnimDebug) {
             struct AnimEntry { GameObject* go; ComponentAnimation* anim; };
             std::vector<AnimEntry> entries;
             std::function<void(GameObject*)> collectAnims = [&](GameObject* node) {
@@ -285,7 +286,7 @@ void ModuleEditor::preRender() {
             collectAnims(animScene->getRoot());
 
             if (!entries.empty()) {
-                ImGui::Begin("Animation Debug");
+                if (ImGui::Begin("Animation Debug", &s_showAnimDebug)) {
                 for (auto& e : entries) {
                     ImGui::PushID(e.go);
                     ImGui::Text("%s", e.go->getName().c_str());
@@ -346,6 +347,7 @@ void ModuleEditor::preRender() {
                     ImGui::Separator();
                     ImGui::PopID();
                 }
+                } // end if (ImGui::Begin)
                 ImGui::End();
             }
         }
@@ -509,10 +511,24 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                                 const auto& joints = cm->getSkinJoints();
                                 std::vector<Matrix> jointWorlds;
                                 jointWorlds.reserve(joints.size());
-                                for (auto* jgo : joints)
+
+                                // IBP and joint global world matrices are both in glTF Y-up world space.
+                                // IBP * jointGlobal cancels to Identity at T-pose — no space stripping needed.
+                                int nullJointCount = 0;
+                                for (auto* jgo : joints) {
+                                    if (!jgo) ++nullJointCount;
                                     jointWorlds.push_back(jgo ? jgo->getTransform()->getGlobalMatrix() : Matrix::Identity);
+                                }
+                                if (nullJointCount > 0)
+                                    LOG("[SkinDebug] WARNING: %d/%d joint GOs are null",
+                                        nullJointCount, (int)joints.size());
+
                                 job.skin               = &cm->getLocalSkin();
                                 job.jointWorldMatrices = std::move(jointWorlds);
+                                // Skinned output is already in Y-up world space (Blender bakes the
+                                // axis conversion into vertex positions at export time, and the joint
+                                // global matrices include the RootNode correction). worldMatrix stays
+                                // at the default Identity so no extra transform is applied.
                             } else {
                                 // Morph-only: shader outputs local space; world transform in MeshEntry.
                                 memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));

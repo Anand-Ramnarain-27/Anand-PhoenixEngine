@@ -19,6 +19,14 @@ bool ResourceMesh::LoadInMemory() {
 bool ResourceMesh::LoadInMemory(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer) {
     if (m_mesh) {
         m_mesh->uploadToGPU(cmd, staticBuffer);
+
+        // Pick up bone weights that were missing at CPU-load time (e.g. model re-imported
+        // while the engine was running — the .skin sidecar now exists but m_boneWeights is empty).
+        if (!m_mesh->hasBoneWeights()) {
+            std::vector<Mesh::BoneWeight> bw;
+            if (MeshImporter::LoadBoneWeights(libraryFile, bw) && !bw.empty())
+                m_mesh->setBoneWeights(cmd, staticBuffer, bw);
+        }
         return true;
     }
     std::unique_ptr<Mesh> mesh;

@@ -172,6 +172,21 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
             const uint32_t jointCount = static_cast<uint32_t>(job.skin->jointNodeIndices.size());
             for (uint32_t j = 0; j < jointCount; ++j) {
                 Matrix m = job.skin->inverseBindMatrices[j] * job.jointWorldMatrices[j];
+
+#ifdef _DEBUG
+                // T-pose check: for models with no armature correction Palette[0] ≈ Identity.
+                // For models with an armature correction (e.g. Blender Z-up) Palette[0] ≈ correction matrix.
+                if (j == 0 && job.paletteOffset == 0) {
+                    static bool s_tposeLogged = false;
+                    if (!s_tposeLogged) {
+                        s_tposeLogged = true;
+                        LOG("[TposeCheck] Palette[0] r0: %.3f %.3f %.3f %.3f  r3: %.3f %.3f %.3f %.3f",
+                            m._11, m._12, m._13, m._14,
+                            m._41, m._42, m._43, m._44);
+                    }
+                }
+#endif
+
                 memcpy(paletteDst + (job.paletteOffset + j) * sizeof(Matrix), &m, sizeof(Matrix));
 
                 Matrix inv, normalMat;

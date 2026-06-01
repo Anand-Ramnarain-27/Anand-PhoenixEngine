@@ -1,0 +1,1403 @@
+{
+  "SourcePath": "Assets\\Models\\Characters\\AnimatedCharacters\\Bear-Arthur\\Arthur.prefab",
+  "Name": "Arthur",
+  "Version": 2,
+  "GameObject": {
+    "Name": "Arthur",
+    "Active": true,
+    "Tag": "ENEMY",
+    "Layer": "DEFAULT",
+    "PrefabLink": {
+      "SourcePath": "Assets\\Models\\Characters\\AnimatedCharacters\\Bear-Arthur\\Arthur.prefab",
+      "AssetUID": 0
+    },
+    "Transform": {
+      "position": [
+        0.0,
+        1.5523051023483276,
+        36.67047500610352
+      ],
+      "rotation": [
+        0.0,
+        0.7226493954658508,
+        0.0,
+        0.6912147402763367
+      ],
+      "scale": [
+        3.0000150203704834,
+        3.0,
+        3.0000150203704834
+      ]
+    },
+    "Components": [
+      {
+        "Type": 13,
+        "Data": {
+          "UID": 18123924745326897537,
+          "ComponentType": 13,
+          "Active": true,
+          "StateMachineUID": {
+            "uid": 5352091169528960901,
+            "libId": "5eedbc2046a1687178400d1a5b1f92e7"
+          },
+          "AnimationSourceUID": {
+            "uid": 0,
+            "libId": ""
+          },
+          "PlayOnStart": true,
+          "ApplyScale": false,
+          "ForceWorldAfterApply": true
+        }
+      },
+      {
+        "Type": 3,
+        "Data": {
+          "UID": 10732550499280031632,
+          "ComponentType": 3,
+          "Active": true,
+          "ScriptName": "ArthurBossController",
+          "ScriptFields": {
+            "Enemy Type": 2,
+            "Combat Range": 3.0,
+            "Move Speed": 1.0,
+            "Turn Speed": 2.0,
+            "Interval": 0.4000000059604645,
+            "Debug Enabled": true
+          }
+        }
+      },
+      {
+        "Type": 3,
+        "Data": {
+          "UID": 8415537861084081650,
+          "ComponentType": 3,
+          "Active": true,
+          "ScriptName": "ArthurDetectionAggro",
+          "ScriptFields": {
+            "Detection Radius": 10.0,
+            "Target Lock Duration": 5.0,
+            "Debug Enabled": true,
+            "Lyriel Transform": 743245849143440901,
+            "Death Transform": 16858939129400802547
+          }
+        }
+      },
+      {
+        "Type": 3,
+        "Data": {
+          "UID": 5429009614205384697,
+          "ComponentType": 3,
+          "Active": true,
+          "ScriptName": "ArthurAttackConfig",
+          "ScriptFields": {
+            "Heavy Swipe Damage": 10.0,
+            "Heavy Swipe Range": 3.0,
+            "Heavy Swipe Half Angle Degrees": 45.0,
+            "Heavy Swipe Total Duration": 1.5,
+            "Heavy Swipe Hit 1 Time": 0.44999998807907104,
+            "Heavy Swipe Hit 2 Time": 0.949999988079071,
+            "Heavy Swipe Hit 3 Time": 1.350000023841858,
+            "Heavy Swipe Recovery Duration": 0.75,
+            "Heavy Swipe Phase 2 Hit 1 Time": 0.30000001192092896,
+            "Heavy Swipe Phase 2 Hit 2 Time": 0.6000000238418579,
+            "Heavy Swipe Phase 2 Hit 3 Time": 0.8999999761581421,
+            "Heavy Swipe Phase 2 Hit 4 Time": 1.2000000476837158,
+            "Heavy Swipe Phase 2 Recovery Duration": 0.44999998807907104,
+            "Side Sweep Damage": 12.0,
+            "Side Sweep Range": 4.0,
+            "Side Sweep Half Angle Degrees": 50.0,
+            "Side Sweep Hit Time": 0.3499999940395355,
+            "Side Sweep Total Duration": 0.699999988079071,
+            "Side Sweep Recovery Duration": 1.0,
+            "Side Sweep Cooldown": 10.0,
+            "Side Sweep Phase 2 Hit Time": 0.20000000298023224,
+            "Side Sweep Phase 2 Total Duration": 0.550000011920929,
+            "Side Sweep Phase 2 Recovery Duration": 0.3499999940395355,
+            "Charging Slam Dash Damage": 12.0,
+            "Charging Slam Final Area Impact Damage": 25.0,
+            "Charging Slam Hit Time": 1.0,
+            "Charging Slam Dash Speed": 8.0,
+            "Charging Slam Dash Hit Radius": 1.2000000476837158,
+            "Charging Slam Impact Radius": 3.0,
+            "Charging Slam Total Duration": 2.200000047683716,
+            "Charging Slam Recovery Duration": 0.75,
+            "Charging Slam Impact Stun Duration": 1.0,
+            "Charging Slam Cooldown": 14.0,
+            "Charging Slam Phase 2 Hit Time": 0.5,
+            "Charging Slam Phase 2 Dash Speed": 10.0,
+            "Charging Slam Min Range": 5.0,
+            "Charging Slam Max Range": 8.0,
+            "Earth Hammer Damage": 20.0,
+            "Earth Hammer Radius": 6.5,
+            "Earth Hammer Total Duration": 2.200000047683716,
+            "Earth Hammer Hit Time": 2.0,
+            "Earth Hammer Recovery Duration": 1.0,
+            "Earth Hammer Stun Duration": 1.25,
+            "Earth Hammer Cooldown": 18.0,
+            "Earth Hammer Phase 2 Damage": 25.0,
+            "Earth Hammer Phase 2 Stun Duration": 1.5
+          }
+        }
+      },
+      {
+        "Type": 3,
+        "Data": {
+          "UID": 16116715647979223382,
+          "ComponentType": 3,
+          "Active": true,
+          "ScriptName": "ArthurAttackDebugDraw",
+          "ScriptFields": {
+            "Debug Enabled": true,
+            "Draw Heavy Swipe": true,
+            "Draw Side Sweep Right": true,
+            "Draw Side Sweep Left": true,
+            "Draw Earth Hammer": true,
+            "Draw Charging Slam": true,
+            "Height Offset": 0.15000000596046448
+          }
+        }
+      },
+      {
+        "Type": 3,
+        "Data": {
+          "UID": 11866433789366764708,
+          "ComponentType": 3,
+          "Active": true,
+          "ScriptName": "ArthurAttackExecutor",
+          "ScriptFields": {}
+        }
+      },
+      {
+        "Type": 3,
+        "Data": {
+          "UID": 13416705326878322964,
+          "ComponentType": 3,
+          "Active": true,
+          "ScriptName": "EnemyDamageable",
+          "ScriptFields": {
+            "Max HP": 300.0,
+            "Health Slider": 0,
+            "Health Slider 2": 0,
+            "UI Update Time (Slider 2)": 1.0
+          }
+        }
+      }
+    ],
+    "Children": [
+      {
+        "Name": "Bear",
+        "Active": true,
+        "Tag": "DEFAULT",
+        "Layer": "DEFAULT",
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "Components": [
+          {
+            "Type": 1,
+            "Data": {
+              "UID": 14741952851258798585,
+              "ComponentType": 1,
+              "Active": true,
+              "MeshAssetId": {
+                "uid": 12584446851543204723,
+                "libId": "7a23719331f1564a5789943ab5ca02a5"
+              },
+              "SkinAssetId": {
+                "uid": 17182993310209300617,
+                "libId": "fd9720516e3721b8c22b174ee7077653"
+              },
+              "MaterialAssetId": [
+                {
+                  "uid": 6174052325598143155,
+                  "libId": "974e8939929d9eaa0ee916c6318715d7"
+                }
+              ]
+            }
+          }
+        ],
+        "Children": []
+      },
+      {
+        "Name": "root",
+        "Active": true,
+        "Tag": "DEFAULT",
+        "Layer": "DEFAULT",
+        "Transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            -0.7071068286895752,
+            -0.0,
+            0.0,
+            0.7071068286895752
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "Components": [],
+        "Children": [
+          {
+            "Name": "pelvis",
+            "Active": true,
+            "Tag": "DEFAULT",
+            "Layer": "DEFAULT",
+            "Transform": {
+              "position": [
+                0.017836637794971466,
+                0.20099370181560516,
+                0.28344792127609253
+              ],
+              "rotation": [
+                0.17869359254837036,
+                0.009996033273637297,
+                0.056698624044656754,
+                0.9822189211845398
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "Components": [],
+            "Children": [
+              {
+                "Name": "back",
+                "Active": true,
+                "Tag": "DEFAULT",
+                "Layer": "DEFAULT",
+                "Transform": {
+                  "position": [
+                    -0.003623798955231905,
+                    -0.019953548908233643,
+                    0.1790049374103546
+                  ],
+                  "rotation": [
+                    0.16338637471199036,
+                    -0.007419484201818705,
+                    0.04904576018452644,
+                    0.9853143692016602
+                  ],
+                  "scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                  ]
+                },
+                "Components": [],
+                "Children": [
+                  {
+                    "Name": "chest",
+                    "Active": true,
+                    "Tag": "DEFAULT",
+                    "Layer": "DEFAULT",
+                    "Transform": {
+                      "position": [
+                        3.5527135993911615e-17,
+                        -0.01265812385827303,
+                        0.18786922097206116
+                      ],
+                      "rotation": [
+                        0.11776971071958542,
+                        -0.07110927999019623,
+                        -0.04551949352025986,
+                        0.9894452095031738
+                      ],
+                      "scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                      ]
+                    },
+                    "Components": [],
+                    "Children": [
+                      {
+                        "Name": "neck",
+                        "Active": true,
+                        "Tag": "DEFAULT",
+                        "Layer": "DEFAULT",
+                        "Transform": {
+                          "position": [
+                            1.7763567996955808e-17,
+                            -0.12656496465206146,
+                            0.23487254977226257
+                          ],
+                          "rotation": [
+                            -0.4726118743419647,
+                            0.20337244868278503,
+                            -0.09358320385217668,
+                            0.8523613214492798
+                          ],
+                          "scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                          ]
+                        },
+                        "Components": [],
+                        "Children": [
+                          {
+                            "Name": "head",
+                            "Active": true,
+                            "Tag": "DEFAULT",
+                            "Layer": "DEFAULT",
+                            "Transform": {
+                              "position": [
+                                0.0,
+                                -0.10225827246904372,
+                                -0.03330815210938454
+                              ],
+                              "rotation": [
+                                0.1293584704399109,
+                                -0.06506650149822235,
+                                -0.18789102137088776,
+                                0.971457540988922
+                              ],
+                              "scale": [
+                                1.0,
+                                1.0,
+                                1.0
+                              ]
+                            },
+                            "Components": [],
+                            "Children": []
+                          }
+                        ]
+                      },
+                      {
+                        "Name": "shoulder_L",
+                        "Active": true,
+                        "Tag": "DEFAULT",
+                        "Layer": "DEFAULT",
+                        "Transform": {
+                          "position": [
+                            0.07237496972084045,
+                            0.0030989551451057196,
+                            0.1455630511045456
+                          ],
+                          "rotation": [
+                            -0.10438134521245956,
+                            -0.04544533044099808,
+                            -0.021673426032066345,
+                            0.9932620525360109
+                          ],
+                          "scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                          ]
+                        },
+                        "Components": [],
+                        "Children": [
+                          {
+                            "Name": "arm_1_L",
+                            "Active": true,
+                            "Tag": "DEFAULT",
+                            "Layer": "DEFAULT",
+                            "Transform": {
+                              "position": [
+                                0.22946280241012573,
+                                0.0,
+                                7.105427198782323e-17
+                              ],
+                              "rotation": [
+                                0.2735985219478607,
+                                0.39649873971939087,
+                                -0.27778396010398865,
+                                0.8311249613761902
+                              ],
+                              "scale": [
+                                1.0,
+                                1.0,
+                                1.0
+                              ]
+                            },
+                            "Components": [],
+                            "Children": [
+                              {
+                                "Name": "arm_2_L",
+                                "Active": true,
+                                "Tag": "DEFAULT",
+                                "Layer": "DEFAULT",
+                                "Transform": {
+                                  "position": [
+                                    0.2703893482685089,
+                                    0.0,
+                                    -2.842170879512929e-16
+                                  ],
+                                  "rotation": [
+                                    -2.5048097665457097e-17,
+                                    1.1956789875335608e-17,
+                                    -0.4307887554168701,
+                                    0.902452826499939
+                                  ],
+                                  "scale": [
+                                    1.0,
+                                    1.0,
+                                    1.0
+                                  ]
+                                },
+                                "Components": [],
+                                "Children": [
+                                  {
+                                    "Name": "joint10",
+                                    "Active": true,
+                                    "Tag": "DEFAULT",
+                                    "Layer": "DEFAULT",
+                                    "Transform": {
+                                      "position": [
+                                        0.2703893482685089,
+                                        0.0,
+                                        -2.4868995857482625e-16
+                                      ],
+                                      "rotation": [
+                                        0.05757906660437584,
+                                        -0.0006752692279405892,
+                                        -0.10547824949026108,
+                                        0.9927530288696288
+                                      ],
+                                      "scale": [
+                                        1.0,
+                                        1.0,
+                                        1.0
+                                      ]
+                                    },
+                                    "Components": [],
+                                    "Children": [
+                                      {
+                                        "Name": "b_finger_L",
+                                        "Active": true,
+                                        "Tag": "DEFAULT",
+                                        "Layer": "DEFAULT",
+                                        "Transform": {
+                                          "position": [
+                                            0.07545361667871475,
+                                            -0.11788918823003768,
+                                            -0.025581488385796547
+                                          ],
+                                          "rotation": [
+                                            0.4432927966117859,
+                                            -0.24251557886600497,
+                                            0.49230167269706726,
+                                            0.7087430953979492
+                                          ],
+                                          "scale": [
+                                            1.0,
+                                            1.0,
+                                            1.0
+                                          ]
+                                        },
+                                        "Components": [],
+                                        "Children": []
+                                      },
+                                      {
+                                        "Name": "fingers_L",
+                                        "Active": true,
+                                        "Tag": "DEFAULT",
+                                        "Layer": "DEFAULT",
+                                        "Transform": {
+                                          "position": [
+                                            0.18297556042671204,
+                                            0.003867695573717356,
+                                            -0.005220851395279169
+                                          ],
+                                          "rotation": [
+                                            0.4408033490180969,
+                                            0.4676245152950287,
+                                            0.558934211730957,
+                                            0.5240345597267151
+                                          ],
+                                          "scale": [
+                                            1.0,
+                                            1.0,
+                                            1.0
+                                          ]
+                                        },
+                                        "Components": [],
+                                        "Children": []
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "Name": "arm_2_ctrl_L",
+                                    "Active": true,
+                                    "Tag": "DEFAULT",
+                                    "Layer": "DEFAULT",
+                                    "Transform": {
+                                      "position": [
+                                        0.12999503314495087,
+                                        7.105427198782323e-17,
+                                        -4.263256319269394e-16
+                                      ],
+                                      "rotation": [
+                                        0.1575499176979065,
+                                        2.0595895625702706e-18,
+                                        -9.111903990528933e-18,
+                                        0.9875110387802124
+                                      ],
+                                      "scale": [
+                                        1.0,
+                                        1.0,
+                                        1.0
+                                      ]
+                                    },
+                                    "Components": [],
+                                    "Children": []
+                                  }
+                                ]
+                              },
+                              {
+                                "Name": "shoulder_ctrl_L",
+                                "Active": true,
+                                "Tag": "DEFAULT",
+                                "Layer": "DEFAULT",
+                                "Transform": {
+                                  "position": [
+                                    0.05999999865889549,
+                                    0.0,
+                                    -1.2789768693110388e-15
+                                  ],
+                                  "rotation": [
+                                    -2.7755575615628914e-17,
+                                    -2.7755575615628914e-17,
+                                    6.938893903907228e-18,
+                                    1.0
+                                  ],
+                                  "scale": [
+                                    1.0,
+                                    1.0,
+                                    1.0
+                                  ]
+                                },
+                                "Components": [],
+                                "Children": []
+                              }
+                            ]
+                          },
+                          {
+                            "Name": "joint14",
+                            "Active": true,
+                            "Tag": "DEFAULT",
+                            "Layer": "DEFAULT",
+                            "Transform": {
+                              "position": [
+                                0.15048927068710327,
+                                0.010779667645692824,
+                                0.1516777127981186
+                              ],
+                              "rotation": [
+                                -0.00031799485441297293,
+                                0.042915187776088715,
+                                0.007402813993394375,
+                                0.99905127286911
+                              ],
+                              "scale": [
+                                1.0,
+                                1.0,
+                                1.0
+                              ]
+                            },
+                            "Components": [],
+                            "Children": []
+                          }
+                        ]
+                      },
+                      {
+                        "Name": "shoulder_R",
+                        "Active": true,
+                        "Tag": "DEFAULT",
+                        "Layer": "DEFAULT",
+                        "Transform": {
+                          "position": [
+                            -0.07237499952316284,
+                            0.0030988550279289484,
+                            0.14556260406970978
+                          ],
+                          "rotation": [
+                            0.9942254424095154,
+                            0.01886341348290443,
+                            -0.0020039649680256844,
+                            0.10562208294868468
+                          ],
+                          "scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                          ]
+                        },
+                        "Components": [],
+                        "Children": [
+                          {
+                            "Name": "arm_1_R",
+                            "Active": true,
+                            "Tag": "DEFAULT",
+                            "Layer": "DEFAULT",
+                            "Transform": {
+                              "position": [
+                                -0.22859199345111847,
+                                0.0034003998152911663,
+                                -0.019675999879837036
+                              ],
+                              "rotation": [
+                                0.047587472945451736,
+                                0.4053250551223755,
+                                -0.06275589764118195,
+                                0.910773754119873
+                              ],
+                              "scale": [
+                                1.0,
+                                1.0,
+                                1.0
+                              ]
+                            },
+                            "Components": [],
+                            "Children": [
+                              {
+                                "Name": "arm_2_R",
+                                "Active": true,
+                                "Tag": "DEFAULT",
+                                "Layer": "DEFAULT",
+                                "Transform": {
+                                  "position": [
+                                    -0.2703898251056671,
+                                    -9.404723222417033e-9,
+                                    1.7695857934540984e-7
+                                  ],
+                                  "rotation": [
+                                    0.0,
+                                    -0.0,
+                                    -0.6371682286262512,
+                                    0.7707247734069824
+                                  ],
+                                  "scale": [
+                                    1.0,
+                                    1.0,
+                                    1.0
+                                  ]
+                                },
+                                "Components": [],
+                                "Children": [
+                                  {
+                                    "Name": "joint10_dani",
+                                    "Active": true,
+                                    "Tag": "DEFAULT",
+                                    "Layer": "DEFAULT",
+                                    "Transform": {
+                                      "position": [
+                                        -0.2703857421875,
+                                        -0.00002366896478633862,
+                                        -0.0014565036399289966
+                                      ],
+                                      "rotation": [
+                                        0.4749872982501984,
+                                        0.17017515003681183,
+                                        0.07717815041542053,
+                                        0.8599250316619873
+                                      ],
+                                      "scale": [
+                                        1.0,
+                                        1.0,
+                                        1.0
+                                      ]
+                                    },
+                                    "Components": [],
+                                    "Children": [
+                                      {
+                                        "Name": "b_finger_R",
+                                        "Active": true,
+                                        "Tag": "DEFAULT",
+                                        "Layer": "DEFAULT",
+                                        "Transform": {
+                                          "position": [
+                                            -0.07545371353626251,
+                                            0.11788960546255112,
+                                            0.025581134483218193
+                                          ],
+                                          "rotation": [
+                                            0.4623640179634094,
+                                            -0.2203176915645599,
+                                            0.2280779629945755,
+                                            0.8280459642410278
+                                          ],
+                                          "scale": [
+                                            1.0,
+                                            1.0,
+                                            1.0
+                                          ]
+                                        },
+                                        "Components": [],
+                                        "Children": []
+                                      },
+                                      {
+                                        "Name": "fingers_R",
+                                        "Active": true,
+                                        "Tag": "DEFAULT",
+                                        "Layer": "DEFAULT",
+                                        "Transform": {
+                                          "position": [
+                                            -0.1829748898744583,
+                                            -0.003867366584017873,
+                                            0.005221072118729353
+                                          ],
+                                          "rotation": [
+                                            0.2848854660987854,
+                                            0.5471264123916626,
+                                            0.5376227498054504,
+                                            0.574851930141449
+                                          ],
+                                          "scale": [
+                                            1.0,
+                                            1.0,
+                                            1.0
+                                          ]
+                                        },
+                                        "Components": [],
+                                        "Children": []
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "Name": "arm_2_ctrl_R",
+                                    "Active": true,
+                                    "Tag": "DEFAULT",
+                                    "Layer": "DEFAULT",
+                                    "Transform": {
+                                      "position": [
+                                        -0.12999331951141355,
+                                        -0.000011178094609931575,
+                                        -0.0007002618513070047
+                                      ],
+                                      "rotation": [
+                                        -0.015843261033296585,
+                                        -0.002694095252081752,
+                                        -2.4372854845466922e-9,
+                                        0.9998708963394164
+                                      ],
+                                      "scale": [
+                                        1.0,
+                                        1.0,
+                                        1.0
+                                      ]
+                                    },
+                                    "Components": [],
+                                    "Children": []
+                                  }
+                                ]
+                              },
+                              {
+                                "Name": "shoulder_ctrl_R",
+                                "Active": true,
+                                "Tag": "DEFAULT",
+                                "Layer": "DEFAULT",
+                                "Transform": {
+                                  "position": [
+                                    -0.060000378638505936,
+                                    3.840641138452838e-9,
+                                    1.3512037355667417e-7
+                                  ],
+                                  "rotation": [
+                                    -1.0245658543794889e-8,
+                                    -3.2911576242078406e-10,
+                                    -2.437283930234457e-9,
+                                    1.0
+                                  ],
+                                  "scale": [
+                                    1.0,
+                                    1.0,
+                                    1.0
+                                  ]
+                                },
+                                "Components": [],
+                                "Children": []
+                              }
+                            ]
+                          },
+                          {
+                            "Name": "joint11",
+                            "Active": true,
+                            "Tag": "DEFAULT",
+                            "Layer": "DEFAULT",
+                            "Transform": {
+                              "position": [
+                                -0.24962753057479856,
+                                0.018051667138934135,
+                                -0.15808171033859253
+                              ],
+                              "rotation": [
+                                0.9907166957855223,
+                                0.08088488131761551,
+                                -0.031513866037130356,
+                                -0.10461821407079697
+                              ],
+                              "scale": [
+                                1.0,
+                                1.0,
+                                1.0
+                              ]
+                            },
+                            "Components": [],
+                            "Children": []
+                          }
+                        ]
+                      },
+                      {
+                        "Name": "ring",
+                        "Active": true,
+                        "Tag": "DEFAULT",
+                        "Layer": "DEFAULT",
+                        "Transform": {
+                          "position": [
+                            1.7763567996955808e-17,
+                            0.2378951758146286,
+                            0.02862338162958622
+                          ],
+                          "rotation": [
+                            -0.10564108937978745,
+                            2.8245651590835453e-18,
+                            -1.0166842167303536e-17,
+                            0.9944043755531312
+                          ],
+                          "scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                          ]
+                        },
+                        "Components": [],
+                        "Children": [
+                          {
+                            "Name": "chain_back_up_L",
+                            "Active": true,
+                            "Tag": "DEFAULT",
+                            "Layer": "DEFAULT",
+                            "Transform": {
+                              "position": [
+                                0.06443747133016586,
+                                -0.0021095869597047567,
+                                0.050877682864665985
+                              ],
+                              "rotation": [
+                                0.18153563141822815,
+                                -0.4140905439853668,
+                                -0.19467425346374512,
+                                0.8704457879066467
+                              ],
+                              "scale": [
+                                1.0,
+                                1.0,
+                                1.0
+                              ]
+                            },
+                            "Components": [],
+                            "Children": []
+                          },
+                          {
+                            "Name": "chain_back_down_L",
+                            "Active": true,
+                            "Tag": "DEFAULT",
+                            "Layer": "DEFAULT",
+                            "Transform": {
+                              "position": [
+                                0.06807074695825577,
+                                0.00154813751578331,
+                                -0.03888203203678131
+                              ],
+                              "rotation": [
+                                0.019016314297914505,
+                                0.3298804461956024,
+                                -0.10164857655763626,
+                                0.9383415579795836
+                              ],
+                              "scale": [
+                                1.0,
+                                1.0,
+                                1.0
+                              ]
+                            },
+                            "Components": [],
+                            "Children": []
+                          },
+                          {
+                            "Name": "chain_back_down_R",
+                            "Active": true,
+                            "Tag": "DEFAULT",
+                            "Layer": "DEFAULT",
+                            "Transform": {
+                              "position": [
+                                -0.06807079911231995,
+                                0.0015479300636798143,
+                                -0.03888155519962311
+                              ],
+                              "rotation": [
+                                0.9383415579795836,
+                                0.10164857655763626,
+                                0.3298804461956024,
+                                -0.019016314297914505
+                              ],
+                              "scale": [
+                                1.0,
+                                1.0,
+                                1.0
+                              ]
+                            },
+                            "Components": [],
+                            "Children": []
+                          },
+                          {
+                            "Name": "chain_back_up_R",
+                            "Active": true,
+                            "Tag": "DEFAULT",
+                            "Layer": "DEFAULT",
+                            "Transform": {
+                              "position": [
+                                -0.06443750113248825,
+                                -0.002110069850459695,
+                                0.050877440720796585
+                              ],
+                              "rotation": [
+                                0.8704457879066467,
+                                0.19467425346374512,
+                                -0.4140905439853668,
+                                -0.18153563141822815
+                              ],
+                              "scale": [
+                                1.0,
+                                1.0,
+                                1.0
+                              ]
+                            },
+                            "Components": [],
+                            "Children": []
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "Name": "chain_middle_L",
+                    "Active": true,
+                    "Tag": "DEFAULT",
+                    "Layer": "DEFAULT",
+                    "Transform": {
+                      "position": [
+                        0.2949359714984894,
+                        0.05934767425060272,
+                        0.06557022035121918
+                      ],
+                      "rotation": [
+                        0.1652934104204178,
+                        -0.029538076370954514,
+                        0.17341649532318115,
+                        0.9704289436340332
+                      ],
+                      "scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                      ]
+                    },
+                    "Components": [],
+                    "Children": []
+                  },
+                  {
+                    "Name": "chain_middle_R",
+                    "Active": true,
+                    "Tag": "DEFAULT",
+                    "Layer": "DEFAULT",
+                    "Transform": {
+                      "position": [
+                        -0.29493600130081177,
+                        0.05934768170118332,
+                        0.06557014584541321
+                      ],
+                      "rotation": [
+                        0.9704289436340332,
+                        -0.17341649532318115,
+                        -0.029538076370954514,
+                        -0.1652934104204178
+                      ],
+                      "scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                      ]
+                    },
+                    "Components": [],
+                    "Children": []
+                  },
+                  {
+                    "Name": "shield",
+                    "Active": true,
+                    "Tag": "DEFAULT",
+                    "Layer": "DEFAULT",
+                    "Transform": {
+                      "position": [
+                        2.6645351995433716e-17,
+                        -0.24622218310832977,
+                        0.006583615206182003
+                      ],
+                      "rotation": [
+                        0.0025330563075840473,
+                        -7.030643588379481e-20,
+                        -2.775548628012276e-17,
+                        0.999996781349182
+                      ],
+                      "scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                      ]
+                    },
+                    "Components": [],
+                    "Children": [
+                      {
+                        "Name": "chain_front_up_L",
+                        "Active": true,
+                        "Tag": "DEFAULT",
+                        "Layer": "DEFAULT",
+                        "Transform": {
+                          "position": [
+                            0.15041425824165344,
+                            0.01971837505698204,
+                            0.16667598485946655
+                          ],
+                          "rotation": [
+                            0.015386074781417848,
+                            -0.6248258948326111,
+                            0.09821468591690063,
+                            0.774409294128418
+                          ],
+                          "scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                          ]
+                        },
+                        "Components": [],
+                        "Children": []
+                      },
+                      {
+                        "Name": "chain_front_down_L",
+                        "Active": true,
+                        "Tag": "DEFAULT",
+                        "Layer": "DEFAULT",
+                        "Transform": {
+                          "position": [
+                            0.1625301092863083,
+                            0.04632236436009407,
+                            0.0037658929359167814
+                          ],
+                          "rotation": [
+                            1.6653345369377348e-16,
+                            -2.0816681711721685e-17,
+                            3.4666738998970245e-33,
+                            1.0
+                          ],
+                          "scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                          ]
+                        },
+                        "Components": [],
+                        "Children": []
+                      },
+                      {
+                        "Name": "chain_front_up_R",
+                        "Active": true,
+                        "Tag": "DEFAULT",
+                        "Layer": "DEFAULT",
+                        "Transform": {
+                          "position": [
+                            -0.15041399002075195,
+                            0.019717972725629807,
+                            0.16667571663856506
+                          ],
+                          "rotation": [
+                            0.8704922795295715,
+                            -0.09005657583475113,
+                            -0.4832851588726044,
+                            0.023842833936214447
+                          ],
+                          "scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                          ]
+                        },
+                        "Components": [],
+                        "Children": []
+                      },
+                      {
+                        "Name": "chain_front_down_R",
+                        "Active": true,
+                        "Tag": "DEFAULT",
+                        "Layer": "DEFAULT",
+                        "Transform": {
+                          "position": [
+                            -0.16253000497817993,
+                            0.04632197320461273,
+                            0.0037657239008694887
+                          ],
+                          "rotation": [
+                            1.0,
+                            -1.550963648536927e-25,
+                            2.0816681711721685e-17,
+                            7.450580596923828e-9
+                          ],
+                          "scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                          ]
+                        },
+                        "Components": [],
+                        "Children": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "Name": "leg_1_L",
+                "Active": true,
+                "Tag": "DEFAULT",
+                "Layer": "DEFAULT",
+                "Transform": {
+                  "position": [
+                    0.1841157227754593,
+                    -0.002293549478054046,
+                    -0.008402795530855656
+                  ],
+                  "rotation": [
+                    -0.40036332607269287,
+                    0.4618586599826813,
+                    -0.5291684865951538,
+                    0.5885376930236816
+                  ],
+                  "scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                  ]
+                },
+                "Components": [],
+                "Children": [
+                  {
+                    "Name": "leg_2_L",
+                    "Active": true,
+                    "Tag": "DEFAULT",
+                    "Layer": "DEFAULT",
+                    "Transform": {
+                      "position": [
+                        0.1698133647441864,
+                        0.0,
+                        -3.5527135993911615e-17
+                      ],
+                      "rotation": [
+                        1.975932816755843e-17,
+                        3.475976384836863e-17,
+                        0.8353506326675415,
+                        0.5497175455093384
+                      ],
+                      "scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                      ]
+                    },
+                    "Components": [],
+                    "Children": [
+                      {
+                        "Name": "foot_L",
+                        "Active": true,
+                        "Tag": "DEFAULT",
+                        "Layer": "DEFAULT",
+                        "Transform": {
+                          "position": [
+                            0.1698133647441864,
+                            -3.5527135993911615e-17,
+                            -7.105427198782323e-17
+                          ],
+                          "rotation": [
+                            0.09368839859962463,
+                            -0.07025647163391113,
+                            -0.3627442121505738,
+                            0.9245015978813172
+                          ],
+                          "scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                          ]
+                        },
+                        "Components": [],
+                        "Children": [
+                          {
+                            "Name": "toe_L",
+                            "Active": true,
+                            "Tag": "DEFAULT",
+                            "Layer": "DEFAULT",
+                            "Transform": {
+                              "position": [
+                                0.03500000014901161,
+                                -0.05999999865889549,
+                                -0.0044999998062849045
+                              ],
+                              "rotation": [
+                                -0.06259577721357346,
+                                -0.6045050621032715,
+                                -0.0507861003279686,
+                                0.7925125956535339
+                              ],
+                              "scale": [
+                                1.0,
+                                1.0,
+                                1.0
+                              ]
+                            },
+                            "Components": [],
+                            "Children": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "Name": "leg_1_R",
+                "Active": true,
+                "Tag": "DEFAULT",
+                "Layer": "DEFAULT",
+                "Transform": {
+                  "position": [
+                    -0.1841159909963608,
+                    -0.0022935569286346436,
+                    -0.008402357809245586
+                  ],
+                  "rotation": [
+                    0.6855936646461487,
+                    0.25612983107566833,
+                    0.588333010673523,
+                    0.34383586049079895
+                  ],
+                  "scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                  ]
+                },
+                "Components": [],
+                "Children": [
+                  {
+                    "Name": "leg_2_R",
+                    "Active": true,
+                    "Tag": "DEFAULT",
+                    "Layer": "DEFAULT",
+                    "Transform": {
+                      "position": [
+                        -0.16981364786624908,
+                        -1.4621795685343386e-7,
+                        3.073699019751075e-7
+                      ],
+                      "rotation": [
+                        5.833798389919553e-18,
+                        1.3979390402454345e-17,
+                        0.81012362241745,
+                        0.5862591862678528
+                      ],
+                      "scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                      ]
+                    },
+                    "Components": [],
+                    "Children": [
+                      {
+                        "Name": "foot_R",
+                        "Active": true,
+                        "Tag": "DEFAULT",
+                        "Layer": "DEFAULT",
+                        "Transform": {
+                          "position": [
+                            -0.16981342434883118,
+                            7.372299393182402e-8,
+                            -1.8118034006420205e-7
+                          ],
+                          "rotation": [
+                            0.021495437249541283,
+                            -0.11106552183628082,
+                            -0.5545282959938049,
+                            0.8244396448135376
+                          ],
+                          "scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                          ]
+                        },
+                        "Components": [],
+                        "Children": [
+                          {
+                            "Name": "toe_R",
+                            "Active": true,
+                            "Tag": "DEFAULT",
+                            "Layer": "DEFAULT",
+                            "Transform": {
+                              "position": [
+                                -0.03500000014901161,
+                                0.05999999865889549,
+                                0.0044999998062849045
+                              ],
+                              "rotation": [
+                                -0.06259577721357346,
+                                -0.6045050621032715,
+                                -0.0507861003279686,
+                                0.7925125956535339
+                              ],
+                              "scale": [
+                                1.0,
+                                1.0,
+                                1.0
+                              ]
+                            },
+                            "Components": [],
+                            "Children": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -102,6 +102,7 @@ private:
     bool m_hasIndexBuffer = false;
 
     std::vector<BoneWeight>  m_boneWeights;
+    ComPtr<ID3D12Resource>   m_boneWeightBuffer;       // committed resource (like morph targets)
     D3D12_VERTEX_BUFFER_VIEW m_boneWeightBufferView = {};
     bool                     m_hasBoneWeightBuffer = false;
 
