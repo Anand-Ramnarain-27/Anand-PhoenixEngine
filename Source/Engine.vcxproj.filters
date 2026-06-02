@@ -122,6 +122,12 @@
     <ClCompile Include="ComponentSimpleCharacterController.cpp">
       <Filter>Engine\Scene\Components</Filter>
     </ClCompile>
+    <ClCompile Include="ComponentBounds.cpp">
+      <Filter>Engine\Scene\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentRigidbody.cpp">
+      <Filter>Engine\Scene\Components</Filter>
+    </ClCompile>
     <!-- Engine\Scene\Prefabs -->
     <ClCompile Include="PrefabManager.cpp">
       <Filter>Engine\Scene\Prefabs</Filter>
@@ -339,6 +345,31 @@
     <ClCompile Include="EngineDropTarget.cpp">
       <Filter>Engine\Editor\Platform</Filter>
     </ClCompile>
+    <!-- ============================================================ -->
+    <!-- Engine\Physics                                               -->
+    <!-- ============================================================ -->
+    <!-- Engine\Physics\Collision -->
+    <ClCompile Include="CollisionSystem.cpp">
+      <Filter>Engine\Physics\Collision</Filter>
+    </ClCompile>
+    <!-- Engine\Physics\Collision\BroadPhase -->
+    <ClCompile Include="BruteForceBroadPhase.cpp">
+      <Filter>Engine\Physics\Collision\BroadPhase</Filter>
+    </ClCompile>
+    <ClCompile Include="UniformGridBroadPhase.cpp">
+      <Filter>Engine\Physics\Collision\BroadPhase</Filter>
+    </ClCompile>
+    <ClCompile Include="OctreeBroadPhase.cpp">
+      <Filter>Engine\Physics\Collision\BroadPhase</Filter>
+    </ClCompile>
+    <!-- Engine\Physics\Collision\NarrowPhase -->
+    <ClCompile Include="NarrowPhase.cpp">
+      <Filter>Engine\Physics\Collision\NarrowPhase</Filter>
+    </ClCompile>
+    <!-- Engine\Physics\Response -->
+    <ClCompile Include="CollisionResponse.cpp">
+      <Filter>Engine\Physics\Response</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <!-- ============================================================ -->
@@ -505,6 +536,12 @@
       <Filter>Engine\Scene\Components</Filter>
     </ClInclude>
     <ClInclude Include="ComponentSimpleCharacterController.h">
+      <Filter>Engine\Scene\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentBounds.h">
+      <Filter>Engine\Scene\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentRigidbody.h">
       <Filter>Engine\Scene\Components</Filter>
     </ClInclude>
     <!-- Engine\Scene\Prefabs -->
@@ -790,6 +827,45 @@
     <ClInclude Include="EngineDropTarget.h">
       <Filter>Engine\Editor\Platform</Filter>
     </ClInclude>
+    <!-- ============================================================ -->
+    <!-- Engine\Physics                                               -->
+    <!-- ============================================================ -->
+    <!-- Engine\Physics\Volumes -->
+    <ClInclude Include="BoundingVolume.h">
+      <Filter>Engine\Physics\Volumes</Filter>
+    </ClInclude>
+    <!-- Engine\Physics\Collision -->
+    <ClInclude Include="CollisionTypes.h">
+      <Filter>Engine\Physics\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="CollisionSystem.h">
+      <Filter>Engine\Physics\Collision</Filter>
+    </ClInclude>
+    <!-- Engine\Physics\Collision\BroadPhase -->
+    <ClInclude Include="IBroadPhase.h">
+      <Filter>Engine\Physics\Collision\BroadPhase</Filter>
+    </ClInclude>
+    <ClInclude Include="BruteForceBroadPhase.h">
+      <Filter>Engine\Physics\Collision\BroadPhase</Filter>
+    </ClInclude>
+    <ClInclude Include="UniformGridBroadPhase.h">
+      <Filter>Engine\Physics\Collision\BroadPhase</Filter>
+    </ClInclude>
+    <ClInclude Include="OctreeBroadPhase.h">
+      <Filter>Engine\Physics\Collision\BroadPhase</Filter>
+    </ClInclude>
+    <!-- Engine\Physics\Collision\MidPhase -->
+    <ClInclude Include="IMidPhase.h">
+      <Filter>Engine\Physics\Collision\MidPhase</Filter>
+    </ClInclude>
+    <!-- Engine\Physics\Collision\NarrowPhase -->
+    <ClInclude Include="NarrowPhase.h">
+      <Filter>Engine\Physics\Collision\NarrowPhase</Filter>
+    </ClInclude>
+    <!-- Engine\Physics\Response -->
+    <ClInclude Include="CollisionResponse.h">
+      <Filter>Engine\Physics\Response</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
@@ -996,6 +1072,27 @@
     </Filter>
     <Filter Include="Engine\Editor\Platform">
       <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000036}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Physics">
+      <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000037}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Physics\Volumes">
+      <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000038}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Physics\Collision">
+      <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000039}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Physics\Collision\BroadPhase">
+      <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000040}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Physics\Collision\MidPhase">
+      <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000041}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Physics\Collision\NarrowPhase">
+      <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000042}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Physics\Response">
+      <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000043}</UniqueIdentifier>
     </Filter>
     <Filter Include="Engine\UI">
       <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000028}</UniqueIdentifier>
