@@ -173,6 +173,14 @@
     <ClInclude Include="3rdParty\ImGuizmo\ImGuizmo.h" />
     <ClInclude Include="3rdParty\imgui-node-editor-master\imgui_node_editor.h" />
     <ClInclude Include="3rdParty\imgui-node-editor-master\imgui_node_editor_internal.h" />
+    <ClInclude Include="AABB.h" />
+    <ClInclude Include="IBroadPhase.h" />
+    <ClInclude Include="IMidPhase.h" />
+    <ClInclude Include="BruteForceBroadPhase.h" />
+    <ClInclude Include="PassthroughMidPhase.h" />
+    <ClInclude Include="NarrowPhase.h" />
+    <ClInclude Include="CollisionSystem.h" />
+    <ClInclude Include="CollisionTypes.h" />
     <ClInclude Include="Application.h" />
     <ClInclude Include="AssetBrowserPanel.h" />
     <ClInclude Include="DragDropManager.h" />
@@ -365,6 +373,9 @@
     <ClCompile Include="ComponentCamera.cpp" />
     <ClCompile Include="ComponentFactory.cpp" />
     <ClCompile Include="ComponentLights.cpp" />
+    <ClCompile Include="BruteForceBroadPhase.cpp" />
+    <ClCompile Include="CollisionSystem.cpp" />
+    <ClCompile Include="NarrowPhase.cpp" />
     <ClCompile Include="ComponentMesh.cpp" />
     <ClCompile Include="ComponentScript.cpp" />
     <ClCompile Include="ComponentTransform.cpp" />

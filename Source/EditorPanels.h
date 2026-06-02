@@ -1,6 +1,7 @@
 #pragma once
 #include "EditorPanel.h"
 #include "ResourceCommon.h"
+#include "CollisionTypes.h"
 #include <vector>
 #include <string>
 
@@ -68,4 +69,16 @@ protected:
 private:
     static ImVec4 typeColor(ResourceBase::Type t);
     static const char* typeName(ResourceBase::Type t);
+};
+
+// Shows live collision pipeline statistics (broad/mid/narrow pair counts and
+// individual contact details) updated every frame by CollisionSystem::run().
+class CollisionDebugPanel : public EditorPanel {
+public:
+    explicit CollisionDebugPanel(ModuleEditor* editor)
+        : EditorPanel(editor) { open = false; }
+    const char* getName() const override { return "Collision Debug"; }
+
+protected:
+    void drawContent() override;
 };

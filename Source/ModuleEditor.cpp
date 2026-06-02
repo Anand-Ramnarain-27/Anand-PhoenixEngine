@@ -33,6 +33,8 @@
 #include "PrimitiveFactory.h"
 #include "ModuleCamera.h"
 #include "FrustumDebugDraw.h"
+#include "AABB.h"
+#include "CollisionSystem.h"
 #include "EnvironmentMap.h"
 #include "SceneViewPanel.h"
 #include "GameViewPanel.h"
@@ -82,6 +84,7 @@ bool ModuleEditor::init() {
 
     m_imguiPass = std::make_unique<ImGuiPass>(device2.Get(), d3d12->getHWnd(), m_descTable.getCPUHandle(), m_descTable.getGPUHandle());
     m_debugDraw = std::make_unique<DebugDrawPass>(device4.Get(), d3d12->getDrawCommandQueue(), false);
+    m_collisionSystem = std::make_unique<CollisionSystem>();
     m_sceneManager = std::make_unique<SceneManager>();
     m_meshRenderPass = std::make_unique<MeshRenderPass>();
     m_hotReload = std::make_unique<HotReloadManager>();
@@ -147,6 +150,7 @@ bool ModuleEditor::init() {
     m_assetBrowser = addPanel<AssetBrowserPanel>(this);
     addPanel<SceneSettingsPanel>(this);
     addPanel<ResourcesPanel>(this);
+    addPanel<CollisionDebugPanel>(this);
 
     // Register OLE drop target so we get DragEnter/DragOver/DragLeave/Drop
     // callbacks that drive the real-time drag overlay and background imports.
@@ -217,6 +221,11 @@ void ModuleEditor::preRender() {
         m_sceneManager->update(dt);
         m_sceneManager->updateAnimations(dt);
     }
+
+    // Run the three-stage collision pipeline every frame.
+    if (m_collisionSystem)
+        m_collisionSystem->run(getActiveModuleScene());
+
     m_performance->pushFPS(app->getFPS());
 
     // Tick drag-drop manager: detects worker completion, triggers refresh
@@ -716,6 +725,43 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                     drawGizmos(child);
             };
             drawGizmos(moduleScene->getRoot());
+        }
+
+        if (s.debugDrawAABBs && moduleScene) {
+            // Collect world-space AABBs from every active mesh component in the scene.
+            struct AABBEntry { AABB box; };
+            std::vector<AABBEntry> aabbList;
+            std::function<void(GameObject*)> collectAABBs = [&](GameObject* node) {
+                if (!node || !node->isActive()) return;
+                if (auto* cm = node->getComponent<ComponentMesh>()) {
+                    if (cm->hasAABB()) {
+                        AABB box;
+                        Vector3 mn, mx;
+                        cm->getWorldAABB(mn, mx);
+                        box.min = mn;
+                        box.max = mx;
+                        aabbList.push_back({ box });
+                    }
+                }
+                for (auto* child : node->getChildren()) collectAABBs(child);
+            };
+            collectAABBs(moduleScene->getRoot());
+
+            // O(N²) pairwise overlap test — acceptable for editor scene sizes.
+            std::vector<bool> colliding(aabbList.size(), false);
+            for (size_t i = 0; i < aabbList.size(); ++i) {
+                for (size_t j = i + 1; j < aabbList.size(); ++j) {
+                    if (aabbList[i].box.intersects(aabbList[j].box)) {
+                        colliding[i] = true;
+                        colliding[j] = true;
+                    }
+                }
+            }
+
+            for (size_t i = 0; i < aabbList.size(); ++i) {
+                const float* color = colliding[i] ? dd::colors::Red : dd::colors::Green;
+                dd::aabb(ddConvert(aabbList[i].box.min), ddConvert(aabbList[i].box.max), color);
+            }
         }
 
         m_debugDraw->record(cmd, w, h, view, proj);
