@@ -59,9 +59,9 @@ private:
 	MeshPipeline m_pipeline;
 
 	// Ring is split: opaque uses [0, MAX_OPAQUE), transparent uses [MAX_OPAQUE, MAX_INSTANCES)
-	static constexpr UINT MAX_OPAQUE       = 256;
-	static constexpr UINT MAX_TRANSPARENT  = 256;
-	static constexpr UINT MAX_INSTANCES    = MAX_OPAQUE + MAX_TRANSPARENT;
+	static constexpr UINT MAX_OPAQUE = 256;
+	static constexpr UINT MAX_TRANSPARENT = 256;
+	static constexpr UINT MAX_INSTANCES = MAX_OPAQUE + MAX_TRANSPARENT;
 
 	ComPtr<ID3D12Resource> m_mvpRing;
 	void* m_mvpMapped = nullptr;

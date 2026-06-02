@@ -8,8 +8,7 @@
 #include "backends/imgui_impl_dx12.h"
 
 
-ImGuiPass::ImGuiPass(ID3D12Device2* device, HWND hWnd, D3D12_CPU_DESCRIPTOR_HANDLE cpuTextHandle, D3D12_GPU_DESCRIPTOR_HANDLE gpuTextHandle)
-{
+ImGuiPass::ImGuiPass(ID3D12Device2* device, HWND hWnd, D3D12_CPU_DESCRIPTOR_HANDLE cpuTextHandle, D3D12_GPU_DESCRIPTOR_HANDLE gpuTextHandle){
 
     // It's not optimal but makes ImGuiPass independent from ModuleDescriptor slides
     D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
@@ -30,8 +29,8 @@ ImGuiPass::ImGuiPass(ID3D12Device2* device, HWND hWnd, D3D12_CPU_DESCRIPTOR_HAND
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls    
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad; // Enable Gamepad Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     // Setup Dear ImGui style
@@ -52,7 +51,7 @@ ImGuiPass::ImGuiPass(ID3D12Device2* device, HWND hWnd, D3D12_CPU_DESCRIPTOR_HAND
     // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
 
     FILE* fp = fopen("c:\\Windows\\Fonts\\segoeui.ttf", "r");
-    if (fp) 
+    if (fp)
     {
         fclose(fp);
         io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\segoeui.ttf", 18.0f);
@@ -61,7 +60,7 @@ ImGuiPass::ImGuiPass(ID3D12Device2* device, HWND hWnd, D3D12_CPU_DESCRIPTOR_HAND
     {
         io.Fonts->AddFontDefault();
     }
-        
+
     io.Fonts->Build();
     //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
     //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
@@ -70,15 +69,13 @@ ImGuiPass::ImGuiPass(ID3D12Device2* device, HWND hWnd, D3D12_CPU_DESCRIPTOR_HAND
     //IM_ASSERT(font != nullptr);
 }
 
-ImGuiPass::~ImGuiPass()
-{
+ImGuiPass::~ImGuiPass(){
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 }
 
-void ImGuiPass::startFrame()
-{
+void ImGuiPass::startFrame(){
     // imgui new frame
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
@@ -89,8 +86,7 @@ void ImGuiPass::startFrame()
     //ImGui::ShowDemoWindow();
 }
 
-void ImGuiPass::record(ID3D12GraphicsCommandList* commandList)
-{
+void ImGuiPass::record(ID3D12GraphicsCommandList* commandList){
     BEGIN_EVENT(commandList, "ImGui Pass");
 
     ImGui::Render();

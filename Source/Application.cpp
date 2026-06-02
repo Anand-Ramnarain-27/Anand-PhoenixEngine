@@ -16,8 +16,7 @@
 #include "ModuleAssets.h"
 #include <algorithm>
 
-Application::Application(int argc, wchar_t** argv, void* hWnd)
-{
+Application::Application(int argc, wchar_t** argv, void* hWnd){
     modules.push_back(fileSystem = new ModuleFileSystem());
     modules.push_back(new ModuleInput((HWND)hWnd));
     modules.push_back(d3d12Module = new ModuleD3D12((HWND)hWnd));
@@ -35,21 +34,19 @@ Application::Application(int argc, wchar_t** argv, void* hWnd)
     staticBuffer = new ModuleStaticBuffer();
 }
 
-Application::~Application()
-{
+Application::~Application(){
     cleanUp();
 
-	for(auto it = modules.rbegin(); it != modules.rend(); ++it)
+	for (auto it = modules.rbegin(); it != modules.rend(); ++it)
     {
         delete *it;
     }
 }
- 
-bool Application::init()
-{
+
+bool Application::init(){
 	bool ret = true;
 
-	for(auto it = modules.begin(); it != modules.end() && ret; ++it)
+	for (auto it = modules.begin(); it != modules.end() && ret; ++it)
 		ret = (*it)->init();
 
     lastMilis = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -57,8 +54,7 @@ bool Application::init()
 	return ret;
 }
 
-void Application::update()
-{
+void Application::update(){
     using namespace std::chrono_literals;
 
     if (!updating)
@@ -108,11 +104,10 @@ void Application::update()
     }
 }
 
-bool Application::cleanUp()
-{
+bool Application::cleanUp(){
 	bool ret = true;
 
-	for(auto it = modules.rbegin(); it != modules.rend() && ret; ++it)
+	for (auto it = modules.rbegin(); it != modules.rend() && ret; ++it)
 		ret = (*it)->cleanUp();
 
 	return ret;

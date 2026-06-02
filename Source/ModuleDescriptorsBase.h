@@ -18,26 +18,24 @@ class ModuleDescriptorsBase : public Module
     static_assert(MaxDescriptors > 0, "Must have at least one descriptor slot");
 
 protected:
-    HandleManager<MaxDescriptors> handles;  
+    HandleManager<MaxDescriptors> handles;
 
     ComPtr<ID3D12DescriptorHeap> heap;
     D3D12_CPU_DESCRIPTOR_HANDLE cpuStart = {};
     UINT descriptorSize = 0;
 
-    std::array<UINT, MaxDescriptors> refCounts = {}; 
+    std::array<UINT, MaxDescriptors> refCounts = {};
 
 public:
-    ModuleDescriptorsBase() = default;  
+    ModuleDescriptorsBase() = default;
 
-    virtual ~ModuleDescriptorsBase()
-    {
+    virtual ~ModuleDescriptorsBase(){
 #ifdef _DEBUG
         _ASSERTE(handles.getFreeCount() == handles.getSize());
 #endif
     }
 
-    bool init() override
-    {
+    bool init() override{
         auto* device = app->getD3D12()->getDevice();
         descriptorSize = device->GetDescriptorHandleIncrementSize(HeapType);
 
@@ -57,15 +55,14 @@ public:
         return false;
     }
 
-    DescriptorType create(ID3D12Resource* resource, const void* pDesc = nullptr) 
-    {
+    DescriptorType create(ID3D12Resource* resource, const void* pDesc = nullptr){
         UINT handle = handles.allocHandle();
         if (handle == 0)
-            return DescriptorType(); 
+            return DescriptorType();
 
         UINT index = handles.indexFromHandle(handle);
 
-        UINT arrayIndex = index; 
+        UINT arrayIndex = index;
 
         D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(cpuStart, arrayIndex, descriptorSize);
 
@@ -74,8 +71,7 @@ public:
         return DescriptorType(handle, &refCounts[arrayIndex]);
     }
 
-    void release(UINT handle)
-    {
+    void release(UINT handle){
         if (handle != 0 && handles.validHandle(handle))
         {
             UINT index = handles.indexFromHandle(handle);
@@ -83,8 +79,7 @@ public:
         }
     }
 
-    D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle(UINT handle) const
-    {
+    D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle(UINT handle) const{
         if (handle == 0) return { 0 };
 
         UINT index = handles.indexFromHandle(handle);

@@ -32,31 +32,31 @@ namespace {
     void makeStructuredSRV(ShaderTableDesc& table, UINT slot,
                             ID3D12Resource* buf, UINT numElems, UINT stride) {
         D3D12_SHADER_RESOURCE_VIEW_DESC srv = {};
-        srv.ViewDimension              = D3D12_SRV_DIMENSION_BUFFER;
-        srv.Format                     = DXGI_FORMAT_UNKNOWN;
-        srv.Shader4ComponentMapping    = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        srv.Buffer.NumElements         = numElems;
+        srv.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+        srv.Format = DXGI_FORMAT_UNKNOWN;
+        srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srv.Buffer.NumElements = numElems;
         srv.Buffer.StructureByteStride = stride;
         table.createSRV(buf, slot, &srv);
     }
 
     void writeFallbackCubeSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* cube) {
         D3D12_SHADER_RESOURCE_VIEW_DESC sv = {};
-        sv.Format                       = DXGI_FORMAT_R8G8B8A8_UNORM;
-        sv.ViewDimension                = D3D12_SRV_DIMENSION_TEXTURECUBE;
-        sv.Shader4ComponentMapping      = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        sv.TextureCube.MipLevels        = 1;
-        sv.TextureCube.MostDetailedMip  = 0;
+        sv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        sv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+        sv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        sv.TextureCube.MipLevels = 1;
+        sv.TextureCube.MostDetailedMip = 0;
         sv.TextureCube.ResourceMinLODClamp = 0.f;
         table.createSRV(cube, slot, &sv);
     }
 
     void writeFallbackTex2DSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* tex) {
         D3D12_SHADER_RESOURCE_VIEW_DESC sv = {};
-        sv.Format                   = DXGI_FORMAT_R8G8B8A8_UNORM;
-        sv.ViewDimension            = D3D12_SRV_DIMENSION_TEXTURE2D;
-        sv.Shader4ComponentMapping  = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        sv.Texture2D.MipLevels      = 1;
+        sv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        sv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        sv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        sv.Texture2D.MipLevels = 1;
         table.createSRV(tex, slot, &sv);
     }
 }
@@ -67,8 +67,8 @@ bool DeferredLightingPass::init(ID3D12Device* device) {
         return false;
     }
     if (!createUploadBuffers(device)) return false;
-    if (!createLightSRVs())           return false;
-    if (!createFallbackIBL(device))   return false;
+    if (!createLightSRVs()) return false;
+    if (!createFallbackIBL(device)) return false;
     LOG("DeferredLightingPass: init OK");
     return true;
 }
@@ -94,31 +94,31 @@ bool DeferredLightingPass::createUploadBuffers(ID3D12Device* device) {
 
 bool DeferredLightingPass::createLightSRVs() {
     auto* sd = app->getShaderDescriptors();
-    m_dirLightSRV   = sd->allocTable("DeferredLight_DirSRV");
+    m_dirLightSRV = sd->allocTable("DeferredLight_DirSRV");
     m_pointLightSRV = sd->allocTable("DeferredLight_PointSRV");
-    m_spotLightSRV  = sd->allocTable("DeferredLight_SpotSRV");
+    m_spotLightSRV = sd->allocTable("DeferredLight_SpotSRV");
     if (!m_dirLightSRV.isValid() || !m_pointLightSRV.isValid() || !m_spotLightSRV.isValid()) {
         LOG("DeferredLightingPass: light SRV alloc failed");
         return false;
     }
-    makeStructuredSRV(m_dirLightSRV,   0, m_dirLightBuf.Get(),
-                       MeshPipeline::MAX_DIR_LIGHTS,   sizeof(MeshPipeline::GPUDirectionalLight));
+    makeStructuredSRV(m_dirLightSRV, 0, m_dirLightBuf.Get(),
+                       MeshPipeline::MAX_DIR_LIGHTS, sizeof(MeshPipeline::GPUDirectionalLight));
     makeStructuredSRV(m_pointLightSRV, 0, m_pointLightBuf.Get(),
                        MeshPipeline::MAX_POINT_LIGHTS, sizeof(MeshPipeline::GPUPointLight));
-    makeStructuredSRV(m_spotLightSRV,  0, m_spotLightBuf.Get(),
-                       MeshPipeline::MAX_SPOT_LIGHTS,  sizeof(MeshPipeline::GPUSpotLight));
+    makeStructuredSRV(m_spotLightSRV, 0, m_spotLightBuf.Get(),
+                       MeshPipeline::MAX_SPOT_LIGHTS, sizeof(MeshPipeline::GPUSpotLight));
     return true;
 }
 
 bool DeferredLightingPass::createFallbackIBL(ID3D12Device* device) {
     {
         D3D12_RESOURCE_DESC td = {};
-        td.Dimension          = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-        td.Width = td.Height  = 1;
-        td.DepthOrArraySize   = 6;
-        td.MipLevels          = 1;
-        td.Format             = DXGI_FORMAT_R8G8B8A8_UNORM;
-        td.SampleDesc         = { 1, 0 };
+        td.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        td.Width = td.Height = 1;
+        td.DepthOrArraySize = 6;
+        td.MipLevels = 1;
+        td.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        td.SampleDesc = { 1, 0 };
         auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &td,
                                                       D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
@@ -131,12 +131,12 @@ bool DeferredLightingPass::createFallbackIBL(ID3D12Device* device) {
     }
     {
         D3D12_RESOURCE_DESC td = {};
-        td.Dimension          = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-        td.Width = td.Height  = 1;
-        td.DepthOrArraySize   = 1;
-        td.MipLevels          = 1;
-        td.Format             = DXGI_FORMAT_R8G8B8A8_UNORM;
-        td.SampleDesc         = { 1, 0 };
+        td.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        td.Width = td.Height = 1;
+        td.DepthOrArraySize = 1;
+        td.MipLevels = 1;
+        td.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        td.SampleDesc = { 1, 0 };
         auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &td,
                                                       D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
@@ -150,16 +150,16 @@ bool DeferredLightingPass::createFallbackIBL(ID3D12Device* device) {
 
     auto* sd = app->getShaderDescriptors();
     m_fallbackIrradianceSRV = sd->allocTable("DeferredLight_FallbackIrr");
-    m_fallbackPrefilterSRV  = sd->allocTable("DeferredLight_FallbackPref");
-    m_fallbackBRDFSRV       = sd->allocTable("DeferredLight_FallbackBRDF");
+    m_fallbackPrefilterSRV = sd->allocTable("DeferredLight_FallbackPref");
+    m_fallbackBRDFSRV = sd->allocTable("DeferredLight_FallbackBRDF");
     if (!m_fallbackIrradianceSRV.isValid() || !m_fallbackPrefilterSRV.isValid()
                                            || !m_fallbackBRDFSRV.isValid()) {
         LOG("DeferredLightingPass: fallback IBL SRV alloc failed");
         return false;
     }
     writeFallbackCubeSRV(m_fallbackIrradianceSRV, 0, m_fallbackCube.Get());
-    writeFallbackCubeSRV(m_fallbackPrefilterSRV,  0, m_fallbackCube.Get());
-    writeFallbackTex2DSRV(m_fallbackBRDFSRV,      0, m_fallbackTex2D.Get());
+    writeFallbackCubeSRV(m_fallbackPrefilterSRV, 0, m_fallbackCube.Get());
+    writeFallbackTex2DSRV(m_fallbackBRDFSRV, 0, m_fallbackTex2D.Get());
     return true;
 }
 
@@ -168,12 +168,12 @@ void DeferredLightingPass::uploadLights(const FrameLightData& lights) {
         UINT n = static_cast<UINT>(std::min(count, maxCount));
         if (n > 0) memcpy(dst, src, n * stride);
     };
-    copy(m_dirLightMapped,   lights.dirLights.data(),   lights.dirLights.size(),
+    copy(m_dirLightMapped, lights.dirLights.data(), lights.dirLights.size(),
          sizeof(MeshPipeline::GPUDirectionalLight), MeshPipeline::MAX_DIR_LIGHTS);
     copy(m_pointLightMapped, lights.pointLights.data(), lights.pointLights.size(),
-         sizeof(MeshPipeline::GPUPointLight),       MeshPipeline::MAX_POINT_LIGHTS);
-    copy(m_spotLightMapped,  lights.spotLights.data(),  lights.spotLights.size(),
-         sizeof(MeshPipeline::GPUSpotLight),        MeshPipeline::MAX_SPOT_LIGHTS);
+         sizeof(MeshPipeline::GPUPointLight), MeshPipeline::MAX_POINT_LIGHTS);
+    copy(m_spotLightMapped, lights.spotLights.data(), lights.spotLights.size(),
+         sizeof(MeshPipeline::GPUSpotLight), MeshPipeline::MAX_SPOT_LIGHTS);
 }
 
 void DeferredLightingPass::uploadPerFrameCB(const FrameLightData& lights,
@@ -181,13 +181,13 @@ void DeferredLightingPass::uploadPerFrameCB(const FrameLightData& lights,
                                              const Matrix& invViewProj,
                                              uint32_t envRoughLevels) {
     CbPerFrame cb = {};
-    cb.dirLightCount      = static_cast<uint32_t>(std::min(lights.dirLights.size(),   (size_t)MeshPipeline::MAX_DIR_LIGHTS));
-    cb.pointLightCount    = static_cast<uint32_t>(std::min(lights.pointLights.size(), (size_t)MeshPipeline::MAX_POINT_LIGHTS));
-    cb.spotLightCount     = static_cast<uint32_t>(std::min(lights.spotLights.size(),  (size_t)MeshPipeline::MAX_SPOT_LIGHTS));
+    cb.dirLightCount = static_cast<uint32_t>(std::min(lights.dirLights.size(), (size_t)MeshPipeline::MAX_DIR_LIGHTS));
+    cb.pointLightCount = static_cast<uint32_t>(std::min(lights.pointLights.size(), (size_t)MeshPipeline::MAX_POINT_LIGHTS));
+    cb.spotLightCount = static_cast<uint32_t>(std::min(lights.spotLights.size(), (size_t)MeshPipeline::MAX_SPOT_LIGHTS));
     cb.envRoughnessLevels = envRoughLevels;
-    cb.cameraPosition     = cameraPos;
-    cb.framePad           = 0;
-    cb.invViewProj        = invViewProj.Transpose();
+    cb.cameraPosition = cameraPos;
+    cb.framePad = 0;
+    cb.invViewProj = invViewProj.Transpose();
     memcpy(m_perFrameMapped, &cb, sizeof(cb));
 }
 
@@ -260,7 +260,7 @@ void DeferredLightingPass::render(ID3D12GraphicsCommandList* cmd,
                                          samplerHeap->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));
 
     D3D12_VIEWPORT vp = { 0.f, 0.f, float(width), float(height), 0.f, 1.f };
-    D3D12_RECT     sc = { 0,   0,   LONG(width),  LONG(height) };
+    D3D12_RECT sc = { 0, 0, LONG(width), LONG(height) };
     cmd->RSSetViewports(1, &vp);
     cmd->RSSetScissorRects(1, &sc);
 

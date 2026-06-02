@@ -18,20 +18,17 @@ public:
     size_t lineCount() const { return lines.size(); }
     bool empty() const { return lines.empty(); }
 
-    void addLine(const Vector3& from, const Vector3& to, const Vector3& color)
-    {
+    void addLine(const Vector3& from, const Vector3& to, const Vector3& color){
         lines.push_back({ from, to, color });
     }
 
-    void addAxes(const Vector3& origin, const Vector3& fwd, const Vector3& right, const Vector3& up, float scale = 1.0f)
-    {
+    void addAxes(const Vector3& origin, const Vector3& fwd, const Vector3& right, const Vector3& up, float scale = 1.0f){
         addLine(origin, origin + right * scale, Vector3(1, 0, 0));
         addLine(origin, origin + up * scale, Vector3(0, 1, 0));
         addLine(origin, origin + fwd * scale, Vector3(0, 0, 1));
     }
 
-    void addFrustum(const Frustum& f, const Vector3& color)
-    {
+    void addFrustum(const Frustum& f, const Vector3& color){
         if (!f.cornersValid) return;
         const auto& c = f.corners;
         using CI = Frustum::CornerIdx;
@@ -44,8 +41,7 @@ public:
         addLine(c[CI::NBL], c[CI::FBL], color); addLine(c[CI::NBR], c[CI::FBR], color);
     }
 
-    void addAABB(const Vector3& mn, const Vector3& mx, const Vector3& color)
-    {
+    void addAABB(const Vector3& mn, const Vector3& mx, const Vector3& color){
         addLine({ mn.x, mn.y, mn.z }, { mx.x, mn.y, mn.z }, color);
         addLine({ mx.x, mn.y, mn.z }, { mx.x, mn.y, mx.z }, color);
         addLine({ mx.x, mn.y, mx.z }, { mn.x, mn.y, mx.z }, color);

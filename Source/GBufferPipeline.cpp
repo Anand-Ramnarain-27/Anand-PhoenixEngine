@@ -51,33 +51,33 @@ bool GBufferPipeline::createPSO(ID3D12Device* device) {
     auto ps = DX::ReadData(L"GBufferPS.cso");
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-    desc.pRootSignature     = m_rootSig.Get();
-    desc.InputLayout        = { Mesh::InputLayout, Mesh::InputLayoutCount };
-    desc.VS                 = { vs.data(), vs.size() };
-    desc.PS                 = { ps.data(), ps.size() };
+    desc.pRootSignature = m_rootSig.Get();
+    desc.InputLayout = { Mesh::InputLayout, Mesh::InputLayoutCount };
+    desc.VS = { vs.data(), vs.size() };
+    desc.PS = { ps.data(), ps.size() };
     desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
     // 3 MRT outputs
-    desc.NumRenderTargets   = GBuffer::NUM_COLOR_RTS;
-    desc.RTVFormats[0]      = GBuffer::kAlbedoFormat;
-    desc.RTVFormats[1]      = GBuffer::kNormalMetalRoughFormat;
-    desc.RTVFormats[2]      = GBuffer::kEmissiveAOFormat;
-    desc.DSVFormat          = GBuffer::kDepthFormat;
+    desc.NumRenderTargets = GBuffer::NUM_COLOR_RTS;
+    desc.RTVFormats[0] = GBuffer::kAlbedoFormat;
+    desc.RTVFormats[1] = GBuffer::kNormalMetalRoughFormat;
+    desc.RTVFormats[2] = GBuffer::kEmissiveAOFormat;
+    desc.DSVFormat = GBuffer::kDepthFormat;
 
-    desc.SampleDesc         = { 1, 0 };
-    desc.SampleMask         = UINT_MAX;
+    desc.SampleDesc = { 1, 0 };
+    desc.SampleMask = UINT_MAX;
 
-    desc.RasterizerState    = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     desc.RasterizerState.FrontCounterClockwise = TRUE;
 
     // Blending explicitly disabled on all MRT outputs
     desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     for (int i = 0; i < GBuffer::NUM_COLOR_RTS; ++i) {
-        desc.BlendState.RenderTarget[i].BlendEnable           = FALSE;
+        desc.BlendState.RenderTarget[i].BlendEnable = FALSE;
         desc.BlendState.RenderTarget[i].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
     }
 
-    desc.DepthStencilState  = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+    desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 
     HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_pso));
     if (FAILED(hr)) {

@@ -364,8 +364,7 @@ void InspectorPanel::drawComponentCamera(ComponentCamera* cam) {
 
 void InspectorPanel::drawTexturePicker(ComponentMesh* mesh, Material* mat, int submeshIdx,
     const char* label, bool hasTex, const char* tooltip,
-    std::function<void(ComPtr<ID3D12Resource>, D3D12_GPU_DESCRIPTOR_HANDLE)> onApply)
-{
+    std::function<void(ComPtr<ID3D12Resource>, D3D12_GPU_DESCRIPTOR_HANDLE)> onApply){
     std::string popupId = std::string("##TexPick_") + label + std::to_string(submeshIdx);
     std::string btnLabel = std::string(hasTex ? "Change##" : "Pick##") + label + std::to_string(submeshIdx);
 
@@ -392,8 +391,7 @@ void InspectorPanel::drawTexturePicker(ComponentMesh* mesh, Material* mat, int s
         std::string tname = fs::path(tf).stem().string();
         if (!ts.empty() && toLower(tname).find(ts) == std::string::npos) continue;
         if (ImGui::Selectable(("  [T]  " + tname).c_str(), false, ImGuiSelectableFlags_AllowDoubleClick)
-            && ImGui::IsMouseDoubleClicked(0))
-        {
+            && ImGui::IsMouseDoubleClicked(0)){
             ComPtr<ID3D12Resource> tex;
             D3D12_GPU_DESCRIPTOR_HANDLE srv{};
             if (TextureImporter::Load(tf, tex, srv)) {
@@ -607,7 +605,7 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
 }
 
 void InspectorPanel::drawComponentAnimation(ComponentAnimation* anim) {
-    const auto& uids  = anim->getAnimationUIDs();
+    const auto& uids = anim->getAnimationUIDs();
     AnimationController& ctrl = anim->getController();
 
     // --- Animation picker dropdown ---
@@ -675,8 +673,8 @@ void InspectorPanel::drawComponentAnimation(ComponentAnimation* anim) {
     // --- Debug visualization ---
     ImGui::Spacing();
     ImGui::SeparatorText("Debug");
-    ImGui::Checkbox("Draw Bones",        &anim->drawBones());
-    ImGui::Checkbox("Draw Axis Triads",  &anim->drawAxisTriads());
+    ImGui::Checkbox("Draw Bones", &anim->drawBones());
+    ImGui::Checkbox("Draw Axis Triads", &anim->drawAxisTriads());
 
     // --- State Machine (path input + Load button + node graph) ---
     anim->drawStateMachineSection();

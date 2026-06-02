@@ -3,7 +3,7 @@
 #include <ole2.h>
 #include <shellapi.h>
 
-#include "DragDropManager.h"  // for DragDropManager::DropItem
+#include "DragDropManager.h" // for DragDropManager::DropItem
 
 #include <filesystem>
 #include <vector>
@@ -23,8 +23,8 @@ public:
 
     // IUnknown
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObj) override;
-    ULONG   STDMETHODCALLTYPE AddRef()  override;
-    ULONG   STDMETHODCALLTYPE Release() override;
+    ULONG STDMETHODCALLTYPE AddRef() override;
+    ULONG STDMETHODCALLTYPE Release() override;
 
     // IDropTarget
     HRESULT STDMETHODCALLTYPE DragEnter(IDataObject* pDataObj,
@@ -45,7 +45,7 @@ public:
 
 private:
     ULONG m_refCount = 1;
-    bool  m_hasFiles = false;  // whether the dragged object contains CF_HDROP data
+    bool m_hasFiles = false; // whether the dragged object contains CF_HDROP data
 
     // Extracts drop items from a CF_HDROP IDataObject.
     // Directories are passed through as DropItem{path, isFolder=true} WITHOUT

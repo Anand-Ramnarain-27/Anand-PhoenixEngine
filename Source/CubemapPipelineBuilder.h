@@ -12,8 +12,8 @@ namespace CubemapPipelineBuilder
 {
     inline bool buildCubeFacePipeline(ID3D12Device* device, const wchar_t* psCsoPath, DXGI_FORMAT rtvFmt, ComPtr<ID3D12RootSignature>& outRS, ComPtr<ID3D12PipelineState>& outPSO) {
         CD3DX12_ROOT_PARAMETER params[4];
-        params[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL); 
-        params[1].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_PIXEL); 
+        params[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
+        params[1].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 
         CD3DX12_DESCRIPTOR_RANGE srvRange;
         srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
@@ -68,7 +68,7 @@ namespace CubemapPipelineBuilder
     }
 
     inline bool buildBRDFPipeline(ID3D12Device* device, ComPtr<ID3D12RootSignature>& outRS, ComPtr<ID3D12PipelineState>& outPSO) {
-     
+
         CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
         rsDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
@@ -108,4 +108,4 @@ namespace CubemapPipelineBuilder
         return true;
     }
 
-} 
+}

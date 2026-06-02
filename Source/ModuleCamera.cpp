@@ -13,8 +13,7 @@ static constexpr float ORBIT_SENSITIVITY = 0.005f;
 static constexpr float PAN_SPEED = 1.0f;
 static constexpr float ZOOM_SPEED = 1.0f;
 
-bool ModuleCamera::init()
-{
+bool ModuleCamera::init(){
     params = {};
     position = params.translation;
     rotation = Quaternion::Identity;
@@ -22,8 +21,7 @@ bool ModuleCamera::init()
     return true;
 }
 
-void ModuleCamera::update()
-{
+void ModuleCamera::update(){
     const Mouse::State& ms = Mouse::Get().GetState();
     const Keyboard::State& ks = Keyboard::Get().GetState();
     GamePad::State gps = GamePad::Get().GetState(0);
@@ -82,19 +80,16 @@ void ModuleCamera::update()
     rebuildFrustum();
 }
 
-void ModuleCamera::rebuildFrustum()
-{
+void ModuleCamera::rebuildFrustum(){
     m_editorFrustum = Frustum::fromCamera(position, getForward(), getRight(), getUp(), fovY, aspectRatio, nearZ, farZ);
     m_cullFrustum = (cullSource == CullSource::GameCamera && m_hasGameFrustum) ? m_gameFrustum : m_editorFrustum;
 }
 
-bool ModuleCamera::isVisible(const Vector3& aabbMin, const Vector3& aabbMax) const
-{
+bool ModuleCamera::isVisible(const Vector3& aabbMin, const Vector3& aabbMax) const{
     return cullMode == CullMode::None || m_cullFrustum.intersectsAABB(aabbMin, aabbMax);
 }
 
-void ModuleCamera::buildDebugLines(FrustumDebugDraw& dd) const
-{
+void ModuleCamera::buildDebugLines(FrustumDebugDraw& dd) const{
     if (debugDrawEditorFrustum && m_editorFrustum.cornersValid) dd.addFrustum(m_editorFrustum, Vector3(1, 1, 1));
 
     if (debugDrawCullFrustum && m_cullFrustum.cornersValid)
@@ -113,8 +108,7 @@ void ModuleCamera::buildDebugLines(FrustumDebugDraw& dd) const
     }
 }
 
-void ModuleCamera::onEditorDebugPanel()
-{
+void ModuleCamera::onEditorDebugPanel(){
     if (!ImGui::CollapsingHeader("Frustum Culling", ImGuiTreeNodeFlags_DefaultOpen)) return;
 
     int cm = (int)cullMode;
@@ -152,8 +146,7 @@ void ModuleCamera::onEditorDebugPanel()
     ImGui::Text("Forward:  %.2f  %.2f  %.2f", fwd.x, fwd.y, fwd.z);
 }
 
-void ModuleCamera::updateFlyMode(float, const Vector3& translateLocal, const Vector2& rotateDelta)
-{
+void ModuleCamera::updateFlyMode(float, const Vector3& translateLocal, const Vector2& rotateDelta){
     params.polar += rotateDelta.x;
     params.azimuthal = std::clamp(params.azimuthal + rotateDelta.y, -XM_PIDIV2 + 0.01f, XM_PIDIV2 - 0.01f);
     rotation = Quaternion::CreateFromAxisAngle(Vector3::UnitX, params.azimuthal) * Quaternion::CreateFromAxisAngle(Vector3::UnitY, params.polar);
@@ -162,8 +155,7 @@ void ModuleCamera::updateFlyMode(float, const Vector3& translateLocal, const Vec
     rebuildViewMatrix();
 }
 
-void ModuleCamera::updateOrbitMode(const Vector2& rotateDelta)
-{
+void ModuleCamera::updateOrbitMode(const Vector2& rotateDelta){
     params.polar += rotateDelta.x;
     params.azimuthal = std::clamp(params.azimuthal + rotateDelta.y, -XM_PIDIV2 + 0.01f, XM_PIDIV2 - 0.01f);
     const float r = std::max((position - Vector3::Zero).Length(), 0.5f);
@@ -173,16 +165,14 @@ void ModuleCamera::updateOrbitMode(const Vector2& rotateDelta)
     rotation = Quaternion::CreateFromRotationMatrix(Matrix(view).Invert());
 }
 
-void ModuleCamera::rebuildViewMatrix()
-{
+void ModuleCamera::rebuildViewMatrix(){
     Quaternion inv;
     rotation.Inverse(inv);
     view = Matrix::CreateFromQuaternion(inv);
     view.Translation(Vector3::Transform(-position, inv));
 }
 
-void ModuleCamera::focusOnTarget(const Vector3& target)
-{
+void ModuleCamera::focusOnTarget(const Vector3& target){
     Vector3 dir = position - target;
     if (dir.LengthSquared() < 1e-6f) dir = Vector3(0.0f, 0.0f, 5.0f);
     dir.Normalize();

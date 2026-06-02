@@ -13,18 +13,18 @@ struct EditorSceneSettings
     struct Ambient
     {
         Vector3 color = Vector3(0.1f, 0.1f, 0.1f);
-        float   intensity = 1.0f;
+        float intensity = 1.0f;
     } ambient;
 
-    bool  debugDrawLights = false;
+    bool debugDrawLights = false;
     float debugLightSize = 1.0f;
 
-    bool  debugDrawCameraFrustums = true;
-    bool  debugDrawEditorCameraRay  = true;
+    bool debugDrawCameraFrustums = true;
+    bool debugDrawEditorCameraRay = true;
 
     struct Skybox
     {
-        bool        enabled = false;
-        std::string cubemapPath;         
+        bool enabled = false;
+        std::string cubemapPath;
     } skybox;
 };

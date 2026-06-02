@@ -28,7 +28,7 @@ static bool SampleTransform(const ResourceAnimation* anim, float timeSec,
                              const char* name, Vector3& pos, Quaternion& rot) {
     if (!anim) return false;
     const auto& channels = anim->getChannels();
-    const auto  it       = channels.find(name);
+    const auto it = channels.find(name);
     if (it == channels.end()) return false;
 
     const ResourceAnimation::Channel& ch = it->second;
@@ -37,11 +37,11 @@ static bool SampleTransform(const ResourceAnimation* anim, float timeSec,
         const float* tf = ch.posTimeStamps.get();
         const float* tl = tf + ch.posCount;
         const float* up = std::upper_bound(tf, tl, timeSec);
-        if (up == tf)      pos = ch.positions[0];
+        if (up == tf) pos = ch.positions[0];
         else if (up == tl) pos = ch.positions[ch.posCount - 1];
         else {
-            int   i  = (int)(up - tf) - 1;
-            float d  = tf[i + 1] - tf[i];
+            int i = (int)(up - tf) - 1;
+            float d = tf[i + 1] - tf[i];
             float lm = d > 0.f ? (timeSec - tf[i]) / d : 0.f;
             pos = Vector3::Lerp(ch.positions[i], ch.positions[i + 1], lm);
         }
@@ -51,11 +51,11 @@ static bool SampleTransform(const ResourceAnimation* anim, float timeSec,
         const float* tf = ch.rotTimeStamps.get();
         const float* tl = tf + ch.rotCount;
         const float* up = std::upper_bound(tf, tl, timeSec);
-        if (up == tf)      rot = ch.rotations[0];
+        if (up == tf) rot = ch.rotations[0];
         else if (up == tl) rot = ch.rotations[ch.rotCount - 1];
         else {
-            int   i  = (int)(up - tf) - 1;
-            float d  = tf[i + 1] - tf[i];
+            int i = (int)(up - tf) - 1;
+            float d = tf[i + 1] - tf[i];
             float lm = d > 0.f ? (timeSec - tf[i]) / d : 0.f;
             rot = Quaternion::Slerp(ch.rotations[i], ch.rotations[i + 1], lm);
         }
@@ -70,9 +70,9 @@ static bool SampleMorphWeights(const ResourceAnimation* anim, float timeSec,
     if (!mc || mc->numTime == 0 || mc->numTargets == 0) return false;
 
     const uint32_t chTargets = std::min(mc->numTargets, count);
-    const float*   tf        = mc->weightsTimes.get();
-    const float*   tl        = tf + mc->numTime;
-    const float*   up        = std::upper_bound(tf, tl, timeSec);
+    const float* tf = mc->weightsTimes.get();
+    const float* tl = tf + mc->numTime;
+    const float* up = std::upper_bound(tf, tl, timeSec);
 
     if (up == tf) {
         for (uint32_t i = 0; i < chTargets; ++i)
@@ -82,13 +82,13 @@ static bool SampleMorphWeights(const ResourceAnimation* anim, float timeSec,
         for (uint32_t i = 0; i < chTargets; ++i)
             out[i] = mc->weights[k * mc->numTargets + i];
     } else {
-        const int   k  = (int)(up - tf) - 1;
-        const float d  = tf[k + 1] - tf[k];
+        const int k = (int)(up - tf) - 1;
+        const float d = tf[k + 1] - tf[k];
         const float lm = d > 0.f
             ? std::max(0.f, std::min(1.f, (timeSec - tf[k]) / d))
             : 0.f;
         for (uint32_t i = 0; i < chTargets; ++i) {
-            out[i] = mc->weights[k       * mc->numTargets + i] * (1.f - lm)
+            out[i] = mc->weights[k * mc->numTargets + i] * (1.f - lm)
                    + mc->weights[(k + 1) * mc->numTargets + i] * lm;
         }
     }
@@ -125,14 +125,14 @@ void ComponentAnimation::pushLayer(UID animUID, float transitionTimeMs, bool loo
         LOG("ComponentAnimation::pushLayer: failed to load animation uid=%llu", animUID);
         return;
     }
-    AnimLayer* layer        = new AnimLayer();
-    layer->anim             = anim;
-    layer->currentTimeMs    = 0.f;
-    layer->fadeTimeMs       = 0.f;
+    AnimLayer* layer = new AnimLayer();
+    layer->anim = anim;
+    layer->currentTimeMs = 0.f;
+    layer->fadeTimeMs = 0.f;
     layer->transitionTimeMs = transitionTimeMs;
-    layer->loop             = loop;
-    layer->next             = m_layerHead;
-    m_layerHead             = layer;
+    layer->loop = loop;
+    layer->next = m_layerHead;
+    m_layerHead = layer;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -158,7 +158,7 @@ void ComponentAnimation::OnPlay() {
     if (!clip || clip->animationUID == 0) return;
 
     m_activeState = m_stateMachine->defaultState;
-    pushLayer(clip->animationUID, 0.f, clip->loop);  // base layer: instant, no cross-fade
+    pushLayer(clip->animationUID, 0.f, clip->loop); // base layer: instant, no cross-fade
 }
 
 void ComponentAnimation::SendTrigger(const HashString& trigger) {
@@ -175,7 +175,7 @@ void ComponentAnimation::SendTrigger(const HashString& trigger) {
 
         pushLayer(clip->animationUID, (float)tr.interpolationMs, clip->loop);
         m_activeState = tr.target;
-        return;  // only the first matching transition fires
+        return; // only the first matching transition fires
     }
     // No matching transition → silent no-op.
 }
@@ -190,8 +190,8 @@ void ComponentAnimation::LoadStateMachineFromPath(const std::string& path) {
         return;
     }
     m_ownedStateMachine = std::move(sm);
-    m_stateMachinePath  = path;
-    m_stateMachine      = m_ownedStateMachine.get();
+    m_stateMachinePath = path;
+    m_stateMachine = m_ownedStateMachine.get();
     OnPlay();
 }
 
@@ -304,7 +304,7 @@ void ComponentAnimation::GetBlendedTransform(const char* name, AnimLayer* layer,
 
     // Sample this layer; start from the current blended values as defaults
     // (so if this layer has no channel for 'name', the result is unchanged).
-    Vector3    thisPos = pos;
+    Vector3 thisPos = pos;
     Quaternion thisRot = rot;
     if (layer->anim)
         SampleTransform(layer->anim, timeSec, name, thisPos, thisRot);
@@ -337,7 +337,7 @@ void ComponentAnimation::GetBlendedMorphWeights(const char* name, AnimLayer* lay
 
     // Use stack buffer; count is bounded by ComponentMesh::MAX_MORPH_WEIGHTS.
     float thisWeights[ComponentMesh::MAX_MORPH_WEIGHTS] = {};
-    std::copy(weights, weights + count, thisWeights);  // default: no change
+    std::copy(weights, weights + count, thisWeights); // default: no change
     if (layer->anim)
         SampleMorphWeights(layer->anim, timeSec, name, thisWeights, count);
 
@@ -385,7 +385,7 @@ void ComponentAnimation::applyBlendedAnimation(GameObject* go) {
     const char* name = go->getName().c_str();
     auto* t = go->getTransform();
 
-    Vector3    pos = t->position;
+    Vector3 pos = t->position;
     Quaternion rot = t->rotation;
     GetBlendedTransform(name, m_layerHead, pos, rot);
     t->position = pos;
@@ -459,7 +459,7 @@ void ComponentAnimation::onEditor() {
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::SliderFloat("Speed", &mSpeed, 0.f, 4.f, "%.2f");
-    ImGui::Checkbox("Draw Bones",       &m_drawBones);
+    ImGui::Checkbox("Draw Bones", &m_drawBones);
     ImGui::Checkbox("Draw Axis Triads", &m_drawAxisTriads);
 
     drawStateMachineSection();
@@ -592,9 +592,9 @@ void ComponentAnimation::onDrawGizmos() {
 
         if (m_drawBones && go->getParent() && go->getParent() != owner) {
             Vector3 from = go->getParent()->getTransform()->getGlobalMatrix().Translation();
-            Vector3 to   = t->getGlobalMatrix().Translation();
-            ddVec3 f  = { from.x, from.y, from.z };
-            ddVec3 tt = { to.x,   to.y,   to.z   };
+            Vector3 to = t->getGlobalMatrix().Translation();
+            ddVec3 f = { from.x, from.y, from.z };
+            ddVec3 tt = { to.x, to.y, to.z };
             dd::line(f, tt, dd::colors::Yellow);
         }
 
@@ -615,12 +615,12 @@ void ComponentAnimation::onDrawGizmos() {
 
 void ComponentAnimation::onSave(std::string& outJson) const {
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
-    doc.AddMember("animUID",     Value(static_cast<uint64_t>(m_controller.Resource)), a);
-    doc.AddMember("loop",        Value(m_controller.Loop), a);
-    doc.AddMember("playing",     Value(m_controller.isPlaying()), a);
+    doc.AddMember("animUID", Value(static_cast<uint64_t>(m_controller.Resource)), a);
+    doc.AddMember("loop", Value(m_controller.Loop), a);
+    doc.AddMember("playing", Value(m_controller.isPlaying()), a);
     doc.AddMember("currentTime", Value(m_controller.CurrentTime), a);
-    doc.AddMember("speed",       Value(mSpeed), a);
-    doc.AddMember("smPath",      Value(m_stateMachinePath.c_str(), a), a);
+    doc.AddMember("speed", Value(mSpeed), a);
+    doc.AddMember("smPath", Value(m_stateMachinePath.c_str(), a), a);
 
     Value uids(kArrayType);
     for (UID uid : m_animUIDs) uids.PushBack(Value(static_cast<uint64_t>(uid)), a);
@@ -646,11 +646,11 @@ void ComponentAnimation::onLoad(const std::string& json) {
         if (!path.empty()) LoadStateMachineFromPath(path);
     }
 
-    UID   uid     = doc.HasMember("animUID")     ? static_cast<UID>(doc["animUID"].GetUint64()) : 0;
-    bool  loop    = doc.HasMember("loop")        ? doc["loop"].GetBool()    : false;
-    bool  playing = doc.HasMember("playing")     ? doc["playing"].GetBool() : false;
-    float time    = doc.HasMember("currentTime") ? doc["currentTime"].GetFloat() : 0.f;
-    mSpeed        = doc.HasMember("speed")       ? doc["speed"].GetFloat()  : 1.f;
+    UID uid = doc.HasMember("animUID") ? static_cast<UID>(doc["animUID"].GetUint64()) : 0;
+    bool loop = doc.HasMember("loop") ? doc["loop"].GetBool() : false;
+    bool playing = doc.HasMember("playing") ? doc["playing"].GetBool() : false;
+    float time = doc.HasMember("currentTime") ? doc["currentTime"].GetFloat() : 0.f;
+    mSpeed = doc.HasMember("speed") ? doc["speed"].GetFloat() : 1.f;
 
     if (uid != 0) {
         m_controller.Play(uid, loop);

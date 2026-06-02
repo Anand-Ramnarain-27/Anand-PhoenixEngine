@@ -20,7 +20,7 @@ public:
     };
 
     struct BoneWeight {
-        int   indices[4] = {0, 0, 0, 0};
+        int indices[4] = {0, 0, 0, 0};
         float weights[4] = {0.f, 0.f, 0.f, 0.f};
     };
 
@@ -28,13 +28,13 @@ public:
     // Three float3 fields padded to float4 each to match HLSL StructuredBuffer layout.
     struct MorphVertex {
         Vector3 deltaPosition; float _pad0 = 0.f;
-        Vector3 deltaNormal;   float _pad1 = 0.f;
-        Vector3 deltaTangent;  float _pad2 = 0.f;
+        Vector3 deltaNormal; float _pad1 = 0.f;
+        Vector3 deltaTangent; float _pad2 = 0.f;
     };
 
     struct MorphTarget {
         std::string name;
-        float       defaultWeight = 0.f;
+        float defaultWeight = 0.f;
     };
 
     static const D3D12_INPUT_ELEMENT_DESC InputLayout[4];
@@ -80,8 +80,8 @@ public:
         if (m_vertexBufferView.BufferLocation != 0) return m_vertexBufferView.BufferLocation;
         return m_legacyVertexBuffer ? m_legacyVertexBuffer->GetGPUVirtualAddress() : 0;
     }
-    D3D12_GPU_VIRTUAL_ADDRESS getBoneWeightBufferVA()   const { return m_boneWeightBufferView.BufferLocation; }
-    D3D12_GPU_VIRTUAL_ADDRESS getMorphTargetBufferVA()  const;
+    D3D12_GPU_VIRTUAL_ADDRESS getBoneWeightBufferVA() const { return m_boneWeightBufferView.BufferLocation; }
+    D3D12_GPU_VIRTUAL_ADDRESS getMorphTargetBufferVA() const;
 
     const Vector3& getAABBMin() const { return m_aabbMin; }
     const Vector3& getAABBMax() const { return m_aabbMax; }
@@ -101,16 +101,16 @@ private:
     bool m_hasVertexBuffer = false;
     bool m_hasIndexBuffer = false;
 
-    std::vector<BoneWeight>  m_boneWeights;
-    ComPtr<ID3D12Resource>   m_boneWeightBuffer;       // committed resource (like morph targets)
+    std::vector<BoneWeight> m_boneWeights;
+    ComPtr<ID3D12Resource> m_boneWeightBuffer; // committed resource (like morph targets)
     D3D12_VERTEX_BUFFER_VIEW m_boneWeightBufferView = {};
-    bool                     m_hasBoneWeightBuffer = false;
+    bool m_hasBoneWeightBuffer = false;
 
-    std::vector<MorphTarget>  m_morphTargets;
-    std::vector<MorphVertex>  m_morphVertexData;
-    ComPtr<ID3D12Resource>    m_morphTargetBuffer;
-    uint32_t                  m_numMorphTargets = 0;
-    bool                      m_hasMorphTargetBuffer = false;
+    std::vector<MorphTarget> m_morphTargets;
+    std::vector<MorphVertex> m_morphVertexData;
+    ComPtr<ID3D12Resource> m_morphTargetBuffer;
+    uint32_t m_numMorphTargets = 0;
+    bool m_hasMorphTargetBuffer = false;
 
     ComPtr<ID3D12Resource> m_legacyVertexBuffer;
     ComPtr<ID3D12Resource> m_legacyIndexBuffer;

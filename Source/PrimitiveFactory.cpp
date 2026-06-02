@@ -11,8 +11,8 @@ std::unique_ptr<Mesh> PrimitiveFactory::createQuadMesh(){
     std::vector<Mesh::Vertex> verts =
     {
         {Vector3(-0.5f, -0.5f, 0.0f), Vector2(0.0f, 1.0f), Vector3(0, 0, 1)},
-        {Vector3(-0.5f,  0.5f, 0.0f), Vector2(0.0f, 0.0f), Vector3(0, 0, 1)},
-        {Vector3(0.5f,  0.5f, 0.0f), Vector2(1.0f, 0.0f), Vector3(0, 0, 1)},
+        {Vector3(-0.5f, 0.5f, 0.0f), Vector2(0.0f, 0.0f), Vector3(0, 0, 1)},
+        {Vector3(0.5f, 0.5f, 0.0f), Vector2(1.0f, 0.0f), Vector3(0, 0, 1)},
         {Vector3(0.5f, -0.5f, 0.0f), Vector2(1.0f, 1.0f), Vector3(0, 0, 1)},
     };
     std::vector<uint32_t> indices = { 0, 1, 2, 0, 2, 3 };

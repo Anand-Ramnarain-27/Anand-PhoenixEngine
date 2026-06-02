@@ -30,12 +30,12 @@ bool ResourceModel::LoadInMemory() {
     m_nodes.reserve(nodeInfos.size());
     for (const auto& ni : nodeInfos) {
         Node node;
-        node.name        = ni.name;
+        node.name = ni.name;
         node.translation = ni.translation;
-        node.rotation    = ni.rotation;
-        node.scale       = ni.scale;
+        node.rotation = ni.rotation;
+        node.scale = ni.scale;
         node.parentIndex = ni.parentIndex;
-        node.skinIndex   = ni.skinIndex;
+        node.skinIndex = ni.skinIndex;
 
         for (int j = ni.meshFileStart; j < ni.meshFileStart + ni.meshFileCount; ++j) {
             MeshPair pair;
@@ -57,8 +57,8 @@ bool ResourceModel::LoadInMemory() {
         m_skins.reserve(skinInfos.size());
         for (auto& si : skinInfos) {
             Skin skin;
-            skin.name                = std::move(si.name);
-            skin.jointNodeIndices    = std::move(si.jointNodeIndices);
+            skin.name = std::move(si.name);
+            skin.jointNodeIndices = std::move(si.jointNodeIndices);
             skin.inverseBindMatrices = std::move(si.inverseBindMatrices);
             m_skins.push_back(std::move(skin));
         }
@@ -89,7 +89,7 @@ GameObject* ResourceModel::spawnIntoScene(ModuleScene* scene, GameObject* parent
         if (t) {
             t->position = n.translation;
             t->rotation = n.rotation;
-            t->scale    = n.scale;
+            t->scale = n.scale;
             t->markDirty();
         }
 

@@ -21,8 +21,7 @@ struct Frustum
     std::array<Vector3, CORNER_COUNT> corners;
     bool cornersValid = false;
 
-    static Frustum fromCamera(const Vector3& pos, const Vector3& fwd, const Vector3& right, const Vector3& up, float fovY, float aspect, float nearDist, float farDist)
-    {
+    static Frustum fromCamera(const Vector3& pos, const Vector3& fwd, const Vector3& right, const Vector3& up, float fovY, float aspect, float nearDist, float farDist){
         Frustum f;
         const float hNear = tanf(fovY * 0.5f) * nearDist;
         const float wNear = hNear * aspect;
@@ -50,8 +49,7 @@ struct Frustum
         return f;
     }
 
-    bool testVertsAgainstPlanes(const Vector3 verts[8]) const
-    {
+    bool testVertsAgainstPlanes(const Vector3 verts[8]) const{
         for (const FrustumPlane& plane : planes)
         {
             int outCount = 0;
@@ -61,8 +59,7 @@ struct Frustum
         return true;
     }
 
-    bool intersectsAABB(const Vector3& mn, const Vector3& mx) const
-    {
+    bool intersectsAABB(const Vector3& mn, const Vector3& mx) const{
         const Vector3 verts[8] = {
             {mn.x, mn.y, mn.z}, {mx.x, mn.y, mn.z}, {mn.x, mx.y, mn.z}, {mx.x, mx.y, mn.z},
             {mn.x, mn.y, mx.z}, {mx.x, mn.y, mx.z}, {mn.x, mx.y, mx.z}, {mx.x, mx.y, mx.z}
@@ -70,8 +67,7 @@ struct Frustum
         return testVertsAgainstPlanes(verts);
     }
 
-    bool intersectsOBB(const Vector3& center, const Vector3& he, const Vector3 axes[3]) const
-    {
+    bool intersectsOBB(const Vector3& center, const Vector3& he, const Vector3 axes[3]) const{
         const Vector3 verts[8] = {
             center + axes[0] * he.x + axes[1] * he.y + axes[2] * he.z,
             center - axes[0] * he.x + axes[1] * he.y + axes[2] * he.z,
@@ -85,21 +81,18 @@ struct Frustum
         return testVertsAgainstPlanes(verts);
     }
 
-    bool containsPoint(const Vector3& p) const
-    {
+    bool containsPoint(const Vector3& p) const{
         for (const FrustumPlane& plane : planes) if (plane.signedDist(p) < 0.0f) return false;
         return true;
     }
 
 private:
-    void buildPlane(int idx, const Vector3& pointOnPlane, const Vector3& inwardNormal)
-    {
+    void buildPlane(int idx, const Vector3& pointOnPlane, const Vector3& inwardNormal){
         planes[idx].normal = inwardNormal;
         planes[idx].d = inwardNormal.Dot(pointOnPlane);
     }
 
-    void buildPlaneFromPoints(int idx, const Vector3& A, const Vector3& B, const Vector3& C)
-    {
+    void buildPlaneFromPoints(int idx, const Vector3& A, const Vector3& B, const Vector3& C){
         Vector3 n = (B - A).Cross(C - A);
         n.Normalize();
         planes[idx].normal = n;

@@ -14,16 +14,16 @@ namespace fs = std::filesystem;
 // ---------------------------------------------------------------------------
 // Extension tables
 // ---------------------------------------------------------------------------
-static const char* kModelExts[]   = { ".gltf", ".glb", ".fbx", ".obj", ".stl", ".blend", nullptr };
+static const char* kModelExts[] = { ".gltf", ".glb", ".fbx", ".obj", ".stl", ".blend", nullptr };
 static const char* kTextureExts[] = { ".png", ".jpg", ".jpeg", ".tga", ".dds", ".bmp", ".hdr", nullptr };
-static const char* kAnimExts[]    = { ".anim", nullptr };
-static const char* kMatExts[]     = { ".mat",  nullptr };
+static const char* kAnimExts[] = { ".anim", nullptr };
+static const char* kMatExts[] = { ".mat", nullptr };
 
 bool DragDropManager::IsSupportedExtension(const std::string& ext) {
-    for (auto** p = kModelExts;   *p; ++p) if (ext == *p) return true;
+    for (auto** p = kModelExts; *p; ++p) if (ext == *p) return true;
     for (auto** p = kTextureExts; *p; ++p) if (ext == *p) return true;
-    for (auto** p = kAnimExts;    *p; ++p) if (ext == *p) return true;
-    for (auto** p = kMatExts;     *p; ++p) if (ext == *p) return true;
+    for (auto** p = kAnimExts; *p; ++p) if (ext == *p) return true;
+    for (auto** p = kMatExts; *p; ++p) if (ext == *p) return true;
     return false;
 }
 
@@ -39,7 +39,7 @@ DragDropManager& DragDropManager::Get() {
 // Dragging state (atomic — safe from any thread)
 // ---------------------------------------------------------------------------
 void DragDropManager::SetDragging(bool dragging) { m_isDragging.store(dragging); }
-bool DragDropManager::IsDragging()          const { return m_isDragging.load(); }
+bool DragDropManager::IsDragging() const { return m_isDragging.load(); }
 
 // ---------------------------------------------------------------------------
 // Callbacks
@@ -78,8 +78,8 @@ void DragDropManager::QueueItems(std::vector<DropItem> items) {
     m_showingComplete = false;
     {
         std::lock_guard<std::mutex> lk(m_progressMutex);
-        m_progress        = {};
-        m_progress.total  = static_cast<int>(filtered.size());
+        m_progress = {};
+        m_progress.total = static_cast<int>(filtered.size());
         m_progress.active = true;
     }
     m_tasksRemaining.store(static_cast<int>(filtered.size()));
@@ -118,18 +118,17 @@ void DragDropManager::QueueFiles(const std::vector<fs::path>& paths) {
 static void importFileTask(const fs::path& srcPath,
                             const std::string& assetsRoot,
                             ModuleFileSystem* fsys,
-                            std::mutex& importMutex)
-{
+                            std::mutex& importMutex){
     std::string ext = srcPath.extension().string();
     for (char& c : ext) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
 
     std::string subDir;
-    for (auto** p = kModelExts;   *p; ++p) if (ext == *p) { subDir = "Models/";     break; }
-    for (auto** p = kTextureExts; *p; ++p) if (ext == *p) { subDir = "Textures/";   break; }
-    for (auto** p = kAnimExts;    *p; ++p) if (ext == *p) { subDir = "Animations/"; break; }
-    for (auto** p = kMatExts;     *p; ++p) if (ext == *p) { subDir = "Materials/";  break; }
+    for (auto** p = kModelExts; *p; ++p) if (ext == *p) { subDir = "Models/"; break; }
+    for (auto** p = kTextureExts; *p; ++p) if (ext == *p) { subDir = "Textures/"; break; }
+    for (auto** p = kAnimExts; *p; ++p) if (ext == *p) { subDir = "Animations/"; break; }
+    for (auto** p = kMatExts; *p; ++p) if (ext == *p) { subDir = "Materials/"; break; }
 
-    std::string destDir  = assetsRoot + subDir;
+    std::string destDir = assetsRoot + subDir;
     std::string destPath = destDir + srcPath.filename().string();
 
     fsys->CreateDir(destDir.c_str());
@@ -162,10 +161,9 @@ static void importFileTask(const fs::path& srcPath,
 static void importFolderTask(const fs::path& srcFolder,
                               const std::string& assetsRoot,
                               ModuleFileSystem* fsys,
-                              std::mutex& importMutex)
-{
+                              std::mutex& importMutex){
     std::string folderName = srcFolder.filename().string();
-    fs::path    destRoot   = fs::path(assetsRoot + "Models/") / folderName;
+    fs::path destRoot = fs::path(assetsRoot + "Models/") / folderName;
 
     bool alreadyInAssets = (srcFolder.string().rfind(assetsRoot, 0) == 0);
     if (!alreadyInAssets) {
@@ -239,7 +237,7 @@ void DragDropManager::workerFunc() {
 
         if (app && app->getAssets() && app->getFileSystem()) {
             const std::string assetsRoot = app->getFileSystem()->GetAssetsPath();
-            ModuleFileSystem* fsys       = app->getFileSystem();
+            ModuleFileSystem* fsys = app->getFileSystem();
 
             // Run the import inside a detached sub-thread so we can enforce
             // the per-file timeout without blocking the pool worker forever.
@@ -262,8 +260,7 @@ void DragDropManager::workerFunc() {
             importThread.detach();
 
             if (doneFuture.wait_for(std::chrono::seconds(kImportTimeoutSecs)) ==
-                std::future_status::timeout)
-            {
+                std::future_status::timeout){
                 LOG("DragDrop: Import of '%s' exceeded %ds, skipping to next file.",
                     fname.c_str(), kImportTimeoutSecs);
             }
@@ -304,7 +301,7 @@ void DragDropManager::Update() {
             m_progress.showComplete = true;
         }
         m_showingComplete = true;
-        m_completeTime    = std::chrono::steady_clock::now();
+        m_completeTime = std::chrono::steady_clock::now();
     }
 
     if (m_showingComplete) {

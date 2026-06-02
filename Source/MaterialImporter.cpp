@@ -65,8 +65,7 @@ std::string MaterialImporter::importTexture(int texIndex, const tinygltf::Model&
 
 bool MaterialImporter::Import(const tinygltf::Material& gltfMat, const tinygltf::Model& model,
 	const std::string& sceneName, const std::string& outputFile,
-	int /*materialIndex*/, const std::string& basePath)
-{
+	int /*materialIndex*/, const std::string& basePath){
 	const auto& pbr = gltfMat.pbrMetallicRoughness;
 
 	MaterialHeader header{};
@@ -177,7 +176,7 @@ bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& 
 	auto loadTex = [&](const std::string& path,
 		void (Material::* setter)(ComPtr<ID3D12Resource>, D3D12_GPU_DESCRIPTOR_HANDLE)) -> bool {
 			if (path.empty()) return false;
-			ComPtr<ID3D12Resource>      tex;
+			ComPtr<ID3D12Resource> tex;
 			D3D12_GPU_DESCRIPTOR_HANDLE srv{};
 			if (!TextureImporter::Load(path, tex, srv)) {
 				LOG("MaterialImporter: Failed to load texture %s", path.c_str());

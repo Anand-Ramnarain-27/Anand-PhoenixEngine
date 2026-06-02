@@ -6,38 +6,30 @@ class Module
 {
 public:
 
-	Module()
-	{
+	Module(){
 	}
 
-    virtual ~Module()
-    {
+    virtual ~Module(){
 
     }
 
-	virtual bool init() 
-	{
-		return true; 
+	virtual bool init(){
+		return true;
 	}
 
-	virtual void update()
-	{
+	virtual void update(){
 	}
 
-    virtual void preRender()
-    {
+    virtual void preRender(){
     }
 
-    virtual void postRender()
-	{
+    virtual void postRender(){
 	}
 
-    virtual void render()
-    {
+    virtual void render(){
     }
 
-    virtual bool cleanUp()
-	{ 
-		return true; 
+    virtual bool cleanUp(){
+		return true;
 	}
 };

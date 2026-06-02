@@ -24,7 +24,7 @@ void SkinningPass::cleanUp() {
 }
 
 bool SkinningPass::createBuffers(ID3D12Device* device) {
-    const UINT64 jointSz      = UINT64(MAX_TOTAL_JOINTS) * sizeof(Matrix);
+    const UINT64 jointSz = UINT64(MAX_TOTAL_JOINTS) * sizeof(Matrix);
     const UINT64 morphWeightSz = UINT64(MAX_TOTAL_MORPH_WEIGHTS) * sizeof(float);
 
     // Upload ring: FRAMES_IN_FLIGHT sections for palette, then paletteNormal, then morph weights.
@@ -41,7 +41,7 @@ bool SkinningPass::createBuffers(ID3D12Device* device) {
 
     // palette GPU buffer = joint matrices + morph weights in one allocation.
     const UINT64 paletteSz = jointSz + morphWeightSz;
-    const UINT64 outputSz  = UINT64(MAX_TOTAL_VERTICES) * sizeof(Mesh::Vertex);
+    const UINT64 outputSz = UINT64(MAX_TOTAL_VERTICES) * sizeof(Mesh::Vertex);
 
     for (int i = 0; i < FRAMES_IN_FLIGHT; ++i) {
         // Palette+weights: default heap, starts in COPY_DEST.
@@ -107,14 +107,14 @@ bool SkinningPass::createPipeline(ID3D12Device* device) {
     //   [7] t5 : root SRV        StructuredBuffer<float>       (morph blend weights)
     {
         CD3DX12_ROOT_PARAMETER params[8] = {};
-        params[0].InitAsConstants(5, 0);              // b0 — 5 DWORDs
-        params[1].InitAsShaderResourceView(0);        // t0 palette
-        params[2].InitAsShaderResourceView(1);        // t1 paletteNormal
-        params[3].InitAsShaderResourceView(2);        // t2 inVertex
-        params[4].InitAsShaderResourceView(3);        // t3 boneWeights
-        params[5].InitAsUnorderedAccessView(0);       // u0 outVertex
-        params[6].InitAsShaderResourceView(4);        // t4 morphVertices
-        params[7].InitAsShaderResourceView(5);        // t5 morphWeights
+        params[0].InitAsConstants(5, 0); // b0 — 5 DWORDs
+        params[1].InitAsShaderResourceView(0); // t0 palette
+        params[2].InitAsShaderResourceView(1); // t1 paletteNormal
+        params[3].InitAsShaderResourceView(2); // t2 inVertex
+        params[4].InitAsShaderResourceView(3); // t3 boneWeights
+        params[5].InitAsUnorderedAccessView(0); // u0 outVertex
+        params[6].InitAsShaderResourceView(4); // t4 morphVertices
+        params[7].InitAsShaderResourceView(5); // t5 morphWeights
 
         CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
         rsDesc.Init(_countof(params), params, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
@@ -155,15 +155,15 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
     BEGIN_EVENT(cmd, "SkinningPass");
 
     // Upload ring offsets (see header comment for layout).
-    const UINT64 jointSz           = UINT64(MAX_TOTAL_JOINTS) * sizeof(Matrix);
-    const UINT64 morphWeightSz     = UINT64(MAX_TOTAL_MORPH_WEIGHTS) * sizeof(float);
-    const UINT64 paletteUploadOff       = UINT64(frameIndex) * jointSz;
+    const UINT64 jointSz = UINT64(MAX_TOTAL_JOINTS) * sizeof(Matrix);
+    const UINT64 morphWeightSz = UINT64(MAX_TOTAL_MORPH_WEIGHTS) * sizeof(float);
+    const UINT64 paletteUploadOff = UINT64(frameIndex) * jointSz;
     const UINT64 paletteNormalUploadOff = UINT64(FRAMES_IN_FLIGHT) * jointSz + UINT64(frameIndex) * jointSz;
-    const UINT64 morphWeightUploadOff   = UINT64(FRAMES_IN_FLIGHT) * jointSz * 2 + UINT64(frameIndex) * morphWeightSz;
+    const UINT64 morphWeightUploadOff = UINT64(FRAMES_IN_FLIGHT) * jointSz * 2 + UINT64(frameIndex) * morphWeightSz;
 
-    uint8_t* paletteDst       = m_uploadMapped + paletteUploadOff;
+    uint8_t* paletteDst = m_uploadMapped + paletteUploadOff;
     uint8_t* paletteNormalDst = m_uploadMapped + paletteNormalUploadOff;
-    uint8_t* morphWeightDst   = m_uploadMapped + morphWeightUploadOff;
+    uint8_t* morphWeightDst = m_uploadMapped + morphWeightUploadOff;
 
     // ---- 1. Build matrix palettes + morph weights on CPU ----
     for (const auto& job : jobs) {
@@ -216,8 +216,8 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
 
     // Palette matrices + morph weights — both sections are in the same GPU buffer, so one barrier covers both.
     transitionTo(m_palettes[frameIndex], m_paletteStates[frameIndex], D3D12_RESOURCE_STATE_COPY_DEST);
-    cmd->CopyBufferRegion(m_palettes[frameIndex].Get(), 0,        m_upload.Get(), paletteUploadOff,     jointSz);
-    cmd->CopyBufferRegion(m_palettes[frameIndex].Get(), jointSz,  m_upload.Get(), morphWeightUploadOff, morphWeightSz);
+    cmd->CopyBufferRegion(m_palettes[frameIndex].Get(), 0, m_upload.Get(), paletteUploadOff, jointSz);
+    cmd->CopyBufferRegion(m_palettes[frameIndex].Get(), jointSz, m_upload.Get(), morphWeightUploadOff, morphWeightSz);
     transitionTo(m_palettes[frameIndex], m_paletteStates[frameIndex], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
     // PaletteNormal
@@ -246,14 +246,14 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
     for (const auto& job : jobs) {
         if (!job.mesh) continue;
 
-        const bool hasSkin  = (job.skin != nullptr) && !job.jointWorldMatrices.empty();
+        const bool hasSkin = (job.skin != nullptr) && !job.jointWorldMatrices.empty();
         // Morphing is active only when the mesh has targets AND the caller supplied weights.
         const bool hasMorph = job.mesh->hasMorphTargets() && !job.morphWeights.empty();
         if (!hasSkin && !hasMorph) continue;
 
-        const uint32_t vertexCount     = job.mesh->getVertexCount();
+        const uint32_t vertexCount = job.mesh->getVertexCount();
         const uint32_t numMorphTargets = hasMorph ? static_cast<uint32_t>(job.morphWeights.size()) : 0u;
-        const uint32_t numJoints       = hasSkin  ? static_cast<uint32_t>(job.skin->jointNodeIndices.size()) : 0u;
+        const uint32_t numJoints = hasSkin ? static_cast<uint32_t>(job.skin->jointNodeIndices.size()) : 0u;
         if (vertexCount == 0) continue;
 
         const D3D12_GPU_VIRTUAL_ADDRESS vertexVA = job.mesh->getVertexBufferVA();
@@ -261,7 +261,7 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
 
         // Bone-weight buffer: required for skin jobs, dummy for morph-only jobs.
         const D3D12_GPU_VIRTUAL_ADDRESS rawBwVA = job.mesh->getBoneWeightBufferVA();
-        if (hasSkin && rawBwVA == 0) continue;  // skin job but bone weights not on GPU yet
+        if (hasSkin && rawBwVA == 0) continue; // skin job but bone weights not on GPU yet
         const D3D12_GPU_VIRTUAL_ADDRESS bwVA = hasSkin ? rawBwVA : dummyVA;
 
         // Morph vertex deltas: per-mesh buffer uploaded at import time.

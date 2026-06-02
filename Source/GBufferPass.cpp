@@ -33,19 +33,19 @@ namespace {
 
     void writeTex2DSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* tex) {
         D3D12_SHADER_RESOURCE_VIEW_DESC sv = {};
-        sv.Format                        = tex->GetDesc().Format;
-        sv.ViewDimension                 = D3D12_SRV_DIMENSION_TEXTURE2D;
-        sv.Shader4ComponentMapping       = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        sv.Texture2D.MipLevels           = tex->GetDesc().MipLevels;
+        sv.Format = tex->GetDesc().Format;
+        sv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        sv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        sv.Texture2D.MipLevels = tex->GetDesc().MipLevels;
         table.createSRV(tex, slot, &sv);
     }
 
     void writeFallbackSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* fallback) {
         D3D12_SHADER_RESOURCE_VIEW_DESC sv = {};
-        sv.Format                        = DXGI_FORMAT_R8G8B8A8_UNORM;
-        sv.ViewDimension                 = D3D12_SRV_DIMENSION_TEXTURE2D;
-        sv.Shader4ComponentMapping       = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        sv.Texture2D.MipLevels           = 1;
+        sv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        sv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        sv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        sv.Texture2D.MipLevels = 1;
         table.createSRV(fallback, slot, &sv);
     }
 
@@ -53,15 +53,15 @@ namespace {
         MeshPipeline::GpuMaterial gm;
         if (!mat) return gm;
         const Material::Data& d = mat->getData();
-        gm.baseColor        = d.baseColor;
-        gm.metallicFactor   = d.metallic;
-        gm.roughnessFactor  = d.roughness;
-        gm.normalScale      = d.normalStrength;
+        gm.baseColor = d.baseColor;
+        gm.metallicFactor = d.metallic;
+        gm.roughnessFactor = d.roughness;
+        gm.normalScale = d.normalStrength;
         gm.occlusionStrength = d.aoStrength;
-        gm.emissiveFactor   = d.emissiveFactor;
-        gm.alphaCutoff      = d.alphaCutoff;
-        gm.flags            = d.flags;
-        gm.padding          = 0;
+        gm.emissiveFactor = d.emissiveFactor;
+        gm.alphaCutoff = d.alphaCutoff;
+        gm.flags = d.flags;
+        gm.padding = 0;
         return gm;
     }
 }
@@ -71,15 +71,15 @@ bool GBufferPass::init(ID3D12Device* device) {
         LOG("GBufferPass: pipeline init failed");
         return false;
     }
-    if (!createUploadBuffers(device))   return false;
+    if (!createUploadBuffers(device)) return false;
     if (!createFallbackTexture(device)) return false;
-    if (!createMatTableRing())          return false;
+    if (!createMatTableRing()) return false;
     LOG("GBufferPass: init OK");
     return true;
 }
 
 bool GBufferPass::createUploadBuffers(ID3D12Device* device) {
-    const UINT mvpSz  = cbAlign(sizeof(MeshPipeline::CbMVP));
+    const UINT mvpSz = cbAlign(sizeof(MeshPipeline::CbMVP));
     const UINT instSz = cbAlign(sizeof(MeshPipeline::CbPerInstance));
 
     m_mvpRing = makeUploadBuf(device, (UINT64)mvpSz * MAX_INSTANCES,
@@ -95,12 +95,12 @@ bool GBufferPass::createUploadBuffers(ID3D12Device* device) {
 
 bool GBufferPass::createFallbackTexture(ID3D12Device* device) {
     D3D12_RESOURCE_DESC td = {};
-    td.Dimension          = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    td.Width = td.Height  = 1;
-    td.DepthOrArraySize   = 1;
-    td.MipLevels          = 1;
-    td.Format             = DXGI_FORMAT_R8G8B8A8_UNORM;
-    td.SampleDesc         = { 1, 0 };
+    td.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    td.Width = td.Height = 1;
+    td.DepthOrArraySize = 1;
+    td.MipLevels = 1;
+    td.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    td.SampleDesc = { 1, 0 };
     auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &td,
                                                   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
@@ -136,7 +136,7 @@ void GBufferPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj
                                    UINT slot,
                                    D3D12_GPU_VIRTUAL_ADDRESS& outMvpVA,
                                    D3D12_GPU_VIRTUAL_ADDRESS& outInstVA) {
-    const UINT mvpSz  = cbAlign(sizeof(MeshPipeline::CbMVP));
+    const UINT mvpSz = cbAlign(sizeof(MeshPipeline::CbMVP));
     const UINT instSz = cbAlign(sizeof(MeshPipeline::CbPerInstance));
 
     Matrix world;
@@ -163,8 +163,8 @@ void GBufferPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj
         memcpy(static_cast<char*>(m_instanceMapped) + (UINT64)slot * instSz, &inst, sizeof(inst));
     }
 
-    outMvpVA  = m_mvpRing->GetGPUVirtualAddress()      + (UINT64)slot * mvpSz;
-    outInstVA = m_instanceRing->GetGPUVirtualAddress()  + (UINT64)slot * instSz;
+    outMvpVA = m_mvpRing->GetGPUVirtualAddress() + (UINT64)slot * mvpSz;
+    outInstVA = m_instanceRing->GetGPUVirtualAddress() + (UINT64)slot * instSz;
 }
 
 void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
@@ -206,7 +206,7 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
             D3D12_GPU_VIRTUAL_ADDRESS mvpVA, instVA;
             writePerDrawCBs(*entry, viewProj, slot, mvpVA, instVA);
 
-            cmd->SetGraphicsRootConstantBufferView(GBufferPipeline::SLOT_MVP_CB,      mvpVA);
+            cmd->SetGraphicsRootConstantBufferView(GBufferPipeline::SLOT_MVP_CB, mvpVA);
             cmd->SetGraphicsRootConstantBufferView(GBufferPipeline::SLOT_INSTANCE_CB, instVA);
 
             ShaderTableDesc& matTable = m_matRing[slot];
@@ -221,11 +221,11 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
             writeFallbackSRV(matTable, 4, m_fallbackTex.Get());
 
             if (mat) {
-                if (mat->hasTexture()      && mat->getBaseColorResource())   writeTex2DSRV(matTable, 0, mat->getBaseColorResource());
-                if (mat->hasMetalRoughMap()&& mat->getMetalRoughResource())  writeTex2DSRV(matTable, 1, mat->getMetalRoughResource());
-                if (mat->hasNormalMap()    && mat->getNormalMapResource())   writeTex2DSRV(matTable, 2, mat->getNormalMapResource());
-                if (mat->hasAOMap()        && mat->getAOMapResource())       writeTex2DSRV(matTable, 3, mat->getAOMapResource());
-                if (mat->hasEmissive()     && mat->getEmissiveResource())    writeTex2DSRV(matTable, 4, mat->getEmissiveResource());
+                if (mat->hasTexture() && mat->getBaseColorResource()) writeTex2DSRV(matTable, 0, mat->getBaseColorResource());
+                if (mat->hasMetalRoughMap()&& mat->getMetalRoughResource()) writeTex2DSRV(matTable, 1, mat->getMetalRoughResource());
+                if (mat->hasNormalMap() && mat->getNormalMapResource()) writeTex2DSRV(matTable, 2, mat->getNormalMapResource());
+                if (mat->hasAOMap() && mat->getAOMapResource()) writeTex2DSRV(matTable, 3, mat->getAOMapResource());
+                if (mat->hasEmissive() && mat->getEmissiveResource()) writeTex2DSRV(matTable, 4, mat->getEmissiveResource());
             }
 
             cmd->SetGraphicsRootDescriptorTable(GBufferPipeline::SLOT_MAT_TEXTURES,

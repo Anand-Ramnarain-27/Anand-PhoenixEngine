@@ -3,7 +3,6 @@
 #include "ModuleRTDescriptors.h"
 #include "Application.h"
 
-ModuleRTDescriptors* RenderTargetDesc::getModule()
-{
+ModuleRTDescriptors* RenderTargetDesc::getModule(){
     return app->getRTDescriptors();
 }

@@ -35,8 +35,7 @@ ULONG STDMETHODCALLTYPE EngineDropTarget::Release() {
 // IDropTarget
 // ---------------------------------------------------------------------------
 HRESULT STDMETHODCALLTYPE EngineDropTarget::DragEnter(
-    IDataObject* pDataObj, DWORD /*grfKeyState*/, POINTL /*pt*/, DWORD* pdwEffect)
-{
+    IDataObject* pDataObj, DWORD /*grfKeyState*/, POINTL /*pt*/, DWORD* pdwEffect){
     // Check whether the dragged data contains files at all
     FORMATETC fmt = { CF_HDROP, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL };
     m_hasFiles = (pDataObj && SUCCEEDED(pDataObj->QueryGetData(&fmt)));
@@ -46,8 +45,7 @@ HRESULT STDMETHODCALLTYPE EngineDropTarget::DragEnter(
 }
 
 HRESULT STDMETHODCALLTYPE EngineDropTarget::DragOver(
-    DWORD /*grfKeyState*/, POINTL /*pt*/, DWORD* pdwEffect)
-{
+    DWORD /*grfKeyState*/, POINTL /*pt*/, DWORD* pdwEffect){
     *pdwEffect = m_hasFiles ? DROPEFFECT_COPY : DROPEFFECT_NONE;
     return S_OK;
 }
@@ -59,8 +57,7 @@ HRESULT STDMETHODCALLTYPE EngineDropTarget::DragLeave() {
 }
 
 HRESULT STDMETHODCALLTYPE EngineDropTarget::Drop(
-    IDataObject* pDataObj, DWORD /*grfKeyState*/, POINTL /*pt*/, DWORD* pdwEffect)
-{
+    IDataObject* pDataObj, DWORD /*grfKeyState*/, POINTL /*pt*/, DWORD* pdwEffect){
     DragDropManager::Get().SetDragging(false);
     m_hasFiles = false;
     *pdwEffect = DROPEFFECT_COPY;
@@ -76,8 +73,7 @@ HRESULT STDMETHODCALLTYPE EngineDropTarget::Drop(
 // Item extraction — directories are NOT expanded here; the worker copies them.
 // ---------------------------------------------------------------------------
 bool EngineDropTarget::tryExtractItems(IDataObject* pDataObj,
-                                       std::vector<DragDropManager::DropItem>& outItems) const
-{
+                                       std::vector<DragDropManager::DropItem>& outItems) const{
     FORMATETC fmt = { CF_HDROP, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL };
     STGMEDIUM stg = {};
     if (FAILED(pDataObj->GetData(&fmt, &stg))) return false;

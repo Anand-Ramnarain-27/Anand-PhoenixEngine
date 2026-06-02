@@ -33,13 +33,13 @@ void GBuffer::resize(uint32_t w, uint32_t h) {
     release();
     if (w == 0 || h == 0) return;
 
-    m_width  = w;
+    m_width = w;
     m_height = h;
 
     auto* gpuRes = app->getGPUResources();
-    auto* rtd    = app->getRTDescriptors();
-    auto* dsd    = app->getDSDescriptors();
-    auto* sd     = app->getShaderDescriptors();
+    auto* rtd = app->getRTDescriptors();
+    auto* dsd = app->getDSDescriptors();
+    auto* sd = app->getShaderDescriptors();
 
     for (int i = 0; i < NUM_COLOR_RTS; ++i) {
         m_colorTextures[i] = gpuRes->createRenderTarget(
@@ -55,17 +55,17 @@ void GBuffer::resize(uint32_t w, uint32_t h) {
     // Create depth as R32_TYPELESS so we can bind it both as DSV and as an R32_FLOAT SRV
     {
         D3D12_RESOURCE_DESC dd = {};
-        dd.Dimension          = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-        dd.Width              = w;
-        dd.Height             = h;
-        dd.DepthOrArraySize   = 1;
-        dd.MipLevels          = 1;
-        dd.Format             = DXGI_FORMAT_R32_TYPELESS;
-        dd.SampleDesc         = { 1, 0 };
-        dd.Flags              = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+        dd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        dd.Width = w;
+        dd.Height = h;
+        dd.DepthOrArraySize = 1;
+        dd.MipLevels = 1;
+        dd.Format = DXGI_FORMAT_R32_TYPELESS;
+        dd.SampleDesc = { 1, 0 };
+        dd.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
         auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-        D3D12_CLEAR_VALUE cv  = {};
-        cv.Format             = DXGI_FORMAT_D32_FLOAT;
+        D3D12_CLEAR_VALUE cv = {};
+        cv.Format = DXGI_FORMAT_D32_FLOAT;
         cv.DepthStencil.Depth = 1.0f;
         app->getD3D12()->getDevice()->CreateCommittedResource(
             &hp, D3D12_HEAP_FLAG_NONE, &dd,
@@ -75,15 +75,15 @@ void GBuffer::resize(uint32_t w, uint32_t h) {
 
     // DSV with concrete D32_FLOAT format (writable)
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-    dsvDesc.Format        = DXGI_FORMAT_D32_FLOAT;
+    dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
     dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     m_dsvDesc = dsd->create(m_depthTexture.Get(), &dsvDesc);
 
     // Read-only DSV — used by the transparent forward pass (depth test, no depth write)
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvRODesc = {};
-    dsvRODesc.Format        = DXGI_FORMAT_D32_FLOAT;
+    dsvRODesc.Format = DXGI_FORMAT_D32_FLOAT;
     dsvRODesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-    dsvRODesc.Flags         = D3D12_DSV_FLAG_READ_ONLY_DEPTH;
+    dsvRODesc.Flags = D3D12_DSV_FLAG_READ_ONLY_DEPTH;
     m_dsvReadOnly = dsd->create(m_depthTexture.Get(), &dsvRODesc);
 
     // SRV for sampling depth as R32_FLOAT in the deferred lighting pass
@@ -106,7 +106,7 @@ void GBuffer::release() {
     m_dsvReadOnly.reset();
     m_depthSrvTable.reset();
     m_depthReadable = false;
-    m_width  = 0;
+    m_width = 0;
     m_height = 0;
 }
 
@@ -145,7 +145,7 @@ void GBuffer::beginGeomPass(ID3D12GraphicsCommandList* cmd, bool clear) {
     }
 
     D3D12_VIEWPORT vp = { 0.f, 0.f, float(m_width), float(m_height), 0.f, 1.f };
-    D3D12_RECT     sc = { 0,   0,   LONG(m_width),  LONG(m_height) };
+    D3D12_RECT sc = { 0, 0, LONG(m_width), LONG(m_height) };
     cmd->RSSetViewports(1, &vp);
     cmd->RSSetScissorRects(1, &sc);
 }

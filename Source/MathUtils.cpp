@@ -1,16 +1,14 @@
 #include "Globals.h"
 #include "MathUtils.h"
 
-void euclideanToSpherical(const Vector3& dir, float& azimuth, float& elevation)
-{
+void euclideanToSpherical(const Vector3& dir, float& azimuth, float& elevation){
     Vector3 norm = dir;
     norm.Normalize();
     azimuth = atan2f(norm.z, norm.x);
     elevation = acosf(norm.y);
 };
 
-void sphericalToEuclidean(float azimuth, float elevation, Vector3& dir)
-{
+void sphericalToEuclidean(float azimuth, float elevation, Vector3& dir){
     float cos_azimuth = cosf(azimuth);
     float sin_azimuth = sinf(azimuth);
     float cos_elevation = cosf(elevation);
@@ -22,8 +20,7 @@ void sphericalToEuclidean(float azimuth, float elevation, Vector3& dir)
 };
 
 // From https://www8.cs.umu.se/kurser/5DV051/HT12/lab/plane_extraction.pdf
-void getPlanes(Vector4 planes[6], const Matrix& viewProjection, bool normalize /*= false*/)
-{
+void getPlanes(Vector4 planes[6], const Matrix& viewProjection, bool normalize /*= false*/){
     Matrix vp = viewProjection;
     vp.Transpose();
 
@@ -75,8 +72,7 @@ void getPlanes(Vector4 planes[6], const Matrix& viewProjection, bool normalize /
 
 }
 
-void getPlanes(const BoundingOrientedBox& obb, Vector4 planes[6], Vector3 absPlanes[6])
-{
+void getPlanes(const BoundingOrientedBox& obb, Vector4 planes[6], Vector3 absPlanes[6]){
     Vector3::Transform(Vector3::UnitX, *reinterpret_cast<const Quaternion*>(&obb.Orientation), absPlanes[0]);
     Vector3::Transform(-Vector3::UnitX, *reinterpret_cast<const Quaternion*>(&obb.Orientation), absPlanes[1]);
 
@@ -98,8 +94,7 @@ void getPlanes(const BoundingOrientedBox& obb, Vector4 planes[6], Vector3 absPla
     }
 }
 
-void getPoints(const BoundingOrientedBox& obb, Vector3 points[8])
-{
+void getPoints(const BoundingOrientedBox& obb, Vector3 points[8]){
     Vector3 axis[3];
     Vector3::Transform(Vector3::UnitX, *reinterpret_cast<const Quaternion*>(&obb.Orientation), axis[0]);
     Vector3::Transform(Vector3::UnitY, *reinterpret_cast<const Quaternion*>(&obb.Orientation), axis[1]);
@@ -116,8 +111,7 @@ void getPoints(const BoundingOrientedBox& obb, Vector3 points[8])
     points[7] = obb.Center - axis[0] * obb.Extents.x - axis[1] * obb.Extents.y - axis[2] * obb.Extents.z;
 }
 
-IntersectionType insidePlanes(const Vector4 planes[6], const Vector3 absPlanes[6], const BoundingBox& box)
-{
+IntersectionType insidePlanes(const Vector4 planes[6], const Vector3 absPlanes[6], const BoundingBox& box){
     Vector4 center(box.Center.x, box.Center.y, box.Center.z, 1.0f);
     const Vector3& extents = *reinterpret_cast<const Vector3*>(&box.Extents);
 
@@ -128,7 +122,7 @@ IntersectionType insidePlanes(const Vector4 planes[6], const Vector3 absPlanes[6
         float dist = center.Dot(planes[i]);
         float radius = extents.Dot(absPlanes[i]);
 
-        if (dist + radius < 0.0f)  return OUTSIDE;
+        if (dist + radius < 0.0f) return OUTSIDE;
 
         allInside &= dist - radius >= 0.0f;
     }
@@ -137,8 +131,7 @@ IntersectionType insidePlanes(const Vector4 planes[6], const Vector3 absPlanes[6
 
 }
 
-IntersectionType insidePlanes(const Vector4 planes[6], const Vector3 absPlanes[6], const BoundingOrientedBox& box)
-{
+IntersectionType insidePlanes(const Vector4 planes[6], const Vector3 absPlanes[6], const BoundingOrientedBox& box){
     Vector4 center(box.Center.x, box.Center.y, box.Center.z, 1.0f);
     const Vector3& extents = *reinterpret_cast<const Vector3*>(&box.Extents);
 
@@ -160,7 +153,7 @@ IntersectionType insidePlanes(const Vector4 planes[6], const Vector3 absPlanes[6
         float dist = center.Dot(planes[i]);
         float radius = orientedExtents.Dot(absPlanes[i]);
 
-        if (dist + radius < 0.0f)  return OUTSIDE;
+        if (dist + radius < 0.0f) return OUTSIDE;
 
         allInside &= dist - radius >= 0.0f;
     }
@@ -168,8 +161,7 @@ IntersectionType insidePlanes(const Vector4 planes[6], const Vector3 absPlanes[6
     return allInside ? INSIDE : INTERSECTION;
 }
 
-IntersectionType insideAABB(const BoundingBox& aabb, const Vector3 points[8])
-{
+IntersectionType insideAABB(const BoundingBox& aabb, const Vector3 points[8]){
     Vector3 min = aabb.Center - aabb.Extents;
     Vector3 max = aabb.Center + aabb.Extents;
 
@@ -188,4 +180,3 @@ IntersectionType insideAABB(const BoundingBox& aabb, const Vector3 points[8])
 
     return allInside ? INSIDE : (anyInside ? INTERSECTION : OUTSIDE);
 }
-

@@ -2,7 +2,7 @@
 
 #include "Module.h"
 
-namespace DirectX { class Keyboard; class Mouse; class GamePad;  }
+namespace DirectX { class Keyboard; class Mouse; class GamePad; }
 
 class ModuleInput : public Module
 {

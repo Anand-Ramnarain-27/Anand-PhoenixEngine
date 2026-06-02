@@ -2,12 +2,11 @@
 
 #define TINYGLTF_NO_STB_IMAGE_WRITE
 #define TINYGLTF_NO_STB_IMAGE
-#define TINYGLTF_NO_EXTERNAL_IMAGE 
+#define TINYGLTF_NO_EXTERNAL_IMAGE
 #include "tiny_gltf.h"
 
 
-inline bool loadAccessorData(uint8_t* data, size_t elemSize, size_t stride, size_t count, const tinygltf::Model& model, int index)
-{
+inline bool loadAccessorData(uint8_t* data, size_t elemSize, size_t stride, size_t count, const tinygltf::Model& model, int index){
     const tinygltf::Accessor& accessor = model.accessors[index];
     size_t defaultStride = tinygltf::GetComponentSizeInBytes(accessor.componentType) * tinygltf::GetNumComponentsInType(accessor.type);
 
@@ -30,8 +29,7 @@ inline bool loadAccessorData(uint8_t* data, size_t elemSize, size_t stride, size
     return false;
 }
 
-inline bool loadAccessorData(uint8_t* data, size_t elemSize, size_t stride, size_t count, const tinygltf::Model& model, const std::map<std::string, int>& attributes, const char* accesorName)
-{
+inline bool loadAccessorData(uint8_t* data, size_t elemSize, size_t stride, size_t count, const tinygltf::Model& model, const std::map<std::string, int>& attributes, const char* accesorName){
     const auto& it = attributes.find(accesorName);
     if (it != attributes.end())
     {
@@ -42,8 +40,7 @@ inline bool loadAccessorData(uint8_t* data, size_t elemSize, size_t stride, size
 }
 
 template <class T>
-inline bool loadAccessorTyped(std::unique_ptr<T[]>& data, UINT& count, const tinygltf::Model& model, int index)
-{
+inline bool loadAccessorTyped(std::unique_ptr<T[]>& data, UINT& count, const tinygltf::Model& model, int index){
     const tinygltf::Accessor& accessor = model.accessors[index];
 
     count = UINT(accessor.count);
@@ -54,8 +51,7 @@ inline bool loadAccessorTyped(std::unique_ptr<T[]>& data, UINT& count, const tin
 
 
 template <class T>
-inline bool loadAccessorTyped(std::unique_ptr<T[]>& data, UINT& count, const tinygltf::Model& model, const std::map<std::string, int>& attributes, const char* accesorName)
-{
+inline bool loadAccessorTyped(std::unique_ptr<T[]>& data, UINT& count, const tinygltf::Model& model, const std::map<std::string, int>& attributes, const char* accesorName){
     const auto& it = attributes.find(accesorName);
     if (it != attributes.end())
     {

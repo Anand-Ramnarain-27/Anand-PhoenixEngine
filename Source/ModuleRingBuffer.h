@@ -9,7 +9,7 @@ public:
     ModuleRingBuffer() = default;
     ~ModuleRingBuffer() = default;
 
-    bool init()      override;
+    bool init() override;
     void preRender() override;
 
     template<typename T>
@@ -26,12 +26,12 @@ private:
 
     ComPtr<ID3D12Resource> m_buffer;
     uint8_t* m_mappedPtr = nullptr;
-    size_t                 m_capacity = 0;
-    size_t                 m_head = 0;
-    size_t                 m_tail = 0;
+    size_t m_capacity = 0;
+    size_t m_head = 0;
+    size_t m_tail = 0;
 
     static constexpr uint32_t MAX_FRAMES = 3;
     struct FrameData { size_t allocationStart = 0; size_t allocationSize = 0; };
-    FrameData  m_frameData[MAX_FRAMES] = {};
-    uint32_t   m_currentFrame = 0;
+    FrameData m_frameData[MAX_FRAMES] = {};
+    uint32_t m_currentFrame = 0;
 };

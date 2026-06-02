@@ -138,12 +138,12 @@ bool ModuleEditor::init() {
     m_saveDialog->setExtensionFilter(".json");
     m_loadDialog->setExtensionFilter(".json");
 
-    m_sceneView    = addPanel<SceneViewPanel>(this);
-    m_gameView     = addPanel<GameViewPanel>(this);
+    m_sceneView = addPanel<SceneViewPanel>(this);
+    m_gameView = addPanel<GameViewPanel>(this);
     addPanel<HierarchyPanel>(this);
     addPanel<InspectorPanel>(this);
-    m_console      = addPanel<ConsolePanel>(this);
-    m_performance  = addPanel<PerformancePanel>(this);
+    m_console = addPanel<ConsolePanel>(this);
+    m_performance = addPanel<PerformancePanel>(this);
     m_assetBrowser = addPanel<AssetBrowserPanel>(this);
     addPanel<SceneSettingsPanel>(this);
     addPanel<ResourcesPanel>(this);
@@ -264,7 +264,7 @@ void ModuleEditor::preRender() {
 
                     if (animComp) {
                         float t = animComp->getController().CurrentTime;
-                        bool  hasMC = animComp->getController().hasMorphChannel(mt.goName.c_str());
+                        bool hasMC = animComp->getController().hasMorphChannel(mt.goName.c_str());
                         ImGui::Text("Anim time: %.3f s  |  MorphChannel: %s",
                                     t, hasMC ? "YES" : "no (weights channel missing)");
                         if (!hasMC)
@@ -411,7 +411,7 @@ void ModuleEditor::render() {
     handleNewScenePopup(cmd);
 
     if (m_sceneView->viewport.isReady()) m_sceneView->renderToTexture(cmd);
-    if (m_gameView->viewport.isReady())  m_gameView->renderToTexture(cmd);
+    if (m_gameView->viewport.isReady()) m_gameView->renderToTexture(cmd);
 
     auto toRT = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     cmd->ResourceBarrier(1, &toRT);
@@ -471,14 +471,14 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     m_frameLights.spotLights.clear();
     if (moduleScene) gatherLights(moduleScene->getRoot(), m_frameLights);
 
-    std::vector<MeshEntry>  ownedEntries;
+    std::vector<MeshEntry> ownedEntries;
     std::vector<MeshEntry*> visibleMeshes;
 
     // Skinning job list built alongside mesh collection
     std::vector<SkinningPass::SkinJob> skinJobs;
-    std::vector<size_t>                skinJobEntryIdx; // ownedEntries index per job
-    uint32_t curPaletteOffset     = 0;
-    uint32_t curVertexOffset      = 0;
+    std::vector<size_t> skinJobEntryIdx; // ownedEntries index per job
+    uint32_t curPaletteOffset = 0;
+    uint32_t curVertexOffset = 0;
     uint32_t curMorphWeightOffset = 0;
 
     if (moduleScene) {
@@ -506,12 +506,12 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                         // rebuildEntry), so only skip truly unrenderable entries.
                         if (!src.meshRes || !src.meshRes->getMesh()) continue;
                         MeshEntry e;
-                        e.meshUID     = src.meshUID;
+                        e.meshUID = src.meshUID;
                         e.materialUID = src.materialUID;
-                        e.meshRes     = src.meshRes;
+                        e.meshRes = src.meshRes;
                         e.materialRes = src.materialRes;
-                        e.material    = src.instanceMaterial.get();
-                        e.materialCB  = src.materialCB;
+                        e.material = src.instanceMaterial.get();
+                        e.materialCB = src.materialCB;
 
                         Mesh* mesh = src.meshRes->getMesh();
                         const bool hasBones = isSkinned && mesh && mesh->getBoneWeightBufferVA() != 0;
@@ -539,9 +539,9 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                             e.isSkinned = true; // skinnedVA filled after dispatch
 
                             SkinningPass::SkinJob job;
-                            job.mesh              = mesh;
-                            job.paletteOffset     = curPaletteOffset;
-                            job.vertexOffset      = curVertexOffset;
+                            job.mesh = mesh;
+                            job.paletteOffset = curPaletteOffset;
+                            job.vertexOffset = curVertexOffset;
                             job.morphWeightOffset = curMorphWeightOffset;
 
                             if (hasBones) {
@@ -560,7 +560,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                                     LOG("[SkinDebug] WARNING: %d/%d joint GOs are null",
                                         nullJointCount, (int)joints.size());
 
-                                job.skin               = &cm->getLocalSkin();
+                                job.skin = &cm->getLocalSkin();
                                 job.jointWorldMatrices = std::move(jointWorlds);
                                 // Skinned output is already in Y-up world space (Blender bakes the
                                 // axis conversion into vertex positions at export time, and the joint
@@ -635,12 +635,12 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
 
         // Rebind the output render target — GBuffer pass changed OMSetRenderTargets
         if (outputRT && outputRT->isValid()) {
-            auto rtv    = outputRT->getRtvHandle();
-            auto dsv    = outputRT->getDsvHandle();
+            auto rtv = outputRT->getRtvHandle();
+            auto dsv = outputRT->getDsvHandle();
             bool hasDsv = outputRT->getDepthTexture() != nullptr;
             cmd->OMSetRenderTargets(1, &rtv, FALSE, hasDsv ? &dsv : nullptr);
             D3D12_VIEWPORT vp = { 0.f, 0.f, float(w), float(h), 0.f, 1.f };
-            D3D12_RECT     sc = { 0, 0, LONG(w), LONG(h) };
+            D3D12_RECT sc = { 0, 0, LONG(w), LONG(h) };
             cmd->RSSetViewports(1, &vp);
             cmd->RSSetScissorRects(1, &sc);
         }
@@ -669,11 +669,11 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                       });
 
             // Bind scene RT + GBuffer read-only depth (DEPTH_READ state, no writes allowed)
-            auto rtv    = outputRT->getRtvHandle();
-            auto roDsv  = m_gbufferPass->getGBuffer().getReadOnlyDsvHandle();
+            auto rtv = outputRT->getRtvHandle();
+            auto roDsv = m_gbufferPass->getGBuffer().getReadOnlyDsvHandle();
             cmd->OMSetRenderTargets(1, &rtv, FALSE, &roDsv);
             D3D12_VIEWPORT vp = { 0.f, 0.f, float(w), float(h), 0.f, 1.f };
-            D3D12_RECT     sc = { 0, 0, LONG(w), LONG(h) };
+            D3D12_RECT sc = { 0, 0, LONG(w), LONG(h) };
             cmd->RSSetViewports(1, &vp);
             cmd->RSSetScissorRects(1, &sc);
 
@@ -698,14 +698,14 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
         camera->buildDebugLines(fdd);
         for (const auto& line : fdd.lines) {
             ddVec3 f = { line.from.x, line.from.y, line.from.z };
-            ddVec3 t = { line.to.x,   line.to.y,   line.to.z };
+            ddVec3 t = { line.to.x, line.to.y, line.to.z };
             const Vector3& c = line.color;
             if (c.x > .5f && c.y > .5f && c.z < .5f) dd::line(f, t, dd::colors::Yellow);
             else if (c.x < .5f && c.y > .5f && c.z < .5f) dd::line(f, t, dd::colors::Green);
             else if (c.x < .5f && c.y > .5f && c.z > .5f) dd::line(f, t, dd::colors::Cyan);
             else if (c.x > .5f && c.y < .5f && c.z < .5f) dd::line(f, t, dd::colors::Red);
             else if (c.x < .5f && c.y < .5f && c.z > .5f) dd::line(f, t, dd::colors::Blue);
-            else                                             dd::line(f, t, dd::colors::White);
+            else dd::line(f, t, dd::colors::White);
         }
         if (moduleScene) {
             std::function<void(GameObject*)> drawGizmos = [&](GameObject* node) {
@@ -816,22 +816,22 @@ void ModuleEditor::drawMenuBar() {
         };
 
     if (ImGui::BeginMenu("File")) {
-        if (ImGui::MenuItem("New Scene", "Ctrl+N"))       m_showNewSceneConfirm = true;
+        if (ImGui::MenuItem("New Scene", "Ctrl+N")) m_showNewSceneConfirm = true;
         ImGui::Separator();
-        if (ImGui::MenuItem("Save Scene", "Ctrl+S"))       saveScene();
+        if (ImGui::MenuItem("Save Scene", "Ctrl+S")) saveScene();
         if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
-        if (ImGui::MenuItem("Load Scene...", "Ctrl+O"))     m_loadDialog->open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
+        if (ImGui::MenuItem("Load Scene...", "Ctrl+O")) m_loadDialog->open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
         ImGui::Separator();
         if (ImGui::MenuItem("Quit", "Alt+F4")) {}
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Edit")) {
-        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, canUndo()))                    undoToSavePoint();
-        if (ImGui::MenuItem("Redo", "Ctrl+Y", false, canRedo()))                    redo();
+        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, canUndo())) undoToSavePoint();
+        if (ImGui::MenuItem("Redo", "Ctrl+Y", false, canRedo())) redo();
         ImGui::Separator();
-        if (ImGui::MenuItem("Copy", "Ctrl+C", false, m_selection.has()))            copySelected();
+        if (ImGui::MenuItem("Copy", "Ctrl+C", false, m_selection.has())) copySelected();
         if (ImGui::MenuItem("Paste", "Ctrl+V", false, !m_clipboard.serialized.empty())) pasteClipboard();
-        if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, m_selection.has()))            duplicateSelected();
+        if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, m_selection.has())) duplicateSelected();
         ImGui::Separator();
         if (ImGui::MenuItem("Create Empty", "Ctrl+Shift+N")) createEmptyGameObject();
         ImGui::EndMenu();
@@ -847,7 +847,7 @@ void ModuleEditor::drawMenuBar() {
     }
     if (ImGui::BeginMenu("Scene")) {
         if (ImGui::MenuItem("Play", nullptr, false, m_sceneManager && !m_sceneManager->isPlaying())) m_sceneManager->play();
-        if (ImGui::MenuItem("Pause", nullptr, false, m_sceneManager && m_sceneManager->isPlaying()))  m_sceneManager->pause();
+        if (ImGui::MenuItem("Pause", nullptr, false, m_sceneManager && m_sceneManager->isPlaying())) m_sceneManager->pause();
         if (ImGui::MenuItem("Stop", nullptr, false, m_sceneManager && m_sceneManager->getState() != SceneManager::PlayState::Stopped)) m_sceneManager->stop();
         ImGui::EndMenu();
     }
@@ -1032,8 +1032,8 @@ GameObject* ModuleEditor::spawnModel(const std::string& path) {
         for (const auto& n : model->getNodes())
             if (!n.meshes.empty()) ++meshNodeCount;
 
-        bool hasAnimations  = (app->getAssets()->findSubUID(path, "anim", 0) != 0);
-        bool hasSkin        = !model->getSkins().empty();
+        bool hasAnimations = (app->getAssets()->findSubUID(path, "anim", 0) != 0);
+        bool hasSkin = !model->getSkins().empty();
         bool needsHierarchy = meshNodeCount > 1 || hasSkin || hasAnimations;
         if (needsHierarchy) {
             GameObject* root = model->spawnIntoScene(scene);
@@ -1042,9 +1042,9 @@ GameObject* ModuleEditor::spawnModel(const std::string& path) {
                 bool animComp = root->getComponent<ComponentAnimation>() != nullptr;
                 LOG("spawnModel '%s': meshNodes=%d skin=%s anim=%s AnimComponent=%s",
                     stem.c_str(), meshNodeCount,
-                    hasSkin       ? "yes" : "no",
+                    hasSkin ? "yes" : "no",
                     hasAnimations ? "yes" : "no",
-                    animComp      ? "yes" : "no");
+                    animComp ? "yes" : "no");
                 log(("Added: " + stem).c_str(), EditorColors::Success);
                 return root;
             }
@@ -1071,7 +1071,7 @@ bool ModuleEditor::isChildOf(const GameObject* root, const GameObject* needle) {
 void ModuleEditor::updateMemory() {
     uint64_t gpuMB = 0, ramMB = 0;
     if (ID3D12Device* device = app->getD3D12()->getDevice()) {
-        ComPtr<IDXGIDevice>  dxgiDev;
+        ComPtr<IDXGIDevice> dxgiDev;
         ComPtr<IDXGIAdapter> adapter;
         ComPtr<IDXGIAdapter3> adapter3;
         if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&dxgiDev))) && dxgiDev)
@@ -1246,8 +1246,8 @@ void ModuleEditor::duplicateSelected() {
 void ModuleEditor::handleShortcuts() {
     if (ImGui::GetIO().WantTextInput) return;
     ImGuiIO& io = ImGui::GetIO();
-    bool     ctrl = io.KeyCtrl;
-    bool     shift = io.KeyShift;
+    bool ctrl = io.KeyCtrl;
+    bool shift = io.KeyShift;
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_N, false)) m_showNewSceneConfirm = true;
     if (ctrl && shift && ImGui::IsKeyPressed(ImGuiKey_N, false)) createEmptyGameObject();
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_S, false)) {
@@ -1347,8 +1347,7 @@ void ModuleEditor::notifyScriptComponentsReload(const std::string& /*dllPath*/) 
 // Drag-drop overlay
 // ---------------------------------------------------------------------------
 static void drawDashedRect(ImDrawList* dl, ImVec2 a, ImVec2 b,
-                            ImU32 col, float thick, float dash, float gap)
-{
+                            ImU32 col, float thick, float dash, float gap){
     auto seg = [&](ImVec2 p0, ImVec2 p1) {
         float dx = p1.x - p0.x, dy = p1.y - p0.y;
         float len = sqrtf(dx * dx + dy * dy);
@@ -1371,9 +1370,8 @@ static void drawDashedRect(ImDrawList* dl, ImVec2 a, ImVec2 b,
     seg({ a.x, b.y }, { a.x, a.y });
 }
 
-void ModuleEditor::drawDragDropOverlay()
-{
-    auto& ddm    = DragDropManager::Get();
+void ModuleEditor::drawDragDropOverlay(){
+    auto& ddm = DragDropManager::Get();
     ImDrawList* fg = ImGui::GetForegroundDrawList();
     const ImVec2 dsz = ImGui::GetIO().DisplaySize;
 
@@ -1416,13 +1414,13 @@ void ModuleEditor::drawDragDropOverlay()
         ImGui::SetNextWindowBgAlpha(0.93f);
 
         constexpr ImGuiWindowFlags kFlags =
-            ImGuiWindowFlags_NoMove             |
-            ImGuiWindowFlags_NoResize           |
-            ImGuiWindowFlags_NoCollapse         |
-            ImGuiWindowFlags_NoTitleBar         |
-            ImGuiWindowFlags_NoSavedSettings    |
+            ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoCollapse |
+            ImGuiWindowFlags_NoTitleBar |
+            ImGuiWindowFlags_NoSavedSettings |
             ImGuiWindowFlags_NoFocusOnAppearing |
-            ImGuiWindowFlags_NoNav              |
+            ImGuiWindowFlags_NoNav |
             ImGuiWindowFlags_NoInputs;
 
         if (ImGui::Begin("##DDProgressModal", nullptr, kFlags)) {

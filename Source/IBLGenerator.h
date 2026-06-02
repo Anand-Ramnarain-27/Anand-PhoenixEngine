@@ -20,8 +20,7 @@ public:
     bool bakeBRDFLut(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env);
     bool finaliseSRVs(EnvironmentMap& env);
 
-    void releasePipelines()
-    {
+    void releasePipelines(){
         m_irradianceRS.Reset();
         m_irradiancePSO.Reset();
         m_prefilterRS.Reset();

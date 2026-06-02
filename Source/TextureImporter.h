@@ -22,7 +22,7 @@ public:
 		Color,
 		Emissive,
 		Normal,
-		Occlusion,   
+		Occlusion,
 		MetalRoughness,
 	};
 

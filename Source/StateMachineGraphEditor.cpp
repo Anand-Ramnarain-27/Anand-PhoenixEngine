@@ -13,13 +13,13 @@ namespace ed = ax::NodeEditor;
 //   Out pin = stateIndex * 10 + 3
 //   Link    = 1000000 + transitionIndex
 
-static int stateIdxFromNodeId(uintptr_t raw)  { return (int)(raw - 1) / 10; }
-static int stateIdxFromInPin (uintptr_t raw)  { return (int)(raw - 2) / 10; }
-static int stateIdxFromOutPin(uintptr_t raw)  { return (int)(raw - 3) / 10; }
-static int transIdxFromLinkId(uintptr_t raw)  { return (int)raw - 1000000;  }
+static int stateIdxFromNodeId(uintptr_t raw) { return (int)(raw - 1) / 10; }
+static int stateIdxFromInPin (uintptr_t raw) { return (int)(raw - 2) / 10; }
+static int stateIdxFromOutPin(uintptr_t raw) { return (int)(raw - 3) / 10; }
+static int transIdxFromLinkId(uintptr_t raw) { return (int)raw - 1000000; }
 
 static constexpr ImVec4 kYellow { 1.f, 1.f, 0.f, 1.f };
-static constexpr ImVec4 kRed    { 1.f, 0.f, 0.f, 1.f };
+static constexpr ImVec4 kRed { 1.f, 0.f, 0.f, 1.f };
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 
@@ -53,8 +53,8 @@ void StateMachineGraphEditor::Draw(ResourceStateMachine& sm, const HashString* a
 
     // ── 1. Nodes ──────────────────────────────────────────────────────────────
     for (int i = 0; i < (int)sm.states.size(); ++i) {
-        const auto& st     = sm.states[i];
-        bool        isDef  = (st.name == sm.defaultState);
+        const auto& st = sm.states[i];
+        bool isDef = (st.name == sm.defaultState);
 
         ed::BeginNode(ed::NodeId(i * 10 + 1));
         ImGui::PushID(i);
@@ -97,7 +97,7 @@ void StateMachineGraphEditor::Draw(ResourceStateMachine& sm, const HashString* a
 
     // ── 2. Links (transitions) ────────────────────────────────────────────────
     for (int i = 0; i < (int)sm.transitions.size(); ++i) {
-        const auto& tr  = sm.transitions[i];
+        const auto& tr = sm.transitions[i];
         int si = sm.FindStateIndex(tr.source);
         int di = sm.FindStateIndex(tr.target);
         if (si < 0 || di < 0) continue;
@@ -127,9 +127,9 @@ void StateMachineGraphEditor::Draw(ResourceStateMachine& sm, const HashString* a
                     ed::RejectNewItem(kRed, 2.f);
                 } else if (ed::AcceptNewItem()) {
                     SMTransition t;
-                    t.source          = sm.states[si].name;
-                    t.target          = sm.states[di].name;
-                    t.trigger         = HashString(std::string("NewTrigger"));
+                    t.source = sm.states[si].name;
+                    t.target = sm.states[di].name;
+                    t.trigger = HashString(std::string("NewTrigger"));
                     t.interpolationMs = 300;
                     sm.transitions.push_back(std::move(t));
                 }
@@ -186,7 +186,7 @@ void StateMachineGraphEditor::Draw(ResourceStateMachine& sm, const HashString* a
             int idx = stateIdxFromNodeId(ctxNode.Get());
             if (idx >= 0 && idx < (int)sm.states.size()) {
                 m_contextNodeIdx = idx;
-                strncpy_s(m_nodeNameBuf, sm.states[idx].name.str.c_str(),    sizeof(m_nodeNameBuf) - 1);
+                strncpy_s(m_nodeNameBuf, sm.states[idx].name.str.c_str(), sizeof(m_nodeNameBuf) - 1);
                 strncpy_s(m_nodeClipBuf, sm.states[idx].clipName.str.c_str(), sizeof(m_nodeClipBuf) - 1);
                 m_showNodeMenu = true;
             }
@@ -212,7 +212,7 @@ void StateMachineGraphEditor::Draw(ResourceStateMachine& sm, const HashString* a
 
     if (m_showNodeMenu) { ImGui::OpenPopup("##NodeCtx"); m_showNodeMenu = false; }
     if (m_showLinkMenu) { ImGui::OpenPopup("##LinkCtx"); m_showLinkMenu = false; }
-    if (m_showBgMenu)   { ImGui::OpenPopup("##BgCtx");   m_showBgMenu   = false; }
+    if (m_showBgMenu) { ImGui::OpenPopup("##BgCtx"); m_showBgMenu = false; }
 
     // Background → create new state
     if (ImGui::BeginPopup("##BgCtx")) {
