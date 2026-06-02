@@ -19,7 +19,7 @@ struct EditorSceneSettings
     bool debugDrawLights = false;
     float debugLightSize = 1.0f;
 
-    bool debugDrawAABBs = false;
+    bool debugDrawBounds = false; // draws AABB or sphere depending on ComponentBounds
 
     bool debugDrawCameraFrustums = true;
     bool debugDrawEditorCameraRay = true;

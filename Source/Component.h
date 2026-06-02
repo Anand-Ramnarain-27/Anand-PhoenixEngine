@@ -17,6 +17,8 @@ public:
         Animation = 7,
         CharacterMotion = 8,
         SimpleCharacterController = 9,
+        Rigidbody = 10,
+        Bounds = 11,
     };
 
     explicit Component(GameObject* owner) : owner(owner) {}

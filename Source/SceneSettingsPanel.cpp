@@ -34,7 +34,7 @@ void SceneSettingsPanel::drawLightingSection() {
     if (!ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen)) return;
     EditorSceneSettings& s = m_editor->getSceneManager()->getSettings();
     ImGui::Checkbox("Debug Draw Lights", &s.debugDrawLights);
-    ImGui::Checkbox("Debug Draw AABBs", &s.debugDrawAABBs);
+    ImGui::Checkbox("Debug Draw Bounds", &s.debugDrawBounds);
     if (s.debugDrawLights) ImGui::SliderFloat("Light Size", &s.debugLightSize, 0.1f, 5.0f);
     ImGui::Separator();
     if (ImGui::TreeNodeEx("Ambient", ImGuiTreeNodeFlags_DefaultOpen)) {

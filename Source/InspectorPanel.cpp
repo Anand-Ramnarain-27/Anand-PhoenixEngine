@@ -29,6 +29,8 @@
 #include "ComponentScript.h"
 #include "ComponentCharacterMotion.h"
 #include "ComponentSimpleCharacterController.h"
+#include "ComponentRigidbody.h"
+#include "ComponentBounds.h"
 #include <filesystem>
 #include <algorithm>
 
@@ -171,6 +173,8 @@ void InspectorPanel::drawContent() {
             comp->getType() == Component::Type::Animation ? "Animation" :
             comp->getType() == Component::Type::CharacterMotion ? "Character Motion" :
             comp->getType() == Component::Type::SimpleCharacterController ? "Character Controller" :
+            comp->getType() == Component::Type::Rigidbody ? "Rigidbody" :
+            comp->getType() == Component::Type::Bounds    ? "Bounds" :
             "Component";
 
         ImGui::PushID((int)comp->getType());
@@ -277,6 +281,9 @@ void InspectorPanel::drawAddComponentMenu() {
         ImGui::CloseCurrentPopup();
         };
 
+    addComp("Rigidbody", Component::Type::Rigidbody, go->getComponent<ComponentRigidbody>() != nullptr);
+    addComp("Bounds",    Component::Type::Bounds,    go->getComponent<ComponentBounds>()    != nullptr);
+    ImGui::Separator();
     addComp("Camera", Component::Type::Camera, go->getComponent<ComponentCamera>() != nullptr);
     addComp("Mesh", Component::Type::Mesh, go->getComponent<ComponentMesh>() != nullptr);
     addComp("Animation", Component::Type::Animation, go->getComponent<ComponentAnimation>() != nullptr);

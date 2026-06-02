@@ -8,6 +8,8 @@
 #include "ComponentAnimation.h"
 #include "ComponentCharacterMotion.h"
 #include "ComponentSimpleCharacterController.h"
+#include "ComponentRigidbody.h"
+#include "ComponentBounds.h"
 
 std::unique_ptr<Component> ComponentFactory::CreateComponent(Component::Type type, GameObject* owner) {
     switch (type) {
@@ -21,6 +23,8 @@ std::unique_ptr<Component> ComponentFactory::CreateComponent(Component::Type typ
     case Component::Type::Animation: return std::make_unique<ComponentAnimation>(owner);
     case Component::Type::CharacterMotion: return std::make_unique<ComponentCharacterMotion>(owner);
     case Component::Type::SimpleCharacterController: return std::make_unique<ComponentSimpleCharacterController>(owner);
+    case Component::Type::Rigidbody: return std::make_unique<ComponentRigidbody>(owner);
+    case Component::Type::Bounds:    return std::make_unique<ComponentBounds>(owner);
     default: LOG("ComponentFactory: Unknown component type %d", (int)type); return nullptr;
     }
 }

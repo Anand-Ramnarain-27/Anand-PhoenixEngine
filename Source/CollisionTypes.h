@@ -1,22 +1,34 @@
 #pragma once
 #include "Globals.h"
 #include "AABB.h"
+#include "BoundingVolume.h"
 #include <vector>
 #include <cstdint>
 
 class GameObject;
 
 // Pre-built per-object collision representation gathered once at the start of each
-// pipeline run. BroadPhase uses the world AABB; NarrowPhase uses the OBB.
+// pipeline run.  BroadPhase always uses worldAABB; NarrowPhase dispatches on bvType.
 struct CollisionBody {
     GameObject* go        = nullptr;
-    AABB        worldAABB;          // axis-aligned, rebuilt every frame
 
-    // Oriented bounding box — axes are unit vectors extracted from the world matrix.
+    // Broad-phase proxy — always an AABB.
+    // For sphere bodies this is the sphere's tight enclosing AABB.
+    AABB worldAABB;
+
+    // Which shape the narrow phase should use for this body.
+    BVType bvType = BVType::AABB;
+
+    // ---- OBB data (used when bvType == AABB) ----
+    // Axes are unit vectors extracted from the world matrix.
     // Half-extents are scaled by the object's world-space scale.
     Vector3 obbCenter;
     Vector3 obbAxes[3];   // unit vectors
     float   obbHalves[3]; // half-extents along each axis
+
+    // ---- Sphere data (used when bvType == Sphere) ----
+    Vector3 sphereCenter;
+    float   sphereRadius = 0.f;
 };
 
 // A pair of indices into the CollisionBody array produced by BroadPhase / MidPhase.

@@ -6,8 +6,10 @@
 #include "GameObject.h"
 #include "ComponentMesh.h"
 #include "ComponentTransform.h"
+#include "ComponentBounds.h"
 #include <functional>
 #include <cfloat>
+#include <cmath>
 
 CollisionSystem::CollisionSystem()
     : m_broadPhase(std::make_unique<BruteForceBroadPhase>())
@@ -51,6 +53,36 @@ static void buildOBB(CollisionBody& body) {
 }
 
 // ---------------------------------------------------------------------------
+// Choose the bounding volume type for a body and populate its sphere fields.
+// Must be called after buildOBB() so obbCenter/obbHalves are valid.
+// ---------------------------------------------------------------------------
+static void applyBVType(CollisionBody& body) {
+    const ComponentBounds* cb = body.go->getComponent<ComponentBounds>();
+    if (!cb || cb->bvType == BVType::AABB) {
+        body.bvType = BVType::AABB;
+        // worldAABB already set from the mesh AABB — nothing more to do.
+        return;
+    }
+
+    body.bvType       = BVType::Sphere;
+    body.sphereCenter = body.obbCenter;
+
+    if (cb->radiusOverride >= 0.f) {
+        body.sphereRadius = cb->radiusOverride;
+    } else {
+        // Circumscribed sphere: radius = half-diagonal of the OBB.
+        body.sphereRadius = sqrtf(
+            body.obbHalves[0] * body.obbHalves[0] +
+            body.obbHalves[1] * body.obbHalves[1] +
+            body.obbHalves[2] * body.obbHalves[2]);
+    }
+
+    // Replace the broad-phase proxy with the sphere's tight enclosing AABB.
+    Sphere s{ body.sphereCenter, body.sphereRadius };
+    body.worldAABB = s.toAABB();
+}
+
+// ---------------------------------------------------------------------------
 
 std::vector<CollisionBody> CollisionSystem::gatherBodies(ModuleScene* scene) {
     std::vector<CollisionBody> bodies;
@@ -67,6 +99,7 @@ std::vector<CollisionBody> CollisionSystem::gatherBodies(ModuleScene* scene) {
             body.worldAABB.min = mn;
             body.worldAABB.max = mx;
             buildOBB(body);
+            applyBVType(body);   // overrides worldAABB + sets sphere fields if needed
             bodies.push_back(body);
         }
         for (auto* child : node->getChildren()) visit(child);

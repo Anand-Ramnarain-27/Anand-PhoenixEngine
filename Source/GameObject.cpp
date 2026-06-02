@@ -8,6 +8,8 @@
 #include "ComponentAnimation.h"
 #include "ComponentCharacterMotion.h"
 #include "ComponentSimpleCharacterController.h"
+#include "ComponentRigidbody.h"
+#include "ComponentBounds.h"
 #include "PrefabManager.h"
 #include <algorithm>
 #include <random>
@@ -110,6 +112,8 @@ template ComponentSpotLight* GameObject::createComponent<ComponentSpotLight>();
 template ComponentAnimation* GameObject::createComponent<ComponentAnimation>();
 template ComponentCharacterMotion* GameObject::createComponent<ComponentCharacterMotion>();
 template ComponentSimpleCharacterController* GameObject::createComponent<ComponentSimpleCharacterController>();
+template ComponentRigidbody* GameObject::createComponent<ComponentRigidbody>();
+template ComponentBounds*    GameObject::createComponent<ComponentBounds>();
 
 template ComponentTransform* GameObject::getComponent<ComponentTransform>() const;
 template ComponentMesh* GameObject::getComponent<ComponentMesh>() const;
@@ -120,6 +124,8 @@ template ComponentSpotLight* GameObject::getComponent<ComponentSpotLight>() cons
 template ComponentAnimation* GameObject::getComponent<ComponentAnimation>() const;
 template ComponentCharacterMotion* GameObject::getComponent<ComponentCharacterMotion>() const;
 template ComponentSimpleCharacterController* GameObject::getComponent<ComponentSimpleCharacterController>() const;
+template ComponentRigidbody* GameObject::getComponent<ComponentRigidbody>() const;
+template ComponentBounds*    GameObject::getComponent<ComponentBounds>() const;
 
 template bool GameObject::removeComponent<ComponentMesh>();
 template bool GameObject::removeComponent<ComponentCamera>();
@@ -129,3 +135,5 @@ template bool GameObject::removeComponent<ComponentSpotLight>();
 template bool GameObject::removeComponent<ComponentAnimation>();
 template bool GameObject::removeComponent<ComponentCharacterMotion>();
 template bool GameObject::removeComponent<ComponentSimpleCharacterController>();
+template bool GameObject::removeComponent<ComponentRigidbody>();
+template bool GameObject::removeComponent<ComponentBounds>();

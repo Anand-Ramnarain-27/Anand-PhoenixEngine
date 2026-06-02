@@ -34,7 +34,10 @@
 #include "ModuleCamera.h"
 #include "FrustumDebugDraw.h"
 #include "AABB.h"
+#include "BoundingVolume.h"
+#include "ComponentBounds.h"
 #include "CollisionSystem.h"
+#include "CollisionResponse.h"
 #include "EnvironmentMap.h"
 #include "SceneViewPanel.h"
 #include "GameViewPanel.h"
@@ -84,7 +87,8 @@ bool ModuleEditor::init() {
 
     m_imguiPass = std::make_unique<ImGuiPass>(device2.Get(), d3d12->getHWnd(), m_descTable.getCPUHandle(), m_descTable.getGPUHandle());
     m_debugDraw = std::make_unique<DebugDrawPass>(device4.Get(), d3d12->getDrawCommandQueue(), false);
-    m_collisionSystem = std::make_unique<CollisionSystem>();
+    m_collisionSystem  = std::make_unique<CollisionSystem>();
+    m_collisionResponse = std::make_unique<CollisionResponse>();
     m_sceneManager = std::make_unique<SceneManager>();
     m_meshRenderPass = std::make_unique<MeshRenderPass>();
     m_hotReload = std::make_unique<HotReloadManager>();
@@ -216,15 +220,23 @@ void ModuleEditor::preRender() {
     m_imguiPass->startFrame();
     ImGuizmo::BeginFrame();
     handleShortcuts();
+    const float dt = static_cast<float>(app->getElapsedMilis()) * 0.001f;
+
     if (m_sceneManager) {
-        float dt = app->getElapsedMilis() * 0.001f;
         m_sceneManager->update(dt);
         m_sceneManager->updateAnimations(dt);
     }
 
-    // Run the three-stage collision pipeline every frame.
+    // Run the three-stage collision pipeline every frame (feeds the debug panel).
+    ModuleScene* activeScene = getActiveModuleScene();
     if (m_collisionSystem)
-        m_collisionSystem->run(getActiveModuleScene());
+        m_collisionSystem->run(activeScene);
+
+    // Apply position correction and velocity impulses — only during Play.
+    const bool isPlaying = m_sceneManager &&
+        m_sceneManager->getState() == SceneManager::PlayState::Playing;
+    if (isPlaying && m_collisionResponse && m_collisionSystem)
+        m_collisionResponse->solve(m_collisionSystem->getResults().contacts, dt);
 
     m_performance->pushFPS(app->getFPS());
 
@@ -727,40 +739,85 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
             drawGizmos(moduleScene->getRoot());
         }
 
-        if (s.debugDrawAABBs && moduleScene) {
-            // Collect world-space AABBs from every active mesh component in the scene.
-            struct AABBEntry { AABB box; };
-            std::vector<AABBEntry> aabbList;
-            std::function<void(GameObject*)> collectAABBs = [&](GameObject* node) {
+        if (s.debugDrawBounds && moduleScene) {
+            // Collect one entry per object: either a sphere or an AABB,
+            // depending on whether the object has a Bounds component.
+            struct BoundsEntry {
+                BVType type;
+                AABB   box;     // used when type == AABB
+                Sphere sphere;  // used when type == Sphere
+            };
+            std::vector<BoundsEntry> boundsEntries;
+
+            std::function<void(GameObject*)> collectBounds = [&](GameObject* node) {
                 if (!node || !node->isActive()) return;
                 if (auto* cm = node->getComponent<ComponentMesh>()) {
                     if (cm->hasAABB()) {
-                        AABB box;
-                        Vector3 mn, mx;
-                        cm->getWorldAABB(mn, mx);
-                        box.min = mn;
-                        box.max = mx;
-                        aabbList.push_back({ box });
+                        BoundsEntry e;
+                        const ComponentBounds* cb = node->getComponent<ComponentBounds>();
+
+                        if (cb && cb->bvType == BVType::Sphere) {
+                            // Build sphere: center = OBB center, radius = half-diagonal
+                            // (same logic as CollisionSystem::applyBVType)
+                            const Matrix& W = node->getTransform()->getGlobalMatrix();
+                            const Vector3 lMin = cm->getLocalAABBMin();
+                            const Vector3 lMax = cm->getLocalAABBMax();
+                            const Vector3 lHalf = (lMax - lMin) * 0.5f;
+                            const Vector3 lCtr  = (lMin + lMax) * 0.5f;
+                            Vector3 center = Vector3::Transform(lCtr, W);
+
+                            // Extract scale magnitudes from world matrix rows
+                            Vector3 cx(W._11,W._12,W._13), cy(W._21,W._22,W._23), cz(W._31,W._32,W._33);
+                            float hx = lHalf.x * cx.Length();
+                            float hy = lHalf.y * cy.Length();
+                            float hz = lHalf.z * cz.Length();
+                            float radius = (cb->radiusOverride >= 0.f)
+                                ? cb->radiusOverride
+                                : sqrtf(hx*hx + hy*hy + hz*hz);
+
+                            e.type   = BVType::Sphere;
+                            e.sphere = { center, radius };
+                        } else {
+                            Vector3 mn, mx;
+                            cm->getWorldAABB(mn, mx);
+                            e.type   = BVType::AABB;
+                            e.box    = { mn, mx };
+                        }
+                        boundsEntries.push_back(e);
                     }
                 }
-                for (auto* child : node->getChildren()) collectAABBs(child);
+                for (auto* child : node->getChildren()) collectBounds(child);
             };
-            collectAABBs(moduleScene->getRoot());
+            collectBounds(moduleScene->getRoot());
 
-            // O(N²) pairwise overlap test — acceptable for editor scene sizes.
-            std::vector<bool> colliding(aabbList.size(), false);
-            for (size_t i = 0; i < aabbList.size(); ++i) {
-                for (size_t j = i + 1; j < aabbList.size(); ++j) {
-                    if (aabbList[i].box.intersects(aabbList[j].box)) {
-                        colliding[i] = true;
-                        colliding[j] = true;
-                    }
+            // O(N²) pairwise overlap — handles AABB vs AABB, sphere vs sphere,
+            // and sphere vs AABB mixed pairs.
+            const size_t N = boundsEntries.size();
+            std::vector<bool> colliding(N, false);
+            for (size_t i = 0; i < N; ++i) {
+                for (size_t j = i + 1; j < N; ++j) {
+                    bool hit = false;
+                    const BoundsEntry& ei = boundsEntries[i];
+                    const BoundsEntry& ej = boundsEntries[j];
+                    if (ei.type == BVType::AABB   && ej.type == BVType::AABB)
+                        hit = ei.box.intersects(ej.box);
+                    else if (ei.type == BVType::Sphere && ej.type == BVType::Sphere)
+                        hit = ei.sphere.intersects(ej.sphere);
+                    else if (ei.type == BVType::Sphere)
+                        hit = ei.sphere.intersects(ej.box);
+                    else
+                        hit = ej.sphere.intersects(ei.box);
+                    if (hit) { colliding[i] = true; colliding[j] = true; }
                 }
             }
 
-            for (size_t i = 0; i < aabbList.size(); ++i) {
+            for (size_t i = 0; i < N; ++i) {
                 const float* color = colliding[i] ? dd::colors::Red : dd::colors::Green;
-                dd::aabb(ddConvert(aabbList[i].box.min), ddConvert(aabbList[i].box.max), color);
+                const BoundsEntry& e = boundsEntries[i];
+                if (e.type == BVType::Sphere)
+                    dd::sphere(ddConvert(e.sphere.center), color, e.sphere.radius);
+                else
+                    dd::aabb(ddConvert(e.box.min), ddConvert(e.box.max), color);
             }
         }
 

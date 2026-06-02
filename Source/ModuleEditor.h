@@ -38,6 +38,7 @@ class EnvironmentSystem;
 class ImGuiPass;
 class DebugDrawPass;
 class CollisionSystem;
+class CollisionResponse;
 class RenderTexture;
 class EditorPanel;
 class SceneViewPanel;
@@ -65,7 +66,8 @@ public:
     MeshPipeline* getMeshPipeline() const { return m_meshRenderPass ? &m_meshRenderPass->getPipeline() : nullptr; }
     EnvironmentSystem* getEnvSystem() const { return m_envSystem.get(); }
     DebugDrawPass*   getDebugDraw()        const { return m_debugDraw.get(); }
-    CollisionSystem* getCollisionSystem() const { return m_collisionSystem.get(); }
+    CollisionSystem*  getCollisionSystem()  const { return m_collisionSystem.get(); }
+    CollisionResponse* getCollisionResponse() const { return m_collisionResponse.get(); }
     EditorSelection& getSelection() { return m_selection; }
     double getGpuFrameTimeMs() const { return m_gpuFrameTimeMs; }
     int getSamplerType() const { return m_samplerType; }
@@ -103,9 +105,10 @@ public:
     void notifyScriptComponentsReload(const std::string& dllPath);
 
 private:
-    std::unique_ptr<ImGuiPass>      m_imguiPass;
-    std::unique_ptr<DebugDrawPass>  m_debugDraw;
-    std::unique_ptr<CollisionSystem> m_collisionSystem;
+    std::unique_ptr<ImGuiPass>       m_imguiPass;
+    std::unique_ptr<DebugDrawPass>   m_debugDraw;
+    std::unique_ptr<CollisionSystem>  m_collisionSystem;
+    std::unique_ptr<CollisionResponse> m_collisionResponse;
     std::unique_ptr<SceneManager> m_sceneManager;
     std::unique_ptr<MeshRenderPass> m_meshRenderPass;
     std::unique_ptr<GBufferPass> m_gbufferPass;
