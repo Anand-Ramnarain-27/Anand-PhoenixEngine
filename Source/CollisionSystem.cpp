@@ -3,7 +3,7 @@
 #include "BruteForceBroadPhase.h"
 #include "UniformGridBroadPhase.h"
 #include "OctreeBroadPhase.h"
-#include "PassthroughMidPhase.h"
+#include "IMidPhase.h"
 #include <chrono>
 #include "ModuleScene.h"
 #include "GameObject.h"

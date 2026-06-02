@@ -173,7 +173,6 @@
     <ClInclude Include="3rdParty\ImGuizmo\ImGuizmo.h" />
     <ClInclude Include="3rdParty\imgui-node-editor-master\imgui_node_editor.h" />
     <ClInclude Include="3rdParty\imgui-node-editor-master\imgui_node_editor_internal.h" />
-    <ClInclude Include="AABB.h" />
     <ClInclude Include="BoundingVolume.h" />
     <ClInclude Include="UniformGridBroadPhase.h" />
     <ClInclude Include="OctreeBroadPhase.h" />
@@ -183,7 +182,6 @@
     <ClInclude Include="IBroadPhase.h" />
     <ClInclude Include="IMidPhase.h" />
     <ClInclude Include="BruteForceBroadPhase.h" />
-    <ClInclude Include="PassthroughMidPhase.h" />
     <ClInclude Include="NarrowPhase.h" />
     <ClInclude Include="CollisionSystem.h" />
     <ClInclude Include="CollisionTypes.h" />

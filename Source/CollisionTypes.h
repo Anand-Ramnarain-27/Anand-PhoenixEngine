@@ -1,6 +1,5 @@
 #pragma once
 #include "Globals.h"
-#include "AABB.h"
 #include "BoundingVolume.h"
 #include <vector>
 #include <cstdint>

@@ -1,6 +1,7 @@
 #pragma once
 #include "Module.h"
 #include "EditorSelection.h"
+#include "PrimitiveFactory.h"
 #include "EditorPanels.h"
 #include "MeshRenderPass.h"
 #include "MeshPipeline.h"
@@ -85,6 +86,18 @@ public:
     void deleteGameObject(GameObject* go);
     void spawnAssetAtPath(const std::string& path);
     GameObject* spawnModel(const std::string& path);
+
+    // Spawn a built-in primitive (generates geometry procedurally, no external file).
+    // addPhysics = true attaches a Rigidbody so it falls under gravity immediately.
+    GameObject* spawnPrimitive(PrimitiveType type,
+                               const Vector3& position = Vector3::Zero,
+                               const Vector3& scale    = Vector3::One,
+                               bool           addPhysics = false);
+
+    // Stop playback, clear editor selection and undo stack so no stale pointers
+    // remain after the scene is restored.
+    void stopPlay();
+
     static bool isChildOf(const GameObject* root, const GameObject* needle);
 
     void pushCommand(EditorCommand cmd);

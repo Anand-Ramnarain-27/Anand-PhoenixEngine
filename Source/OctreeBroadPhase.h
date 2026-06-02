@@ -1,6 +1,6 @@
 #pragma once
 #include "IBroadPhase.h"
-#include "AABB.h"
+#include "BoundingVolume.h"
 #include <vector>
 
 // Octree broad phase — 3D spatial tree rebuilt from scratch each frame.

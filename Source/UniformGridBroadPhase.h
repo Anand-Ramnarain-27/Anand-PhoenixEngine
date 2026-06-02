@@ -1,6 +1,6 @@
 #pragma once
 #include "IBroadPhase.h"
-#include "AABB.h"
+#include "BoundingVolume.h"
 #include <vector>
 
 // Uniform-grid broad phase.

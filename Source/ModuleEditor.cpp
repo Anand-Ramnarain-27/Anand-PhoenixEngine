@@ -33,9 +33,9 @@
 #include "PrimitiveFactory.h"
 #include "ModuleCamera.h"
 #include "FrustumDebugDraw.h"
-#include "AABB.h"
 #include "BoundingVolume.h"
 #include "ComponentBounds.h"
+#include "ComponentRigidbody.h"
 #include "CollisionSystem.h"
 #include "CollisionResponse.h"
 #include "EnvironmentMap.h"
@@ -950,12 +950,32 @@ void ModuleEditor::drawMenuBar() {
     if (ImGui::BeginMenu("GameObject")) {
         if (ImGui::MenuItem("Create Empty")) createEmptyGameObject();
         if (ImGui::MenuItem("Create Empty Child") && m_selection.has()) createEmptyGameObject("Empty", m_selection.object);
+        ImGui::Separator();
+        ImGui::SeparatorText("Primitives");
+        if (ImGui::MenuItem("Cube"))     spawnPrimitive(PrimitiveType::Cube);
+        if (ImGui::MenuItem("Sphere"))   spawnPrimitive(PrimitiveType::Sphere);
+        if (ImGui::MenuItem("Capsule"))  spawnPrimitive(PrimitiveType::Capsule);
+        if (ImGui::MenuItem("Plane"))    spawnPrimitive(PrimitiveType::Plane);
+        if (ImGui::MenuItem("Cylinder")) spawnPrimitive(PrimitiveType::Cylinder);
+        ImGui::Separator();
+        if (ImGui::MenuItem("Random Primitive + Physics", "Shift+P")) {
+            static int menuSpawnIdx = 0;
+            ++menuSpawnIdx;
+            static const PrimitiveType kT[] = {
+                PrimitiveType::Cube, PrimitiveType::Sphere,
+                PrimitiveType::Capsule, PrimitiveType::Cylinder
+            };
+            spawnPrimitive(kT[menuSpawnIdx % 4],
+                           Vector3((float)((menuSpawnIdx*3)%11-5), 5.f,
+                                   (float)((menuSpawnIdx*7)%11-5)),
+                           Vector3::One, true);
+        }
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Scene")) {
         if (ImGui::MenuItem("Play", nullptr, false, m_sceneManager && !m_sceneManager->isPlaying())) m_sceneManager->play();
         if (ImGui::MenuItem("Pause", nullptr, false, m_sceneManager && m_sceneManager->isPlaying())) m_sceneManager->pause();
-        if (ImGui::MenuItem("Stop", nullptr, false, m_sceneManager && m_sceneManager->getState() != SceneManager::PlayState::Stopped)) m_sceneManager->stop();
+        if (ImGui::MenuItem("Stop", nullptr, false, m_sceneManager && m_sceneManager->getState() != SceneManager::PlayState::Stopped)) stopPlay();
         ImGui::EndMenu();
     }
 
@@ -973,7 +993,7 @@ void ModuleEditor::drawMenuBar() {
         if (ImGui::Button(" Pause  ", ImVec2(btnW, 0)) && m_sceneManager && playing) m_sceneManager->pause();
         if (paused) ImGui::PopStyleColor();
         ImGui::SameLine();
-        if (ImGui::Button("  Stop  ", ImVec2(btnW, 0)) && m_sceneManager) m_sceneManager->stop();
+        if (ImGui::Button("  Stop  ", ImVec2(btnW, 0)) && m_sceneManager) stopPlay();
     }
     ImGui::EndMainMenuBar();
 }
@@ -1350,6 +1370,74 @@ void ModuleEditor::duplicateSelected() {
         });
 }
 
+// ---------------------------------------------------------------------------
+// spawnPrimitive — create a procedural mesh object in the active scene
+// ---------------------------------------------------------------------------
+GameObject* ModuleEditor::spawnPrimitive(PrimitiveType type,
+                                          const Vector3& position,
+                                          const Vector3& scale,
+                                          bool           addPhysics)
+{
+    ModuleScene* scene = getActiveModuleScene();
+    if (!scene) return nullptr;
+
+    static const char* kNames[] = { "Cube","Sphere","Capsule","Plane","Cylinder" };
+    int ti = static_cast<int>(type);
+    const char* name = (ti >= 0 && ti < 5) ? kNames[ti] : "Primitive";
+
+    std::unique_ptr<Mesh> mesh;
+    switch (type) {
+    case PrimitiveType::Cube:     mesh = PrimitiveFactory::createCubeMesh();     break;
+    case PrimitiveType::Sphere:   mesh = PrimitiveFactory::createSphereMesh();   break;
+    case PrimitiveType::Capsule:  mesh = PrimitiveFactory::createCapsuleMesh();  break;
+    case PrimitiveType::Plane:    mesh = PrimitiveFactory::createPlaneMesh();    break;
+    case PrimitiveType::Cylinder: mesh = PrimitiveFactory::createCylinderMesh(); break;
+    default: return nullptr;
+    }
+
+    GameObject* go = scene->createGameObject(name);
+    auto* t = go->getTransform();
+    t->position = position;
+    t->scale    = scale;
+    t->markDirty();
+
+    auto* cm = go->createComponent<ComponentMesh>();
+    cm->setProceduralModel(PrimitiveFactory::meshToModel(std::move(mesh)));
+
+    // Sphere mesh → sphere bounding volume gives a tighter collision fit.
+    if (type == PrimitiveType::Sphere) {
+        auto* cb = go->createComponent<ComponentBounds>();
+        cb->bvType = BVType::Sphere;
+    }
+
+    if (addPhysics) {
+        auto* rb = go->createComponent<ComponentRigidbody>();
+        rb->mass          = 1.f;
+        rb->useGravity    = true;
+        rb->restitution   = 0.5f;
+        rb->linearDamping = 0.1f;
+    }
+
+    m_selection.object = go;
+    log(std::string("Spawned ").append(name).c_str(), EditorColors::Success);
+    return go;
+}
+
+// ---------------------------------------------------------------------------
+// stopPlay — safe stop: restores scene then clears pointers that would dangle
+// ---------------------------------------------------------------------------
+void ModuleEditor::stopPlay() {
+    if (m_sceneManager) m_sceneManager->stop();
+    // The scene was just restored from the temp save; every raw pointer the
+    // editor held is now dangling.  Clear them before the next frame.
+    m_selection.clear();
+    m_undoStack.clear();
+    m_redoStack.clear();
+    m_savePointIndex = 0;
+}
+
+// ---------------------------------------------------------------------------
+
 void ModuleEditor::handleShortcuts() {
     if (ImGui::GetIO().WantTextInput) return;
     ImGuiIO& io = ImGui::GetIO();
@@ -1374,6 +1462,22 @@ void ModuleEditor::handleShortcuts() {
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_C, false)) copySelected();
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_V, false)) pasteClipboard();
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_D, false)) duplicateSelected();
+
+    // Shift+P — spawn a random primitive above the scene floor with physics.
+    // Cycles through Cube/Sphere/Capsule/Cylinder so you can press it many times
+    // to fill the scene for collision testing.
+    if (!ctrl && shift && ImGui::IsKeyPressed(ImGuiKey_P, false)) {
+        static int spawnIdx = 0;
+        ++spawnIdx;
+        static const PrimitiveType kTypes[] = {
+            PrimitiveType::Cube, PrimitiveType::Sphere,
+            PrimitiveType::Capsule, PrimitiveType::Cylinder
+        };
+        PrimitiveType t = kTypes[spawnIdx % 4];
+        float x = static_cast<float>((spawnIdx * 3) % 11 - 5);
+        float z = static_cast<float>((spawnIdx * 7) % 11 - 5);
+        spawnPrimitive(t, Vector3(x, 5.f, z), Vector3::One, true);
+    }
 }
 
 void ModuleEditor::enterPrefabEdit(const std::string& prefabName) {
