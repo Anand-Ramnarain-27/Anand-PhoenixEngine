@@ -6,6 +6,9 @@
 #include "SceneManager.h"
 #include "EditorSceneSettings.h"
 #include "EnvironmentSystem.h"
+#include "CollisionSystem.h"
+#include "UniformGridBroadPhase.h"
+#include "OctreeBroadPhase.h"
 #include <filesystem>
 #include <algorithm>
 
@@ -15,6 +18,7 @@ void SceneSettingsPanel::drawContent() {
     if (!m_editor->getSceneManager()) { textMuted("No scene manager."); return; }
     drawDisplaySection();
     drawLightingSection();
+    drawCollisionSection();
     drawCameraSection();
     drawSkyboxSection();
 }
@@ -34,7 +38,6 @@ void SceneSettingsPanel::drawLightingSection() {
     if (!ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen)) return;
     EditorSceneSettings& s = m_editor->getSceneManager()->getSettings();
     ImGui::Checkbox("Debug Draw Lights", &s.debugDrawLights);
-    ImGui::Checkbox("Debug Draw Bounds", &s.debugDrawBounds);
     if (s.debugDrawLights) ImGui::SliderFloat("Light Size", &s.debugLightSize, 0.1f, 5.0f);
     ImGui::Separator();
     if (ImGui::TreeNodeEx("Ambient", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -43,6 +46,40 @@ void SceneSettingsPanel::drawLightingSection() {
         ImGui::TreePop();
     }
     textMuted("Add light components via Inspector.");
+}
+
+void SceneSettingsPanel::drawCollisionSection() {
+    if (!ImGui::CollapsingHeader("Collision", ImGuiTreeNodeFlags_DefaultOpen)) return;
+    EditorSceneSettings& s = m_editor->getSceneManager()->getSettings();
+    CollisionSystem*    cs = m_editor->getCollisionSystem();
+    if (!cs) { textMuted("No collision system."); return; }
+
+    ImGui::Text("Broad phase: %s", cs->getBroadPhaseName());
+    ImGui::Spacing();
+
+    if (ImGui::Button("Brute Force"))  cs->useBruteForceBroadPhase();
+    ImGui::SameLine();
+    if (ImGui::Button("Uniform Grid")) cs->useGridBroadPhase();
+    ImGui::SameLine();
+    if (ImGui::Button("Octree"))       cs->useOctreeBroadPhase();
+
+    ImGui::Spacing();
+    textMuted("Fine-tune parameters in the Collision Debug panel.");
+
+    // Show debug-draw checkbox for spatial structure (grid cells, octree nodes).
+    // The checkbox is hidden for Brute Force since it has no structure to draw.
+    if (cs->isUsingGrid() || cs->isUsingOctree()) {
+        ImGui::Checkbox("Debug Draw Broad Phase Structure", &s.debugDrawGrid);
+        if (ImGui::IsItemHovered()) {
+            if (cs->isUsingGrid())
+                ImGui::SetTooltip("Cyan = occupied grid cells.");
+            else
+                ImGui::SetTooltip("Cyan = root extent.  Yellow = non-empty leaf nodes.\n"
+                                  "Dense regions subdivide finely; sparse regions stay coarse.");
+        }
+    }
+    ImGui::Separator();
+    ImGui::Checkbox("Debug Draw Bounds", &s.debugDrawBounds);
 }
 
 void SceneSettingsPanel::drawCameraSection() {

@@ -1,12 +1,16 @@
 #include "Globals.h"
 #include "CollisionSystem.h"
 #include "BruteForceBroadPhase.h"
+#include "UniformGridBroadPhase.h"
+#include "OctreeBroadPhase.h"
 #include "PassthroughMidPhase.h"
+#include <chrono>
 #include "ModuleScene.h"
 #include "GameObject.h"
 #include "ComponentMesh.h"
 #include "ComponentTransform.h"
 #include "ComponentBounds.h"
+#include "ComponentRigidbody.h"
 #include <functional>
 #include <cfloat>
 #include <cmath>
@@ -18,6 +22,84 @@ CollisionSystem::CollisionSystem()
 
 void CollisionSystem::setBroadPhase(std::unique_ptr<IBroadPhase> bp) {
     if (bp) m_broadPhase = std::move(bp);
+}
+
+void CollisionSystem::useGridBroadPhase(float cellSize) {
+    m_broadPhase = std::make_unique<UniformGridBroadPhase>(cellSize);
+}
+
+void CollisionSystem::useBruteForceBroadPhase() {
+    m_broadPhase = std::make_unique<BruteForceBroadPhase>();
+}
+
+bool CollisionSystem::isUsingGrid() const {
+    return dynamic_cast<UniformGridBroadPhase*>(m_broadPhase.get()) != nullptr;
+}
+
+const char* CollisionSystem::getBroadPhaseName() const {
+    return m_broadPhase ? m_broadPhase->getName() : "(none)";
+}
+
+static UniformGridBroadPhase* asGrid(IBroadPhase* bp) {
+    return dynamic_cast<UniformGridBroadPhase*>(bp);
+}
+
+static OctreeBroadPhase* asOctree(IBroadPhase* bp) {
+    return dynamic_cast<OctreeBroadPhase*>(bp);
+}
+
+float CollisionSystem::getGridCellSize() const {
+    auto* g = asGrid(m_broadPhase.get());
+    return g ? g->getCellSize() : 0.f;
+}
+
+void CollisionSystem::setGridCellSize(float s) {
+    if (auto* g = asGrid(m_broadPhase.get())) g->setCellSize(s);
+}
+
+int CollisionSystem::getLastGridCellCount() const {
+    auto* g = asGrid(m_broadPhase.get());
+    return g ? g->getLastCellCount() : 0;
+}
+
+void CollisionSystem::drawBroadPhaseDebug() {
+    if (m_broadPhase) m_broadPhase->drawDebug();
+}
+
+void CollisionSystem::useOctreeBroadPhase(int nodeCapacity, int maxDepth) {
+    m_broadPhase = std::make_unique<OctreeBroadPhase>(nodeCapacity, maxDepth);
+}
+
+bool CollisionSystem::isUsingOctree() const {
+    return asOctree(m_broadPhase.get()) != nullptr;
+}
+
+int CollisionSystem::getOctreeNodeCapacity() const {
+    auto* o = asOctree(m_broadPhase.get());
+    return o ? o->getNodeCapacity() : 0;
+}
+
+void CollisionSystem::setOctreeNodeCapacity(int c) {
+    if (auto* o = asOctree(m_broadPhase.get())) o->setNodeCapacity(c);
+}
+
+int CollisionSystem::getOctreeMaxDepth() const {
+    auto* o = asOctree(m_broadPhase.get());
+    return o ? o->getMaxDepth() : 0;
+}
+
+void CollisionSystem::setOctreeMaxDepth(int d) {
+    if (auto* o = asOctree(m_broadPhase.get())) o->setMaxDepth(d);
+}
+
+int CollisionSystem::getLastOctreeNodeCount() const {
+    auto* o = asOctree(m_broadPhase.get());
+    return o ? o->getLastNodeCount() : 0;
+}
+
+int CollisionSystem::getLastOctreeLeafCount() const {
+    auto* o = asOctree(m_broadPhase.get());
+    return o ? o->getLastLeafCount() : 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -84,7 +166,7 @@ static void applyBVType(CollisionBody& body) {
 
 // ---------------------------------------------------------------------------
 
-std::vector<CollisionBody> CollisionSystem::gatherBodies(ModuleScene* scene) {
+std::vector<CollisionBody> CollisionSystem::gatherBodies(ModuleScene* scene, float dt) {
     std::vector<CollisionBody> bodies;
     if (!scene) return bodies;
 
@@ -100,6 +182,24 @@ std::vector<CollisionBody> CollisionSystem::gatherBodies(ModuleScene* scene) {
             body.worldAABB.max = mx;
             buildOBB(body);
             applyBVType(body);   // overrides worldAABB + sets sphere fields if needed
+
+            // ---- Swept AABB for fast-moving objects ----
+            // Expand the broad-phase proxy to also cover the AABB at the
+            // predicted next-frame position (current + velocity * dt).  This
+            // guarantees the broad phase emits a candidate pair even when the
+            // object is not yet overlapping the obstacle at its current
+            // position but will be at the start of the next frame.
+            // The narrow phase still uses the unmodified OBB/sphere.
+            const ComponentRigidbody* rb = node->getComponent<ComponentRigidbody>();
+            if (rb && rb->isFastMoving && !rb->isStatic && dt > 1e-7f) {
+                const Vector3 disp = rb->velocity * dt;
+                // Union of current AABB with AABB displaced by one frame.
+                body.worldAABB.min = Vector3::Min(body.worldAABB.min,
+                                                   body.worldAABB.min + disp);
+                body.worldAABB.max = Vector3::Max(body.worldAABB.max,
+                                                   body.worldAABB.max + disp);
+            }
+
             bodies.push_back(body);
         }
         for (auto* child : node->getChildren()) visit(child);
@@ -108,14 +208,17 @@ std::vector<CollisionBody> CollisionSystem::gatherBodies(ModuleScene* scene) {
     return bodies;
 }
 
-void CollisionSystem::run(ModuleScene* scene) {
+void CollisionSystem::run(ModuleScene* scene, float dt) {
     m_results = {};
 
-    std::vector<CollisionBody> bodies = gatherBodies(scene);
+    std::vector<CollisionBody> bodies = gatherBodies(scene, dt);
     if (bodies.size() < 2) return;
 
-    // --- Broad phase ---
+    // --- Broad phase (timed) ---
+    auto bpT0 = std::chrono::high_resolution_clock::now();
     auto broadPairs = m_broadPhase->query(bodies);
+    auto bpT1 = std::chrono::high_resolution_clock::now();
+    m_results.broadPhaseMs = std::chrono::duration<float, std::milli>(bpT1 - bpT0).count();
     m_results.broadCount = static_cast<uint32_t>(broadPairs.size());
 
     // --- Mid phase ---

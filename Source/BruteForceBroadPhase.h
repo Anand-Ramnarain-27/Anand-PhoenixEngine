@@ -2,10 +2,10 @@
 #include "IBroadPhase.h"
 
 // O(N²) broad phase: tests every pair of world-space AABBs.
-// Swap this for a spatial partition (BVH, uniform grid, etc.) by implementing
-// IBroadPhase and calling CollisionSystem::setBroadPhase() — nothing else changes.
+// Kept as a reference/comparison implementation alongside UniformGridBroadPhase.
 class BruteForceBroadPhase : public IBroadPhase {
 public:
     std::vector<CollisionPair> query(
         const std::vector<CollisionBody>& bodies) override;
+    const char* getName() const override { return "Brute Force  O(N\xC2\xB2)"; }
 };

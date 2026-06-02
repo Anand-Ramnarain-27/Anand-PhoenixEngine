@@ -6,6 +6,8 @@
 #include "ResourceCommon.h"
 #include "ModuleEditor.h"
 #include "CollisionSystem.h"
+#include "UniformGridBroadPhase.h"
+#include "OctreeBroadPhase.h"
 #include "GameObject.h"
 
 void PerformancePanel::drawContent() {
@@ -51,15 +53,80 @@ ImVec4 ResourcesPanel::typeColor(ResourceBase::Type t) {
 }
 
 void CollisionDebugPanel::drawContent() {
-    const CollisionSystem* cs = m_editor->getCollisionSystem();
+    CollisionSystem* cs = m_editor->getCollisionSystem();
     if (!cs) { textMuted("No collision system."); return; }
 
     const CollisionResults& r = cs->getResults();
 
-    ImGui::Text("Pipeline  (this frame)");
-    ImGui::Separator();
+    // ---- Broad phase selector & tuning -----------------------------------
+    ImGui::SeparatorText("Broad Phase");
+    ImGui::Text("Active: %s", cs->getBroadPhaseName());
+    ImGui::Spacing();
+
+    if (ImGui::Button("Brute Force"))  cs->useBruteForceBroadPhase();
+    ImGui::SameLine();
+    if (ImGui::Button("Uniform Grid")) cs->useGridBroadPhase();
+    ImGui::SameLine();
+    if (ImGui::Button("Octree"))       cs->useOctreeBroadPhase();
+
+    // Grid-specific controls
+    if (cs->isUsingGrid()) {
+        ImGui::Spacing();
+        ImGui::TextDisabled("Occupied cells last frame: %d", cs->getLastGridCellCount());
+        float cellSize = cs->getGridCellSize();
+        ImGui::SetNextItemWidth(160.f);
+        if (ImGui::DragFloat("Cell Size##gcs", &cellSize, 0.1f, 0.5f, 64.f, "%.1f"))
+            cs->setGridCellSize(cellSize);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("World-unit size of one grid cell.\n"
+                              "~2× average object diameter is a good starting point.");
+    }
+
+    // Octree-specific controls
+    if (cs->isUsingOctree()) {
+        ImGui::Spacing();
+        ImGui::TextDisabled("Nodes: %d   Leaves: %d",
+            cs->getLastOctreeNodeCount(), cs->getLastOctreeLeafCount());
+
+        int cap = cs->getOctreeNodeCapacity();
+        ImGui::SetNextItemWidth(120.f);
+        if (ImGui::DragInt("Node Capacity##oc", &cap, 1, 1, 64))
+            cs->setOctreeNodeCapacity(cap);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Max bodies per leaf before the node splits.\n"
+                              "Lower = finer subdivision, more nodes.\n"
+                              "Higher = coarser, faster build.");
+
+        int maxD = cs->getOctreeMaxDepth();
+        ImGui::SetNextItemWidth(120.f);
+        if (ImGui::DragInt("Max Depth##od", &maxD, 1, 1, 10))
+            cs->setOctreeMaxDepth(maxD);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Hard limit on tree depth.\n"
+                              "Depth 6 ≈ 8^6 = 262 144 possible leaf nodes.");
+    }
+
+    // ---- Pipeline statistics (with timing) -------------------------------
+    ImGui::SeparatorText("Pipeline  (this frame)");
+
+    // Broad phase timing — shown for all implementations.
+    {
+        float ms = r.broadPhaseMs;
+        ImVec4 col = ms < 0.5f ? ImVec4(0.4f,1.f,0.4f,1.f) :
+                     ms < 2.f  ? ImVec4(1.f,0.85f,0.2f,1.f) :
+                                 ImVec4(1.f,0.3f,0.3f,1.f);
+        ImGui::PushStyleColor(ImGuiCol_Text, col);
+        ImGui::Text("Broad phase time : %.3f ms", ms);
+        ImGui::PopStyleColor();
+    }
 
     ImGui::Text("Broad phase  candidate pairs : %u", r.broadCount);
+    if (cs->isUsingGrid()) {
+        ImGui::TextDisabled("  (grid, %d occupied cell(s))", cs->getLastGridCellCount());
+    } else if (cs->isUsingOctree()) {
+        ImGui::TextDisabled("  (octree, %d node(s), %d leaf(ves))",
+            cs->getLastOctreeNodeCount(), cs->getLastOctreeLeafCount());
+    }
     ImGui::Text("Mid phase    filtered pairs  : %u", r.midCount);
 
     bool anyHit = r.narrowCount > 0;
@@ -73,8 +140,8 @@ void CollisionDebugPanel::drawContent() {
         return;
     }
 
-    ImGui::Separator();
-    ImGui::Text("Contacts:");
+    // ---- Contact list ----------------------------------------------------
+    ImGui::SeparatorText("Contacts");
     ImGui::BeginChild("##contacts", ImVec2(0, 0), false);
     for (uint32_t i = 0; i < static_cast<uint32_t>(r.contacts.size()); ++i) {
         const ContactPoint& c = r.contacts[i];

@@ -228,9 +228,10 @@ void ModuleEditor::preRender() {
     }
 
     // Run the three-stage collision pipeline every frame (feeds the debug panel).
+    // dt is forwarded so fast-moving bodies can use swept AABBs in the broad phase.
     ModuleScene* activeScene = getActiveModuleScene();
     if (m_collisionSystem)
-        m_collisionSystem->run(activeScene);
+        m_collisionSystem->run(activeScene, dt);
 
     // Apply position correction and velocity impulses — only during Play.
     const bool isPlaying = m_sceneManager &&
@@ -820,6 +821,9 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                     dd::aabb(ddConvert(e.box.min), ddConvert(e.box.max), color);
             }
         }
+
+        if (s.debugDrawGrid && m_collisionSystem)
+            m_collisionSystem->drawBroadPhaseDebug();
 
         m_debugDraw->record(cmd, w, h, view, proj);
     }

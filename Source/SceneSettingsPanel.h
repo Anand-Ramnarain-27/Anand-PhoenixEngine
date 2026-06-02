@@ -14,6 +14,7 @@ protected:
 private:
     void drawDisplaySection();
     void drawLightingSection();
+    void drawCollisionSection();
     void drawCameraSection();
     void drawSkyboxSection();
 
