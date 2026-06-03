@@ -1320,7 +1320,7 @@ void ModuleEditor::drawStatusBar() {
         // Render most of the string in Tx1, last part (Phoenix Engine) in Accent
         const char* accentStart = strstr(rhs, "Phoenix Engine");
         if (accentStart) {
-            std::string part1(rhs, accentStart);
+            std::string part1(rhs, static_cast<size_t>(accentStart - rhs));
             wdl->AddText(rhsPos, EditorColors::toU32(EditorColors::Tx1), part1.c_str());
             ImVec2 ts1 = ImGui::CalcTextSize(part1.c_str());
             wdl->AddText({ rhsPos.x + ts1.x, rhsPos.y },
