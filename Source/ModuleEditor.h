@@ -71,6 +71,8 @@ public:
     CollisionResponse* getCollisionResponse() const { return m_collisionResponse.get(); }
     EditorSelection& getSelection() { return m_selection; }
     double getGpuFrameTimeMs() const { return m_gpuFrameTimeMs; }
+    bool   isGpuTimerReady()   const { return m_gpuTimerReady; }
+    int    getFrameDrawCalls() const { return m_frameDrawCalls; }
     int getSamplerType() const { return m_samplerType; }
     void setSamplerType(int t) { m_samplerType = t; }
     ModuleScene* getActiveModuleScene()const;
@@ -137,8 +139,12 @@ private:
     ComPtr<ID3D12QueryHeap> m_gpuQueryHeap;
     ComPtr<ID3D12Resource> m_gpuReadback;
     double m_gpuFrameTimeMs = 0.0;
-    bool m_gpuTimerReady = false;
-    float m_memoryUpdateTimer = 0.0f;
+    bool   m_gpuTimerReady  = false;
+    float  m_memoryUpdateTimer = 0.0f;
+
+    // Live render stats updated each frame in renderSceneWithCamera().
+    int m_frameDrawCalls = 0;
+    int m_frameMeshCount = 0;
 
     std::vector<std::unique_ptr<EditorPanel>> m_ownedPanels;
     std::vector<EditorPanel*> m_panels;
@@ -191,6 +197,7 @@ private:
     void handleNewScenePopup(ID3D12GraphicsCommandList* cmd);
     void drawDockspace();
     void drawMenuBar();
+    void drawStatusBar();
     void handleDialogs();
     void flushExitPrefabEdit();
     void handleShortcuts();

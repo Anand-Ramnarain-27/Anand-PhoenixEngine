@@ -15,4 +15,6 @@ private:
     void drawNode(GameObject* go, bool prefabMode = false, bool isRoot = false);
     void itemContextMenu(GameObject* go);
     void blankContextMenu();
+
+    char m_search[128] = {};
 };

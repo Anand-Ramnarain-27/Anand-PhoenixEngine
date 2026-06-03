@@ -16,12 +16,18 @@ struct EditorSceneSettings
         float intensity = 1.0f;
     } ambient;
 
+    float gravityY = -9.81f; // scene-global gravity acceleration (m/s²). Applied by ComponentRigidbody.
+
     bool debugDrawLights = false;
     float debugLightSize = 1.0f;
 
     bool debugDrawBounds = false; // draws AABB or sphere depending on ComponentBounds
     bool debugDrawGrid   = false; // draws occupied broad-phase grid cells (cyan wireframes)
 
+    // NOTE: debugDrawCameraFrustums and debugDrawEditorCameraRay are declared here
+    // but are unused — ModuleCamera owns its own per-instance debug-draw flags
+    // (debugDrawEditorFrustum, debugDrawCullFrustum, debugDrawCameraAxes, debugDrawForwardRay).
+    // Kept to avoid breaking any future serialisation that references these keys.
     bool debugDrawCameraFrustums = true;
     bool debugDrawEditorCameraRay = true;
 

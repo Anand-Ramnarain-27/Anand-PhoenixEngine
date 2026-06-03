@@ -5,7 +5,7 @@ class GameViewPanel : public ViewportPanel {
 public:
     explicit GameViewPanel(ModuleEditor* editor);
     void draw() override;
-    const char* getName() const override { return "Game View"; }
+    const char* getName() const override { return "\xe2\x97\x8f Game"; }  // ● Game
 
 protected:
     bool buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView, Matrix& outProj) override;

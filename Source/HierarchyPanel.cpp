@@ -1,5 +1,7 @@
 #include "Globals.h"
 #include "HierarchyPanel.h"
+#include "EditorColors.h"
+#include "ImGuiPass.h"
 #include "ModuleEditor.h"
 #include "ModuleScene.h"
 #include "Application.h"
@@ -7,6 +9,9 @@
 #include "ComponentCamera.h"
 #include "ComponentMesh.h"
 #include "ComponentLights.h"
+#include "ComponentAnimation.h"
+#include "ComponentRigidbody.h"
+#include <algorithm>
 #include "ComponentFactory.h"
 #include "EditorSelection.h"
 #include "PrefabManager.h"
@@ -23,15 +28,25 @@ static GameObject* findPrefabRoot(GameObject* go) {
     return nullptr;
 }
 
+// Returns a tag string + color for a GameObject based on its components.
+static const char* goTag(GameObject* go, ImVec4& outColor) {
+    if (go->getComponent<ComponentDirectionalLight>() || go->getComponent<ComponentPointLight>() || go->getComponent<ComponentSpotLight>()) {
+        outColor = EditorColors::Warn; return "LIGHT";
+    }
+    if (go->getComponent<ComponentCamera>())    { outColor = EditorColors::Inf;  return "CAM"; }
+    if (go->getComponent<ComponentAnimation>()) { outColor = EditorColors::Acc;  return "SKIN"; }
+    if (go->getComponent<ComponentMesh>())      { outColor = EditorColors::Ok;   return "MESH"; }
+    if (go->getComponent<ComponentRigidbody>()) { outColor = EditorColors::Crit; return "PHYS"; }
+    outColor = {}; return nullptr;
+}
+
 void HierarchyPanel::drawContent() {
     ModuleScene* scene = m_editor->getActiveModuleScene();
     if (!scene) return;
     EditorSelection& sel = m_editor->getSelection();
-
     bool prefabMode = m_editor->getSceneManager() && m_editor->getSceneManager()->isEditingPrefab();
 
     if (prefabMode) {
-        // Coloured header strip
         ImVec2 p = ImGui::GetCursorScreenPos();
         ImVec2 p2 = { p.x + ImGui::GetContentRegionAvail().x, p.y + 26.f };
         ImGui::GetWindowDrawList()->AddRectFilled(p, p2, IM_COL32(30, 90, 30, 200));
@@ -40,14 +55,20 @@ void HierarchyPanel::drawContent() {
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.35f, 1.f, 0.35f, 1.f));
         ImGui::Text("  Prefab: %s", m_editor->getSceneManager()->getPrefabEditName().c_str());
         ImGui::PopStyleColor();
-        ImGui::Spacing();
-        ImGui::Separator();
+        ImGui::Spacing(); ImGui::Separator();
     }
     else {
-        if (ImGui::Button("+ Empty")) m_editor->createEmptyGameObject();
-        ImGui::SameLine();
-        if (ImGui::Button("+ Child") && sel.has()) m_editor->createEmptyGameObject("Empty", sel.object);
+        // Search bar
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 6.f, 4.f });
+        ImGui::SetNextItemWidth(-1.f);
+        ImGui::InputTextWithHint("##hier_search", "\xF0\x9F\x94\x8D  Search scene...", m_search, sizeof(m_search));
+        ImGui::PopStyleVar();
+        ImGui::PushStyleColor(ImGuiCol_Separator, EditorColors::Line);
         ImGui::Separator();
+        ImGui::PopStyleColor();
+
+        // Inline [+] button in header region using foreground draw list overlay
+        // (drawn by the panel header itself in EditorPanel::draw via ImGui window title)
     }
 
     drawNode(scene->getRoot(), prefabMode);
@@ -57,15 +78,34 @@ void HierarchyPanel::drawContent() {
 
 void HierarchyPanel::drawNode(GameObject* go, bool prefabMode, bool isRoot) {
     if (!go) return;
+
+    // Search filter: skip nodes whose name doesn't contain the search string.
+    // Always show selected node regardless of filter.
     EditorSelection& sel = m_editor->getSelection();
-    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+    if (m_search[0] != '\0' && go != sel.object) {
+        std::string name = go->getName();
+        std::string srch = m_search;
+        // Case-insensitive
+        std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+        std::transform(srch.begin(), srch.end(), srch.begin(), ::tolower);
+        if (name.find(srch) == std::string::npos) {
+            // Still recurse into children (they might match)
+            for (auto* c : go->getChildren()) drawNode(c, prefabMode, false);
+            return;
+        }
+    }
+
+    ImGuiTreeNodeFlags flags =
+        ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth |
+        ImGuiTreeNodeFlags_FramePadding;
     if (go == sel.object) flags |= ImGuiTreeNodeFlags_Selected;
     if (go->getChildren().empty()) flags |= ImGuiTreeNodeFlags_Leaf;
     if (prefabMode && isRoot) flags |= ImGuiTreeNodeFlags_DefaultOpen;
 
     if (sel.renaming == go) {
         ImGui::SetKeyboardFocusHere();
-        bool done = ImGui::InputText("##rename", sel.renameBuffer, sizeof(sel.renameBuffer), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
+        bool done = ImGui::InputText("##rename", sel.renameBuffer, sizeof(sel.renameBuffer),
+            ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
         if (done || ImGui::IsItemDeactivated()) { go->setName(sel.renameBuffer); sel.renaming = nullptr; }
         for (auto* c : go->getChildren()) drawNode(c, prefabMode, false);
         return;
@@ -73,16 +113,59 @@ void HierarchyPanel::drawNode(GameObject* go, bool prefabMode, bool isRoot) {
 
     bool isPrefabRoot = prefabMode && isRoot;
     bool isPrefabInst = !isPrefabRoot && PrefabManager::isPrefabInstance(go);
-    if (isPrefabRoot) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.75f, 0.20f, 1.f));
+    if (isPrefabRoot)  ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.75f, 0.20f, 1.f));
     else if (isPrefabInst) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.45f, 0.75f, 1.0f, 1.f));
 
     const char* label = (isPrefabRoot && m_editor->getSceneManager())
         ? m_editor->getSceneManager()->getPrefabEditName().c_str()
         : go->getName().c_str();
 
+    // Override header colors for selection: accent-dim bg + 2px left accent border
+    bool isSelected = (go == sel.object);
+    if (isSelected) {
+        ImGui::PushStyleColor(ImGuiCol_Header,        EditorColors::AccDim);
+        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, { EditorColors::AccDim.x, EditorColors::AccDim.y, EditorColors::AccDim.z, 0.28f });
+        ImGui::PushStyleColor(ImGuiCol_HeaderActive,  { EditorColors::AccDim.x, EditorColors::AccDim.y, EditorColors::AccDim.z, 0.45f });
+    }
+
     bool nodeOpen = ImGui::TreeNodeEx((void*)(uintptr_t)go->getUID(), flags, "%s", label);
 
+    // 2px left accent border for selected row
+    if (isSelected) {
+        ImVec2 rMin = ImGui::GetItemRectMin();
+        ImVec2 rMax = ImGui::GetItemRectMax();
+        ImGui::GetWindowDrawList()->AddRectFilled(
+            { rMin.x, rMin.y }, { rMin.x + 2.f, rMax.y },
+            ImGui::ColorConvertFloat4ToU32(EditorColors::Acc));
+        ImGui::PopStyleColor(3);
+    }
+
     if (isPrefabRoot || isPrefabInst) ImGui::PopStyleColor();
+
+    // ---- Tag badge (right-aligned, before end of row) ----
+    {
+        ImVec4 tagColor;
+        const char* tag = goTag(go, tagColor);
+        if (tag) {
+            ImGui::PushFont(g_fontMono);
+            ImVec2 ts = ImGui::CalcTextSize(tag);
+            float badgeW = ts.x + 8.f;
+            ImVec2 rMin  = ImGui::GetItemRectMin();
+            ImVec2 rMax  = ImGui::GetItemRectMax();
+            float bx     = rMax.x - badgeW - 4.f;
+            float by     = rMin.y + (rMax.y - rMin.y - ts.y) * 0.5f;
+            ImGui::GetWindowDrawList()->AddRectFilled(
+                { bx, by - 2.f }, { bx + badgeW, by + ts.y + 2.f },
+                ImGui::ColorConvertFloat4ToU32({ tagColor.x, tagColor.y, tagColor.z, 0.18f }), 3.f);
+            ImGui::GetWindowDrawList()->AddRect(
+                { bx, by - 2.f }, { bx + badgeW, by + ts.y + 2.f },
+                ImGui::ColorConvertFloat4ToU32({ tagColor.x, tagColor.y, tagColor.z, 0.5f }), 3.f);
+            ImGui::GetWindowDrawList()->AddText(
+                ImGui::GetFont(), ImGui::GetFontSize() * 0.85f,
+                { bx + 4.f, by }, ImGui::ColorConvertFloat4ToU32(tagColor), tag);
+            ImGui::PopFont();
+        }
+    }
 
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) sel.object = go;
     if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) sel.object = go;

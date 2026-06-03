@@ -56,11 +56,15 @@
 #include "MeshEntry.h"
 #include "ResourceMesh.h"
 #include <d3dx12.h>
+#include "ModuleStaticBuffer.h"
 #include <filesystem>
 #include <algorithm>
+#include <functional>
+#include <cstdio>
 
 namespace fs = std::filesystem;
-static constexpr float kDeg2Rad = 0.0174532925f;
+static constexpr float kDeg2Rad  = 0.0174532925f;
+static constexpr float kStatusH  = 22.f;   // height of the status bar overlay
 
 ModuleEditor::ModuleEditor() = default;
 ModuleEditor::~ModuleEditor() = default;
@@ -140,6 +144,11 @@ bool ModuleEditor::init() {
     auto rbD = CD3DX12_RESOURCE_DESC::Buffer(sizeof(UINT64) * 2);
     device->CreateCommittedResource(&rbH, D3D12_HEAP_FLAG_NONE, &rbD, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_gpuReadback));
 
+    // Force the DockBuilder layout to run on every launch by clearing any
+    // stale imgui.ini that would otherwise override our builder positions.
+    // Delete is safe: ImGui recreates the file on clean shutdown.
+    std::remove("imgui.ini");
+
     m_saveDialog = std::make_unique<FileDialog>();
     m_loadDialog = std::make_unique<FileDialog>();
     m_saveDialog->setExtensionFilter(".json");
@@ -155,6 +164,7 @@ bool ModuleEditor::init() {
     addPanel<SceneSettingsPanel>(this);
     addPanel<ResourcesPanel>(this);
     addPanel<CollisionDebugPanel>(this);
+    addPanel<GPUMemoryPanel>(this);
 
     // Register OLE drop target so we get DragEnter/DragOver/DragLeave/Drop
     // callbacks that drive the real-time drag overlay and background imports.
@@ -326,91 +336,10 @@ void ModuleEditor::preRender() {
     }
     // --- End Morph Target Debug Window ---
 
-    // --- Animation Debug Window ---
-    {
-        static bool s_showAnimDebug = true;
-        ModuleScene* animScene = getActiveModuleScene();
-        if (animScene && s_showAnimDebug) {
-            struct AnimEntry { GameObject* go; ComponentAnimation* anim; };
-            std::vector<AnimEntry> entries;
-            std::function<void(GameObject*)> collectAnims = [&](GameObject* node) {
-                if (!node || !node->isActive()) return;
-                if (auto* anim = node->getComponent<ComponentAnimation>())
-                    entries.push_back({ node, anim });
-                for (auto* c : node->getChildren()) collectAnims(c);
-            };
-            collectAnims(animScene->getRoot());
-
-            if (!entries.empty()) {
-                if (ImGui::Begin("Animation Debug", &s_showAnimDebug)) {
-                for (auto& e : entries) {
-                    ImGui::PushID(e.go);
-                    ImGui::Text("%s", e.go->getName().c_str());
-                    ImGui::Indent();
-
-                    ResourceStateMachine* sm = e.anim->getStateMachine();
-                    if (sm) {
-                        // SM-driven character
-                        const HashString& active = e.anim->getActiveState();
-                        ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f), "State: %s",
-                            active.empty() ? "(none)" : active.str.c_str());
-                        ImGui::Text("Layers: %d", e.anim->getLayerCount());
-
-                        const AnimLayer* head = e.anim->getLayerHead();
-                        if (head) {
-                            ImGui::Text("Head time: %.1f ms", head->currentTimeMs);
-                            float w = (head->transitionTimeMs > 0.f)
-                                ? std::min(1.f, head->fadeTimeMs / head->transitionTimeMs)
-                                : 1.f;
-                            ImGui::Text("Blend weight: %.2f", w);
-                        }
-
-                        ImGui::Spacing();
-                        ImGui::TextDisabled("Triggers:");
-                        static const char* kTriggers[] = { "move", "stop", "run", "walk", "die" };
-                        for (const char* t : kTriggers) {
-                            if (ImGui::SmallButton(t))
-                                e.anim->SendTrigger(HashString(std::string(t)));
-                            ImGui::SameLine();
-                        }
-                        ImGui::NewLine();
-                    } else {
-                        // Morph-target face or direct-play animation
-                        float t = e.anim->getController().CurrentTime;
-                        ImGui::Text("Anim time: %.3f s", t);
-
-                        // Walk children to find morph weights
-                        std::function<void(GameObject*)> showMorphs = [&](GameObject* node) {
-                            if (auto* cm = node->getComponent<ComponentMesh>()) {
-                                for (const auto& en : cm->getEntries()) {
-                                    if (!en.meshRes) continue;
-                                    const uint32_t n = en.meshRes->getNumMorphTargets();
-                                    if (n > 0) {
-                                        ImGui::Text("  %s:", node->getName().c_str());
-                                        const float* w = cm->getMorphWeights();
-                                        for (uint32_t i = 0; i < n && i < 8; ++i)
-                                            ImGui::Text("    Target %u: %.3f", i, w[i]);
-                                        break;
-                                    }
-                                }
-                            }
-                            for (auto* child : node->getChildren()) showMorphs(child);
-                        };
-                        for (auto* child : e.go->getChildren()) showMorphs(child);
-                    }
-
-                    ImGui::Unindent();
-                    ImGui::Separator();
-                    ImGui::PopID();
-                }
-                } // end if (ImGui::Begin)
-                ImGui::End();
-            }
-        }
-    }
-    // --- End Animation Debug Window ---
+    // Animation Debug Window removed — use the Inspector's Animation component for debug controls.
 
     handleDialogs();
+    drawStatusBar();
 
     // Drag-drop overlay: drawn last so it sits on top of all panels.
     drawDragDropOverlay();
@@ -619,6 +548,10 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
         visibleMeshes.reserve(ownedEntries.size());
         for (auto& e : ownedEntries) visibleMeshes.push_back(&e);
     }
+
+    // Track live draw call count (one draw per mesh entry = conservative lower bound).
+    m_frameDrawCalls = (int)visibleMeshes.size();
+    m_frameMeshCount = m_frameDrawCalls;
 
     // Dispatch GPU skinning before the geometry pass so skinned vertex buffers are ready
     if (!skinJobs.empty() && m_skinningPass) {
@@ -875,37 +808,73 @@ void ModuleEditor::gatherLights(GameObject* node, FrameLightData& out) const {
 }
 
 void ModuleEditor::drawDockspace() {
-    constexpr ImGuiWindowFlags kF = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus;
+    constexpr ImGuiWindowFlags kF =
+        ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
+        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+
     const ImGuiViewport* vp = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(vp->Pos);
-    ImGui::SetNextWindowSize(vp->Size);
+    ImGui::SetNextWindowSize(ImVec2(vp->Size.x, vp->Size.y - kStatusH));
     ImGui::SetNextWindowViewport(vp->ID);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::Begin("##Dock", nullptr, kF);
-    ImGui::PopStyleVar(2);
+    ImGui::PopStyleVar(3);
 
     ImGuiID dock = ImGui::GetID("DS");
-    ImGui::DockSpace(dock, ImVec2(0, 0));
+    // No PassthruCentralNode — that makes the viewport invisible/click-through.
+    ImGui::DockSpace(dock, ImVec2(0, 0), ImGuiDockNodeFlags_None);
 
     if (m_firstFrame) {
         m_firstFrame = false;
+
+        const float vpW = vp->Size.x;
+        const float vpH = vp->Size.y - kStatusH;
+        // Left  220px  |  Center flex  |  Right 280px
+        // Bottom ~165px (tabs: Render Graph, Asset Browser, Collision Debug, Console)
+        const float leftRatio   = 220.f / vpW;
+        const float rightRatio  = 280.f / (vpW - 220.f);
+        const float bottomRatio = 200.f / vpH;
+
         ImGui::DockBuilderRemoveNode(dock);
-        ImGui::DockBuilderAddNode(dock, ImGuiDockNodeFlags_DockSpace | ImGuiDockNodeFlags_PassthruCentralNode);
+        ImGui::DockBuilderAddNode(dock, ImGuiDockNodeFlags_DockSpace);
         ImGui::DockBuilderSetNodeSize(dock, vp->Size);
-        ImGuiID left, right, bottom, center, rightPanel;
-        ImGui::DockBuilderSplitNode(dock, ImGuiDir_Left, 0.20f, &left, &right);
-        ImGui::DockBuilderSplitNode(right, ImGuiDir_Down, 0.25f, &bottom, &right);
-        ImGui::DockBuilderSplitNode(right, ImGuiDir_Right, 0.28f, &rightPanel, &center);
-        ImGui::DockBuilderDockWindow("Hierarchy", left);
-        ImGui::DockBuilderDockWindow("Inspector", rightPanel);
-        ImGui::DockBuilderDockWindow("Scene Settings", rightPanel);
-        ImGui::DockBuilderDockWindow("Scene View", center);
-        ImGui::DockBuilderDockWindow("Game View", center);
-        ImGui::DockBuilderDockWindow("Console", bottom);
-        ImGui::DockBuilderDockWindow("Asset Browser", bottom);
-        ImGui::DockBuilderDockWindow("Resources", bottom);
-        ImGui::DockBuilderDockWindow("Prefabs", bottom);
+
+        ImGuiID left, mid, right, bottom;
+        // Split off left column
+        ImGui::DockBuilderSplitNode(dock,  ImGuiDir_Left, leftRatio,  &left, &mid);
+        // Split off right column
+        ImGui::DockBuilderSplitNode(mid,   ImGuiDir_Right, rightRatio, &right, &mid);
+        // Split off bottom tab panel from center
+        ImGui::DockBuilderSplitNode(mid,   ImGuiDir_Down, bottomRatio, &bottom, &mid);
+
+        // Left column: Hierarchy top, Scene Settings bottom
+        ImGuiID leftTop, leftBot;
+        ImGui::DockBuilderSplitNode(left, ImGuiDir_Down, 0.22f, &leftBot, &leftTop);
+        ImGui::DockBuilderDockWindow("Hierarchy",      leftTop);
+        ImGui::DockBuilderDockWindow("Scene Settings", leftBot);
+
+        // Center: viewport tabs (names must match panel getName() exactly)
+        ImGui::DockBuilderDockWindow("\xe2\x97\x86 Viewport", mid);
+        ImGui::DockBuilderDockWindow("\xe2\x97\x8f Game",     mid);
+
+        // Right column: Inspector top, GPU Memory bottom
+        ImGuiID rightTop, rightBot;
+        ImGui::DockBuilderSplitNode(right, ImGuiDir_Down, 0.42f, &rightBot, &rightTop);
+        ImGui::DockBuilderDockWindow("Inspector",   rightTop);
+        ImGui::DockBuilderDockWindow("GPU Memory",  rightBot);
+
+        // Bottom tabs
+        ImGui::DockBuilderDockWindow("Render Graph",    bottom);
+        ImGui::DockBuilderDockWindow("Asset Browser",   bottom);
+        ImGui::DockBuilderDockWindow("Collision Debug", bottom);
+        ImGui::DockBuilderDockWindow("Console",         bottom);
+        ImGui::DockBuilderDockWindow("Performance",     bottom);
+        ImGui::DockBuilderDockWindow("Resources",       bottom);
+
         ImGui::DockBuilderFinish(dock);
     }
     ImGui::End();
@@ -914,88 +883,289 @@ void ModuleEditor::drawDockspace() {
 void ModuleEditor::drawMenuBar() {
     if (!ImGui::BeginMainMenuBar()) return;
 
+    // ---- Brand ----
+    {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        // Phoenix glyph: small purple rounded square with white stripe
+        dl->AddRectFilled({ p.x + 2, p.y + 3 }, { p.x + 17, p.y + 17 },
+            IM_COL32(140, 80, 210, 255), 3.f);
+        dl->AddRectFilled({ p.x + 5, p.y + 6 }, { p.x + 14, p.y + 9 },
+            IM_COL32(255, 255, 255, 100), 1.f);
+        ImGui::Dummy(ImVec2(20.f, 0.f));
+        ImGui::SameLine(0, 4);
+        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx0);
+        ImGui::Text("Phoenix");
+        ImGui::PopStyleColor();
+        ImGui::SameLine(0, 4);
+        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
+        ImGui::Text("v0.9.4");
+        ImGui::SameLine(0, 4);
+        ImGui::Text("\xC2\xB7");   // middle dot ·
+        ImGui::SameLine(0, 4);
+        ImGui::Text("DX12");
+        ImGui::PopStyleColor();
+        ImGui::SameLine(0, 8);
+    }
+
     auto saveScene = [&]() {
         if (!m_currentScenePath.empty() && m_sceneManager->getActiveScene()) {
             bool ok = m_sceneManager->saveCurrentScene(m_currentScenePath);
             log(ok ? "Scene saved!" : "Failed to save.", ok ? EditorColors::Success : EditorColors::Danger);
         }
         else m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes");
-        };
+    };
 
     if (ImGui::BeginMenu("File")) {
-        if (ImGui::MenuItem("New Scene", "Ctrl+N")) m_showNewSceneConfirm = true;
+        if (ImGui::MenuItem("New Scene",  "Ctrl+N"))         m_showNewSceneConfirm = true;
+        if (ImGui::MenuItem("Open Scene", "Ctrl+O"))         m_loadDialog->open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
         ImGui::Separator();
-        if (ImGui::MenuItem("Save Scene", "Ctrl+S")) saveScene();
-        if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
-        if (ImGui::MenuItem("Load Scene...", "Ctrl+O")) m_loadDialog->open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
+        if (ImGui::MenuItem("Save Scene", "Ctrl+S"))         saveScene();
+        if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S"))   m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
         ImGui::Separator();
         if (ImGui::MenuItem("Quit", "Alt+F4")) {}
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Edit")) {
-        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, canUndo())) undoToSavePoint();
-        if (ImGui::MenuItem("Redo", "Ctrl+Y", false, canRedo())) redo();
+        if (ImGui::MenuItem("Undo",      "Ctrl+Z", false, canUndo())) undoToSavePoint();
+        if (ImGui::MenuItem("Redo",      "Ctrl+Y", false, canRedo())) redo();
         ImGui::Separator();
-        if (ImGui::MenuItem("Copy", "Ctrl+C", false, m_selection.has())) copySelected();
-        if (ImGui::MenuItem("Paste", "Ctrl+V", false, !m_clipboard.serialized.empty())) pasteClipboard();
+        if (ImGui::MenuItem("Copy",      "Ctrl+C", false, m_selection.has())) copySelected();
+        if (ImGui::MenuItem("Paste",     "Ctrl+V", false, !m_clipboard.serialized.empty())) pasteClipboard();
         if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, m_selection.has())) duplicateSelected();
         ImGui::Separator();
         if (ImGui::MenuItem("Create Empty", "Ctrl+Shift+N")) createEmptyGameObject();
-        ImGui::EndMenu();
-    }
-    if (ImGui::BeginMenu("View")) {
-        for (EditorPanel* p : m_panels) ImGui::MenuItem(p->getName(), nullptr, &p->open);
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("GameObject")) {
         if (ImGui::MenuItem("Create Empty")) createEmptyGameObject();
         if (ImGui::MenuItem("Create Empty Child") && m_selection.has()) createEmptyGameObject("Empty", m_selection.object);
         ImGui::Separator();
-        ImGui::SeparatorText("Primitives");
-        if (ImGui::MenuItem("Cube"))     spawnPrimitive(PrimitiveType::Cube);
-        if (ImGui::MenuItem("Sphere"))   spawnPrimitive(PrimitiveType::Sphere);
-        if (ImGui::MenuItem("Capsule"))  spawnPrimitive(PrimitiveType::Capsule);
-        if (ImGui::MenuItem("Plane"))    spawnPrimitive(PrimitiveType::Plane);
-        if (ImGui::MenuItem("Cylinder")) spawnPrimitive(PrimitiveType::Cylinder);
+        if (ImGui::BeginMenu("Primitives")) {
+            if (ImGui::MenuItem("Cube"))     spawnPrimitive(PrimitiveType::Cube);
+            if (ImGui::MenuItem("Sphere"))   spawnPrimitive(PrimitiveType::Sphere);
+            if (ImGui::MenuItem("Capsule"))  spawnPrimitive(PrimitiveType::Capsule);
+            if (ImGui::MenuItem("Plane"))    spawnPrimitive(PrimitiveType::Plane);
+            if (ImGui::MenuItem("Cylinder")) spawnPrimitive(PrimitiveType::Cylinder);
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Lights")) {
+            auto spawnLight = [&](const char* name, Component::Type type) {
+                ModuleScene* sc = getActiveModuleScene();
+                if (!sc) return;
+                GameObject* go = sc->createGameObject(name);
+                go->addComponent(ComponentFactory::CreateComponent(type, go));
+                m_selection.object = go;
+                log((std::string("Created ") + name).c_str(), EditorColors::Success);
+            };
+            if (ImGui::MenuItem("Directional Light")) spawnLight("Directional Light", Component::Type::DirectionalLight);
+            if (ImGui::MenuItem("Point Light"))       spawnLight("Point Light",       Component::Type::PointLight);
+            if (ImGui::MenuItem("Spot Light"))        spawnLight("Spot Light",        Component::Type::SpotLight);
+            ImGui::EndMenu();
+        }
         ImGui::Separator();
         if (ImGui::MenuItem("Random Primitive + Physics", "Shift+P")) {
-            static int menuSpawnIdx = 0;
-            ++menuSpawnIdx;
-            static const PrimitiveType kT[] = {
-                PrimitiveType::Cube, PrimitiveType::Sphere,
-                PrimitiveType::Capsule, PrimitiveType::Cylinder
-            };
+            static int menuSpawnIdx = 0; ++menuSpawnIdx;
+            static const PrimitiveType kT[] = { PrimitiveType::Cube, PrimitiveType::Sphere, PrimitiveType::Capsule, PrimitiveType::Cylinder };
             spawnPrimitive(kT[menuSpawnIdx % 4],
-                           Vector3((float)((menuSpawnIdx*3)%11-5), 5.f,
-                                   (float)((menuSpawnIdx*7)%11-5)),
-                           Vector3::One, true);
+                Vector3((float)((menuSpawnIdx*3)%11-5), 5.f, (float)((menuSpawnIdx*7)%11-5)),
+                Vector3::One, true);
         }
         ImGui::EndMenu();
     }
-    if (ImGui::BeginMenu("Scene")) {
-        if (ImGui::MenuItem("Play", nullptr, false, m_sceneManager && !m_sceneManager->isPlaying())) m_sceneManager->play();
-        if (ImGui::MenuItem("Pause", nullptr, false, m_sceneManager && m_sceneManager->isPlaying())) m_sceneManager->pause();
-        if (ImGui::MenuItem("Stop", nullptr, false, m_sceneManager && m_sceneManager->getState() != SceneManager::PlayState::Stopped)) stopPlay();
+    if (ImGui::BeginMenu("Component")) {
+        auto addToSel = [&](const char* label, Component::Type type) {
+            if (!m_selection.has()) return;
+            if (ImGui::MenuItem(label)) {
+                m_selection.object->addComponent(ComponentFactory::CreateComponent(type, m_selection.object));
+                log((std::string("Added ") + label).c_str(), EditorColors::Success);
+            }
+        };
+        addToSel("Mesh",       Component::Type::Mesh);
+        addToSel("Rigidbody",  Component::Type::Rigidbody);
+        addToSel("Camera",     Component::Type::Camera);
+        addToSel("Directional Light", Component::Type::DirectionalLight);
+        addToSel("Point Light",       Component::Type::PointLight);
+        addToSel("Spot Light",        Component::Type::SpotLight);
+        addToSel("Animation",  Component::Type::Animation);
+        addToSel("Bounds",     Component::Type::Bounds);
+        ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("Debug")) {
+        if (m_sceneManager) {
+            EditorSceneSettings& s = m_sceneManager->getSettings();
+            ImGui::MenuItem("AABB Bounding Volumes",    nullptr, &s.debugDrawBounds);
+            ImGui::MenuItem("Broadphase Grid",          nullptr, &s.debugDrawGrid);
+            ImGui::MenuItem("Show Light Proxies",       nullptr, &s.debugDrawLights);
+            // Contact Points debug draw lives on the collision system; stored in debugDrawBounds for now.
+        }
+        ImGui::Separator();
+        if (ImGui::BeginMenu("Camera & Culling")) {
+            ModuleCamera* cam = app->getCamera();
+            if (cam) {
+                int cm = (int)cam->cullMode;
+                ImGui::Text("Cull Mode");  ImGui::SameLine();
+                if (ImGui::RadioButton("Off##cm",     &cm, 0)) cam->cullMode = ModuleCamera::CullMode::None;
+                ImGui::SameLine();
+                if (ImGui::RadioButton("Frustum##cm", &cm, 1)) cam->cullMode = ModuleCamera::CullMode::Frustum;
+                int cs = (int)cam->cullSource;
+                ImGui::Text("Cull From"); ImGui::SameLine();
+                if (ImGui::RadioButton("Editor##cs",  &cs, 0)) cam->cullSource = ModuleCamera::CullSource::EditorCamera;
+                ImGui::SameLine();
+                if (ImGui::RadioButton("Game##cs",    &cs, 1)) cam->cullSource = ModuleCamera::CullSource::GameCamera;
+                ImGui::Separator();
+                ImGui::Text("Debug Draw");
+                ImGui::MenuItem("Editor Frustum",      nullptr, &cam->debugDrawEditorFrustum);
+                ImGui::MenuItem("Cull Frustum",        nullptr, &cam->debugDrawCullFrustum);
+                ImGui::MenuItem("Camera Axes",         nullptr, &cam->debugDrawCameraAxes);
+                ImGui::MenuItem("Forward Ray",         nullptr, &cam->debugDrawForwardRay);
+                ImGui::Separator();
+                ImGui::Text("Camera Parameters");
+                float fovDeg = cam->fovY * 57.2957795f;
+                ImGui::SetNextItemWidth(140.f);
+                if (ImGui::SliderFloat("FOV##cam",    &fovDeg, 10.f, 170.f)) cam->fovY = fovDeg * 0.0174532925f;
+                ImGui::SetNextItemWidth(140.f);
+                ImGui::DragFloat("Near##cam",  &cam->nearZ,      0.01f, 0.01f,  10.f);
+                ImGui::SetNextItemWidth(140.f);
+                ImGui::DragFloat("Far##cam",   &cam->farZ,       1.f,   10.f,  5000.f);
+                ImGui::SetNextItemWidth(140.f);
+                ImGui::SliderFloat("Aspect##cam", &cam->aspectRatio, 0.5f, 4.f);
+                ImGui::Separator();
+                Vector3 fwd = cam->getForward();
+                ImGui::TextDisabled("Pos: %.2f  %.2f  %.2f", cam->getPos().x, cam->getPos().y, cam->getPos().z);
+                ImGui::TextDisabled("Fwd: %.2f  %.2f  %.2f", fwd.x, fwd.y, fwd.z);
+            }
+            ImGui::EndMenu();
+        }
+        ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("Window")) {
+        // Core panels
+        for (EditorPanel* p : m_panels) {
+            const char* n = p->getName();
+            // Skip profiling panels — shown in their own section below
+            if (strcmp(n,"Render Graph")==0 || strcmp(n,"GPU Memory")==0 ||
+                strcmp(n,"Collision Debug")==0 || strcmp(n,"Performance")==0) continue;
+            ImGui::MenuItem(n, nullptr, &p->open);
+        }
+        ImGui::Separator();
+        ImGui::SeparatorText("PROFILING");
+        for (EditorPanel* p : m_panels) {
+            const char* n = p->getName();
+            if (strcmp(n,"Render Graph")==0 || strcmp(n,"GPU Memory")==0 ||
+                strcmp(n,"Collision Debug")==0 || strcmp(n,"Performance")==0)
+                ImGui::MenuItem(n, nullptr, &p->open);
+        }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Reset Layout")) m_firstFrame = true;
         ImGui::EndMenu();
     }
 
+    // ---- Right side: GPU adapter info + fps ----
     {
-        bool playing = m_sceneManager && m_sceneManager->isPlaying();
-        bool paused = m_sceneManager && m_sceneManager->getState() == SceneManager::PlayState::Paused;
-        const float btnW = 70.0f;
-        const float total = btnW * 3 + ImGui::GetStyle().ItemSpacing.x * 2;
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (ImGui::GetContentRegionAvail().x - total) * 0.5f);
-        if (playing) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1));
-        if (ImGui::Button("  Play  ", ImVec2(btnW, 0)) && m_sceneManager && !playing) m_sceneManager->play();
-        if (playing) ImGui::PopStyleColor();
-        ImGui::SameLine();
-        if (paused) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.7f, 0.1f, 1));
-        if (ImGui::Button(" Pause  ", ImVec2(btnW, 0)) && m_sceneManager && playing) m_sceneManager->pause();
-        if (paused) ImGui::PopStyleColor();
-        ImGui::SameLine();
-        if (ImGui::Button("  Stop  ", ImVec2(btnW, 0)) && m_sceneManager) stopPlay();
+        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
+        char gpuInfo[128];
+        snprintf(gpuInfo, sizeof(gpuInfo), "RTX \xC2\xB7 DX12 \xC2\xB7 build Development    %.0f fps",
+            (double)app->getFPS());
+        float textW = ImGui::CalcTextSize(gpuInfo).x;
+        float rightX = ImGui::GetWindowWidth() - textW - 14.f;
+        if (rightX > ImGui::GetCursorPosX())
+            ImGui::SetCursorPosX(rightX);
+        ImGui::TextUnformatted(gpuInfo);
+        ImGui::PopStyleColor();
     }
+
     ImGui::EndMainMenuBar();
+}
+
+// ---- Status bar (22px, always at screen bottom, above nothing) ----
+void ModuleEditor::drawStatusBar() {
+    const ImGuiViewport* vp = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x, vp->Pos.y + vp->Size.y - kStatusH));
+    ImGui::SetNextWindowSize(ImVec2(vp->Size.x, kStatusH));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,    0.f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,  0.f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,     ImVec2(10.f, 3.f));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.048f, 0.048f, 0.060f, 1.f));
+    constexpr ImGuiWindowFlags kF =
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
+        ImGuiWindowFlags_NoMove       | ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNav |
+        ImGuiWindowFlags_NoScrollbar;
+    if (!ImGui::Begin("##StatusBar", nullptr, kF)) {
+        ImGui::End(); ImGui::PopStyleColor(); ImGui::PopStyleVar(3); return;
+    }
+
+    ImGui::PushFont(g_fontMono);
+
+    // Left: green dot + scene + selection
+    {
+        ImVec2 dp = ImGui::GetCursorScreenPos();
+        ImGui::GetWindowDrawList()->AddCircleFilled(
+            ImVec2(dp.x + 5.f, dp.y + 8.f), 4.f,
+            ImGui::ColorConvertFloat4ToU32(EditorColors::Ok));
+        ImGui::Dummy(ImVec2(14.f, 0.f)); ImGui::SameLine(0, 0);
+
+        const char* sceneName = "Untitled";
+        static char sceneNameBuf[128];
+        if (m_sceneManager && !m_currentScenePath.empty()) {
+            snprintf(sceneNameBuf, sizeof(sceneNameBuf), "%s",
+                std::filesystem::path(m_currentScenePath).filename().string().c_str());
+            sceneName = sceneNameBuf;
+        }
+        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx1);
+        ImGui::Text("Ready  \xC2\xB7  Scene: %s", sceneName);
+        ImGui::PopStyleColor();
+        if (m_selection.has()) {
+            ImGui::SameLine(0, 0);
+            ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
+            ImGui::Text("  \xC2\xB7  1 selected  \xC2\xB7  ");
+            ImGui::PopStyleColor();
+            ImGui::SameLine(0, 0);
+            ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx0);
+            ImGui::TextUnformatted(m_selection.object->getName().c_str());
+            ImGui::PopStyleColor();
+        }
+    }
+
+    // Right: Renderer · Passes · Draw Calls · VRAM
+    // Draw directly with AddText so the text is never clipped by the left section.
+    {
+        ModuleD3D12*        d3d = app->getD3D12();
+        ModuleStaticBuffer* sb  = app->getStaticBuffer();
+        SIZE_T vramBytes = d3d ? d3d->getDedicatedVideoMemory() : 0;
+        float  vramUsed  = sb ? (float)sb->getUsedBytes()  / (1024.f*1024.f*1024.f) : 0.f;
+        float  vramTotal = vramBytes > 0
+            ? (float)vramBytes / (1024.f*1024.f*1024.f)
+            : (sb ? (float)sb->getTotalBytes() / (1024.f*1024.f*1024.f) : 0.f);
+
+        char main[192], vram[48];
+        snprintf(main, sizeof(main),
+            "Renderer: D3D12  \xC2\xB7  Passes: 9  \xC2\xB7  Draw Calls: %d  \xC2\xB7  ",
+            m_frameDrawCalls);
+        if (vramTotal > 0.f) snprintf(vram, sizeof(vram), "VRAM: %.2f / %.1f GB", vramUsed, vramTotal);
+        else                  snprintf(vram, sizeof(vram), "VRAM: —");
+
+        float mainW = ImGui::CalcTextSize(main).x;
+        float vramW = ImGui::CalcTextSize(vram).x;
+        float totalW = mainW + vramW + 4.f;
+
+        ImVec2 wp  = ImGui::GetWindowPos();
+        float  wW  = ImGui::GetWindowWidth();
+        float  textY = wp.y + (kStatusH - ImGui::GetTextLineHeight()) * 0.5f;
+        float  rx    = wp.x + wW - totalW - 8.f;
+
+        ImDrawList* ddl = ImGui::GetWindowDrawList();
+        ddl->AddText(ImVec2(rx, textY),
+            ImGui::ColorConvertFloat4ToU32(EditorColors::Tx2), main);
+        ddl->AddText(ImVec2(rx + mainW + 4.f, textY),
+            ImGui::ColorConvertFloat4ToU32(EditorColors::Acc),  vram);
+    }
+
+    ImGui::PopFont();
+    ImGui::End();
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar(3);
 }
 
 void ModuleEditor::handleDialogs() {

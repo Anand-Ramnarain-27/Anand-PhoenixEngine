@@ -6,7 +6,7 @@
 class SceneViewPanel : public ViewportPanel {
 public:
     explicit SceneViewPanel(ModuleEditor* editor);
-    const char* getName() const override { return "Scene View"; }
+    const char* getName() const override { return "\xe2\x97\x86 Viewport"; }  // ◆ Viewport
 
 protected:
     bool buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView, Matrix& outProj) override;

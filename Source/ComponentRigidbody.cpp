@@ -3,6 +3,9 @@
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
 #include "GameObject.h"
+#include "Application.h"
+#include "ModuleEditor.h"
+#include "SceneManager.h"
 #include <imgui.h>
 #include <algorithm>
 #include "3rdParty/rapidjson/document.h"
@@ -16,8 +19,11 @@ ComponentRigidbody::ComponentRigidbody(GameObject* owner) : Component(owner) {}
 void ComponentRigidbody::update(float dt) {
     if (isStatic || mass <= 0.f) return;
 
-    // Apply gravity
-    if (useGravity) velocity.y += kGravityAccel * gravityScale * dt;
+    // Apply gravity — read scene-global Y acceleration; fall back to kGravityAccel if no scene loaded.
+    float grav = kGravityAccel;
+    if (app && app->getEditor() && app->getEditor()->getSceneManager())
+        grav = app->getEditor()->getSceneManager()->getSettings().gravityY;
+    if (useGravity) velocity.y += grav * gravityScale * dt;
 
     // Exponential velocity damping: preserves units regardless of frame rate
     float dampFactor = std::max(0.f, 1.f - linearDamping * dt);

@@ -1,5 +1,10 @@
 #pragma once
+#include <imgui.h>
 
+// Global font handles — set during ImGuiPass construction.
+// Use PushFont(g_fontMono) / PopFont() for monospace numeric display.
+extern ImFont* g_fontUI;
+extern ImFont* g_fontMono;
 
 class ImGuiPass
 {

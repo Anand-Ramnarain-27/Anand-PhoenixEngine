@@ -1,5 +1,7 @@
 ﻿#include "Globals.h"
 #include "InspectorPanel.h"
+#include "EditorColors.h"
+#include "ImGuiPass.h"
 #include "ModuleEditor.h"
 #include "Application.h"
 #include "ModuleCamera.h"
@@ -54,7 +56,7 @@ void InspectorPanel::drawContent() {
 
     if (prefabMode) {
         ImVec2 p = ImGui::GetCursorScreenPos();
-        ImVec2 p2 = { p.x + ImGui::GetContentRegionAvail().x, p.y + 28.f };
+        ImVec2 p2 = ImVec2(p.x + ImGui::GetContentRegionAvail().x, p.y + 28.f);
         ImGui::GetWindowDrawList()->AddRectFilled(p, p2, IM_COL32(25, 80, 25, 210));
         ImGui::GetWindowDrawList()->AddRect(p, p2, IM_COL32(50, 190, 50, 180));
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5.f);
@@ -69,36 +71,72 @@ void InspectorPanel::drawContent() {
     GameObject* go = sel.object;
 
     PrefabEditSession* session = m_editor->getPrefabSession();
-    bool isEditRoot = prefabMode && session && go == session->rootObject;
+    bool isEditRoot    = prefabMode && session && go == session->rootObject;
     bool isInPrefabEdit = prefabMode && session && session->rootObject;
 
-    bool active = go->isActive();
-    if (ImGui::Checkbox("##active", &active)) go->setActive(active);
-    ImGui::SameLine();
+    // ---- Entity header ----
+    {
+        ImDrawList* dl  = ImGui::GetWindowDrawList();
+        float panelW    = ImGui::GetContentRegionAvail().x;
+        ImVec2 hdrMin   = ImGui::GetCursorScreenPos();
+        float  hdrH     = 44.f;
+        // Subtle bg strip
+        dl->AddRectFilled(hdrMin, ImVec2(hdrMin.x + panelW, hdrMin.y + hdrH),
+            ImGui::ColorConvertFloat4ToU32(ImVec4(0.11f, 0.11f, 0.14f, 1.f)));
 
-    char nameBuf[256];
-    strncpy_s(nameBuf, go->getName().c_str(), sizeof(nameBuf) - 1);
-    ImGui::SetNextItemWidth(-1);
+        // Mesh/object icon square
+        ImVec2 iconMin = ImVec2(hdrMin.x + 8.f, hdrMin.y + 9.f);
+        dl->AddRectFilled(iconMin, ImVec2(iconMin.x + 26.f, iconMin.y + 26.f),
+            ImGui::ColorConvertFloat4ToU32(EditorColors::Bg3), 5.f);
+        dl->AddRect(iconMin, ImVec2(iconMin.x + 26.f, iconMin.y + 26.f),
+            ImGui::ColorConvertFloat4ToU32(EditorColors::Line2), 5.f);
+        dl->AddText(ImVec2(iconMin.x + 7.f, iconMin.y + 6.f),
+            ImGui::ColorConvertFloat4ToU32(EditorColors::Acc2), "\xe2\x97\x88"); // ◈
 
-    if (isEditRoot) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.28f, 0.18f, 0.04f, 1.f));
-    if (ImGui::InputText("##goname", nameBuf, sizeof(nameBuf))) go->setName(nameBuf);
-    if (isEditRoot) ImGui::PopStyleColor();
+        // Object name (editable)
+        ImGui::SetCursorScreenPos(ImVec2(hdrMin.x + 42.f, hdrMin.y + 5.f));
+        char nameBuf[256];
+        strncpy_s(nameBuf, go->getName().c_str(), sizeof(nameBuf) - 1);
+        if (isEditRoot) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.28f, 0.18f, 0.04f, 1.f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0, 0, 0, 0));
+        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx0);
+        ImGui::SetNextItemWidth(panelW - 80.f);
+        if (ImGui::InputText("##goname", nameBuf, sizeof(nameBuf))) go->setName(nameBuf);
+        ImGui::PopStyleColor(2);
+        if (isEditRoot) ImGui::PopStyleColor();
+
+        // Subtitle: UID
+        ImGui::SetCursorScreenPos(ImVec2(hdrMin.x + 42.f, hdrMin.y + 26.f));
+        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
+        ImGui::PushFont(g_fontMono);
+        ImGui::Text("UID: %u", go->getUID());
+        ImGui::PopFont();
+        ImGui::PopStyleColor();
+
+        // Active toggle (right side)
+        bool active = go->isActive();
+        ImU32 toggleBg  = active ? ImGui::ColorConvertFloat4ToU32(EditorColors::Acc)
+                                 : ImGui::ColorConvertFloat4ToU32(EditorColors::Bg3);
+        float tx = hdrMin.x + panelW - 38.f, ty = hdrMin.y + 14.f;
+        dl->AddRectFilled(ImVec2(tx, ty), ImVec2(tx + 30.f, ty + 16.f), toggleBg, 8.f);
+        float kx = active ? tx + 21.f : tx + 9.f;
+        dl->AddCircleFilled(ImVec2(kx, ty + 8.f), 6.f, IM_COL32(255, 255, 255, 230));
+        ImGui::SetCursorScreenPos(ImVec2(tx - 2.f, ty - 2.f));
+        ImGui::InvisibleButton("##toggle", ImVec2(34.f, 20.f));
+        if (ImGui::IsItemClicked()) { active = !active; go->setActive(active); }
+
+        // Advance cursor past the header
+        ImGui::SetCursorScreenPos(ImVec2(hdrMin.x, hdrMin.y + hdrH + 4.f));
+    }
 
     if (isInPrefabEdit) {
         if (isEditRoot) {
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.75f, 0.20f, 1.f));
-            ImGui::Text("Root  |  UID: %u", go->getUID());
-            ImGui::PopStyleColor();
-        }
-        else {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.75f, 0.75f, 0.75f, 1.f));
-            ImGui::Text("Child  |  UID: %u", go->getUID());
+            ImGui::Text("Prefab root: %s", session->prefabName.c_str());
             ImGui::PopStyleColor();
         }
 
-        ImGui::Spacing();
         const float bw = (ImGui::GetContentRegionAvail().x - 8.f) / 3.f;
-
         const PrefabInstanceData* instData = PrefabManager::getInstanceData(session->rootObject);
         bool hasChanges = instData && !instData->overrides.isEmpty();
 
@@ -113,32 +151,21 @@ void InspectorPanel::drawContent() {
         ImGui::PopStyleColor(2);
         ImGui::EndDisabled();
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip(hasChanges ? "Save all changes to the prefab file" : "No changes to apply");
-
+            ImGui::SetTooltip(hasChanges ? "Save changes to prefab file" : "No changes");
         ImGui::SameLine(0, 4);
-
         ImGui::BeginDisabled(!hasChanges);
         if (ImGui::Button("Revert", ImVec2(bw, 0)) && session->rootObject) {
             PrefabManager::revertToPrefab(session->rootObject, session->isolatedScene.get());
             m_editor->getSelection().object = session->rootObject;
-            m_editor->log(("Reverted prefab: " + session->prefabName).c_str(), EditorColors::Warning);
+            m_editor->log(("Reverted: " + session->prefabName).c_str(), EditorColors::Warning);
         }
         ImGui::EndDisabled();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip(hasChanges ? "Discard edits and reload from disk" : "No changes to revert");
-
         ImGui::SameLine(0, 4);
-
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.50f, 0.12f, 0.12f, 1.f));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.72f, 0.17f, 0.17f, 1.f));
         if (ImGui::Button("Exit", ImVec2(bw, 0))) m_editor->exitPrefabEdit();
         ImGui::PopStyleColor(2);
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Leave prefab edit without saving  [Esc]");
-
         ImGui::Spacing();
-    }
-    else {
-        ImGui::TextDisabled("UID: %u", go->getUID());
     }
 
     if (!prefabMode && PrefabManager::isPrefabInstance(go)) {
@@ -161,6 +188,22 @@ void InspectorPanel::drawContent() {
     Component::Type toRemove = Component::Type::Transform;
     bool wantsRemove = false;
 
+    // Returns the accent border color for a component type.
+    auto compBorderColor = [](Component::Type t) -> ImU32 {
+        switch (t) {
+        case Component::Type::Mesh:               return ImGui::ColorConvertFloat4ToU32(EditorColors::Ok);
+        case Component::Type::Camera:             return ImGui::ColorConvertFloat4ToU32(EditorColors::Inf);
+        case Component::Type::DirectionalLight:
+        case Component::Type::PointLight:
+        case Component::Type::SpotLight:          return ImGui::ColorConvertFloat4ToU32(EditorColors::Warn);
+        case Component::Type::Animation:          return ImGui::ColorConvertFloat4ToU32(EditorColors::Acc);
+        case Component::Type::Rigidbody:          return ImGui::ColorConvertFloat4ToU32(EditorColors::Hot);
+        case Component::Type::Bounds:             return ImGui::ColorConvertFloat4ToU32(EditorColors::Crit);
+        case Component::Type::Script:             return ImGui::ColorConvertFloat4ToU32(EditorColors::Tx1);
+        default:                                  return ImGui::ColorConvertFloat4ToU32(EditorColors::Tx2);
+        }
+    };
+
     for (const auto& comp : go->getComponents()) {
         if (comp->getType() == Component::Type::Transform) continue;
         const char* label =
@@ -178,9 +221,22 @@ void InspectorPanel::drawContent() {
             "Component";
 
         ImGui::PushID((int)comp->getType());
+
+        // Record Y position before header so we can draw the left border after.
+        float headerY = ImGui::GetCursorScreenPos().y;
+
         bool headerOpen = true;
-        bool expanded = ImGui::CollapsingHeader(label, &headerOpen, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_ClipLabelForTrailingButton);
+        bool expanded = ImGui::CollapsingHeader(label, &headerOpen,
+            ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap |
+            ImGuiTreeNodeFlags_ClipLabelForTrailingButton);
         if (!headerOpen) { toRemove = comp->getType(); wantsRemove = true; }
+
+        // 2px colored left border on the header row
+        {
+            ImVec2 rMin = ImVec2(ImGui::GetWindowPos().x, headerY);
+            ImVec2 rMax = ImVec2(rMin.x + 2.f, ImGui::GetItemRectMax().y);
+            ImGui::GetWindowDrawList()->AddRectFilled(rMin, rMax, compBorderColor(comp->getType()));
+        }
         if (expanded) {
             std::string before;
             comp->onSave(before);
@@ -243,6 +299,55 @@ void InspectorPanel::drawContent() {
     }
 }
 
+// Draws a labeled row of three colored-axis DragFloat fields.
+// Returns true if any value was changed.
+static bool vec3Row(const char* label, float v[3], float speed,
+                    const char* fmt = "%.2f") {
+    // Axis colors: X=red, Y=green, Z=blue — matching the viewport gizmo
+    static const ImVec4 kAxisCol[3] = {
+        ImVec4(0.86f, 0.32f, 0.32f, 1.f),  // X red
+        ImVec4(0.30f, 0.78f, 0.45f, 1.f),  // Y green
+        ImVec4(0.30f, 0.55f, 0.90f, 1.f),  // Z blue
+    };
+    static const char* kAxisLbl[3] = { "X","Y","Z" };
+    static const char* kIds[3]     = { "##vx","##vy","##vz" };
+
+    bool changed = false;
+    ImGui::PushID(label);
+
+    // Label column (fixed 76px)
+    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx1);
+    ImGui::Text("%s", label);
+    ImGui::PopStyleColor();
+    ImGui::SameLine(76.f);
+
+    // Three equal-width fields
+    const float avail  = ImGui::GetContentRegionAvail().x;
+    const float fieldW = (avail - 2.f) / 3.f;
+
+    for (int i = 0; i < 3; ++i) {
+        if (i > 0) ImGui::SameLine(0, 2.f);
+
+        // Colored axis prefix chip
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        const float chipW = 16.f, h = 20.f;
+        ImGui::GetWindowDrawList()->AddRectFilled(
+            p, ImVec2(p.x + chipW, p.y + h),
+            ImGui::ColorConvertFloat4ToU32(kAxisCol[i]), 2.f);
+        ImGui::GetWindowDrawList()->AddText(
+            ImVec2(p.x + 4.f, p.y + 3.f),
+            IM_COL32(255, 255, 255, 220), kAxisLbl[i]);
+        ImGui::SetCursorScreenPos(ImVec2(p.x + chipW, p.y));
+
+        ImGui::SetNextItemWidth(fieldW - chipW);
+        if (ImGui::DragFloat(kIds[i], &v[i], speed, 0.f, 0.f, fmt))
+            changed = true;
+    }
+
+    ImGui::PopID();
+    return changed;
+}
+
 void InspectorPanel::drawTransform() {
     GameObject* go = m_editor->getSelection().object;
     ComponentTransform* t = go->getTransform();
@@ -251,17 +356,24 @@ void InspectorPanel::drawTransform() {
     auto markOverride = [&](const char* prop) {
         GameObject* root = findPrefabRoot(go);
         if (root) PrefabManager::markPropertyOverride(root, (int)Component::Type::Transform, prop);
-        };
+    };
+
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4.f, 5.f));
 
     float pos[3] = { t->position.x, t->position.y, t->position.z };
-    if (ImGui::DragFloat3("Position", pos, 0.1f)) { t->position = { pos[0], pos[1], pos[2] }; t->markDirty(); markOverride("position"); }
+    if (vec3Row("Position", pos, 0.1f))
+        { t->position = { pos[0], pos[1], pos[2] }; t->markDirty(); markOverride("position"); }
 
     Vector3 euler = t->rotation.ToEuler();
     float deg[3] = { euler.x * kRad2Deg, euler.y * kRad2Deg, euler.z * kRad2Deg };
-    if (ImGui::DragFloat3("Rotation", deg, 0.5f)) { t->rotation = Quaternion::CreateFromYawPitchRoll(deg[1] * kDeg2Rad, deg[0] * kDeg2Rad, deg[2] * kDeg2Rad); t->markDirty(); markOverride("rotation"); }
+    if (vec3Row("Rotation", deg, 0.5f, "%.1f"))
+        { t->rotation = Quaternion::CreateFromYawPitchRoll(deg[1]*kDeg2Rad, deg[0]*kDeg2Rad, deg[2]*kDeg2Rad); t->markDirty(); markOverride("rotation"); }
 
     float scl[3] = { t->scale.x, t->scale.y, t->scale.z };
-    if (ImGui::DragFloat3("Scale", scl, 0.01f)) { t->scale = { scl[0], scl[1], scl[2] }; t->markDirty(); markOverride("scale"); }
+    if (vec3Row("Scale", scl, 0.01f))
+        { t->scale = { scl[0], scl[1], scl[2] }; t->markDirty(); markOverride("scale"); }
+
+    ImGui::PopStyleVar();
 }
 
 void InspectorPanel::drawAddComponentMenu() {
@@ -281,18 +393,26 @@ void InspectorPanel::drawAddComponentMenu() {
         ImGui::CloseCurrentPopup();
         };
 
+    // ---- Rendering ----
+    addComp("Mesh",      Component::Type::Mesh,      go->getComponent<ComponentMesh>()      != nullptr);
+    addComp("Camera",    Component::Type::Camera,    go->getComponent<ComponentCamera>()    != nullptr);
+    ImGui::Separator();
+    // ---- Lights submenu ----
+    if (ImGui::BeginMenu("Lights")) {
+        addComp("Directional Light", Component::Type::DirectionalLight, go->getComponent<ComponentDirectionalLight>() != nullptr);
+        addComp("Point Light",       Component::Type::PointLight,       go->getComponent<ComponentPointLight>()       != nullptr);
+        addComp("Spot Light",        Component::Type::SpotLight,        go->getComponent<ComponentSpotLight>()        != nullptr);
+        ImGui::EndMenu();
+    }
+    ImGui::Separator();
+    // ---- Physics ----
     addComp("Rigidbody", Component::Type::Rigidbody, go->getComponent<ComponentRigidbody>() != nullptr);
     addComp("Bounds",    Component::Type::Bounds,    go->getComponent<ComponentBounds>()    != nullptr);
     ImGui::Separator();
-    addComp("Camera", Component::Type::Camera, go->getComponent<ComponentCamera>() != nullptr);
-    addComp("Mesh", Component::Type::Mesh, go->getComponent<ComponentMesh>() != nullptr);
-    addComp("Animation", Component::Type::Animation, go->getComponent<ComponentAnimation>() != nullptr);
-    addComp("Character Motion", Component::Type::CharacterMotion, go->getComponent<ComponentCharacterMotion>() != nullptr);
-    addComp("Character Controller", Component::Type::SimpleCharacterController, go->getComponent<ComponentSimpleCharacterController>() != nullptr);
-    ImGui::Separator();
-    addComp("Directional Light", Component::Type::DirectionalLight, go->getComponent<ComponentDirectionalLight>() != nullptr);
-    addComp("Point Light", Component::Type::PointLight, go->getComponent<ComponentPointLight>() != nullptr);
-    addComp("Spot Light", Component::Type::SpotLight, go->getComponent<ComponentSpotLight>() != nullptr);
+    // ---- Animation / Character ----
+    addComp("Animation",           Component::Type::Animation,                go->getComponent<ComponentAnimation>()                != nullptr);
+    addComp("Character Motion",    Component::Type::CharacterMotion,          go->getComponent<ComponentCharacterMotion>()           != nullptr);
+    addComp("Character Controller",Component::Type::SimpleCharacterController,go->getComponent<ComponentSimpleCharacterController>() != nullptr);
     ImGui::EndPopup();
 }
 
