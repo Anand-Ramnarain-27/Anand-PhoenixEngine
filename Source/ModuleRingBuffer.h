@@ -34,21 +34,4 @@ private:
     struct FrameData { size_t allocationStart = 0; size_t allocationSize = 0; };
     FrameData m_frameData[MAX_FRAMES] = {};
     uint32_t m_currentFrame = 0;
-
-public:
-    // Stats accessors for GPU Memory panel — declared after private members so
-    // MAX_FRAMES and m_* are visible to the initialiser and inline bodies.
-    static constexpr uint32_t kFrameCount = MAX_FRAMES;
-
-    float getUsedMB() const {
-        size_t used = (m_head >= m_tail) ? (m_head - m_tail) : (m_head + (m_capacity - m_tail));
-        return float(used) / (1024.f * 1024.f);
-    }
-    float getTotalMB() const { return float(m_capacity) / (1024.f * 1024.f); }
-    float getFrameUsedMB(uint32_t frameIdx) const {
-        if (frameIdx >= MAX_FRAMES) return 0.f;
-        return float(m_frameData[frameIdx].allocationSize) / (1024.f * 1024.f);
-    }
-    size_t   getHeadOffsetBytes() const { return m_head; }
-    uint32_t getCurrentFrameIdx() const { return m_currentFrame; }
 };

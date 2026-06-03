@@ -42,7 +42,6 @@ class CollisionSystem;
 class CollisionResponse;
 class RenderTexture;
 class EditorPanel;
-class CollisionDebugPanel;
 class SceneViewPanel;
 class GameViewPanel;
 class AssetBrowserPanel;
@@ -143,24 +142,16 @@ private:
     bool m_gpuTimerReady = false;
     float m_memoryUpdateTimer = 0.0f;
 
-    int   m_frameDrawCalls  = 0;
-    float m_vramUsedGB      = 0.f;
-    float m_vramTotalGB     = 8.f;
-
     std::vector<std::unique_ptr<EditorPanel>> m_ownedPanels;
     std::vector<EditorPanel*> m_panels;
 
-    SceneViewPanel*    m_sceneView      = nullptr;
-    GameViewPanel*     m_gameView       = nullptr;
-    ConsolePanel*      m_console        = nullptr;
-    PerformancePanel*  m_performance    = nullptr;
-    AssetBrowserPanel* m_assetBrowser   = nullptr;
-    GPUMemoryPanel*    m_gpuMemory      = nullptr;
-    RenderGraphPanel*  m_renderGraph    = nullptr;
-    CollisionDebugPanel* m_collisionDbg = nullptr;
-
-    bool m_showFrameTiming    = true;   // toggle via Window menu
-    bool m_showPhysicsSettings = false; // Physics Settings modal
+    SceneViewPanel*   m_sceneView    = nullptr;
+    GameViewPanel*    m_gameView     = nullptr;
+    ConsolePanel*     m_console      = nullptr;
+    PerformancePanel* m_performance  = nullptr;
+    AssetBrowserPanel* m_assetBrowser = nullptr;
+    GPUMemoryPanel*   m_gpuMemory    = nullptr;
+    RenderGraphPanel* m_renderGraph  = nullptr;
 
     EngineDropTarget* m_dropTarget = nullptr;
 
@@ -206,7 +197,6 @@ private:
     void drawMenuBar();
     void drawFrameTimingBar();
     void drawStatusBar();
-    void drawPhysicsSettingsModal();
     void handleDialogs();
     void flushExitPrefabEdit();
     void handleShortcuts();

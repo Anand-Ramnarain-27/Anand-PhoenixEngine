@@ -156,9 +156,9 @@ bool ModuleEditor::init() {
     m_assetBrowser = addPanel<AssetBrowserPanel>(this);
     addPanel<SceneSettingsPanel>(this);
     addPanel<ResourcesPanel>(this);
-    m_collisionDbg = addPanel<CollisionDebugPanel>(this);
-    m_gpuMemory    = addPanel<GPUMemoryPanel>(this);
-    m_renderGraph  = addPanel<RenderGraphPanel>(this);
+    addPanel<CollisionDebugPanel>(this);
+    m_gpuMemory   = addPanel<GPUMemoryPanel>(this);
+    m_renderGraph = addPanel<RenderGraphPanel>(this);
 
     // Register OLE drop target so we get DragEnter/DragOver/DragLeave/Drop
     // callbacks that drive the real-time drag overlay and background imports.
@@ -417,7 +417,6 @@ void ModuleEditor::preRender() {
     // --- End Animation Debug Window ---
 
     handleDialogs();
-    drawPhysicsSettingsModal();
 
     // Drag-drop overlay: drawn last so it sits on top of all panels.
     drawDragDropOverlay();
@@ -626,8 +625,6 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
         visibleMeshes.reserve(ownedEntries.size());
         for (auto& e : ownedEntries) visibleMeshes.push_back(&e);
     }
-
-    m_frameDrawCalls = (int)ownedEntries.size();
 
     // Dispatch GPU skinning before the geometry pass so skinned vertex buffers are ready
     if (!skinJobs.empty() && m_skinningPass) {
@@ -1011,58 +1008,32 @@ void ModuleEditor::drawMenuBar() {
             if (ImGui::MenuItem(label, nullptr, false, m_selection.has()))
                 if (m_selection.object) m_selection.object->addComponent(ComponentFactory::CreateComponent(type, m_selection.object));
         };
-        addTo("Add Mesh",             Component::Type::Mesh);
-        addTo("Add Rigidbody",        Component::Type::Rigidbody);
-        addTo("Add Camera",           Component::Type::Camera);
-        addTo("Add Script",           Component::Type::Script);
-        addTo("Add Animation",        Component::Type::Animation);
-        ImGui::Separator();
-        addTo("Add Directional Light",Component::Type::DirectionalLight);
-        addTo("Add Point Light",      Component::Type::PointLight);
-        addTo("Add Spot Light",       Component::Type::SpotLight);
+        addTo("Add Mesh",      Component::Type::Mesh);
+        addTo("Add Rigidbody", Component::Type::Rigidbody);
+        addTo("Add Camera",    Component::Type::Camera);
+        addTo("Add Light (Directional)", Component::Type::DirectionalLight);
+        addTo("Add Animation", Component::Type::Animation);
         ImGui::EndMenu();
     }
 
     // ---- Debug ----
     if (ImGui::BeginMenu("Debug")) {
-        if (!m_sceneManager) { ImGui::EndMenu(); }
-        else {
-        auto& s = m_sceneManager->getSettings();
-        if (ImGui::MenuItem("AABB Bounding Volumes",    "F1", &s.debugDrawBounds)) {}
-        if (ImGui::MenuItem("Camera Frustum",           "F2", &s.debugDrawCameraFrustums)) {}
-        if (ImGui::MenuItem("Contact Points & Normals", nullptr, &s.debugDrawContacts)) {}
-        if (ImGui::MenuItem("Broadphase Grid",          nullptr, &s.debugDrawGrid)) {}
-        if (ImGui::MenuItem("Debug Draw Lights",        nullptr, &s.debugDrawLights)) {}
+        static bool s_showAABB = false, s_showFrustum = false;
+        if (ImGui::MenuItem("Show AABB",    nullptr, &s_showAABB)) {
+            if (m_sceneManager) m_sceneManager->getSettings().debugDrawBounds = s_showAABB;
+        }
+        if (ImGui::MenuItem("Show Frustum", nullptr, &s_showFrustum)) {}
         ImGui::Separator();
-        if (ImGui::MenuItem("Show Grid",  nullptr, &s.showGrid))  {}
-        if (ImGui::MenuItem("Show Axis",  nullptr, &s.showAxis))  {}
-        ImGui::Separator();
-        if (ImGui::MenuItem("Collision Debug Panel"))
-            if (m_collisionDbg) m_collisionDbg->open = true;
-        if (ImGui::MenuItem("Physics Settings..."))
-            m_showPhysicsSettings = true;
+        if (ImGui::MenuItem("Collision Panel")) {
+            for (EditorPanel* p : m_panels)
+                if (strcmp(p->getName(), "Collision Debug") == 0) { p->open = true; break; }
         }
         ImGui::EndMenu();
     }
 
     // ---- Window ----
     if (ImGui::BeginMenu("Window")) {
-        // Core panels
-        for (EditorPanel* p : m_panels) {
-            const char* n = p->getName();
-            // Skip panels listed explicitly below
-            if (strcmp(n,"Render Graph")==0 || strcmp(n,"GPU Memory")==0 ||
-                strcmp(n,"Collision Debug")==0 || strcmp(n,"Performance")==0) continue;
-            ImGui::MenuItem(n, nullptr, &p->open);
-        }
-        ImGui::Separator();
-        ImGui::MenuItem("Collision Debug", nullptr,
-                        m_collisionDbg ? &m_collisionDbg->open : nullptr);
-        ImGui::Separator();
-        ImGui::TextDisabled("PROFILING");
-        if (m_renderGraph) ImGui::MenuItem("Render Graph", nullptr, &m_renderGraph->open);
-        if (m_gpuMemory)   ImGui::MenuItem("GPU Memory",   nullptr, &m_gpuMemory->open);
-        ImGui::MenuItem("Frame Timing", nullptr, &m_showFrameTiming);
+        for (EditorPanel* p : m_panels) ImGui::MenuItem(p->getName(), nullptr, &p->open);
         ImGui::EndMenu();
     }
 
@@ -1119,32 +1090,32 @@ void ModuleEditor::drawMenuBar() {
 // Frame Timing Bar  (78px strip at the bottom, above the status bar)
 // ---------------------------------------------------------------------------
 void ModuleEditor::drawFrameTimingBar() {
-    if (!m_showFrameTiming) return;
-
-    const float kBarH  = 78.f;
-    const float kStatH = 22.f;
+    const float kBarH    = 78.f;
+    const float kStatH   = 22.f; // status bar below
     const ImGuiViewport* vp = ImGui::GetMainViewport();
-    const float W = vp->Size.x;
-    const float Y = vp->Pos.y + vp->Size.y - kBarH - kStatH;
+    float W = vp->Size.x;
+    float Y = vp->Pos.y + vp->Size.y - kBarH - kStatH;
 
     ImGui::SetNextWindowPos({ vp->Pos.x, Y });
     ImGui::SetNextWindowSize({ W, kBarH });
+    ImGui::SetNextWindowBgAlpha(1.f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, EditorColors::Bg0);
-    const bool vis = ImGui::Begin("##FrameTiming", nullptr,
-        ImGuiWindowFlags_NoTitleBar   | ImGuiWindowFlags_NoResize      |
-        ImGuiWindowFlags_NoScrollbar  | ImGuiWindowFlags_NoScrollWithMouse |
-        ImGuiWindowFlags_NoMove       | ImGuiWindowFlags_NoSavedSettings |
-        ImGuiWindowFlags_NoDocking    | ImGuiWindowFlags_NoBringToFrontOnFocus |
-        ImGuiWindowFlags_NoFocusOnAppearing);
+    ImGui::Begin("##FrameTiming", nullptr,
+                 ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                 ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove |
+                 ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking |
+                 ImGuiWindowFlags_NoBringToFrontOnFocus);
     ImGui::PopStyleVar(3);
     ImGui::PopStyleColor();
-    if (!vis) { ImGui::End(); return; }
 
-    // ---- Pass data (proportionally scaled from total GPU time) ----
-    struct PassEntry { const char* name; ImVec4 color; float ratio; };
+    // Pass data (ms values — eventually wired to per-pass GPU queries)
+    struct PassEntry { const char* name; ImVec4 color; float ms; };
+    double totalMs = m_gpuFrameTimeMs;
+
+    // Distribute total GPU time across passes proportionally to spec ratios.
     static const PassEntry kPasses[] = {
         { "D3D12 Core",    { 0.545f,0.545f,0.588f,1.f }, 0.12f },
         { "Env/IBL",       { 0.384f,0.690f,0.788f,1.f }, 0.34f },
@@ -1153,165 +1124,112 @@ void ModuleEditor::drawFrameTimingBar() {
         { "Deferred Light",{ 0.910f,0.376f,0.431f,1.f }, 3.42f },
         { "Forward Mesh",  { 0.851f,0.635f,0.243f,1.f }, 1.27f },
         { "Debug Draw",    { 0.608f,0.482f,0.816f,1.f }, 0.21f },
-        { "Render Tex",    { 0.353f,0.651f,0.910f,1.f }, 0.44f },
+        { "Render Texture",{ 0.353f,0.651f,0.910f,1.f }, 0.44f },
         { "ImGui",         { 0.780f,0.780f,0.812f,1.f }, 0.38f },
     };
     constexpr int kPassCount = 9;
-    float ratioSum = 0.f;
-    for (const auto& p : kPasses) ratioSum += p.ratio;
+    float passSum = 0.f;
+    for (const auto& p : kPasses) passSum += p.ms;
+    float scale = (passSum > 0.f && totalMs > 0.0) ? float(totalMs) / passSum : 1.f;
 
-    const float totalMs  = (m_gpuFrameTimeMs > 0.0) ? float(m_gpuFrameTimeMs) : 8.0f;
-    const float scale    = totalMs / ratioSum;           // ms per ratio-unit
-    const float fps      = totalMs > 0.f ? 1000.f / totalMs : 0.f;
+    ImDrawList* dl  = ImGui::GetWindowDrawList();
+    ImVec2      wp  = ImGui::GetWindowPos();
 
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    const ImVec2 wp = ImGui::GetWindowPos();
-
-    // Top separator
+    // Top separator line
     dl->AddLine(wp, { wp.x + W, wp.y }, EditorColors::toU32(EditorColors::Line));
 
-    // ---- Column widths ----
-    constexpr float kLeftW  = 150.f;
-    constexpr float kRightW = 130.f;
-
-    // ============================================================
-    // LEFT COLUMN — use ImGui cursor so text is definitely inside
-    // ============================================================
-    // "GPU FRAME" label
-    ImGui::SetCursorPos({ 12.f, 7.f });
-    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
-    ImGui::TextUnformatted("GPU FRAME");
-    ImGui::PopStyleColor();
-
-    // Large ms value — DrawList at cursor screen position for custom font size
-    ImGui::SetCursorPos({ 12.f, 21.f });
+    // ---- Left column: FRAME TIME label + big number ----
+    const float kLeftW = 150.f;
     {
-        char numBuf[12]; snprintf(numBuf, sizeof(numBuf), "%.2f", totalMs);
-        ImVec2 numScreenPos = ImGui::GetCursorScreenPos();
-        ImVec2 numSz = ImGui::GetFont()->CalcTextSizeA(20.f, 9999.f, 0.f, numBuf);
-        dl->AddText(ImGui::GetFont(), 20.f, numScreenPos,
-                    EditorColors::toU32(EditorColors::Tx0), numBuf);
-        dl->AddText({ numScreenPos.x + numSz.x + 3.f, numScreenPos.y + 8.f },
-                    EditorColors::toU32(EditorColors::Tx2), "ms");
-        ImGui::Dummy({ 0.f, 24.f }); // advance cursor past big text
+        float cx = wp.x + 12.f, cy = wp.y + 8.f;
+        dl->AddText({ cx, cy }, EditorColors::toU32(EditorColors::Tx2), "FRAME TIME");
+        char msBuf[24];
+        float displayMs = (totalMs > 0.0) ? float(totalMs) : passSum * scale;
+        snprintf(msBuf, sizeof(msBuf), "%.2f ms", displayMs);
+        dl->AddText(ImGui::GetFont(), 22.f, { cx, cy + 16.f },
+                    EditorColors::toU32(EditorColors::Tx0), msBuf);
+        char fpsBuf[16];
+        snprintf(fpsBuf, sizeof(fpsBuf), "%.1f FPS", displayMs > 0.f ? 1000.f / displayMs : 0.f);
+        dl->AddText({ cx, cy + 40.f }, EditorColors::toU32(EditorColors::Ok), fpsBuf);
     }
 
-    // fps label
-    ImGui::SetCursorPos({ 12.f, 52.f });
+    // ---- Right column: draw calls, tris, VRAM ----
+    const float kRightW = 130.f;
     {
-        char fpsBuf[16]; snprintf(fpsBuf, sizeof(fpsBuf), "%.0f fps", fps);
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Ok);
-        ImGui::TextUnformatted(fpsBuf);
-        ImGui::PopStyleColor();
+        float rx = wp.x + W - kRightW - 8.f;
+        float ry = wp.y + 8.f;
+        dl->AddText({ rx, ry      }, EditorColors::toU32(EditorColors::Tx2), "DRAW CALLS");
+        dl->AddText({ rx, ry + 16.f }, EditorColors::toU32(EditorColors::Tx0), "323");
+        dl->AddText({ rx, ry + 32.f }, EditorColors::toU32(EditorColors::Tx2), "TRIS");
+        dl->AddText({ rx, ry + 48.f }, EditorColors::toU32(EditorColors::Tx0), "2.64M");
     }
 
-    // Left column right border
-    dl->AddLine({ wp.x + kLeftW - 1.f, wp.y + 2.f },
-                { wp.x + kLeftW - 1.f, wp.y + kBarH - 2.f },
-                EditorColors::toU32(EditorColors::Line));
+    // ---- Center: stacked bar + pass legend ----
+    const float kBarTop  = wp.y + 8.f;
+    const float kBarBotH = 26.f;
+    const float kBarSegH = 14.f;
+    const float barX     = wp.x + kLeftW + 8.f;
+    const float barW     = W - kLeftW - kRightW - 24.f;
+    const float kBudgetMs = 16.67f; // 60 fps budget
 
-    // ============================================================
-    // RIGHT COLUMN
-    // ============================================================
-    const float rcx = W - kRightW + 8.f;
-    constexpr float kMH = 22.f;
+    // Budget line position
+    float budgetX = barX + std::min(1.f, passSum * scale / kBudgetMs) * barW;
 
-    // Right column left border
-    dl->AddLine({ wp.x + W - kRightW, wp.y + 2.f },
-                { wp.x + W - kRightW, wp.y + kBarH - 2.f },
-                EditorColors::toU32(EditorColors::Line));
-
-    ImGui::SetCursorPos({ rcx, 6.f });
-    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
-    ImGui::TextUnformatted("DRAW CALLS"); ImGui::PopStyleColor();
-    ImGui::SetCursorPos({ rcx, 16.f });
-    { char buf[16]; snprintf(buf, sizeof(buf), "%d", m_frameDrawCalls);
-      ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx0);
-      ImGui::TextUnformatted(buf); ImGui::PopStyleColor(); }
-
-    ImGui::SetCursorPos({ rcx, 6.f + kMH });
-    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
-    ImGui::TextUnformatted("PASSES"); ImGui::PopStyleColor();
-    ImGui::SetCursorPos({ rcx, 16.f + kMH });
-    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx0);
-    ImGui::TextUnformatted("9"); ImGui::PopStyleColor();
-
-    ImGui::SetCursorPos({ rcx, 6.f + kMH * 2.f });
-    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
-    ImGui::TextUnformatted("VRAM"); ImGui::PopStyleColor();
-    ImGui::SetCursorPos({ rcx, 16.f + kMH * 2.f });
-    { char buf[24]; snprintf(buf, sizeof(buf), "%.2f GB", m_vramUsedGB);
-      ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Accent);
-      ImGui::TextUnformatted(buf); ImGui::PopStyleColor(); }
-
-    // ============================================================
-    // CENTER — proportional pass bar + legend
-    // ============================================================
-    const float barX    = wp.x + kLeftW + 8.f;
-    const float barW    = W - kLeftW - kRightW - 16.f;
-    const float barTopY = wp.y + 9.f;
-    const float barH    = 24.f;
-    const float kBudget = 16.67f;
-
-    dl->AddRectFilled({ barX, barTopY }, { barX + barW, barTopY + barH },
-                      EditorColors::toU32(EditorColors::Bg2), 6.f);
-
+    // Draw segments
     float segX = barX;
     for (int i = 0; i < kPassCount; ++i) {
-        const float ms   = kPasses[i].ratio * scale;
-        const float segW = barW * (kPasses[i].ratio / ratioSum);
-        const float rnd  = (i == 0) ? 6.f : (i == kPassCount-1 ? 6.f : 0.f);
-        const ImDrawFlags rf = (i == 0)
-            ? ImDrawFlags_RoundCornersLeft
-            : (i == kPassCount-1 ? ImDrawFlags_RoundCornersRight : ImDrawFlags_RoundCornersNone);
+        float ms   = kPasses[i].ms * scale;
+        float segW = (passSum * scale > 0.f) ? ms / (passSum * scale) * barW : 0.f;
+        if (segW < 1.f) segW = 1.f;
 
-        dl->AddRectFilled({ segX, barTopY }, { segX + segW, barTopY + barH },
-                          EditorColors::toU32A(kPasses[i].color, 0.85f), rnd, rf);
-        if (i > 0)
-            dl->AddLine({ segX, barTopY }, { segX, barTopY + barH },
-                        EditorColors::toU32A(EditorColors::Bg0, 0.5f));
+        dl->AddRectFilled({ segX, kBarTop }, { segX + segW, kBarTop + kBarSegH },
+                          EditorColors::toU32A(kPasses[i].color, 0.85f));
+        dl->AddLine({ segX + segW, kBarTop }, { segX + segW, kBarTop + kBarSegH },
+                    EditorColors::toU32(EditorColors::Bg0));
 
-        // ms label inside segment if wide enough
+        // ms label if segment is wide enough (>5.5% of bar)
         if (segW > barW * 0.055f) {
             char lb[8]; snprintf(lb, sizeof(lb), "%.2f", ms);
             ImVec2 ts = ImGui::CalcTextSize(lb);
-            if (ts.x + 4.f < segW)
-                dl->AddText({ segX + (segW - ts.x)*0.5f, barTopY + (barH - ts.y)*0.5f },
-                             IM_COL32(0,0,0,220), lb);
+            if (ts.x + 4.f < segW) {
+                dl->AddText({ segX + (segW - ts.x) * 0.5f, kBarTop + (kBarSegH - ts.y) * 0.5f },
+                             IM_COL32(0, 0, 0, 220), lb);
+            }
         }
 
-        // Hover tooltip
-        ImVec2 mp = ImGui::GetMousePos();
-        if (mp.x >= segX && mp.x < segX + segW &&
-            mp.y >= barTopY && mp.y < barTopY + barH) {
+        // Tooltip detection
+        ImVec2 mpos = ImGui::GetMousePos();
+        if (mpos.x >= segX && mpos.x < segX + segW &&
+            mpos.y >= kBarTop && mpos.y < kBarTop + kBarSegH) {
+            ImGui::SetNextWindowBgAlpha(0.85f);
             ImGui::BeginTooltip();
             ImGui::TextColored(kPasses[i].color, "%s", kPasses[i].name);
-            ImGui::Text("%.2f ms  (%.1f%%)", ms, kPasses[i].ratio / ratioSum * 100.f);
+            ImGui::Text("%.2f ms  (%.1f%%)", ms, ms / (passSum * scale) * 100.f);
             ImGui::EndTooltip();
         }
+
         segX += segW;
     }
-    dl->AddRect({ barX, barTopY }, { barX + barW, barTopY + barH },
-                EditorColors::toU32(EditorColors::Line), 6.f);
+    dl->AddRect({ barX, kBarTop }, { barX + barW, kBarTop + kBarSegH },
+                EditorColors::toU32(EditorColors::Line));
 
-    // 16.67ms budget line
-    const float budgetFrac = std::min(1.f, kBudget / totalMs);
-    const float budgetX    = barX + budgetFrac * barW;
-    if (budgetX <= barX + barW - 2.f) {
-        dl->AddLine({ budgetX, barTopY - 4.f }, { budgetX, barTopY + barH + 2.f },
-                    EditorColors::toU32(EditorColors::Crit), 2.f);
-        dl->AddText({ budgetX + 3.f, barTopY - 13.f },
-                    EditorColors::toU32(EditorColors::Crit), "16.6ms");
+    // Budget line at 16.67ms
+    if (budgetX <= barX + barW) {
+        dl->AddLine({ budgetX, kBarTop - 4.f }, { budgetX, kBarTop + kBarSegH + 2.f },
+                    IM_COL32(255, 80, 80, 200), 1.5f);
+        dl->AddText({ budgetX + 2.f, kBarTop - 14.f },
+                    IM_COL32(255, 80, 80, 200), "16.6ms");
     }
 
-    // Legend row
+    // Pass legend row below bar
     float lx = barX;
-    const float ly = barTopY + barH + 5.f;
-    for (int i = 0; i < kPassCount && lx < barX + barW - 16.f; ++i) {
-        dl->AddRectFilled({ lx, ly + 3.f }, { lx + 7.f, ly + 10.f },
+    float ly = kBarTop + kBarSegH + 4.f;
+    for (int i = 0; i < kPassCount && lx < barX + barW - 20.f; ++i) {
+        float ms = kPasses[i].ms * scale;
+        dl->AddRectFilled({ lx, ly + 3.f }, { lx + 8.f, ly + 11.f },
                           EditorColors::toU32(kPasses[i].color), 1.f);
-        lx += 9.f;
-        char lb[32]; snprintf(lb, sizeof(lb), "%s %.2f", kPasses[i].name, kPasses[i].ratio * scale);
+        lx += 10.f;
+        char lb[32]; snprintf(lb, sizeof(lb), "%s %.2f", kPasses[i].name, ms);
         ImVec2 ts = ImGui::CalcTextSize(lb);
         dl->AddText({ lx, ly }, EditorColors::toU32(EditorColors::Tx2), lb);
         lx += ts.x + 8.f;
@@ -1348,78 +1266,69 @@ void ModuleEditor::drawStatusBar() {
     ImVec2 wp = ImGui::GetWindowPos();
     dl->AddLine(wp, { wp.x + W, wp.y }, EditorColors::toU32(EditorColors::Line));
 
-    const float textY = wp.y + (kStatH - ImGui::GetTextLineHeight()) * 0.5f;
-
-    // ---- Left side ----
+    // Left side: scene info
     {
-        // Play state badge
-        SceneManager::PlayState playState = m_sceneManager
-            ? m_sceneManager->getState() : SceneManager::PlayState::Stopped;
-        const char* stateStr = "Ready";
-        ImVec4      stateCol = EditorColors::Tx2;
-        if (playState == SceneManager::PlayState::Playing) { stateStr = "Playing"; stateCol = EditorColors::Ok;   }
-        else if (playState == SceneManager::PlayState::Paused)  { stateStr = "Paused";  stateCol = EditorColors::Warn; }
+        std::string sceneName = m_currentScenePath.empty() ? "Untitled_01.scene"
+            : fs::path(m_currentScenePath).filename().string();
 
-        dl->AddText({ wp.x + 8.f, textY }, EditorColors::toU32(stateCol), stateStr);
-        float cx = wp.x + 8.f + ImGui::CalcTextSize(stateStr).x + 10.f;
-
-        // Scene name
-        std::string sceneName = m_currentScenePath.empty() ? "Untitled"
-            : fs::path(m_currentScenePath).stem().string();
-        char sceneBuf[80]; snprintf(sceneBuf, sizeof(sceneBuf), "Scene: %s", sceneName.c_str());
-        dl->AddText({ cx, textY }, EditorColors::toU32(EditorColors::Tx1), sceneBuf);
-        cx += ImGui::CalcTextSize(sceneBuf).x + 10.f;
-
-        // Selected count + entity name
-        if (m_selection.has()) {
-            char selBuf[64];
-            snprintf(selBuf, sizeof(selBuf), "1 selected  |  %s", m_selection.object->getName().c_str());
-            dl->AddText({ cx, textY }, EditorColors::toU32(EditorColors::Tx1), selBuf);
+        int goCount = 0, compCount = 0;
+        if (auto* scene = getActiveModuleScene()) {
+            std::function<void(GameObject*)> count = [&](GameObject* n) {
+                if (!n) return; ++goCount;
+                compCount += (int)n->getComponents().size();
+                for (auto* c : n->getChildren()) count(c);
+            };
+            count(scene->getRoot());
         }
+
+        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx1);
+        ImGui::Text("%s  |  %d GameObjects  |  %d Components",
+                    sceneName.c_str(), goCount, compCount);
+        ImGui::PopStyleColor();
     }
 
-    // ---- Right side ----
+    // Right side: GPU adapter + engine version
     {
-        // Cache adapter name (built once)
-        static std::string s_adapterShort;
-        if (s_adapterShort.empty()) {
+        static std::string s_adapterName;
+        if (s_adapterName.empty()) {
             if (auto* dev = app->getD3D12()->getDevice()) {
-                ComPtr<IDXGIDevice> dxgiDev;
+                ComPtr<IDXGIDevice>  dxgiDev;
                 ComPtr<IDXGIAdapter> adapter;
                 if (SUCCEEDED(dev->QueryInterface(IID_PPV_ARGS(&dxgiDev))) && dxgiDev)
                     if (SUCCEEDED(dxgiDev->GetAdapter(&adapter)) && adapter) {
                         DXGI_ADAPTER_DESC desc = {};
                         adapter->GetDesc(&desc);
+                        // Convert wide to narrow
                         char narrow[128] = {};
-                        WideCharToMultiByte(CP_UTF8, 0, desc.Description, -1, narrow, sizeof(narrow)-1, nullptr, nullptr);
-                        s_adapterShort = narrow;
-                        // Strip "NVIDIA " / "AMD " prefix for shorter display
-                        for (const char* pfx : { "NVIDIA ", "AMD ", "Intel " }) {
-                            size_t pl = strlen(pfx);
-                            if (s_adapterShort.size() > pl && s_adapterShort.substr(0, pl) == pfx)
-                                s_adapterShort = s_adapterShort.substr(pl);
-                        }
-                        if (s_adapterShort.size() > 24) s_adapterShort.resize(24);
+                        WideCharToMultiByte(CP_UTF8, 0, desc.Description, -1, narrow, sizeof(narrow) - 1, nullptr, nullptr);
+                        s_adapterName = narrow;
                     }
             }
-            if (s_adapterShort.empty()) s_adapterShort = "Unknown GPU";
+            if (s_adapterName.empty()) s_adapterName = "Unknown GPU";
         }
 
-        char vramBuf[24];
-        snprintf(vramBuf, sizeof(vramBuf), "%.2f/%.1f GB", m_vramUsedGB, m_vramTotalGB);
+        char rhs[128];
+        snprintf(rhs, sizeof(rhs), "%s  |  D3D12_2  |  Phoenix Engine v0.1.0",
+                 s_adapterName.c_str());
 
-        char rhsBuf[192];
-        snprintf(rhsBuf, sizeof(rhsBuf),
-                 "Renderer: %s  |  Passes: 9  |  Draw Calls: %d  |  VRAM: ",
-                 s_adapterShort.c_str(), m_frameDrawCalls);
+        ImVec2 ts = ImGui::CalcTextSize(rhs);
+        float rx = W - ts.x - 12.f;
 
-        ImVec2 ts1 = ImGui::CalcTextSize(rhsBuf);
-        ImVec2 ts2 = ImGui::CalcTextSize(vramBuf);
-        float rx = W - ts1.x - ts2.x - 12.f;
-        if (rx < W * 0.45f) rx = W * 0.45f;
+        ImDrawList* wdl = ImGui::GetWindowDrawList();
+        ImVec2 rhsPos = { wp.x + rx, wp.y + (kStatH - ts.y) * 0.5f };
 
-        dl->AddText({ wp.x + rx, textY }, EditorColors::toU32(EditorColors::Tx1), rhsBuf);
-        dl->AddText({ wp.x + rx + ts1.x, textY }, EditorColors::toU32(EditorColors::Accent), vramBuf);
+        // Render most of the string in Tx1, last part (Phoenix Engine) in Accent
+        const char* accentStart = strstr(rhs, "Phoenix Engine");
+        if (accentStart) {
+            std::string part1(rhs, static_cast<size_t>(accentStart - rhs));
+            wdl->AddText(rhsPos, EditorColors::toU32(EditorColors::Tx1), part1.c_str());
+            ImVec2 ts1 = ImGui::CalcTextSize(part1.c_str());
+            wdl->AddText({ rhsPos.x + ts1.x, rhsPos.y },
+                         EditorColors::toU32(EditorColors::Accent), accentStart);
+        }
+        else {
+            wdl->AddText(rhsPos, EditorColors::toU32(EditorColors::Tx1), rhs);
+        }
     }
 
     ImGui::End();
@@ -1632,12 +1541,8 @@ void ModuleEditor::updateMemory() {
             if (SUCCEEDED(dxgiDev->GetAdapter(&adapter)) && adapter)
                 if (SUCCEEDED(adapter.As(&adapter3)) && adapter3) {
                     DXGI_QUERY_VIDEO_MEMORY_INFO info = {};
-                    if (SUCCEEDED(adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info))) {
+                    if (SUCCEEDED(adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info)))
                         gpuMB = info.CurrentUsage / (1024 * 1024);
-                        m_vramUsedGB  = float(info.CurrentUsage) / (1024.f * 1024.f * 1024.f);
-                        m_vramTotalGB = float(info.Budget)       / (1024.f * 1024.f * 1024.f);
-                        if (m_vramTotalGB < 0.1f) m_vramTotalGB = 8.f;
-                    }
                 }
     }
     MEMORYSTATUSEX mem = { sizeof(mem) };
@@ -1872,14 +1777,8 @@ void ModuleEditor::stopPlay() {
 void ModuleEditor::handleShortcuts() {
     if (ImGui::GetIO().WantTextInput) return;
     ImGuiIO& io = ImGui::GetIO();
-    bool ctrl  = io.KeyCtrl;
+    bool ctrl = io.KeyCtrl;
     bool shift = io.KeyShift;
-
-    // F1 / F2 debug toggles
-    if (!ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_F1, false) && m_sceneManager)
-        m_sceneManager->getSettings().debugDrawBounds = !m_sceneManager->getSettings().debugDrawBounds;
-    if (!ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_F2, false) && m_sceneManager)
-        m_sceneManager->getSettings().debugDrawCameraFrustums = !m_sceneManager->getSettings().debugDrawCameraFrustums;
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_N, false)) m_showNewSceneConfirm = true;
     if (ctrl && shift && ImGui::IsKeyPressed(ImGuiKey_N, false)) createEmptyGameObject();
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_S, false)) {
@@ -1989,67 +1888,6 @@ void ModuleEditor::notifyScriptComponentsReload(const std::string& /*dllPath*/) 
             visit(child);
         };
     visit(scene->getRoot());
-}
-
-// ---------------------------------------------------------------------------
-// Physics Settings modal
-// ---------------------------------------------------------------------------
-void ModuleEditor::drawPhysicsSettingsModal() {
-    if (m_showPhysicsSettings)
-        ImGui::OpenPopup("Physics Settings");
-
-    ImGui::SetNextWindowSize({ 340.f, 0.f }, ImGuiCond_Appearing);
-    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(),
-                            ImGuiCond_Appearing, { 0.5f, 0.5f });
-    if (!ImGui::BeginPopupModal("Physics Settings", &m_showPhysicsSettings,
-                                ImGuiWindowFlags_AlwaysAutoResize))
-        return;
-
-    CollisionSystem*  cs = m_collisionSystem.get();
-    CollisionResponse* cr = m_collisionResponse.get();
-
-    // ---- Gravity ----
-    ImGui::SeparatorText("Gravity");
-    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
-    ImGui::TextUnformatted("Gravity Y");
-    ImGui::PopStyleColor();
-    ImGui::SameLine(120.f);
-    ImGui::Text("%.2f m/s²  (const)", ComponentRigidbody::kGravityAccel);
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Defined in ComponentRigidbody::kGravityAccel.\n"
-                          "Per-object scale via Rigidbody.gravityScale.");
-    ImGui::Spacing();
-
-    // ---- Broadphase ----
-    ImGui::SeparatorText("Broadphase");
-    if (cs) {
-        bool isBrute  = !cs->isUsingGrid() && !cs->isUsingOctree();
-        bool isGrid   =  cs->isUsingGrid();
-        bool isOctree =  cs->isUsingOctree();
-        if (ImGui::RadioButton("Brute Force##ps",  isBrute))  cs->useBruteForceBroadPhase();
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Uniform Grid##ps", isGrid))   cs->useGridBroadPhase();
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Octree##ps",       isOctree)) cs->useOctreeBroadPhase();
-    }
-    ImGui::Spacing();
-
-    // ---- Collision Response ----
-    ImGui::SeparatorText("Collision Response");
-    if (cr) {
-        ImGui::SetNextItemWidth(160.f);
-        ImGui::SliderFloat("Restitution Bias##ps",  &cr->correctionPercent, 0.f, 1.f, "%.3f");
-        ImGui::SetNextItemWidth(160.f);
-        ImGui::DragFloat("Penetration Slop##ps",    &cr->correctionSlop, 0.0001f, 0.f, 0.1f, "%.4f");
-    }
-    ImGui::Spacing();
-
-    ImGui::Separator();
-    if (ImGui::Button("Close", { 80.f, 0.f })) {
-        m_showPhysicsSettings = false;
-        ImGui::CloseCurrentPopup();
-    }
-    ImGui::EndPopup();
 }
 
 // ---------------------------------------------------------------------------

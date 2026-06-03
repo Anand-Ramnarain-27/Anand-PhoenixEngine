@@ -12,49 +12,32 @@ RenderGraphPanel::RenderGraphPanel(ModuleEditor* editor) : EditorPanel(editor) {
     buildPassData();
 }
 
-// Map resource name to its type color (RTV/SRV/UAV/DSV/CBV).
-static ImVec4 resourceColor(const char* name) {
-    // CBV (constant buffers)
-    if (strstr(name, "CB") || strstr(name, "Const") || strstr(name, "Frame")) return EditorColors::CBV;
-    // DSV (depth surfaces)
-    if (strstr(name, "Depth") || strstr(name, "DSV"))  return EditorColors::DSV;
-    // UAV (unordered access)
-    if (strstr(name, "VB") || strstr(name, "UAV"))     return EditorColors::UAV;
-    // SRV (shader resource views)
-    if (strstr(name, "IBL") || strstr(name, "Env") || strstr(name, "LUT") || strstr(name, "SRV"))
-        return EditorColors::SRV;
-    // RTV (render targets) — GBuffer textures, HDR color, Backbuffer, SceneRT
-    return EditorColors::RTV;
-}
-
 void RenderGraphPanel::buildPassData() {
-    // port: { name, isOutput }
     struct RawPass {
         int id; const char* name; const char* badge;
         float r, g, b; float ms;
-        std::vector<std::pair<const char*, bool>> ports;
+        std::vector<std::pair<const char*, bool>> ports; // name, isOutput
     };
 
     static const RawPass kPasses[] = {
         { 0, "D3D12 Core",       "COMP", 0.545f,0.545f,0.588f, 0.12f,
-          {{"FrameCB",true},{"Backbuffer",true}} },
+          {{"FrameConst",true},{"BackBuffer",true}} },
         { 1, "Environment/IBL",  "COMP", 0.384f,0.690f,0.788f, 0.34f,
-          {{"FrameCB",false},{"IBLCube",true},{"IBL-LUT",true}} },
+          {{"FrameConst",false},{"EnvMap",true},{"IBL-LUT",true}} },
         { 2, "Skinning",         "COMP", 0.435f,0.808f,0.604f, 0.61f,
-          {{"FrameCB",false},{"SkinnedVB",true}} },
+          {{"FrameConst",false},{"SkinnedVB",true}} },
         { 3, "G-Buffer",         "GFX",  0.910f,0.573f,0.290f, 2.18f,
-          {{"SkinnedVB",false},{"GBuffer.A",true},{"GBuffer.B",true},{"GBuffer.C",true},{"SceneDepth",true}} },
+          {{"SkinnedVB",false},{"GBuf-Color",true},{"GBuf-Normal",true},{"Depth",true}} },
         { 4, "Deferred Light",   "GFX",  0.910f,0.376f,0.431f, 3.42f,
-          {{"FrameCB",false},{"GBuffer.A",false},{"GBuffer.B",false},{"GBuffer.C",false},
-           {"SceneDepth",false},{"IBLCube",false},{"HDRColor",true}} },
+          {{"GBuf-Color",false},{"GBuf-Normal",false},{"Depth",false},{"IBL-LUT",false},{"LitScene",true}} },
         { 5, "Forward Mesh",     "GFX",  0.851f,0.635f,0.243f, 1.27f,
-          {{"FrameCB",false},{"HDRColor",false},{"SceneDepth",false},{"IBLCube",false},{"HDRColor",true}} },
+          {{"LitScene",false},{"Depth",false},{"LitScene",true}} },
         { 6, "Debug Draw",       "GFX",  0.608f,0.482f,0.816f, 0.21f,
-          {{"HDRColor",false},{"SceneDepth",false},{"HDRColor",true}} },
+          {{"LitScene",false},{"LitScene",true}} },
         { 7, "Render Texture",   "GFX",  0.353f,0.651f,0.910f, 0.44f,
-          {{"HDRColor",false},{"Backbuffer",true}} },
+          {{"LitScene",false},{"SceneRT",true}} },
         { 8, "ImGui",            "GFX",  0.780f,0.780f,0.812f, 0.38f,
-          {{"Backbuffer",false},{"Backbuffer",true}} },
+          {{"SceneRT",false},{"BackBuffer",true}} },
     };
 
     m_passes.clear();
@@ -66,45 +49,23 @@ void RenderGraphPanel::buildPassData() {
         n.dotColor = ImVec4(r.r, r.g, r.b, 1.f);
         n.gpuMs    = r.ms;
         for (const auto& [pname, isOut] : r.ports)
-            n.ports.push_back({ pname, isOut, resourceColor(pname) });
+            n.ports.push_back({ pname, isOut, isOut ? EditorColors::UAV : EditorColors::SRV });
         m_passes.push_back(std::move(n));
     }
 
-    // Build wires from the spec resource flow; use resource type color per wire.
-    // Each entry: { fromPassId, outPortName, toPassId, inPortName }
-    struct WireSpec { int from; const char* res; int to; };
-    static const WireSpec kWireSpecs[] = {
-        { 0, "FrameCB",    2 }, { 0, "FrameCB",    4 }, { 0, "FrameCB",    5 },
-        { 0, "Backbuffer", 7 },
-        { 1, "IBLCube",    4 }, { 1, "IBLCube",    5 },
-        { 2, "SkinnedVB",  3 },
-        { 3, "GBuffer.A",  4 }, { 3, "GBuffer.B",  4 }, { 3, "GBuffer.C",  4 },
-        { 3, "SceneDepth", 4 }, { 3, "SceneDepth", 5 }, { 3, "SceneDepth", 6 },
-        { 4, "HDRColor",   5 },
-        { 5, "HDRColor",   6 },
-        { 6, "HDRColor",   7 },
-        { 7, "Backbuffer", 8 },
-    };
-
+    // Build wires by matching output port names to input port names
     m_wires.clear();
-    for (const auto& ws : kWireSpecs) {
-        // Find output port index in from-pass
-        int fromPortIdx = -1;
-        for (int pi = 0; pi < (int)m_passes[ws.from].ports.size(); ++pi)
-            if (m_passes[ws.from].ports[pi].isOutput &&
-                m_passes[ws.from].ports[pi].name == ws.res)
-            { fromPortIdx = pi; break; }
-
-        // Find input port index in to-pass
-        int toPortIdx = -1;
-        for (int pi = 0; pi < (int)m_passes[ws.to].ports.size(); ++pi)
-            if (!m_passes[ws.to].ports[pi].isOutput &&
-                m_passes[ws.to].ports[pi].name == ws.res)
-            { toPortIdx = pi; break; }
-
-        if (fromPortIdx >= 0 && toPortIdx >= 0) {
-            ImVec4 wireCol = resourceColor(ws.res);
-            m_wires.push_back({ ws.from, fromPortIdx, ws.to, toPortIdx, wireCol });
+    for (int i = 0; i < (int)m_passes.size(); ++i) {
+        for (int pi = 0; pi < (int)m_passes[i].ports.size(); ++pi) {
+            if (!m_passes[i].ports[pi].isOutput) continue;
+            const std::string& outName = m_passes[i].ports[pi].name;
+            for (int j = i + 1; j < (int)m_passes.size(); ++j) {
+                for (int pj = 0; pj < (int)m_passes[j].ports.size(); ++pj) {
+                    if (!m_passes[j].ports[pj].isOutput && m_passes[j].ports[pj].name == outName) {
+                        m_wires.push_back({ i, pi, j, pj, EditorColors::SRV });
+                    }
+                }
+            }
         }
     }
 }
@@ -261,93 +222,35 @@ void RenderGraphPanel::drawDetailStrip(float stripY, float stripH) {
     dl->AddRectFilled(p, p2, IM_COL32(18, 18, 24, 240));
     dl->AddLine(p, { p2.x, p.y }, EditorColors::toU32(EditorColors::Line));
 
-    float cy = p.y + (stripH - ImGui::GetTextLineHeight()) * 0.5f;
     if (m_selectedPass < 0) {
         float totalMs = 0.f;
         for (const auto& n : m_passes) totalMs += n.gpuMs;
-        char buf[80];
-        snprintf(buf, sizeof(buf), "%d passes  ·  %.2f ms GPU  ·  %d resource edges",
-                 (int)m_passes.size(), totalMs, (int)m_wires.size());
+        char buf[64];
+        snprintf(buf, sizeof(buf), "Total: %.2f ms   |   Wires: %d", totalMs, (int)m_wires.size());
         ImVec2 ts = ImGui::CalcTextSize(buf);
-        dl->AddText({ p.x + (W - ts.x) * 0.5f, cy },
+        dl->AddText({ p.x + (W - ts.x) * 0.5f, p.y + (stripH - ts.y) * 0.5f },
                     EditorColors::toU32(EditorColors::Tx1), buf);
     }
     else {
         const PassNode& sel = m_passes[m_selectedPass];
+        char buf[128];
+        snprintf(buf, sizeof(buf), "%s   [%s]   %.2f ms",
+                 sel.name.c_str(), sel.badge.c_str(), sel.gpuMs);
         float cx = p.x + 16.f;
+        float cy = p.y + (stripH - ImGui::GetTextLineHeight()) * 0.5f;
         dl->AddCircleFilled({ cx + 5.f, cy + 7.f }, 5.f, EditorColors::toU32(sel.dotColor));
-        cx += 14.f;
-
-        // Pass name
-        dl->AddText({ cx, cy }, EditorColors::toU32(EditorColors::Tx0), sel.name.c_str());
-        cx += ImGui::CalcTextSize(sel.name.c_str()).x + 8.f;
-
-        // Badge pill
-        ImVec4 badgeCol = (sel.badge == "COMP") ? EditorColors::SRV : EditorColors::RTV;
-        float bw = ImGui::CalcTextSize(sel.badge.c_str()).x + 8.f;
-        dl->AddRectFilled({ cx, cy }, { cx + bw, cy + 14.f },
-                          EditorColors::toU32A(badgeCol, 0.25f), 3.f);
-        dl->AddText({ cx + 4.f, cy }, EditorColors::toU32(badgeCol), sel.badge.c_str());
-        cx += bw + 8.f;
-
-        // ms (colored by threshold)
-        char msBuf[16]; snprintf(msBuf, sizeof(msBuf), "%.2f ms", sel.gpuMs);
-        dl->AddText({ cx, cy }, EditorColors::toU32(msColor(sel.gpuMs)), msBuf);
-        cx += ImGui::CalcTextSize(msBuf).x + 8.f;
-
-        // Port counts (right side)
-        int reads = 0, writes = 0;
-        for (const auto& port : sel.ports) port.isOutput ? ++writes : ++reads;
-        char rwBuf[32]; snprintf(rwBuf, sizeof(rwBuf), "reads %d · writes %d", reads, writes);
-        ImVec2 rwSz = ImGui::CalcTextSize(rwBuf);
-        dl->AddText({ p.x + W - rwSz.x - 16.f, cy },
-                    EditorColors::toU32(EditorColors::Tx2), rwBuf);
+        dl->AddText({ cx + 14.f, cy }, EditorColors::toU32(EditorColors::Tx0), buf);
     }
 }
 
 void RenderGraphPanel::drawContent() {
-    const float kLegendH = 28.f;
     const float kDetailH = 28.f;
     float W = ImGui::GetWindowSize().x;
     float H = ImGui::GetWindowSize().y;
-    float graphH = H - kDetailH - kLegendH;
+    float graphH = H - kDetailH;
     float totalGraphW = float(m_passes.size()) * (kNodeW + kNodeGap) - kNodeGap;
 
-    // ---- Legend bar (resource type swatches + live totals) ----
-    {
-        ImGui::SetCursorPos({ 0, 0 });
-        ImDrawList* leg = ImGui::GetWindowDrawList();
-        ImVec2 lp  = ImGui::GetCursorScreenPos();
-        ImVec2 lp2 = { lp.x + W, lp.y + kLegendH };
-        leg->AddRectFilled(lp, lp2, IM_COL32(20, 20, 26, 255));
-        leg->AddLine({ lp.x, lp2.y }, lp2, EditorColors::toU32(EditorColors::Line));
-
-        float lx = lp.x + 12.f;
-        float ly = lp.y + (kLegendH - ImGui::GetTextLineHeight()) * 0.5f;
-        struct ResEntry { const char* label; ImVec4 color; };
-        static const ResEntry kRes[] = {
-            { "RTV", EditorColors::RTV }, { "SRV", EditorColors::SRV },
-            { "UAV", EditorColors::UAV }, { "DSV", EditorColors::DSV },
-            { "CBV", EditorColors::CBV },
-        };
-        for (const auto& re : kRes) {
-            leg->AddRectFilled({ lx, ly + 1.f }, { lx + 9.f, ly + 9.f },
-                               EditorColors::toU32(re.color), 2.f);
-            lx += 12.f;
-            leg->AddText({ lx, ly }, EditorColors::toU32(EditorColors::Tx2), re.label);
-            lx += ImGui::CalcTextSize(re.label).x + 14.f;
-        }
-
-        // Right side: pass count + total ms
-        float totalMs = 0.f;
-        for (const auto& n : m_passes) totalMs += n.gpuMs;
-        char rBuf[48]; snprintf(rBuf, sizeof(rBuf), "%d passes  ·  %.2f ms", (int)m_passes.size(), totalMs);
-        ImVec2 rSz = ImGui::CalcTextSize(rBuf);
-        leg->AddText({ lp.x + W - rSz.x - 12.f, ly }, EditorColors::toU32(EditorColors::Tx1), rBuf);
-
-        ImGui::Dummy(ImVec2(W, kLegendH));
-    }
-
+    ImGui::SetCursorPos({ 0, 0 });
     ImGui::BeginChild("##RGGraph", ImVec2(W, graphH), false,
                       ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
@@ -362,8 +265,8 @@ void RenderGraphPanel::drawContent() {
         dl->AddCircleFilled(center, outerR, IM_COL32(24, 24, 32, 255));
     }
 
-    // graphOrigin accounts for horizontal scroll so DrawList positions track the content
-    ImVec2 graphOrigin = { wp.x + 48.f - scrollX, wp.y + (graphH - kNodeH) * 0.5f };
+    // Draw wires behind nodes
+    ImVec2 graphOrigin = { wp.x + 48.f, wp.y + (graphH - kNodeH) * 0.5f };
     drawWires(dl, graphOrigin);
 
     // Draw nodes
@@ -398,5 +301,5 @@ void RenderGraphPanel::drawContent() {
     ImGui::Dummy(ImVec2(totalGraphW + 96.f, graphH));
     ImGui::EndChild();
 
-    drawDetailStrip(kLegendH + graphH, kDetailH);
+    drawDetailStrip(graphH, kDetailH);
 }

@@ -6,6 +6,14 @@
 #include <algorithm>
 #include <cmath>
 
+// How much of the penetration depth to correct each frame (< 1 avoids jitter
+// from over-correction while multiple contacts compete).
+static constexpr float kCorrectionPercent = 0.8f;
+
+// Minimum penetration before correction kicks in (absorbs float precision
+// noise on resting contacts so they don't tremble).
+static constexpr float kCorrectionSlop    = 0.005f;
+
 void CollisionResponse::solve(const std::vector<ContactPoint>& contacts, float /*dt*/) {
     for (const auto& c : contacts) {
         if (!c.a || !c.b) continue;
@@ -28,8 +36,8 @@ void CollisionResponse::solve(const std::vector<ContactPoint>& contacts, float /
         // Baumgarte-style: correct only the portion beyond the slop,
         // distributed between A and B by their inverse masses.
         // ----------------------------------------------------------------
-        const float correction = std::max(c.depth - correctionSlop, 0.f)
-                                 * correctionPercent / invMassSum;
+        const float correction = std::max(c.depth - kCorrectionSlop, 0.f)
+                                 * kCorrectionPercent / invMassSum;
 
         ComponentTransform* tA = c.a->getTransform();
         ComponentTransform* tB = c.b->getTransform();

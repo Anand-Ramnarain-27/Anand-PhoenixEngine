@@ -16,8 +16,4 @@
 class CollisionResponse {
 public:
     void solve(const std::vector<ContactPoint>& contacts, float dt);
-
-    // Tunable solver parameters — editable from Collision Debug / Physics Settings.
-    float correctionPercent = 0.8f;   // fraction of penetration corrected per frame
-    float correctionSlop    = 0.005f; // min penetration before correction kicks in (m)
 };
