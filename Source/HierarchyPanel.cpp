@@ -8,11 +8,15 @@
 #include "ComponentMesh.h"
 #include "ComponentLights.h"
 #include "ComponentFactory.h"
+#include "ComponentRigidbody.h"
+#include "ComponentAnimation.h"
+#include "ComponentBounds.h"
 #include "EditorSelection.h"
 #include "PrefabManager.h"
 #include "SceneManager.h"
 #include "ComponentScript.h"
 #include "HotReloadManager.h"
+#include "EditorColors.h"
 
 static GameObject* findPrefabRoot(GameObject* go) {
     GameObject* cur = go;
@@ -55,6 +59,27 @@ void HierarchyPanel::drawContent() {
     blankContextMenu();
 }
 
+// Collect tag badges (label + color) for a GameObject
+static void getTagBadges(const GameObject* go,
+                         std::vector<std::pair<const char*, ImVec4>>& out) {
+    if (go->getComponent<ComponentDirectionalLight>() ||
+        go->getComponent<ComponentPointLight>() ||
+        go->getComponent<ComponentSpotLight>())
+        out.push_back({ "LIGHT", EditorColors::Warn });
+    if (go->getComponent<ComponentCamera>())
+        out.push_back({ "CAM", EditorColors::SRV });
+    if (go->getComponent<ComponentMesh>())
+        out.push_back({ "MESH", EditorColors::UAV });
+    if (go->getComponent<ComponentAnimation>())
+        out.push_back({ "STATE", EditorColors::Tx1 });
+    if (go->getComponent<ComponentRigidbody>())
+        out.push_back({ "PHYS", EditorColors::Crit });
+    if (go->getComponent<ComponentBounds>())
+        out.push_back({ "VOL", EditorColors::Tx2 });
+    if (go->getComponent<ComponentScript>())
+        out.push_back({ "SCRIPT", EditorColors::Accent });
+}
+
 void HierarchyPanel::drawNode(GameObject* go, bool prefabMode, bool isRoot) {
     if (!go) return;
     EditorSelection& sel = m_editor->getSelection();
@@ -65,7 +90,8 @@ void HierarchyPanel::drawNode(GameObject* go, bool prefabMode, bool isRoot) {
 
     if (sel.renaming == go) {
         ImGui::SetKeyboardFocusHere();
-        bool done = ImGui::InputText("##rename", sel.renameBuffer, sizeof(sel.renameBuffer), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
+        bool done = ImGui::InputText("##rename", sel.renameBuffer, sizeof(sel.renameBuffer),
+                                     ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
         if (done || ImGui::IsItemDeactivated()) { go->setName(sel.renameBuffer); sel.renaming = nullptr; }
         for (auto* c : go->getChildren()) drawNode(c, prefabMode, false);
         return;
@@ -80,14 +106,55 @@ void HierarchyPanel::drawNode(GameObject* go, bool prefabMode, bool isRoot) {
         ? m_editor->getSceneManager()->getPrefabEditName().c_str()
         : go->getName().c_str();
 
+    bool isSelected = (go == sel.object);
+
+    // Selected row background + left accent border
+    if (isSelected) {
+        ImVec2 rowMin = ImGui::GetCursorScreenPos();
+        float rowW    = ImGui::GetContentRegionAvail().x;
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(rowMin, { rowMin.x + rowW, rowMin.y + 24.f },
+                          IM_COL32(176, 123, 240, 26));  // #b07bf01a
+        dl->AddRectFilled(rowMin, { rowMin.x + 2.f, rowMin.y + 24.f },
+                          EditorColors::toU32(EditorColors::Accent));
+    }
+
     bool nodeOpen = ImGui::TreeNodeEx((void*)(uintptr_t)go->getUID(), flags, "%s", label);
 
     if (isPrefabRoot || isPrefabInst) ImGui::PopStyleColor();
 
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) sel.object = go;
     if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) sel.object = go;
-    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) { sel.renaming = go; strncpy_s(sel.renameBuffer, go->getName().c_str(), sizeof(sel.renameBuffer) - 1); }
+    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
+        sel.renaming = go;
+        strncpy_s(sel.renameBuffer, go->getName().c_str(), sizeof(sel.renameBuffer) - 1);
+    }
     if (ImGui::BeginPopupContextItem()) { itemContextMenu(go); ImGui::EndPopup(); }
+
+    // Tag badges (right-aligned, drawn after tree node so item rect is known)
+    {
+        std::vector<std::pair<const char*, ImVec4>> badges;
+        getTagBadges(go, badges);
+        if (!badges.empty()) {
+            ImDrawList* dl = ImGui::GetWindowDrawList();
+            float badgeX = ImGui::GetWindowPos().x + ImGui::GetWindowWidth() - ImGui::GetStyle().ScrollbarSize - 4.f;
+            float badgeY = ImGui::GetItemRectMin().y + 4.f;
+            const float padX = 4.f, padY = 2.f;
+            for (int bi = (int)badges.size() - 1; bi >= 0; --bi) {
+                const char* bname = badges[bi].first;
+                ImVec4      bcol  = badges[bi].second;
+                ImVec2      ts    = ImGui::CalcTextSize(bname);
+                float bw = ts.x + padX * 2.f;
+                badgeX -= bw + 3.f;
+                ImVec2 bp  = { badgeX, badgeY };
+                ImVec2 bp2 = { badgeX + bw, badgeY + ts.y + padY * 2.f - 2.f };
+                dl->AddRectFilled(bp, bp2, EditorColors::toU32A(bcol, 0.18f), 3.f);
+                dl->AddRect(bp, bp2, EditorColors::toU32A(bcol, 0.50f), 3.f);
+                dl->AddText({ bp.x + padX, bp.y + padY },
+                             EditorColors::toU32(bcol), bname);
+            }
+        }
+    }
 
     if (ImGui::BeginDragDropSource()) {
         ImGui::SetDragDropPayload("GO_PTR", &go, sizeof(GameObject*));
