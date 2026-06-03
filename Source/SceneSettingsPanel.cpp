@@ -2,144 +2,149 @@
 #include "SceneSettingsPanel.h"
 #include "ModuleEditor.h"
 #include "Application.h"
-#include "ModuleCamera.h"
 #include "SceneManager.h"
 #include "EditorSceneSettings.h"
 #include "EnvironmentSystem.h"
 #include "CollisionSystem.h"
-#include "UniformGridBroadPhase.h"
-#include "OctreeBroadPhase.h"
+#include "ComponentRigidbody.h"
 #include <filesystem>
 #include <algorithm>
 
 namespace fs = std::filesystem;
 
+static bool accentHeader(const char* label, const ImVec4& borderColor) {
+    ImVec2 p = ImGui::GetCursorScreenPos();
+    float  h = ImGui::GetFrameHeight();
+    bool open = ImGui::CollapsingHeader(label, ImGuiTreeNodeFlags_DefaultOpen);
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        p, { p.x + 3.f, p.y + h }, ImGui::ColorConvertFloat4ToU32(borderColor), 1.f);
+    return open;
+}
+
 void SceneSettingsPanel::drawContent() {
     if (!m_editor->getSceneManager()) { textMuted("No scene manager."); return; }
-    drawDisplaySection();
-    drawLightingSection();
-    drawCollisionSection();
-    drawCameraSection();
-    drawSkyboxSection();
-}
-
-void SceneSettingsPanel::drawDisplaySection() {
-    if (!ImGui::CollapsingHeader("Display", ImGuiTreeNodeFlags_DefaultOpen)) return;
     EditorSceneSettings& s = m_editor->getSceneManager()->getSettings();
-    ImGui::Checkbox("Show Grid", &s.showGrid);
-    ImGui::Checkbox("Show Axis", &s.showAxis);
-    ImGui::Separator();
-    ImGui::Text("Texture Sampler");
-    int samplerType = m_editor->getSamplerType();
-    if (ImGui::Combo("##sampler", &samplerType, "Linear/Wrap\0Point/Wrap\0Linear/Clamp\0Point/Clamp\0")) m_editor->setSamplerType(samplerType);
-}
 
-void SceneSettingsPanel::drawLightingSection() {
-    if (!ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen)) return;
-    EditorSceneSettings& s = m_editor->getSceneManager()->getSettings();
-    ImGui::Checkbox("Debug Draw Lights", &s.debugDrawLights);
-    if (s.debugDrawLights) ImGui::SliderFloat("Light Size", &s.debugLightSize, 0.1f, 5.0f);
-    ImGui::Separator();
-    if (ImGui::TreeNodeEx("Ambient", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::ColorEdit3("Color", &s.ambient.color.x);
-        ImGui::SliderFloat("Intensity", &s.ambient.intensity, 0, 2);
-        ImGui::TreePop();
-    }
-    textMuted("Add light components via Inspector.");
-}
+    // ================================================================
+    // 1. ENVIRONMENT — skybox asset picker
+    // ================================================================
+    if (accentHeader("Environment", EditorColors::SRV)) {
+        auto& sky = s.skybox;
+        ImGui::Checkbox("Enable Skybox", &sky.enabled);
+        ImGui::Separator();
 
-void SceneSettingsPanel::drawCollisionSection() {
-    if (!ImGui::CollapsingHeader("Collision", ImGuiTreeNodeFlags_DefaultOpen)) return;
-    EditorSceneSettings& s = m_editor->getSceneManager()->getSettings();
-    CollisionSystem*    cs = m_editor->getCollisionSystem();
-    if (!cs) { textMuted("No collision system."); return; }
-
-    ImGui::Text("Broad phase: %s", cs->getBroadPhaseName());
-    ImGui::Spacing();
-
-    if (ImGui::Button("Brute Force"))  cs->useBruteForceBroadPhase();
-    ImGui::SameLine();
-    if (ImGui::Button("Uniform Grid")) cs->useGridBroadPhase();
-    ImGui::SameLine();
-    if (ImGui::Button("Octree"))       cs->useOctreeBroadPhase();
-
-    ImGui::Spacing();
-    textMuted("Fine-tune parameters in the Collision Debug panel.");
-
-    // Show debug-draw checkbox for spatial structure (grid cells, octree nodes).
-    // The checkbox is hidden for Brute Force since it has no structure to draw.
-    if (cs->isUsingGrid() || cs->isUsingOctree()) {
-        ImGui::Checkbox("Debug Draw Broad Phase Structure", &s.debugDrawGrid);
-        if (ImGui::IsItemHovered()) {
-            if (cs->isUsingGrid())
-                ImGui::SetTooltip("Cyan = occupied grid cells.");
-            else
-                ImGui::SetTooltip("Cyan = root extent.  Yellow = non-empty leaf nodes.\n"
-                                  "Dense regions subdivide finely; sparse regions stay coarse.");
+        if (!m_scanned || ImGui::Button("Refresh##sky")) {
+            m_skyboxFiles.clear(); m_selectedSkybox = -1; m_scanned = true;
+            try {
+                std::string dir = app->getFileSystem()->GetAssetsPath() + "Skybox/";
+                for (const auto& entry : fs::directory_iterator(dir)) {
+                    if (!entry.is_regular_file()) continue;
+                    std::string ext = entry.path().extension().string();
+                    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                    if (ext != ".dds" && ext != ".hdr") continue;
+                    m_skyboxFiles.push_back(entry.path().filename().string());
+                    if (dir + m_skyboxFiles.back() == sky.cubemapPath)
+                        m_selectedSkybox = (int)m_skyboxFiles.size() - 1;
+                }
+            } catch (...) {}
         }
-    }
-    ImGui::Separator();
-    ImGui::Checkbox("Debug Draw Bounds", &s.debugDrawBounds);
-}
+        ImGui::SameLine(); textMuted("%d file(s)", (int)m_skyboxFiles.size());
 
-void SceneSettingsPanel::drawCameraSection() {
-    if (!ImGui::CollapsingHeader("Camera & Culling", ImGuiTreeNodeFlags_DefaultOpen)) return;
-    app->getCamera()->onEditorDebugPanel();
-}
+        ImGui::BeginChild("##SkyList", ImVec2(0, 90), true);
+        for (int i = 0; i < (int)m_skyboxFiles.size(); ++i)
+            if (ImGui::Selectable(m_skyboxFiles[i].c_str(), m_selectedSkybox == i))
+                m_selectedSkybox = i;
+        ImGui::EndChild();
 
-void SceneSettingsPanel::drawSkyboxSection() {
-    if (!ImGui::CollapsingHeader("Skybox", ImGuiTreeNodeFlags_DefaultOpen)) return;
-    SceneManager* sm = m_editor->getSceneManager();
-    EditorSceneSettings& s = sm->getSettings();
-    auto& sky = s.skybox;
-    ImGui::Checkbox("Enable Skybox", &sky.enabled);
-    ImGui::Separator();
-
-    if (!m_scanned || ImGui::Button("Refresh")) {
-        m_skyboxFiles.clear(); m_selectedSkybox = -1; m_scanned = true;
-        try {
-            std::string skyboxDir = app->getFileSystem()->GetAssetsPath() + "Skybox/";
-            for (const auto& entry : fs::directory_iterator(skyboxDir)) {
-                if (!entry.is_regular_file()) continue;
-                std::string ext = entry.path().extension().string();
-                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-                if (ext != ".dds" && ext != ".hdr") continue;
-                m_skyboxFiles.push_back(entry.path().filename().string());
-                if (skyboxDir + m_skyboxFiles.back() == sky.cubemapPath)
-                    m_selectedSkybox = (int)m_skyboxFiles.size() - 1;
+        if (m_selectedSkybox >= 0 && m_selectedSkybox < (int)m_skyboxFiles.size()) {
+            std::string dir      = app->getFileSystem()->GetAssetsPath() + "Skybox/";
+            std::string fullPath = dir + m_skyboxFiles[m_selectedSkybox];
+            if (ImGui::Button("Load Skybox")) {
+                sky.cubemapPath = fullPath;
+                if (EnvironmentSystem* env = m_editor->getEnvSystem()) {
+                    std::string ext = fs::path(fullPath).extension().string();
+                    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                    if (ext == ".hdr") env->loadHDR(fullPath);
+                    else               env->load(fullPath);
+                    m_editor->log(("Skybox: " + m_skyboxFiles[m_selectedSkybox]).c_str(),
+                                  EditorColors::Success);
+                }
             }
+        } else { textMuted("No skybox selected"); }
+        ImGui::Spacing();
+    }
+
+    // ================================================================
+    // 2. LIGHTING — ambient (color + intensity on one row)
+    // ================================================================
+    if (accentHeader("Lighting", EditorColors::CBV)) {
+        ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(4, 3));
+        if (ImGui::BeginTable("##amb", 2, ImGuiTableFlags_SizingFixedFit)) {
+            ImGui::TableSetupColumn("##lbl", ImGuiTableColumnFlags_WidthFixed, 70.f);
+            ImGui::TableSetupColumn("##val", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0); textMuted("Ambient");
+            ImGui::TableSetColumnIndex(1);
+            float w = ImGui::GetContentRegionAvail().x;
+            ImGui::SetNextItemWidth(w * 0.52f);
+            ImGui::ColorEdit3("##ambcol", &s.ambient.color.x, ImGuiColorEditFlags_NoLabel);
+            ImGui::SameLine(0, 6.f);
+            ImGui::SetNextItemWidth(-1.f);
+            ImGui::SliderFloat("##ambint", &s.ambient.intensity, 0.f, 2.f, "%.2f");
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Ambient intensity  (0 – 2)");
+            ImGui::EndTable();
         }
-        catch (...) { m_editor->log("[Editor] Could not scan Assets/Skybox/"); }
+        ImGui::PopStyleVar();
+        ImGui::Spacing();
     }
 
-    ImGui::SameLine(); textMuted("%d file(s)", (int)m_skyboxFiles.size());
-    ImGui::BeginChild("##SkyboxList", ImVec2(0, 120), true);
-    for (int i = 0; i < (int)m_skyboxFiles.size(); ++i) {
-        if (ImGui::Selectable(m_skyboxFiles[i].c_str(), m_selectedSkybox == i)) m_selectedSkybox = i;
-        if (m_selectedSkybox == i) ImGui::SetItemDefaultFocus();
+    // ================================================================
+    // 3. PHYSICS — gravity display (constexpr, not runtime-settable)
+    // ================================================================
+    if (accentHeader("Physics", EditorColors::Hot)) {
+        textMuted("Gravity Y");
+        ImGui::SameLine(90.f);
+        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx0);
+        ImGui::Text("%.2f m/s²", ComponentRigidbody::kGravityAccel);
+        ImGui::PopStyleColor();
+        ImGui::SameLine(0, 6.f);
+        textMuted("(const)");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Set by ComponentRigidbody::kGravityAccel.\n"
+                              "Adjust per-object with gravityScale on the Rigidbody.");
+        ImGui::Spacing();
     }
-    ImGui::EndChild();
 
-    if (m_selectedSkybox >= 0 && m_selectedSkybox < (int)m_skyboxFiles.size()) {
-        std::string skyboxDir = app->getFileSystem()->GetAssetsPath() + "Skybox/";
-        std::string fullPath = skyboxDir + m_skyboxFiles[m_selectedSkybox];
-        textMuted("Path: %s", fullPath.c_str());
+    // ================================================================
+    // 4. BROADPHASE — mode selection + per-mode parameter
+    // ================================================================
+    CollisionSystem* cs = m_editor->getCollisionSystem();
+    if (accentHeader("Broadphase", EditorColors::DSV)) {
+        if (!cs) { textMuted("No collision system."); return; }
 
-        if (ImGui::Button("Load Selected Skybox")) {
-            sky.cubemapPath = fullPath;
-            if (EnvironmentSystem* env = m_editor->getEnvSystem()) {
-                std::string ext = fs::path(fullPath).extension().string();
-                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+        bool isBrute  = !cs->isUsingGrid() && !cs->isUsingOctree();
+        bool isGrid   =  cs->isUsingGrid();
+        bool isOctree =  cs->isUsingOctree();
 
-                if (ext == ".hdr")
-                    env->loadHDR(fullPath);
-                else
-                    env->load(fullPath);
+        if (ImGui::RadioButton("Brute Force##ssp",  isBrute))  cs->useBruteForceBroadPhase();
+        ImGui::SameLine(); textMuted("O(n²)");
+        if (ImGui::RadioButton("Uniform Grid##ssp", isGrid))   cs->useGridBroadPhase();
+        ImGui::SameLine(); textMuted("O(n log n)");
+        if (ImGui::RadioButton("Octree##ssp",       isOctree)) cs->useOctreeBroadPhase();
+        ImGui::SameLine(); textMuted("adaptive");
 
-                m_editor->log(("Skybox loaded: " + m_skyboxFiles[m_selectedSkybox]).c_str(),
-                    EditorColors::Success);
-            }
+        ImGui::Spacing();
+        if (cs->isUsingGrid()) {
+            float cellSize = cs->getGridCellSize();
+            ImGui::SetNextItemWidth(140.f);
+            if (ImGui::DragFloat("Cell Size##sspcell", &cellSize, 0.1f, 0.5f, 64.f, "%.1f"))
+                cs->setGridCellSize(cellSize);
+        } else if (cs->isUsingOctree()) {
+            int cap = cs->getOctreeNodeCapacity();
+            ImGui::SetNextItemWidth(100.f);
+            if (ImGui::DragInt("Leaf Cap##sspcap", &cap, 1, 1, 64))
+                cs->setOctreeNodeCapacity(cap);
         }
+        ImGui::Spacing();
     }
-    else textMuted("No skybox selected");
 }

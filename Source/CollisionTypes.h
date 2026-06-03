@@ -50,6 +50,8 @@ struct CollisionResults {
     uint32_t                 broadCount    = 0;
     uint32_t                 midCount      = 0;
     uint32_t                 narrowCount   = 0;
-    float                    broadPhaseMs  = 0.f; // wall-clock time for broad-phase query
+    float                    broadPhaseMs  = 0.f;
+    float                    midPhaseMs    = 0.f;
+    float                    narrowPhaseMs = 0.f;
     std::vector<ContactPoint> contacts;
 };

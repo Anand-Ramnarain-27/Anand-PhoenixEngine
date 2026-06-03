@@ -12,13 +12,7 @@ protected:
     void drawContent() override;
 
 private:
-    void drawDisplaySection();
-    void drawLightingSection();
-    void drawCollisionSection();
-    void drawCameraSection();
-    void drawSkyboxSection();
-
     std::vector<std::string> m_skyboxFiles;
-    int m_selectedSkybox = -1;
-    bool m_scanned = false;
+    int  m_selectedSkybox = -1;
+    bool m_scanned        = false;
 };

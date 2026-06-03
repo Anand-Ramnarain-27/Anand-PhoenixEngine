@@ -164,17 +164,17 @@ void InspectorPanel::drawContent() {
     // Per-component type: label + accent color for the left border
     auto compInfo = [](Component::Type t) -> std::pair<const char*, ImVec4> {
         switch (t) {
-        case Component::Type::Camera:                return { "Camera",               EditorColors::SRV   };
-        case Component::Type::Mesh:                  return { "Mesh",                 EditorColors::UAV   };
-        case Component::Type::DirectionalLight:      return { "Directional Light",    EditorColors::Warn  };
-        case Component::Type::PointLight:            return { "Point Light",          EditorColors::Warn  };
-        case Component::Type::SpotLight:             return { "Spot Light",           EditorColors::Warn  };
-        case Component::Type::Script:                return { "Script",               EditorColors::Accent};
-        case Component::Type::Animation:             return { "Animation",            EditorColors::Accent};
-        case Component::Type::CharacterMotion:       return { "Character Motion",     EditorColors::Tx1   };
-        case Component::Type::SimpleCharacterController: return { "Character Controller", EditorColors::Tx1 };
-        case Component::Type::Rigidbody:             return { "Rigidbody",            EditorColors::Crit  };
-        case Component::Type::Bounds:                return { "Bounds",               EditorColors::DSV   };
+        case Component::Type::Camera:                return { "Camera",               EditorColors::SRV   }; // #4aa8e8
+        case Component::Type::Mesh:                  return { "Skeletal Mesh",        EditorColors::Ok    }; // #46cf8b
+        case Component::Type::DirectionalLight:      return { "Directional Light",    EditorColors::CBV   }; // #e8c14a
+        case Component::Type::PointLight:            return { "Point Light",          EditorColors::CBV   }; // #e8c14a
+        case Component::Type::SpotLight:             return { "Spot Light",           EditorColors::CBV   }; // #e8c14a
+        case Component::Type::Script:                return { "Script",               EditorColors::CBV   }; // #e8c14a
+        case Component::Type::Animation:             return { "Animation Controller", EditorColors::Accent}; // #b07bf0
+        case Component::Type::CharacterMotion:       return { "Character Motion",     EditorColors::Hot   }; // #e8924a
+        case Component::Type::SimpleCharacterController: return { "Character Controller", EditorColors::Hot }; // #e8924a
+        case Component::Type::Rigidbody:             return { "Rigidbody",            EditorColors::Hot   }; // #e8924a
+        case Component::Type::Bounds:                return { "Bounds / Collider",    EditorColors::Crit  }; // #e8606e
         default:                                     return { "Component",            EditorColors::Tx2   };
         }
     };
@@ -259,7 +259,12 @@ void InspectorPanel::drawContent() {
 void InspectorPanel::drawTransform() {
     GameObject* go = m_editor->getSelection().object;
     ComponentTransform* t = go->getTransform();
+    ImVec2 hdrMin = ImGui::GetCursorScreenPos();
+    float  hdrH   = ImGui::GetFrameHeight();
     if (!t || !ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) return;
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        hdrMin, { hdrMin.x + 3.f, hdrMin.y + hdrH },
+        EditorColors::toU32(EditorColors::Tx1), 1.f);
 
     auto markOverride = [&](const char* prop) {
         GameObject* root = findPrefabRoot(go);
