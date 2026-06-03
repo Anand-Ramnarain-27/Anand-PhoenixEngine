@@ -45,8 +45,6 @@ class EditorPanel;
 class SceneViewPanel;
 class GameViewPanel;
 class AssetBrowserPanel;
-class GPUMemoryPanel;
-class RenderGraphPanel;
 class GameObject;
 class ComponentCamera;
 class ComponentMesh;
@@ -145,13 +143,11 @@ private:
     std::vector<std::unique_ptr<EditorPanel>> m_ownedPanels;
     std::vector<EditorPanel*> m_panels;
 
-    SceneViewPanel*   m_sceneView    = nullptr;
-    GameViewPanel*    m_gameView     = nullptr;
-    ConsolePanel*     m_console      = nullptr;
-    PerformancePanel* m_performance  = nullptr;
+    SceneViewPanel* m_sceneView = nullptr;
+    GameViewPanel* m_gameView = nullptr;
+    ConsolePanel* m_console = nullptr;
+    PerformancePanel* m_performance = nullptr;
     AssetBrowserPanel* m_assetBrowser = nullptr;
-    GPUMemoryPanel*   m_gpuMemory    = nullptr;
-    RenderGraphPanel* m_renderGraph  = nullptr;
 
     EngineDropTarget* m_dropTarget = nullptr;
 
@@ -195,8 +191,6 @@ private:
     void handleNewScenePopup(ID3D12GraphicsCommandList* cmd);
     void drawDockspace();
     void drawMenuBar();
-    void drawFrameTimingBar();
-    void drawStatusBar();
     void handleDialogs();
     void flushExitPrefabEdit();
     void handleShortcuts();

@@ -161,43 +161,25 @@ void InspectorPanel::drawContent() {
     Component::Type toRemove = Component::Type::Transform;
     bool wantsRemove = false;
 
-    // Per-component type: label + accent color for the left border
-    auto compInfo = [](Component::Type t) -> std::pair<const char*, ImVec4> {
-        switch (t) {
-        case Component::Type::Camera:                return { "Camera",               EditorColors::SRV   };
-        case Component::Type::Mesh:                  return { "Mesh",                 EditorColors::UAV   };
-        case Component::Type::DirectionalLight:      return { "Directional Light",    EditorColors::Warn  };
-        case Component::Type::PointLight:            return { "Point Light",          EditorColors::Warn  };
-        case Component::Type::SpotLight:             return { "Spot Light",           EditorColors::Warn  };
-        case Component::Type::Script:                return { "Script",               EditorColors::Accent};
-        case Component::Type::Animation:             return { "Animation",            EditorColors::Accent};
-        case Component::Type::CharacterMotion:       return { "Character Motion",     EditorColors::Tx1   };
-        case Component::Type::SimpleCharacterController: return { "Character Controller", EditorColors::Tx1 };
-        case Component::Type::Rigidbody:             return { "Rigidbody",            EditorColors::Crit  };
-        case Component::Type::Bounds:                return { "Bounds",               EditorColors::DSV   };
-        default:                                     return { "Component",            EditorColors::Tx2   };
-        }
-    };
-
     for (const auto& comp : go->getComponents()) {
         if (comp->getType() == Component::Type::Transform) continue;
-        auto [label, borderColor] = compInfo(comp->getType());
+        const char* label =
+            comp->getType() == Component::Type::Camera ? "Camera" :
+            comp->getType() == Component::Type::Mesh ? "Mesh" :
+            comp->getType() == Component::Type::DirectionalLight ? "Directional Light" :
+            comp->getType() == Component::Type::PointLight ? "Point Light" :
+            comp->getType() == Component::Type::SpotLight ? "Spot Light" :
+            comp->getType() == Component::Type::Script ? "Script" :
+            comp->getType() == Component::Type::Animation ? "Animation" :
+            comp->getType() == Component::Type::CharacterMotion ? "Character Motion" :
+            comp->getType() == Component::Type::SimpleCharacterController ? "Character Controller" :
+            comp->getType() == Component::Type::Rigidbody ? "Rigidbody" :
+            comp->getType() == Component::Type::Bounds    ? "Bounds" :
+            "Component";
 
         ImGui::PushID((int)comp->getType());
-
-        // Left colored border on the collapsing header
-        ImVec2 hdrMin = ImGui::GetCursorScreenPos();
-        float hdrH = ImGui::GetFrameHeight();
         bool headerOpen = true;
-        bool expanded = ImGui::CollapsingHeader(label, &headerOpen,
-            ImGuiTreeNodeFlags_DefaultOpen |
-            ImGuiTreeNodeFlags_AllowItemOverlap |
-            ImGuiTreeNodeFlags_ClipLabelForTrailingButton);
-        // Left accent strip drawn on top
-        ImGui::GetWindowDrawList()->AddRectFilled(
-            hdrMin, { hdrMin.x + 3.f, hdrMin.y + hdrH },
-            EditorColors::toU32(borderColor), 1.f);
-
+        bool expanded = ImGui::CollapsingHeader(label, &headerOpen, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_ClipLabelForTrailingButton);
         if (!headerOpen) { toRemove = comp->getType(); wantsRemove = true; }
         if (expanded) {
             std::string before;
@@ -205,17 +187,22 @@ void InspectorPanel::drawContent() {
 
             if (comp->getType() == Component::Type::Camera)
                 drawComponentCamera(static_cast<ComponentCamera*>(comp.get()));
+
             else if (comp->getType() == Component::Type::Mesh)
                 drawComponentMesh(static_cast<ComponentMesh*>(comp.get()));
+
             else if (comp->getType() == Component::Type::Animation)
                 drawComponentAnimation(static_cast<ComponentAnimation*>(comp.get()));
+
             else if (comp->getType() == Component::Type::Script)
                 static_cast<ComponentScript*>(comp.get())->onEditor();
+
             else
                 comp->onEditor();
 
             std::string after;
             comp->onSave(after);
+
             if (before != after) {
                 GameObject* root = findPrefabRoot(go);
                 if (root)
@@ -279,12 +266,9 @@ void InspectorPanel::drawTransform() {
 
 void InspectorPanel::drawAddComponentMenu() {
     GameObject* go = m_editor->getSelection().object;
-    ImGui::PushStyleColor(ImGuiCol_Button,        EditorColors::toU32A(EditorColors::Accent, 0.30f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, EditorColors::toU32A(EditorColors::Accent, 0.50f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  EditorColors::toU32A(EditorColors::Accent, 0.70f));
-    bool clicked = ImGui::Button("Add Component", ImVec2(-1.f, 0));
-    ImGui::PopStyleColor(3);
-    if (clicked) ImGui::OpenPopup("##AddComp");
+    const float btnW = 180.0f;
+    ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - btnW) * 0.5f + ImGui::GetCursorPosX());
+    if (ImGui::Button("Add Component", ImVec2(btnW, 0))) ImGui::OpenPopup("##AddComp");
     if (!ImGui::BeginPopup("##AddComp")) return;
 
     auto addComp = [&](const char* label, Component::Type type, bool hasIt) {
