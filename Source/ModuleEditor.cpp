@@ -815,8 +815,10 @@ void ModuleEditor::drawDockspace() {
         ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
 
     const ImGuiViewport* vp = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(vp->Pos);
-    ImGui::SetNextWindowSize(ImVec2(vp->Size.x, vp->Size.y - kStatusH));
+    // WorkPos/WorkSize are set by ImGui after BeginMainMenuBar() to exclude
+    // the menu bar height, so docked panels are never hidden behind it.
+    ImGui::SetNextWindowPos(vp->WorkPos);
+    ImGui::SetNextWindowSize(ImVec2(vp->WorkSize.x, vp->WorkSize.y - kStatusH));
     ImGui::SetNextWindowViewport(vp->ID);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
@@ -831,17 +833,15 @@ void ModuleEditor::drawDockspace() {
     if (m_firstFrame) {
         m_firstFrame = false;
 
-        const float vpW = vp->Size.x;
-        const float vpH = vp->Size.y - kStatusH;
-        // Left  220px  |  Center flex  |  Right 280px
-        // Bottom ~165px (tabs: Render Graph, Asset Browser, Collision Debug, Console)
+        const float vpW = vp->WorkSize.x;
+        const float vpH = vp->WorkSize.y - kStatusH;
         const float leftRatio   = 220.f / vpW;
         const float rightRatio  = 280.f / (vpW - 220.f);
         const float bottomRatio = 200.f / vpH;
 
         ImGui::DockBuilderRemoveNode(dock);
         ImGui::DockBuilderAddNode(dock, ImGuiDockNodeFlags_DockSpace);
-        ImGui::DockBuilderSetNodeSize(dock, vp->Size);
+        ImGui::DockBuilderSetNodeSize(dock, ImVec2(vpW, vpH));
 
         ImGuiID left, mid, right, bottom;
         // Split off left column
@@ -1081,8 +1081,8 @@ void ModuleEditor::drawMenuBar() {
 // ---- Status bar (22px, always at screen bottom, above nothing) ----
 void ModuleEditor::drawStatusBar() {
     const ImGuiViewport* vp = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x, vp->Pos.y + vp->Size.y - kStatusH));
-    ImGui::SetNextWindowSize(ImVec2(vp->Size.x, kStatusH));
+    ImGui::SetNextWindowPos(ImVec2(vp->WorkPos.x, vp->WorkPos.y + vp->WorkSize.y - kStatusH));
+    ImGui::SetNextWindowSize(ImVec2(vp->WorkSize.x, kStatusH));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,    0.f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,  0.f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,     ImVec2(10.f, 3.f));
