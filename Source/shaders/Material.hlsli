@@ -53,14 +53,21 @@ float3 SampleNormal(in Material material, in Texture2D normalTex, in float2 uv,
 {
     if (material.Flags & HAS_NORMAL_TEX)
     {
-        float3 n = normalTex.Sample(BilinearWrap, uv).xyz * 2.0 - 1.0;
-
+        float3 n;
         if (material.Flags & HAS_COMPRESSED_NORMALS)
-            n.z = sqrt(1.0 - saturate(dot(n.xy, n.xy)));
-
-        n.xy *= material.NormalScale;
-        n.z = sqrt(max(1.0 - saturate(dot(n.xy, n.xy)), 0.0));
-        n     = normalize(n);
+        {
+            // BC5 stores only RG (x, y). Reconstruct z = sqrt(1 - x^2 - y^2).
+            n.xy = normalTex.Sample(BilinearWrap, uv).rg * 2.0 - 1.0;
+            n.xy *= material.NormalScale;
+            n.z  = sqrt(max(1.0 - saturate(dot(n.xy, n.xy)), 0.0));
+        }
+        else
+        {
+            // Uncompressed RGB normal map: all three channels are valid.
+            n     = normalTex.Sample(BilinearWrap, uv).xyz * 2.0 - 1.0;
+            n.xy *= material.NormalScale;
+            n     = normalize(n);
+        }
 
         float3x3 TBN = float3x3(tangent, bitangent, normal);
         return mul(n, TBN);
