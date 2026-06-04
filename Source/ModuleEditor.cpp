@@ -408,7 +408,17 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                         // SkinningPass skips jobs whose vertexVA==0 but the post-dispatch loop still
                         // assigns skinnedVA, which would cause drawSkinned() to read stale data.
                         const bool vertexReady = mesh && (mesh->getVertexBufferVA() != 0);
-                        const bool needsGpuJob = vertexReady && (hasBones || shouldMorph);
+                        const uint32_t vcount = mesh ? mesh->getVertexCount() : 0u;
+                        const uint32_t jcount = hasBones ? (uint32_t)cm->getLocalSkin().jointNodeIndices.size() : 0u;
+                        const bool withinVertexCap = (curVertexOffset + vcount <= SkinningPass::MAX_TOTAL_VERTICES);
+                        const bool withinJointCap  = (curPaletteOffset + jcount <= SkinningPass::MAX_TOTAL_JOINTS);
+                        if (!withinVertexCap)
+                            LOG("[SkinDebug] OVERFLOW: vertex cap %u exceeded (offset %u + count %u). Re-export at lower poly count.",
+                                SkinningPass::MAX_TOTAL_VERTICES, curVertexOffset, vcount);
+                        if (!withinJointCap)
+                            LOG("[SkinDebug] OVERFLOW: joint cap %u exceeded (offset %u + count %u).",
+                                SkinningPass::MAX_TOTAL_JOINTS, curPaletteOffset, jcount);
+                        const bool needsGpuJob = vertexReady && (hasBones || shouldMorph) && withinVertexCap && withinJointCap;
 
                         if (needsGpuJob) {
                             e.isSkinned = true; // skinnedVA filled after dispatch
@@ -437,10 +447,13 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
 
                                 job.skin = &cm->getLocalSkin();
                                 job.jointWorldMatrices = std::move(jointWorlds);
-                                // Skinned output is already in Y-up world space (Blender bakes the
-                                // axis conversion into vertex positions at export time, and the joint
-                                // global matrices include the RootNode correction). worldMatrix stays
-                                // at the default Identity so no extra transform is applied.
+
+                                // palette[j] = IBP[j] * jointWorld[j] * meshWorldInverse
+                                // outputs in mesh-local space; worldMatrix = nodeWorld places in world.
+                                Matrix inv; nodeWorld.Invert(inv);
+                                job.meshWorldInverse = inv;
+                                // Use the mesh node's world transform so moving the character moves the mesh.
+                                memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));
                             } else {
                                 // Morph-only: shader outputs local space; world transform in MeshEntry.
                                 memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));

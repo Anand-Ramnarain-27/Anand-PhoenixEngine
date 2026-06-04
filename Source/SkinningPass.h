@@ -17,7 +17,7 @@ class SkinningPass {
 public:
     // Hard caps for the combined per-frame buffers.
     static constexpr uint32_t MAX_TOTAL_JOINTS = 1024;
-    static constexpr uint32_t MAX_TOTAL_VERTICES = 65536;
+    static constexpr uint32_t MAX_TOTAL_VERTICES = 262144; // increased from 65536; complex chars can exceed 65K
     static constexpr uint32_t MAX_TOTAL_MORPH_WEIGHTS = 64; // combined float slots across all jobs per frame
     static constexpr uint32_t THREAD_GROUP_SIZE = 64;
 
@@ -29,6 +29,7 @@ public:
     struct SkinJob {
         const ResourceModel::Skin* skin = nullptr; // null for morph-only jobs
         std::vector<Matrix> jointWorldMatrices; // world matrix per joint, in joint order
+        Matrix meshWorldInverse = Matrix::Identity; // inverse of mesh node's world transform
         Mesh* mesh = nullptr; // source mesh
         uint32_t paletteOffset = 0; // first joint index in the combined palette
         uint32_t vertexOffset = 0; // first vertex index in the combined output

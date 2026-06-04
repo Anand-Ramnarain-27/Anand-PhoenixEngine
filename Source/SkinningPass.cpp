@@ -171,7 +171,11 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
         if (job.skin) {
             const uint32_t jointCount = static_cast<uint32_t>(job.skin->jointNodeIndices.size());
             for (uint32_t j = 0; j < jointCount; ++j) {
-                Matrix m = job.skin->inverseBindMatrices[j] * job.jointWorldMatrices[j];
+                // palette[j] = IBP[j] * jointWorld[j] * meshWorldInverse
+                // This produces deformation in mesh-local space.  The render worldMatrix
+                // (= mesh node's world transform) then places the result in world space.
+                // At T-pose: IBP * jointBind * meshWorldInverse = I regardless of placement.
+                Matrix m = job.skin->inverseBindMatrices[j] * job.jointWorldMatrices[j] * job.meshWorldInverse;
 
 #ifdef _DEBUG
                 // T-pose check: for models with no armature correction Palette[0] ≈ Identity.
