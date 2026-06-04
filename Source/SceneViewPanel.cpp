@@ -15,6 +15,7 @@
 #include "Frustum.h"
 #include "RenderTexture.h"
 #include "PrefabManager.h"
+#include "MousePicker.h"
 #include <functional>
 
 static constexpr float kDeg2Rad = 0.0174532925f;
@@ -94,6 +95,26 @@ void SceneViewPanel::onImageDrawn() {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kDragAsset)) m_editor->spawnAssetAtPath(std::string(static_cast<const char*>(payload->Data), payload->DataSize - 1));
         ImGui::EndDragDropTarget();
     }
+
+    // Mouse picking: left-click on the viewport image while not dragging a gizmo.
+    if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGuizmo::IsOver()) {
+        ModuleCamera* cam = app->getCamera();
+        ModuleScene*  ms  = m_editor->getActiveModuleScene();
+        if (cam && ms) {
+            const float w = viewport.size.x, h = viewport.size.y;
+            Matrix view = cam->getView();
+            Matrix proj = ModuleCamera::getPerspectiveProj(w / h);
+
+            ImVec2 mousePos = ImGui::GetIO().MousePos;
+            GameObject* hit = MousePicker::pick(
+                mousePos.x, mousePos.y,
+                viewport.pos.x, viewport.pos.y, w, h,
+                view, proj, ms);
+
+            m_editor->getSelection().object = hit; // nullptr clears selection
+        }
+    }
+
     drawGizmo();
 }
 

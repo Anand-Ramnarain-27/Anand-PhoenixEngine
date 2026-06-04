@@ -297,6 +297,7 @@
     <ClInclude Include="SceneSerializer.h" />
     <ClInclude Include="SceneSettingsPanel.h" />
     <ClInclude Include="SceneViewPanel.h" />
+    <ClInclude Include="MousePicker.h" />
     <ClInclude Include="ResourceStateMachine.h" />
     <ClInclude Include="StateMachineGraphEditor.h" />
     <ClInclude Include="TestSceneSetup.h" />
@@ -469,6 +470,7 @@
     <ClCompile Include="SceneSerializer.cpp" />
     <ClCompile Include="SceneSettingsPanel.cpp" />
     <ClCompile Include="SceneViewPanel.cpp" />
+    <ClCompile Include="MousePicker.cpp" />
     <ClCompile Include="StateMachineGraphEditor.cpp" />
     <ClCompile Include="TestSceneSetup.cpp" />
     <ClCompile Include="3rdParty\imgui-node-editor-master\imgui_node_editor.cpp">
