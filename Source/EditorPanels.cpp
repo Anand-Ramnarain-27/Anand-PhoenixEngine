@@ -313,35 +313,11 @@ void CollisionDebugPanel::drawContent() {
     ImGui::Spacing();
 
     if (s) {
-        auto toggle = [&](const char* label, bool& flag) {
-            bool v = flag;
-            // Pill-style toggle using button
-            ImU32 bgOn  = ImGui::ColorConvertFloat4ToU32(EditorColors::Acc);
-            ImU32 bgOff = ImGui::ColorConvertFloat4ToU32(EditorColors::Bg3);
-            const float pillW = 36.f, pillH = 16.f, pillR = 8.f;
-            ImVec2 p = ImGui::GetCursorScreenPos();
-            ImDrawList* dl = ImGui::GetWindowDrawList();
-            dl->AddRectFilled(p, { p.x + pillW, p.y + pillH }, v ? bgOn : bgOff, pillR);
-            // Knob
-            float kx = v ? p.x + pillW - pillH * 0.5f - 1.f : p.x + pillH * 0.5f + 1.f;
-            dl->AddCircleFilled({ kx, p.y + pillH * 0.5f }, pillH * 0.4f, IM_COL32(255,255,255,230));
-            ImGui::Dummy(ImVec2(pillW + 8.f, pillH));
-            ImGui::SameLine(0, 0);
-            if (ImGui::InvisibleButton(label, { pillW + ImGui::CalcTextSize(label).x + 12.f, pillH }))
-                flag = !flag;
-            // Reposition to draw label after pill
-            ImVec2 lp = { p.x + pillW + 8.f, p.y + (pillH - ImGui::GetTextLineHeight()) * 0.5f };
-            dl->AddText(lp, ImGui::ColorConvertFloat4ToU32(EditorColors::Tx0), label);
-            ImGui::Spacing();
-        };
-        toggle("AABB Bounding Volumes",    s->debugDrawBounds);
-        toggle("Broadphase Grid",          s->debugDrawGrid);
-        toggle("Show Light Proxies",       s->debugDrawLights);
-
-        if (app->getCamera()) {
-            ModuleCamera* cam = app->getCamera();
-            toggle("Camera Frustum",       cam->debugDrawEditorFrustum);
-        }
+        ImGui::Checkbox("AABB Bounding Volumes", &s->debugDrawBounds);
+        ImGui::Checkbox("Broadphase Grid",       &s->debugDrawGrid);
+        ImGui::Checkbox("Show Light Proxies",    &s->debugDrawLights);
+        if (ModuleCamera* cam = app->getCamera())
+            ImGui::Checkbox("Camera Frustum",    &cam->debugDrawEditorFrustum);
     }
     ImGui::EndGroup();
 

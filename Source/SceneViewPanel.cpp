@@ -23,6 +23,38 @@ SceneViewPanel::SceneViewPanel(ModuleEditor* editor) : ViewportPanel(editor) {
     viewport.rt = std::make_unique<RenderTexture>("SceneView", DXGI_FORMAT_R8G8B8A8_UNORM, Vector4(0.1f, 0.1f, 0.1f, 1.0f), DXGI_FORMAT_D32_FLOAT, 1.0f);
 }
 
+void SceneViewPanel::draw() {
+    if (m_fullscreen) {
+        // On the first fullscreen frame, save the current dock node so we can
+        // return to it when the user exits fullscreen.
+        if (m_savedDockId == 0) {
+            if (ImGuiWindow* win = ImGui::FindWindowByName("Viewport"))
+                m_savedDockId = win->DockId;
+        }
+
+        const ImGuiViewport* vp = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(vp->WorkPos);
+        ImGui::SetNextWindowSize(ImVec2(vp->WorkSize.x, vp->WorkSize.y));
+        ImGui::SetNextWindowDockID(0, ImGuiCond_Always); // explicitly undock
+        ImGui::SetNextWindowBgAlpha(1.f);
+        constexpr ImGuiWindowFlags kFull =
+            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus |
+            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        if (ImGui::Begin(getName(), &open, kFull)) drawContent();
+        ImGui::End();
+        ImGui::PopStyleVar();
+    } else {
+        // Exiting fullscreen — re-dock the window in its original node.
+        if (m_savedDockId != 0) {
+            ImGui::SetNextWindowDockID(m_savedDockId, ImGuiCond_Always);
+            m_savedDockId = 0;
+        }
+        ViewportPanel::draw();
+    }
+}
+
 bool SceneViewPanel::buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView, Matrix& outProj) {
     ModuleCamera* camera = app->getCamera();
     if (!camera) return false;
@@ -118,9 +150,9 @@ void SceneViewPanel::drawGizmoToolbar() {
         if (on) ImGui::PopStyleColor(2);
         ImGui::SameLine(0, 2);
     };
-    gBtn("T", "Translate  (T)", ImGuizmo::TRANSLATE);
-    gBtn("R", "Rotate     (R)", ImGuizmo::ROTATE);
-    gBtn("S", "Scale      (S)", ImGuizmo::SCALE);
+    gBtn("T", "Translate (T)", ImGuizmo::TRANSLATE);
+    gBtn("R", "Rotate    (R)", ImGuizmo::ROTATE);
+    gBtn("S", "Scale     (S)", ImGuizmo::SCALE);
 
     // Divider
     ImGui::SameLine(0, 6);
@@ -204,7 +236,7 @@ void SceneViewPanel::drawGizmoToolbar() {
     if (spacer > 0.f) { ImGui::SameLine(0, spacer); }
     else              { ImGui::SameLine(0, 4); }
 
-    if (ImGui::Button("Lit \xe2\x96\xbe", ImVec2(litW, btnSz)))
+    if (ImGui::Button("Lit v", ImVec2(litW, btnSz)))
         ImGui::OpenPopup("##lit_pp");
     if (ImGui::BeginPopup("##lit_pp")) {
         ImGui::SeparatorText("Shading Mode");
@@ -215,7 +247,7 @@ void SceneViewPanel::drawGizmoToolbar() {
     }
 
     ImGui::SameLine(0, 4);
-    if (ImGui::Button("Show \xe2\x96\xbe", ImVec2(showW, btnSz)))
+    if (ImGui::Button("Show v", ImVec2(showW, btnSz)))
         ImGui::OpenPopup("##show_pp");
     if (ImGui::BeginPopup("##show_pp")) {
         SceneManager* sm = m_editor->getSceneManager();
@@ -235,8 +267,17 @@ void SceneViewPanel::drawGizmoToolbar() {
     }
 
     ImGui::SameLine(0, 4);
-    ImGui::Button("\xe2\x96\xa1", ImVec2(iconW, btnSz));
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Fullscreen");
+    // Capture state BEFORE the button so push/pop are always balanced.
+    const bool wasFullscreen = m_fullscreen;
+    if (wasFullscreen) ImGui::PushStyleColor(ImGuiCol_Button, EditorColors::Acc);
+    if (ImGui::Button(wasFullscreen ? "[x]" : "[ ]", ImVec2(iconW + 8.f, btnSz)))
+        m_fullscreen = !m_fullscreen;
+    if (wasFullscreen) ImGui::PopStyleColor();
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip(wasFullscreen ? "Exit fullscreen  (click or Esc)" : "Fullscreen");
+    // Esc exits fullscreen
+    if (m_fullscreen && ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+        m_fullscreen = false;
 
     ImGui::PopStyleVar(2);
 
@@ -292,7 +333,7 @@ void SceneViewPanel::drawGizmo() {
 }
 
 void SceneViewPanel::drawOverlay() {
-    ImGuiWindow* win = ImGui::FindWindowByName("\xe2\x97\x86 Viewport");
+    ImGuiWindow* win = ImGui::FindWindowByName("Viewport");
     if (!win) return;
     char buf[160];
     sprintf_s(buf, "FPS: %.1f  CPU: %.2f ms  GPU: %.2f ms", app->getFPS(), app->getAvgElapsedMs(), m_editor->getGpuFrameTimeMs());
@@ -301,7 +342,7 @@ void SceneViewPanel::drawOverlay() {
 
 void SceneViewPanel::drawPrefabExitButton() {
     if (!m_editor->getSceneManager() || !m_editor->getSceneManager()->isEditingPrefab()) return;
-    ImGuiWindow* win = ImGui::FindWindowByName("\xe2\x97\x86 Viewport");
+    ImGuiWindow* win = ImGui::FindWindowByName("Viewport");
     if (!win) return;
     constexpr ImGuiWindowFlags kF = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoSavedSettings;
     const std::string& name = m_editor->getSceneManager()->getPrefabEditName();

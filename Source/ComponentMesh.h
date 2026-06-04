@@ -55,6 +55,11 @@ public:
     const ResourceModel::Skin& getLocalSkin() const { return m_localSkin; }
     const std::vector<GameObject*>& getSkinJoints() const { return m_skinJoints; }
 
+    // Called by the editor before destroying a GameObject to prevent dangling joint pointers.
+    void nullifyJoint(const GameObject* go) {
+        for (auto& j : m_skinJoints) if (j == go) j = nullptr;
+    }
+
     // Morph target weights — one float per target, written by the animation system each frame.
     // Shared across all mesh primitives in this component (index 0 = first target of the mesh).
     static constexpr int MAX_MORPH_WEIGHTS = 64;

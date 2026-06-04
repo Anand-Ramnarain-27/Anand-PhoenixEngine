@@ -259,82 +259,6 @@ void ModuleEditor::preRender() {
     drawMenuBar();
     for (EditorPanel* p : m_panels) if (p->open) p->draw();
 
-    // --- Morph Target Debug Window ---
-    {
-        ModuleScene* morphScene = getActiveModuleScene();
-        if (morphScene) {
-            struct MorphEntry { ComponentMesh* cm; Mesh* mesh; std::string goName; GameObject* go; };
-            std::vector<MorphEntry> found;
-            std::function<void(GameObject*)> collect = [&](GameObject* node) {
-                if (!node || !node->isActive()) return;
-                if (auto* cm = node->getComponent<ComponentMesh>()) {
-                    for (const auto& entry : cm->getEntries()) {
-                        Mesh* m = entry.meshRes ? entry.meshRes->getMesh() : nullptr;
-                        if (m && m->hasMorphTargets()) {
-                            found.push_back({ cm, m, node->getName(), node });
-                            break;
-                        }
-                    }
-                }
-                for (auto* c : node->getChildren()) collect(c);
-            };
-            collect(morphScene->getRoot());
-
-            if (!found.empty()) {
-                ImGui::Begin("Morph Targets Debug");
-                for (auto& mt : found) {
-                    const uint32_t n = mt.mesh->getNumMorphTargets();
-
-                    // Walk up parent chain to find the ComponentAnimation driving this node.
-                    ComponentAnimation* animComp = nullptr;
-                    for (GameObject* p = mt.go->getParent(); p && !animComp; p = p->getParent())
-                        animComp = p->getComponent<ComponentAnimation>();
-
-                    const bool isPlaying = animComp && animComp->getController().isPlaying();
-
-                    ImGui::Text("%s  |  Morph Targets: %u", mt.goName.c_str(), n);
-
-                    if (animComp) {
-                        float t = animComp->getController().CurrentTime;
-                        bool hasMC = animComp->getController().hasMorphChannel(mt.goName.c_str());
-                        ImGui::Text("Anim time: %.3f s  |  MorphChannel: %s",
-                                    t, hasMC ? "YES" : "no (weights channel missing)");
-                        if (!hasMC)
-                            ImGui::TextColored(ImVec4(1,0.6f,0,1),
-                                "  Check: node name in .anim matches '%s'", mt.goName.c_str());
-                    } else {
-                        ImGui::TextDisabled("  No ComponentAnimation in parent chain");
-                    }
-                    ImGui::Separator();
-
-                    if (isPlaying) {
-                        ImGui::BeginDisabled();
-                        ImGui::TextDisabled("(animation is driving weights)");
-                    }
-                    for (uint32_t i = 0; i < n; ++i) {
-                        char label[48];
-                        snprintf(label, sizeof(label), "Weight %u##%s%u", i, mt.goName.c_str(), i);
-                        float v = mt.cm->getMorphWeights()[i];
-                        if (ImGui::SliderFloat(label, &v, 0.f, 1.f))
-                            mt.cm->setMorphWeight((int)i, v);
-                    }
-                    if (isPlaying) ImGui::EndDisabled();
-
-                    {
-                        char wbuf[256] = {};
-                        int off = 0;
-                        for (uint32_t i = 0; i < n && off < (int)sizeof(wbuf) - 12; ++i)
-                            off += snprintf(wbuf + off, sizeof(wbuf) - off,
-                                            i ? "  %.3f" : "%.3f", mt.cm->getMorphWeights()[i]);
-                        ImGui::Text("Weights this frame:  %s", wbuf);
-                    }
-                    ImGui::Spacing();
-                }
-                ImGui::End();
-            }
-        }
-    }
-    // --- End Morph Target Debug Window ---
 
     // Animation Debug Window removed — use the Inspector's Animation component for debug controls.
 
@@ -858,8 +782,8 @@ void ModuleEditor::drawDockspace() {
         ImGui::DockBuilderDockWindow("Scene Settings", leftBot);
 
         // Center: viewport tabs (names must match panel getName() exactly)
-        ImGui::DockBuilderDockWindow("\xe2\x97\x86 Viewport", mid);
-        ImGui::DockBuilderDockWindow("\xe2\x97\x8f Game",     mid);
+        ImGui::DockBuilderDockWindow("Viewport", mid);
+        ImGui::DockBuilderDockWindow("Game",     mid);
 
         // Right column: Inspector top, GPU Memory bottom
         ImGuiID rightTop, rightBot;
@@ -885,25 +809,12 @@ void ModuleEditor::drawMenuBar() {
 
     // ---- Brand ----
     {
-        ImDrawList* dl = ImGui::GetWindowDrawList();
-        ImVec2 p = ImGui::GetCursorScreenPos();
-        // Phoenix glyph: small purple rounded square with white stripe
-        dl->AddRectFilled({ p.x + 2, p.y + 3 }, { p.x + 17, p.y + 17 },
-            IM_COL32(140, 80, 210, 255), 3.f);
-        dl->AddRectFilled({ p.x + 5, p.y + 6 }, { p.x + 14, p.y + 9 },
-            IM_COL32(255, 255, 255, 100), 1.f);
-        ImGui::Dummy(ImVec2(20.f, 0.f));
-        ImGui::SameLine(0, 4);
         ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx0);
         ImGui::Text("Phoenix");
         ImGui::PopStyleColor();
         ImGui::SameLine(0, 4);
         ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
-        ImGui::Text("v0.9.4");
-        ImGui::SameLine(0, 4);
-        ImGui::Text("\xC2\xB7");   // middle dot ·
-        ImGui::SameLine(0, 4);
-        ImGui::Text("DX12");
+        ImGui::Text("v0.4");
         ImGui::PopStyleColor();
         ImGui::SameLine(0, 8);
     }
@@ -1065,7 +976,7 @@ void ModuleEditor::drawMenuBar() {
     {
         ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
         char gpuInfo[128];
-        snprintf(gpuInfo, sizeof(gpuInfo), "RTX \xC2\xB7 DX12 \xC2\xB7 build Development    %.0f fps",
+        snprintf(gpuInfo, sizeof(gpuInfo), "RTX \xC2\xB7 build Development    %.0f fps",
             (double)app->getFPS());
         float textW = ImGui::CalcTextSize(gpuInfo).x;
         float rightX = ImGui::GetWindowWidth() - textW - 14.f;
@@ -1249,42 +1160,52 @@ GameObject* ModuleEditor::createEmptyGameObject(const char* name, GameObject* pa
 
 void ModuleEditor::deleteGameObject(GameObject* go) {
     if (!go) return;
+    // Clear selection if the selected object is go or any descendant of go.
     if (m_selection.object == go || isChildOf(go, m_selection.object)) m_selection.clear();
     ModuleScene* scene = getActiveModuleScene();
     if (!scene) return;
-    GameObject* par = go->getParent();
-    for (auto* c : go->getChildren()) c->setParent(par);
-    std::string name = go->getName();
-    std::string serialized = PrefabManager::serializeGameObject(go);
 
+    // --- Collect the full subtree (BFS, parent before children) ---
+    std::vector<GameObject*> subtree;
+    {
+        std::function<void(GameObject*)> collect = [&](GameObject* node) {
+            subtree.push_back(node);
+            for (auto* c : node->getChildren()) collect(c);
+        };
+        collect(go);
+    }
+
+    // --- Nullify skin-joint references to every object in the subtree BEFORE
+    //     any of them are freed, so renderSceneWithCamera never sees a dangling ptr. ---
+    {
+        std::function<void(GameObject*)> scanMeshes = [&](GameObject* node) {
+            if (!node) return;
+            if (auto* cm = node->getComponent<ComponentMesh>()) {
+                for (GameObject* doomed : subtree) cm->nullifyJoint(doomed);
+            }
+            for (auto* c : node->getChildren()) scanMeshes(c);
+        };
+        scanMeshes(scene->getRoot());
+    }
+
+    // Capture name before go is freed.
+    std::string name = go->getName();
+
+    // --- Delete leaves first (reverse BFS order) so destroyGameObject never
+    //     has live children to reparent. ---
     app->getD3D12()->flush();
-    scene->destroyGameObject(go);
+    for (int i = (int)subtree.size() - 1; i >= 0; --i)
+        scene->destroyGameObject(subtree[i]);
+
     log(("Deleted: " + name).c_str(), EditorColors::Warning);
 
-    auto livePtr = std::make_shared<GameObject*>(nullptr);
-
+    // Push a basic undo command (re-delete on redo; undo currently unsupported for
+    // multi-object hierarchies — a full serialise/restore would need to handle the
+    // whole subtree).
     pushCommand({
-        [this, livePtr, serialized, name]() {
-            GameObject* target = *livePtr;
-            if (!target) return;
-            if (m_selection.object == target) m_selection.clear();
-            app->getD3D12()->flush();
-            ModuleScene* s = getActiveModuleScene();
-            if (s) s->destroyGameObject(target);
-            *livePtr = nullptr;
-            log(("Redo delete: " + name).c_str(), EditorColors::Warning);
-        },
-        [this, livePtr, serialized, name]() {
-            ModuleScene* s = getActiveModuleScene();
-            if (!s) return;
-            GameObject* restored = PrefabManager::deserializeGameObject(serialized, s);
-            if (restored) {
-                *livePtr = restored;
-                m_selection.object = restored;
-                log(("Undo delete: " + name).c_str(), EditorColors::Success);
-            }
-        }
-        });
+        []() {},  // redo: nothing (objects already gone)
+        []() {}   // undo: not yet supported for subtree deletes
+    });
 }
 
 void ModuleEditor::spawnAssetAtPath(const std::string& path) {

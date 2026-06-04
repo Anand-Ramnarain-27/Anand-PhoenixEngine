@@ -74,59 +74,23 @@ void InspectorPanel::drawContent() {
     bool isEditRoot    = prefabMode && session && go == session->rootObject;
     bool isInPrefabEdit = prefabMode && session && session->rootObject;
 
-    // ---- Entity header ----
+    // ---- Entity header: checkbox + editable name ----
     {
-        ImDrawList* dl  = ImGui::GetWindowDrawList();
-        float panelW    = ImGui::GetContentRegionAvail().x;
-        ImVec2 hdrMin   = ImGui::GetCursorScreenPos();
-        float  hdrH     = 44.f;
-        // Subtle bg strip
-        dl->AddRectFilled(hdrMin, ImVec2(hdrMin.x + panelW, hdrMin.y + hdrH),
-            ImGui::ColorConvertFloat4ToU32(ImVec4(0.11f, 0.11f, 0.14f, 1.f)));
+        bool active = go->isActive();
+        if (ImGui::Checkbox("##active", &active)) go->setActive(active);
+        ImGui::SameLine(0, 6);
 
-        // Mesh/object icon square
-        ImVec2 iconMin = ImVec2(hdrMin.x + 8.f, hdrMin.y + 9.f);
-        dl->AddRectFilled(iconMin, ImVec2(iconMin.x + 26.f, iconMin.y + 26.f),
-            ImGui::ColorConvertFloat4ToU32(EditorColors::Bg3), 5.f);
-        dl->AddRect(iconMin, ImVec2(iconMin.x + 26.f, iconMin.y + 26.f),
-            ImGui::ColorConvertFloat4ToU32(EditorColors::Line2), 5.f);
-        dl->AddText(ImVec2(iconMin.x + 7.f, iconMin.y + 6.f),
-            ImGui::ColorConvertFloat4ToU32(EditorColors::Acc2), "\xe2\x97\x88"); // ◈
-
-        // Object name (editable)
-        ImGui::SetCursorScreenPos(ImVec2(hdrMin.x + 42.f, hdrMin.y + 5.f));
         char nameBuf[256];
         strncpy_s(nameBuf, go->getName().c_str(), sizeof(nameBuf) - 1);
         if (isEditRoot) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.28f, 0.18f, 0.04f, 1.f));
-        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0, 0, 0, 0));
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx0);
-        ImGui::SetNextItemWidth(panelW - 80.f);
+        ImGui::SetNextItemWidth(-1.f);
         if (ImGui::InputText("##goname", nameBuf, sizeof(nameBuf))) go->setName(nameBuf);
-        ImGui::PopStyleColor(2);
         if (isEditRoot) ImGui::PopStyleColor();
 
-        // Subtitle: UID
-        ImGui::SetCursorScreenPos(ImVec2(hdrMin.x + 42.f, hdrMin.y + 26.f));
         ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
-        ImGui::PushFont(g_fontMono);
         ImGui::Text("UID: %u", go->getUID());
-        ImGui::PopFont();
         ImGui::PopStyleColor();
-
-        // Active toggle (right side)
-        bool active = go->isActive();
-        ImU32 toggleBg  = active ? ImGui::ColorConvertFloat4ToU32(EditorColors::Acc)
-                                 : ImGui::ColorConvertFloat4ToU32(EditorColors::Bg3);
-        float tx = hdrMin.x + panelW - 38.f, ty = hdrMin.y + 14.f;
-        dl->AddRectFilled(ImVec2(tx, ty), ImVec2(tx + 30.f, ty + 16.f), toggleBg, 8.f);
-        float kx = active ? tx + 21.f : tx + 9.f;
-        dl->AddCircleFilled(ImVec2(kx, ty + 8.f), 6.f, IM_COL32(255, 255, 255, 230));
-        ImGui::SetCursorScreenPos(ImVec2(tx - 2.f, ty - 2.f));
-        ImGui::InvisibleButton("##toggle", ImVec2(34.f, 20.f));
-        if (ImGui::IsItemClicked()) { active = !active; go->setActive(active); }
-
-        // Advance cursor past the header
-        ImGui::SetCursorScreenPos(ImVec2(hdrMin.x, hdrMin.y + hdrH + 4.f));
+        ImGui::Separator();
     }
 
     if (isInPrefabEdit) {

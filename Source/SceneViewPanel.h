@@ -6,7 +6,8 @@
 class SceneViewPanel : public ViewportPanel {
 public:
     explicit SceneViewPanel(ModuleEditor* editor);
-    const char* getName() const override { return "\xe2\x97\x86 Viewport"; }  // ◆ Viewport
+    const char* getName() const override { return "Viewport"; }
+    void draw() override;
 
 protected:
     bool buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView, Matrix& outProj) override;
@@ -29,4 +30,6 @@ private:
     float m_snapT[3] = { 0.5f, 0.5f, 0.5f };
     float m_snapR = 15.0f;
     float m_snapS = 0.1f;
+    bool      m_fullscreen   = false;
+    ImGuiID   m_savedDockId  = 0;     // dock node to return to after fullscreen
 };

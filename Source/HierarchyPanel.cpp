@@ -59,10 +59,23 @@ void HierarchyPanel::drawContent() {
     }
     else {
         // Search bar
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 6.f, 4.f });
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6.f, 4.f));
         ImGui::SetNextItemWidth(-1.f);
-        ImGui::InputTextWithHint("##hier_search", "\xF0\x9F\x94\x8D  Search scene...", m_search, sizeof(m_search));
+        ImGui::InputTextWithHint("##hier_search", "Search scene...", m_search, sizeof(m_search));
         ImGui::PopStyleVar();
+
+        // Create buttons
+        const float btnW = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+        if (ImGui::Button("+ Empty", ImVec2(btnW, 0)))
+            m_editor->createEmptyGameObject();
+        ImGui::SameLine();
+        ImGui::BeginDisabled(!sel.has());
+        if (ImGui::Button("+ Child", ImVec2(btnW, 0)))
+            m_editor->createEmptyGameObject("Empty", sel.object);
+        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && !sel.has())
+            ImGui::SetTooltip("Select a GameObject first");
+
         ImGui::PushStyleColor(ImGuiCol_Separator, EditorColors::Line);
         ImGui::Separator();
         ImGui::PopStyleColor();

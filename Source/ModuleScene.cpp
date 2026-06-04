@@ -16,10 +16,14 @@ GameObject* ModuleScene::createGameObject(const std::string& name, GameObject* p
 
 void ModuleScene::destroyGameObject(GameObject* go){
     if (!go || go == root.get()) return;
+    // Reparent children to go's parent (or root) so the flat objects list stays
+    // consistent.  Callers that want recursive deletion (e.g. the editor delete
+    // action) must collect and destroy descendants themselves before calling this.
     GameObject* reparentTo = go->getParent() ? go->getParent() : root.get();
     for (auto* child : go->getChildren()) child->setParent(reparentTo);
     go->setParent(nullptr);
-    auto it = std::find_if(objects.begin(), objects.end(), [go](const std::unique_ptr<GameObject>& p) { return p.get() == go; });
+    auto it = std::find_if(objects.begin(), objects.end(),
+        [go](const std::unique_ptr<GameObject>& p) { return p.get() == go; });
     if (it != objects.end()) objects.erase(it);
 }
 
