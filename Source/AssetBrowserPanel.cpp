@@ -10,6 +10,7 @@
 #include "ComponentMesh.h"
 #include "PrefabManager.h"
 #include "TextureImporter.h"
+#include "ModuleFileSystem.h"
 #include "PrimitiveFactory.h"
 #include "EditorSelection.h"
 #include "EditorColors.h"
@@ -329,6 +330,28 @@ void AssetBrowserPanel::drawItemContextMenu(int idx) {
             if (!sel.has()) ImGui::EndDisabled();
             ImGui::Separator();
         }
+        if (e.ext == ".dds") {
+            if (ImGui::BeginMenu("Reimport As...")) {
+                ImGui::TextDisabled("Block Compression format:");
+                ImGui::Separator();
+                struct { const char* label; const char* tip; int typeIdx; } opts[] = {
+                    { "Color (BC1/BC3)",      "BC1 for opaque, BC3 for alpha. Fast compress.",      0 },
+                    { "Color HQ (BC7)",       "BC7 — highest quality, slower to compress.",         1 },
+                    { "Normal Map (BC5)",     "BC5 — RG only. Z reconstructed in shader.",          2 },
+                    { "Metal/Roughness (BC5)","BC5 — two grayscale channels (R=metal, G=rough).",   3 },
+                    { "Occlusion (BC4)",      "BC4 — single grayscale channel.",                    4 },
+                };
+                for (auto& opt : opts) {
+                    if (ImGui::MenuItem(opt.label)) {
+                        reimportTextureAs(e.path, opt.typeIdx);
+                        ImGui::CloseCurrentPopup();
+                    }
+                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", opt.tip);
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::Separator();
+        }
         EditorSelection& sel = m_editor->getSelection();
         if (sel.has()) {
             if (ImGui::MenuItem("Save Selected as Prefab...")) { m_showSavePrefabModal = true; strncpy_s(m_savePrefabNameBuf, sel.object->getName().c_str(), sizeof(m_savePrefabNameBuf) - 1); }
@@ -606,4 +629,33 @@ void AssetBrowserPanel::prefabRename(const std::string& oldName, const std::stri
     app->getFileSystem()->Delete(oldPath.c_str());
     m_editor->log(("Renamed: " + oldName + " -> " + newName).c_str(), EditorColors::Success);
     m_dirty = true;
+}
+
+// Re-compresses an already-imported DDS file using the chosen TextureType.
+// The source is the DDS file itself (which is already the engine-side copy).
+void AssetBrowserPanel::reimportTextureAs(const std::string& ddsPath, int typeIndex) {
+    static const TextureImporter::TextureType kTypes[] = {
+        TextureImporter::TextureType::Color,
+        TextureImporter::TextureType::ColorHQ,
+        TextureImporter::TextureType::Normal,
+        TextureImporter::TextureType::MetalRoughness,
+        TextureImporter::TextureType::Occlusion,
+    };
+    static const char* kTypeNames[] = { "Color (BC1/BC3)", "Color HQ (BC7)", "Normal (BC5)", "Metal/Roughness (BC5)", "Occlusion (BC4)" };
+
+    if (typeIndex < 0 || typeIndex >= (int)(sizeof(kTypes) / sizeof(kTypes[0]))) return;
+
+    TextureImporter::TextureType type = kTypes[typeIndex];
+
+    // Re-import the DDS in place using itself as the source — DirectXTex can
+    // load a DDS and re-compress it to a different BC format.
+    bool ok = TextureImporter::Import(ddsPath.c_str(), ddsPath, type);
+    if (ok) {
+        // Evict the cached thumbnail so the panel shows the refreshed image.
+        m_thumbCache.erase(ddsPath);
+        m_editor->log((std::string("Reimported as ") + kTypeNames[typeIndex] + ": " +
+                       fs::path(ddsPath).filename().string()).c_str(), EditorColors::Success);
+    } else {
+        m_editor->log(("Reimport failed: " + ddsPath).c_str(), EditorColors::Danger);
+    }
 }

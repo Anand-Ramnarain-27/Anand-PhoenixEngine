@@ -50,6 +50,7 @@ private:
     void prefabDelete(const std::string& name);
     void prefabCreateVariant(const std::string& src, const std::string& dst);
     void prefabRename(const std::string& oldName, const std::string& newName);
+    void reimportTextureAs(const std::string& ddsPath, int typeIndex);
 
     struct RootFolder { std::string path; std::string label; };
     std::vector<RootFolder> m_roots;

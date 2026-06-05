@@ -39,6 +39,10 @@ static bool ProcessAndSave(ScratchImage& image, const std::string& outputPath, T
 		case TextureImporter::TextureType::Emissive:
 			fmt = HasAlpha(meta.format) ? DXGI_FORMAT_BC3_UNORM_SRGB : DXGI_FORMAT_BC1_UNORM_SRGB;
 			break;
+		case TextureImporter::TextureType::ColorHQ:
+			// BC7 handles both opaque and alpha in the same format — higher quality, slower compress.
+			fmt = DXGI_FORMAT_BC7_UNORM_SRGB;
+			break;
 		case TextureImporter::TextureType::Normal:
 			fmt = DXGI_FORMAT_BC5_UNORM;
 			break;
