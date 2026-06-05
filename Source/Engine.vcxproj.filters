@@ -334,6 +334,9 @@
     <ClCompile Include="SceneViewPanel.cpp">
       <Filter>Engine\Editor\Panels\Viewports</Filter>
     </ClCompile>
+    <ClCompile Include="MousePicker.cpp">
+      <Filter>Engine\Editor\Panels\Viewports</Filter>
+    </ClCompile>
     <ClCompile Include="ViewportPanel.cpp">
       <Filter>Engine\Editor\Panels\Viewports</Filter>
     </ClCompile>
@@ -814,6 +817,9 @@
       <Filter>Engine\Editor\Panels\Viewports</Filter>
     </ClInclude>
     <ClInclude Include="SceneViewPanel.h">
+      <Filter>Engine\Editor\Panels\Viewports</Filter>
+    </ClInclude>
+    <ClInclude Include="MousePicker.h">
       <Filter>Engine\Editor\Panels\Viewports</Filter>
     </ClInclude>
     <ClInclude Include="ViewportPanel.h">
