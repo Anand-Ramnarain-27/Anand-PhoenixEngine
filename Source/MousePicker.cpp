@@ -31,12 +31,12 @@ MousePicker::Ray MousePicker::buildRay(
         return Vector3(w.x / w.w, w.y / w.w, w.z / w.w);
     };
 
-    Vector3 near = unproject(0.f);
-    Vector3 far  = unproject(1.f);
+    Vector3 nearPt = unproject(0.f);
+    Vector3 farPt  = unproject(1.f);
 
     Ray r;
-    r.origin    = near;
-    r.direction = far - near;
+    r.origin    = nearPt;
+    r.direction = farPt - nearPt;
     r.direction.Normalize();
     return r;
 }
