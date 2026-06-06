@@ -20,6 +20,7 @@ public:
         Rigidbody = 10,
         Bounds = 11,
         Decal = 12,
+        ParticleEmitter = 13,
     };
 
     explicit Component(GameObject* owner) : owner(owner) {}

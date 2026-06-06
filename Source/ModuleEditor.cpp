@@ -16,7 +16,10 @@
 #include "GBufferPass.h"
 #include "DeferredLightingPass.h"
 #include "DecalPass.h"
+#include "BloomPass.h"
+#include "ParticleSystem.h"
 #include "ComponentDecal.h"
+#include "ComponentParticleEmitter.h"
 #include "RenderTexture.h"
 #include "EmptyScene.h"
 #include "ModuleScene.h"
@@ -137,9 +140,20 @@ bool ModuleEditor::init() {
 
     m_decalPass = std::make_unique<DecalPass>();
     if (!m_decalPass->init(device)) {
-        // Non-fatal: engine runs without decals
         LOG("ModuleEditor: DecalPass init failed (non-fatal)");
         m_decalPass.reset();
+    }
+
+    m_bloomPass = std::make_unique<BloomPass>();
+    if (!m_bloomPass->init(device, DXGI_FORMAT_R8G8B8A8_UNORM)) {
+        LOG("ModuleEditor: BloomPass init failed (non-fatal)");
+        m_bloomPass.reset();
+    }
+
+    m_particleSystem = std::make_unique<ParticleSystem>();
+    if (!m_particleSystem->init(device, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT)) {
+        LOG("ModuleEditor: ParticleSystem init failed (non-fatal)");
+        m_particleSystem.reset();
     }
 
     m_envSystem = std::make_unique<EnvironmentSystem>();
@@ -215,6 +229,8 @@ bool ModuleEditor::cleanUp() {
     m_gbufferPass.reset();
     m_deferredLightingPass.reset();
     m_decalPass.reset();
+    m_bloomPass.reset();
+    m_particleSystem.reset();
     if (m_skinningPass) { m_skinningPass->cleanUp(); m_skinningPass.reset(); }
     m_gpuQueryHeap.Reset();
     m_gpuReadback.Reset();
@@ -500,6 +516,22 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     m_frameDrawCalls = (int)visibleMeshes.size();
     m_frameMeshCount = m_frameDrawCalls;
 
+    // GPU Particle update — runs as a compute dispatch before any graphics work this frame.
+    // Particles are simulated (physics integration + atomic dead count) on the GPU.
+    if (m_particleSystem && moduleScene) {
+        std::vector<EmitterDesc> emitters;
+        gatherParticleEmitters(moduleScene->getRoot(), emitters);
+        float s_dt = static_cast<float>(app->getElapsedMilis()) * 0.001f;
+        s_dt = std::max(s_dt, 0.001f);
+        m_particleSystem->update(cmd, s_dt, emitters);
+        // Rebind descriptor heaps after compute dispatch
+        ID3D12DescriptorHeap* heaps2[] = {
+            app->getShaderDescriptors()->getHeap(),
+            app->getSamplerHeap()->getHeap()
+        };
+        cmd->SetDescriptorHeaps(2, heaps2);
+    }
+
     // Dispatch GPU skinning before the geometry pass so skinned vertex buffers are ready
     if (!skinJobs.empty() && m_skinningPass) {
         UINT frameIndex = app->getD3D12()->getCurrentBackBufferIdx();
@@ -715,6 +747,35 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
 
         m_debugDraw->record(cmd, w, h, view, proj);
     }
+
+    // ── GPU Particle render ───────────────────────────────────────────────────
+    // Particles are rendered as camera-facing billboards after all opaque geometry.
+    // The particle buffer is already in UAV state from the update pass; render()
+    // transitions it to SRV for the VS, then back to UAV.
+    if (m_particleSystem && outputRT && outputRT->isValid() && camera) {
+        // Bind scene RT (still in RTV state from the last graphics pass)
+        auto rtv  = outputRT->getRtvHandle();
+        auto roDsv = m_gbufferPass ? m_gbufferPass->getGBuffer().getReadOnlyDsvHandle()
+                                    : outputRT->getDsvHandle();
+        cmd->OMSetRenderTargets(1, &rtv, FALSE, &roDsv);
+        D3D12_VIEWPORT vp = { 0.f, 0.f, float(w), float(h), 0.f, 1.f };
+        D3D12_RECT     sc = { 0, 0, LONG(w), LONG(h) };
+        cmd->RSSetViewports(1, &vp);
+        cmd->RSSetScissorRects(1, &sc);
+
+        // Extract camera right/up vectors from the view matrix rows.
+        // The view matrix rows are the world-space camera basis vectors (right, up, forward).
+        Vector3 camRight = Vector3(view._11, view._12, view._13);
+        Vector3 camUp    = Vector3(view._21, view._22, view._23);
+        m_particleSystem->render(cmd, viewProj, camRight, camUp, 0.08f);
+    }
+
+    // ── Bloom post-process ────────────────────────────────────────────────────
+    // Three compute passes (threshold → blur H → blur V) + a fullscreen additive composite.
+    // Demonstrates UAV textures, groupshared LDS, UAV barriers, and correct group-count formula.
+    if (m_bloomPass && outputRT && outputRT->isValid()) {
+        m_bloomPass->render(cmd, *outputRT, w, h);
+    }
 }
 
 void ModuleEditor::gatherLights(GameObject* node, FrameLightData& out) const {
@@ -786,6 +847,14 @@ void ModuleEditor::gatherDecals(GameObject* node, std::vector<DecalInstance>& ou
     }
 
     for (auto* c : node->getChildren()) gatherDecals(c, out, view, proj, w, h);
+}
+
+void ModuleEditor::gatherParticleEmitters(GameObject* node,
+                                            std::vector<EmitterDesc>& out) const {
+    if (!node || !node->isActive()) return;
+    if (auto* pe = node->getComponent<ComponentParticleEmitter>(); pe && pe->enabled)
+        out.push_back(pe->buildDesc());
+    for (auto* c : node->getChildren()) gatherParticleEmitters(c, out);
 }
 
 void ModuleEditor::drawDockspace() {

@@ -131,6 +131,9 @@
     <ClCompile Include="ComponentDecal.cpp">
       <Filter>Engine\Scene\Components</Filter>
     </ClCompile>
+    <ClCompile Include="ComponentParticleEmitter.cpp">
+      <Filter>Engine\Scene\Components</Filter>
+    </ClCompile>
     <!-- Engine\Scene\Prefabs -->
     <ClCompile Include="PrefabManager.cpp">
       <Filter>Engine\Scene\Prefabs</Filter>
@@ -268,6 +271,12 @@
     <ClCompile Include="DecalPass.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
+    <ClCompile Include="BloomPass.cpp">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClCompile>
+    <ClCompile Include="ParticleSystem.cpp">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClCompile>
     <ClCompile Include="HDRToCubemapPass.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
@@ -285,6 +294,12 @@
       <Filter>Engine\Rendering\Pipelines</Filter>
     </ClCompile>
     <ClCompile Include="DecalPipeline.cpp">
+      <Filter>Engine\Rendering\Pipelines</Filter>
+    </ClCompile>
+    <ClCompile Include="BloomPipeline.cpp">
+      <Filter>Engine\Rendering\Pipelines</Filter>
+    </ClCompile>
+    <ClCompile Include="ParticlePipeline.cpp">
       <Filter>Engine\Rendering\Pipelines</Filter>
     </ClCompile>
     <!-- Engine\Rendering\Materials -->
@@ -565,6 +580,9 @@
     <ClInclude Include="ComponentDecal.h">
       <Filter>Engine\Scene\Components</Filter>
     </ClInclude>
+    <ClInclude Include="ComponentParticleEmitter.h">
+      <Filter>Engine\Scene\Components</Filter>
+    </ClInclude>
     <!-- Engine\Scene\Prefabs -->
     <ClInclude Include="PrefabManager.h">
       <Filter>Engine\Scene\Prefabs</Filter>
@@ -735,6 +753,12 @@
     <ClInclude Include="DecalPass.h">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
+    <ClInclude Include="BloomPass.h">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClInclude>
+    <ClInclude Include="ParticleSystem.h">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClInclude>
     <ClInclude Include="HDRToCubemapPass.h">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
@@ -752,6 +776,12 @@
       <Filter>Engine\Rendering\Pipelines</Filter>
     </ClInclude>
     <ClInclude Include="DecalPipeline.h">
+      <Filter>Engine\Rendering\Pipelines</Filter>
+    </ClInclude>
+    <ClInclude Include="BloomPipeline.h">
+      <Filter>Engine\Rendering\Pipelines</Filter>
+    </ClInclude>
+    <ClInclude Include="ParticlePipeline.h">
       <Filter>Engine\Rendering\Pipelines</Filter>
     </ClInclude>
     <!-- Engine\Rendering\Materials -->
@@ -999,6 +1029,27 @@
     </FxCompile>
     <FxCompile Include="shaders\DecalPS.hlsl">
       <Filter>Shaders\Deferred</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\BloomThresholdCS.hlsl">
+      <Filter>Shaders\Deferred</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\BloomBlurHCS.hlsl">
+      <Filter>Shaders\Deferred</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\BloomBlurVCS.hlsl">
+      <Filter>Shaders\Deferred</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\BloomCompositePS.hlsl">
+      <Filter>Shaders\Deferred</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ParticleUpdateCS.hlsl">
+      <Filter>Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ParticleRenderVS.hlsl">
+      <Filter>Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ParticleRenderPS.hlsl">
+      <Filter>Shaders\Particles</Filter>
     </FxCompile>
     <!-- Shaders\Environment -->
     <FxCompile Include="shaders\EnvironmentBRDFPS.hlsl">

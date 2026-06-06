@@ -19,6 +19,7 @@
 #include "ComponentLights.h"
 #include "ComponentAnimation.h"
 #include "ComponentDecal.h"
+#include "ComponentParticleEmitter.h"
 #include "ComponentFactory.h"
 #include "PrefabManager.h"
 #include "TextureImporter.h"
@@ -183,7 +184,8 @@ void InspectorPanel::drawContent() {
             comp->getType() == Component::Type::SimpleCharacterController ? "Character Controller" :
             comp->getType() == Component::Type::Rigidbody ? "Rigidbody" :
             comp->getType() == Component::Type::Bounds    ? "Bounds" :
-            comp->getType() == Component::Type::Decal     ? "Decal" :
+            comp->getType() == Component::Type::Decal            ? "Decal" :
+            comp->getType() == Component::Type::ParticleEmitter  ? "Particle Emitter" :
             "Component";
 
         ImGui::PushID((int)comp->getType());
@@ -381,7 +383,10 @@ void InspectorPanel::drawAddComponentMenu() {
     addComp("Character Controller",Component::Type::SimpleCharacterController,go->getComponent<ComponentSimpleCharacterController>() != nullptr);
     ImGui::Separator();
     // ---- Visual effects ----
-    addComp("Decal", Component::Type::Decal, go->getComponent<ComponentDecal>() != nullptr);
+    addComp("Decal",            Component::Type::Decal,
+            go->getComponent<ComponentDecal>() != nullptr);
+    addComp("Particle Emitter", Component::Type::ParticleEmitter,
+            go->getComponent<ComponentParticleEmitter>() != nullptr);
     ImGui::EndPopup();
 }
 
