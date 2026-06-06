@@ -18,6 +18,7 @@
 #include "ComponentMesh.h"
 #include "ComponentLights.h"
 #include "ComponentAnimation.h"
+#include "ComponentDecal.h"
 #include "ComponentFactory.h"
 #include "PrefabManager.h"
 #include "TextureImporter.h"
@@ -182,6 +183,7 @@ void InspectorPanel::drawContent() {
             comp->getType() == Component::Type::SimpleCharacterController ? "Character Controller" :
             comp->getType() == Component::Type::Rigidbody ? "Rigidbody" :
             comp->getType() == Component::Type::Bounds    ? "Bounds" :
+            comp->getType() == Component::Type::Decal     ? "Decal" :
             "Component";
 
         ImGui::PushID((int)comp->getType());
@@ -377,6 +379,9 @@ void InspectorPanel::drawAddComponentMenu() {
     addComp("Animation",           Component::Type::Animation,                go->getComponent<ComponentAnimation>()                != nullptr);
     addComp("Character Motion",    Component::Type::CharacterMotion,          go->getComponent<ComponentCharacterMotion>()           != nullptr);
     addComp("Character Controller",Component::Type::SimpleCharacterController,go->getComponent<ComponentSimpleCharacterController>() != nullptr);
+    ImGui::Separator();
+    // ---- Visual effects ----
+    addComp("Decal", Component::Type::Decal, go->getComponent<ComponentDecal>() != nullptr);
     ImGui::EndPopup();
 }
 

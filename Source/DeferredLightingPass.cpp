@@ -66,6 +66,10 @@ bool DeferredLightingPass::init(ID3D12Device* device) {
         LOG("DeferredLightingPass: pipeline init failed");
         return false;
     }
+    if (!m_lightCulling.init(device)) {
+        LOG("DeferredLightingPass: light culling init failed");
+        return false;
+    }
     if (!createUploadBuffers(device)) return false;
     if (!createLightSRVs()) return false;
     if (!createFallbackIBL(device)) return false;
@@ -179,15 +183,19 @@ void DeferredLightingPass::uploadLights(const FrameLightData& lights) {
 void DeferredLightingPass::uploadPerFrameCB(const FrameLightData& lights,
                                              const Vector3& cameraPos,
                                              const Matrix& invViewProj,
-                                             uint32_t envRoughLevels) {
+                                             uint32_t envRoughLevels,
+                                             uint32_t width, uint32_t height) {
     CbPerFrame cb = {};
-    cb.dirLightCount = static_cast<uint32_t>(std::min(lights.dirLights.size(), (size_t)MeshPipeline::MAX_DIR_LIGHTS));
-    cb.pointLightCount = static_cast<uint32_t>(std::min(lights.pointLights.size(), (size_t)MeshPipeline::MAX_POINT_LIGHTS));
-    cb.spotLightCount = static_cast<uint32_t>(std::min(lights.spotLights.size(), (size_t)MeshPipeline::MAX_SPOT_LIGHTS));
+    cb.dirLightCount      = static_cast<uint32_t>(std::min(lights.dirLights.size(), (size_t)MeshPipeline::MAX_DIR_LIGHTS));
+    cb.pointLightCount    = static_cast<uint32_t>(std::min(lights.pointLights.size(), (size_t)MeshPipeline::MAX_POINT_LIGHTS));
+    cb.spotLightCount     = static_cast<uint32_t>(std::min(lights.spotLights.size(), (size_t)MeshPipeline::MAX_SPOT_LIGHTS));
     cb.envRoughnessLevels = envRoughLevels;
-    cb.cameraPosition = cameraPos;
-    cb.framePad = 0;
-    cb.invViewProj = invViewProj.Transpose();
+    cb.cameraPosition     = cameraPos;
+    cb.framePad           = 0;
+    cb.invViewProj        = invViewProj.Transpose();
+    cb.viewportWidth      = width;
+    cb.viewportHeight     = height;
+    cb.pad0 = cb.pad1     = 0;
     memcpy(m_perFrameMapped, &cb, sizeof(cb));
 }
 
@@ -195,6 +203,8 @@ void DeferredLightingPass::render(ID3D12GraphicsCommandList* cmd,
                                    GBufferPass& gbufferPass,
                                    const FrameLightData& lights,
                                    const Vector3& cameraPos,
+                                   const Matrix& view,
+                                   const Matrix& projection,
                                    const Matrix& invViewProj,
                                    const EnvironmentSystem* env,
                                    uint32_t width, uint32_t height) {
@@ -204,8 +214,11 @@ void DeferredLightingPass::render(ID3D12GraphicsCommandList* cmd,
     uint32_t roughLevels = 0;
     if (env && env->hasIBL()) roughLevels = EnvironmentMap::NUM_ROUGHNESS_LEVELS;
 
+    // Run tiled light culling (reads depth buffer, outputs per-tile index lists)
+    m_lightCulling.cull(cmd, gbufferPass, lights, view, projection, width, height);
+
     uploadLights(lights);
-    uploadPerFrameCB(lights, cameraPos, invViewProj, roughLevels);
+    uploadPerFrameCB(lights, cameraPos, invViewProj, roughLevels, width, height);
 
     BEGIN_EVENT(cmd, L"Deferred Lighting Pass");
 
@@ -255,6 +268,12 @@ void DeferredLightingPass::render(ID3D12GraphicsCommandList* cmd,
                                          gb.getSrvHandle(GBuffer::EmissiveAO));
     cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_GBUF_DEPTH,
                                          gb.getDepthSrvHandle());
+
+    // Per-tile light index lists (from light culling pass)
+    cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_POINT_INDICES,
+                                         m_lightCulling.getPointListSRV());
+    cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_SPOT_INDICES,
+                                         m_lightCulling.getSpotListSRV());
 
     cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_SAMPLER,
                                          samplerHeap->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));

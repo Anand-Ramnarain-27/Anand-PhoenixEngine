@@ -15,8 +15,10 @@ public:
     static constexpr UINT SLOT_GBUF_ALBEDO = 7; // t6, pixel  — GBuffer albedo
     static constexpr UINT SLOT_GBUF_NORMAL = 8; // t7, pixel  — GBuffer normalMetalRough
     static constexpr UINT SLOT_GBUF_EMISSIVE = 9; // t8, pixel  — GBuffer emissiveAO
-    static constexpr UINT SLOT_GBUF_DEPTH = 10; // t9, pixel  — GBuffer depth (R32F)
-    static constexpr UINT SLOT_SAMPLER = 11; // s0-s3, pixel
+    static constexpr UINT SLOT_GBUF_DEPTH = 10;      // t9,  pixel  — GBuffer depth (R32F)
+    static constexpr UINT SLOT_POINT_INDICES = 11;  // t10, pixel  — per-tile point light indices
+    static constexpr UINT SLOT_SPOT_INDICES  = 12;  // t11, pixel  — per-tile spot  light indices
+    static constexpr UINT SLOT_SAMPLER = 13;        // s0-s3, pixel
 
     bool init(ID3D12Device* device);
 

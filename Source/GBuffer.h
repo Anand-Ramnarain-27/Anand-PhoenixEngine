@@ -35,7 +35,9 @@ public:
     D3D12_GPU_DESCRIPTOR_HANDLE getDepthSrvHandle() const;
     D3D12_CPU_DESCRIPTOR_HANDLE getDsvHandle() const;
     D3D12_CPU_DESCRIPTOR_HANDLE getReadOnlyDsvHandle() const;
+    D3D12_CPU_DESCRIPTOR_HANDLE getRtvHandle(Target t) const;
     ID3D12Resource* getDepthTexture() const { return m_depthTexture.Get(); }
+    ID3D12Resource* getColorTexture(Target t) const { return m_colorTextures[static_cast<int>(t)].Get(); }
 
 private:
     ComPtr<ID3D12Resource> m_colorTextures[NUM_COLOR_RTS];

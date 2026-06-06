@@ -18,22 +18,27 @@ bool DeferredLightingPipeline::createRootSignature(ID3D12Device* device) {
     CD3DX12_DESCRIPTOR_RANGE albRange; albRange.Init (D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6);
     CD3DX12_DESCRIPTOR_RANGE normRange; normRange.Init (D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 7);
     CD3DX12_DESCRIPTOR_RANGE emissRange; emissRange.Init (D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 8);
-    CD3DX12_DESCRIPTOR_RANGE depthRange; depthRange.Init (D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 9);
-    CD3DX12_DESCRIPTOR_RANGE samplerRange; samplerRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, ModuleSamplerHeap::COUNT, 0);
+    CD3DX12_DESCRIPTOR_RANGE depthRange;     depthRange    .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 9);
+    CD3DX12_DESCRIPTOR_RANGE pointIdxRange;  pointIdxRange .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 10);
+    CD3DX12_DESCRIPTOR_RANGE spotIdxRange;   spotIdxRange  .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 11);
+    CD3DX12_DESCRIPTOR_RANGE samplerRange;   samplerRange  .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,
+                                                                  ModuleSamplerHeap::COUNT, 0);
 
-    CD3DX12_ROOT_PARAMETER params[12];
-    params[SLOT_PERFRAME_CB ].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_DIR_LIGHTS ].InitAsDescriptorTable(1, &dirRange, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_POINT_LIGHTS ].InitAsDescriptorTable(1, &pointRange, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_SPOT_LIGHTS ].InitAsDescriptorTable(1, &spotRange, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_IRRADIANCE ].InitAsDescriptorTable(1, &irrRange, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_PREFILTER ].InitAsDescriptorTable(1, &prefRange, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_BRDF_LUT ].InitAsDescriptorTable(1, &brdfRange, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_GBUF_ALBEDO ].InitAsDescriptorTable(1, &albRange, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_GBUF_NORMAL ].InitAsDescriptorTable(1, &normRange, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_GBUF_EMISSIVE].InitAsDescriptorTable(1, &emissRange, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_GBUF_DEPTH ].InitAsDescriptorTable(1, &depthRange, D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_SAMPLER ].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    CD3DX12_ROOT_PARAMETER params[14];
+    params[SLOT_PERFRAME_CB   ].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_DIR_LIGHTS    ].InitAsDescriptorTable(1, &dirRange,      D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_POINT_LIGHTS  ].InitAsDescriptorTable(1, &pointRange,    D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_SPOT_LIGHTS   ].InitAsDescriptorTable(1, &spotRange,     D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_IRRADIANCE    ].InitAsDescriptorTable(1, &irrRange,      D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_PREFILTER     ].InitAsDescriptorTable(1, &prefRange,     D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_BRDF_LUT      ].InitAsDescriptorTable(1, &brdfRange,     D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_GBUF_ALBEDO   ].InitAsDescriptorTable(1, &albRange,      D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_GBUF_NORMAL   ].InitAsDescriptorTable(1, &normRange,     D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_GBUF_EMISSIVE ].InitAsDescriptorTable(1, &emissRange,    D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_GBUF_DEPTH    ].InitAsDescriptorTable(1, &depthRange,    D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_POINT_INDICES ].InitAsDescriptorTable(1, &pointIdxRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_SPOT_INDICES  ].InitAsDescriptorTable(1, &spotIdxRange,  D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_SAMPLER       ].InitAsDescriptorTable(1, &samplerRange,  D3D12_SHADER_VISIBILITY_PIXEL);
 
     CD3DX12_ROOT_SIGNATURE_DESC desc;
     desc.Init(_countof(params), params, 0, nullptr,

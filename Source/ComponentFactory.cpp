@@ -10,6 +10,7 @@
 #include "ComponentSimpleCharacterController.h"
 #include "ComponentRigidbody.h"
 #include "ComponentBounds.h"
+#include "ComponentDecal.h"
 
 std::unique_ptr<Component> ComponentFactory::CreateComponent(Component::Type type, GameObject* owner) {
     switch (type) {
@@ -25,6 +26,7 @@ std::unique_ptr<Component> ComponentFactory::CreateComponent(Component::Type typ
     case Component::Type::SimpleCharacterController: return std::make_unique<ComponentSimpleCharacterController>(owner);
     case Component::Type::Rigidbody: return std::make_unique<ComponentRigidbody>(owner);
     case Component::Type::Bounds:    return std::make_unique<ComponentBounds>(owner);
+    case Component::Type::Decal:     return std::make_unique<ComponentDecal>(owner);
     default: LOG("ComponentFactory: Unknown component type %d", (int)type); return nullptr;
     }
 }

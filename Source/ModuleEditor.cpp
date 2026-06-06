@@ -15,6 +15,8 @@
 #include "MeshRenderPass.h"
 #include "GBufferPass.h"
 #include "DeferredLightingPass.h"
+#include "DecalPass.h"
+#include "ComponentDecal.h"
 #include "RenderTexture.h"
 #include "EmptyScene.h"
 #include "ModuleScene.h"
@@ -133,6 +135,13 @@ bool ModuleEditor::init() {
     m_deferredLightingPass = std::make_unique<DeferredLightingPass>();
     if (!m_deferredLightingPass->init(device)) return false;
 
+    m_decalPass = std::make_unique<DecalPass>();
+    if (!m_decalPass->init(device)) {
+        // Non-fatal: engine runs without decals
+        LOG("ModuleEditor: DecalPass init failed (non-fatal)");
+        m_decalPass.reset();
+    }
+
     m_envSystem = std::make_unique<EnvironmentSystem>();
     if (!m_envSystem->init(device, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT, false)) return false;
 
@@ -205,6 +214,7 @@ bool ModuleEditor::cleanUp() {
     m_sceneManager.reset();
     m_gbufferPass.reset();
     m_deferredLightingPass.reset();
+    m_decalPass.reset();
     if (m_skinningPass) { m_skinningPass->cleanUp(); m_skinningPass.reset(); }
     m_gpuQueryHeap.Reset();
     m_gpuReadback.Reset();
@@ -537,13 +547,21 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
             cmd->RSSetScissorRects(1, &sc);
         }
 
+        // Decal pass — runs after G-Buffer, before lighting; writes back into albedo RT
+        if (m_decalPass && moduleScene) {
+            std::vector<DecalInstance> decals;
+            gatherDecals(moduleScene->getRoot(), decals, view, proj, w, h);
+            if (!decals.empty())
+                m_decalPass->render(cmd, *m_gbufferPass, decals, w, h);
+        }
+
         // Deferred lighting pass — fullscreen triangle reading from GBuffer SRVs
         if (m_deferredLightingPass) {
             Matrix invViewProj;
             viewProj.Invert(invViewProj);
             m_deferredLightingPass->render(cmd, *m_gbufferPass, m_frameLights,
-                                            camera->getPos(), invViewProj,
-                                            envForIBL, w, h);
+                                            camera->getPos(), view, proj,
+                                            invViewProj, envForIBL, w, h);
         }
 
         // Transparent forward pass — sorted back-to-front, depth test only (no depth write)
@@ -742,6 +760,32 @@ void ModuleEditor::gatherLights(GameObject* node, FrameLightData& out) const {
     }
 
     for (auto* c : node->getChildren()) gatherLights(c, out);
+}
+
+void ModuleEditor::gatherDecals(GameObject* node, std::vector<DecalInstance>& out,
+                                  const Matrix& view, const Matrix& proj,
+                                  uint32_t w, uint32_t h) const {
+    if (!node || !node->isActive()) return;
+
+    if (auto* dc = node->getComponent<ComponentDecal>(); dc && dc->enabled) {
+        if (out.size() < DecalPass::MAX_DECALS) {
+            Matrix worldMat  = node->getTransform()->getGlobalMatrix();
+            Matrix viewProj  = view * proj;
+
+            DecalInstance inst;
+            inst.mvp        = (worldMat * viewProj).Transpose();
+            worldMat.Invert(inst.invModel);
+            inst.invModel   = inst.invModel.Transpose();
+
+            Matrix invVP;
+            viewProj.Invert(invVP);
+            inst.invViewProj = invVP.Transpose();
+
+            out.push_back(inst);
+        }
+    }
+
+    for (auto* c : node->getChildren()) gatherDecals(c, out, view, proj, w, h);
 }
 
 void ModuleEditor::drawDockspace() {

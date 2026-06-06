@@ -12,6 +12,7 @@
 #include "FileWatcher.h"
 #include "GBufferPass.h"
 #include "DeferredLightingPass.h"
+#include "DecalPass.h"
 #include "SkinningPass.h"
 
 #include <memory>
@@ -128,6 +129,7 @@ private:
     std::unique_ptr<MeshRenderPass> m_meshRenderPass;
     std::unique_ptr<GBufferPass> m_gbufferPass;
     std::unique_ptr<DeferredLightingPass> m_deferredLightingPass;
+    std::unique_ptr<DecalPass> m_decalPass;
     std::unique_ptr<EnvironmentSystem> m_envSystem;
     std::unique_ptr<HotReloadManager> m_hotReload;
     std::unique_ptr<SkinningPass> m_skinningPass;
@@ -192,6 +194,9 @@ private:
 
     ComPtr<ID3D12Resource> createUploadBuffer(ID3D12Device*, SIZE_T, const wchar_t*);
     void gatherLights(GameObject* node, FrameLightData& out) const;
+    void gatherDecals(GameObject* node, std::vector<DecalInstance>& out,
+                      const Matrix& view, const Matrix& proj,
+                      uint32_t w, uint32_t h) const;
     void debugDrawLights(ModuleScene* scene, float lightSize);
     void updateMemory();
     void handleNewScenePopup(ID3D12GraphicsCommandList* cmd);

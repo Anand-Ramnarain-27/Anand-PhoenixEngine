@@ -19,6 +19,7 @@ public:
         SimpleCharacterController = 9,
         Rigidbody = 10,
         Bounds = 11,
+        Decal = 12,
     };
 
     explicit Component(GameObject* owner) : owner(owner) {}

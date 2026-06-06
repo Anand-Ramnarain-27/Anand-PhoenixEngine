@@ -1,5 +1,6 @@
 #pragma once
 #include "DeferredLightingPipeline.h"
+#include "LightCullingPass.h"
 #include "MeshPipeline.h"
 #include "ShaderTableDesc.h"
 #include <d3d12.h>
@@ -18,9 +19,12 @@ public:
         uint32_t pointLightCount;
         uint32_t spotLightCount;
         uint32_t envRoughnessLevels;
-        Vector3 cameraPosition;
+        Vector3  cameraPosition;
         uint32_t framePad;
-        Matrix invViewProj;
+        Matrix   invViewProj;
+        uint32_t viewportWidth;
+        uint32_t viewportHeight;
+        uint32_t pad0, pad1;
     };
 
     bool init(ID3D12Device* device);
@@ -29,6 +33,8 @@ public:
                 GBufferPass& gbufferPass,
                 const FrameLightData& lights,
                 const Vector3& cameraPos,
+                const Matrix& view,
+                const Matrix& projection,
                 const Matrix& invViewProj,
                 const EnvironmentSystem* env,
                 uint32_t width, uint32_t height);
@@ -40,9 +46,11 @@ private:
 
     void uploadLights(const FrameLightData& lights);
     void uploadPerFrameCB(const FrameLightData& lights, const Vector3& cameraPos,
-                          const Matrix& invViewProj, uint32_t envRoughLevels);
+                          const Matrix& invViewProj, uint32_t envRoughLevels,
+                          uint32_t width, uint32_t height);
 
     DeferredLightingPipeline m_pipeline;
+    LightCullingPass m_lightCulling;
 
     ComPtr<ID3D12Resource> m_perFrameCB;
     void* m_perFrameMapped = nullptr;

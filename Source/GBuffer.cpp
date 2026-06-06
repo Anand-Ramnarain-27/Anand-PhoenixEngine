@@ -184,3 +184,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE GBuffer::getDsvHandle() const {
 D3D12_CPU_DESCRIPTOR_HANDLE GBuffer::getReadOnlyDsvHandle() const {
     return m_dsvReadOnly.getCPUHandle();
 }
+
+D3D12_CPU_DESCRIPTOR_HANDLE GBuffer::getRtvHandle(Target t) const {
+    return m_rtvDescs[static_cast<int>(t)].getCPUHandle();
+}

@@ -4,6 +4,9 @@
 #include "Samplers.hlsli"
 #include "Tonemap.hlsli"
 
+#define TILE_SIZE        16
+#define MAX_LIGHTS_PER_TILE 64
+
 cbuffer CbPerFrame : register(b0)
 {
     uint     DirLightCount;
@@ -13,11 +16,18 @@ cbuffer CbPerFrame : register(b0)
     float3   CameraPosition;
     uint     FramePad;
     float4x4 InvViewProj;
+    uint     ViewportWidth;
+    uint     ViewportHeight;
+    uint2    LightCullingPad;
 };
 
 StructuredBuffer<DirectionalLight> DirLights   : register(t0);
 StructuredBuffer<PointLight>       PointLights : register(t1);
 StructuredBuffer<SpotLight>        SpotLights  : register(t2);
+
+// Tiled light index lists produced by LightCullingCS
+StructuredBuffer<int> PointLightIndices : register(t10);
+StructuredBuffer<int> SpotLightIndices  : register(t11);
 
 TextureCube IrradianceMap     : register(t3);
 TextureCube PrefilteredEnvMap : register(t4);
@@ -47,6 +57,13 @@ float3 ReconstructWorldPos(float2 uv, float depth)
     return worldH.xyz / worldH.w;
 }
 
+// Returns the flat tile index for a given screen pixel position.
+uint getTileIndex(uint2 pixelPos)
+{
+    uint numTilesX = (ViewportWidth + TILE_SIZE - 1) / TILE_SIZE;
+    return (pixelPos.y / TILE_SIZE) * numTilesX + (pixelPos.x / TILE_SIZE);
+}
+
 float4 main(float4 svPos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
 {
     float4 albedoSample    = GBufferAlbedo.Sample(PointClamp, uv);
@@ -74,11 +91,22 @@ float4 main(float4 svPos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
     for (uint i = 0; i < DirLightCount; ++i)
         color += EvaluateDirectionalLight(V, N, DirLights[i], albedo, roughness, metallic);
 
-    for (uint j = 0; j < PointLightCount; ++j)
-        color += EvaluatePointLight(V, N, PointLights[j], worldPos, albedo, roughness, metallic);
+    // Tiled light culling: only iterate lights that affect this tile
+    uint tileIdx = getTileIndex(uint2(svPos.xy));
 
-    for (uint k = 0; k < SpotLightCount; ++k)
-        color += EvaluateSpotLight(V, N, SpotLights[k], worldPos, albedo, roughness, metallic);
+    for (uint j = 0; j < MAX_LIGHTS_PER_TILE; ++j)
+    {
+        int pIdx = PointLightIndices[tileIdx * MAX_LIGHTS_PER_TILE + j];
+        if (pIdx < 0) break;
+        color += EvaluatePointLight(V, N, PointLights[pIdx], worldPos, albedo, roughness, metallic);
+    }
+
+    for (uint k = 0; k < MAX_LIGHTS_PER_TILE; ++k)
+    {
+        int sIdx = SpotLightIndices[tileIdx * MAX_LIGHTS_PER_TILE + k];
+        if (sIdx < 0) break;
+        color += EvaluateSpotLight(V, N, SpotLights[sIdx], worldPos, albedo, roughness, metallic);
+    }
 
     // Image-based lighting
     float NdotV    = saturate(dot(N, V));
