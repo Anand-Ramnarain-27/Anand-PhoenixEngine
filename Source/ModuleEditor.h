@@ -13,8 +13,6 @@
 #include "GBufferPass.h"
 #include "DeferredLightingPass.h"
 #include "DecalPass.h"
-#include "BloomPass.h"
-#include "ParticleSystem.h"
 #include "SkinningPass.h"
 
 #include <memory>
@@ -85,8 +83,6 @@ public:
 
     GBufferPass* getGBufferPass() const { return m_gbufferPass.get(); }
     DeferredLightingPass* getDeferredLightingPass() const { return m_deferredLightingPass.get(); }
-    BloomPass* getBloomPass() const { return m_bloomPass.get(); }
-    ParticleSystem* getParticleSystem() const { return m_particleSystem.get(); }
 
     void log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
     GameObject* createEmptyGameObject(const char* name = "Empty", GameObject* parent = nullptr);
@@ -134,8 +130,6 @@ private:
     std::unique_ptr<GBufferPass> m_gbufferPass;
     std::unique_ptr<DeferredLightingPass> m_deferredLightingPass;
     std::unique_ptr<DecalPass> m_decalPass;
-    std::unique_ptr<BloomPass> m_bloomPass;
-    std::unique_ptr<ParticleSystem> m_particleSystem;
     std::unique_ptr<EnvironmentSystem> m_envSystem;
     std::unique_ptr<HotReloadManager> m_hotReload;
     std::unique_ptr<SkinningPass> m_skinningPass;
@@ -203,8 +197,6 @@ private:
     void gatherDecals(GameObject* node, std::vector<DecalInstance>& out,
                       const Matrix& view, const Matrix& proj,
                       uint32_t w, uint32_t h) const;
-    void gatherParticleEmitters(GameObject* node,
-                                std::vector<EmitterDesc>& out) const;
     void debugDrawLights(ModuleScene* scene, float lightSize);
     void updateMemory();
     void handleNewScenePopup(ID3D12GraphicsCommandList* cmd);

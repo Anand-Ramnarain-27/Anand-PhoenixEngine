@@ -16,7 +16,6 @@ private:
     void drawLightingSection();
     void drawPhysicsSection();
     void drawBroadphaseSection();
-    void drawPostProcessSection();
 
     std::vector<std::string> m_skyboxFiles;
     int m_selectedSkybox = -1;

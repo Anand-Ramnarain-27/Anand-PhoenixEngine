@@ -1,6 +1,5 @@
 #include "Globals.h"
 #include "SceneSettingsPanel.h"
-#include "BloomPass.h"
 #include "ModuleEditor.h"
 #include "Application.h"
 #include "SceneManager.h"
@@ -16,22 +15,8 @@ void SceneSettingsPanel::drawContent() {
     if (!m_editor->getSceneManager()) { textMuted("No scene manager."); return; }
     drawEnvironmentSection();
     drawLightingSection();
-    drawPostProcessSection();
     drawPhysicsSection();
     drawBroadphaseSection();
-}
-
-// ---- Post-Processing (Bloom) -----------------------------------------------
-void SceneSettingsPanel::drawPostProcessSection() {
-    if (!ImGui::CollapsingHeader("Post-Processing")) return;
-    auto* bloom = m_editor->getBloomPass();
-    if (!bloom) { ImGui::TextDisabled("Bloom pass not available."); return; }
-    auto& s = bloom->getSettings();
-    ImGui::Checkbox("Bloom Enabled",   &s.enabled);
-    if (s.enabled) {
-        ImGui::SliderFloat("Threshold", &s.threshold, 0.0f, 1.0f);
-        ImGui::SliderFloat("Strength",  &s.strength,  0.0f, 5.0f);
-    }
 }
 
 // ---- 1. Environment --------------------------------------------------------
