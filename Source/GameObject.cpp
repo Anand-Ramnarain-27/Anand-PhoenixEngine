@@ -10,6 +10,8 @@
 #include "ComponentSimpleCharacterController.h"
 #include "ComponentRigidbody.h"
 #include "ComponentBounds.h"
+#include "ComponentParticleEmitter.h"
+#include "ComponentDecal.h"
 #include "PrefabManager.h"
 #include <algorithm>
 #include <random>
@@ -126,6 +128,8 @@ template ComponentCharacterMotion* GameObject::getComponent<ComponentCharacterMo
 template ComponentSimpleCharacterController* GameObject::getComponent<ComponentSimpleCharacterController>() const;
 template ComponentRigidbody* GameObject::getComponent<ComponentRigidbody>() const;
 template ComponentBounds*    GameObject::getComponent<ComponentBounds>() const;
+template ComponentParticleEmitter* GameObject::getComponent<ComponentParticleEmitter>() const;
+template ComponentDecal*     GameObject::getComponent<ComponentDecal>() const;
 
 template bool GameObject::removeComponent<ComponentMesh>();
 template bool GameObject::removeComponent<ComponentCamera>();

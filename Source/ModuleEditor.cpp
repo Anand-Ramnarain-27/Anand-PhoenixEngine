@@ -755,9 +755,11 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     if (m_particleSystem && outputRT && outputRT->isValid() && camera) {
         // Bind scene RT (still in RTV state from the last graphics pass)
         auto rtv  = outputRT->getRtvHandle();
-        auto roDsv = m_gbufferPass ? m_gbufferPass->getGBuffer().getReadOnlyDsvHandle()
-                                    : outputRT->getDsvHandle();
-        cmd->OMSetRenderTargets(1, &rtv, FALSE, &roDsv);
+        bool useGBufferDsv = m_gbufferPass && m_gbufferPass->getGBuffer().isValid();
+        auto roDsv = useGBufferDsv ? m_gbufferPass->getGBuffer().getReadOnlyDsvHandle()
+                                   : outputRT->getDsvHandle();
+        bool hasDsv = useGBufferDsv || outputRT->getDepthTexture() != nullptr;
+        cmd->OMSetRenderTargets(1, &rtv, FALSE, hasDsv ? &roDsv : nullptr);
         D3D12_VIEWPORT vp = { 0.f, 0.f, float(w), float(h), 0.f, 1.f };
         D3D12_RECT     sc = { 0, 0, LONG(w), LONG(h) };
         cmd->RSSetViewports(1, &vp);
