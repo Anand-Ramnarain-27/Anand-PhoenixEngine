@@ -12,6 +12,7 @@
 #include "ComponentBounds.h"
 #include "ComponentDecal.h"
 #include "ComponentBillboard.h"
+#include "ComponentParticleSystem.h"
 #include "PrefabManager.h"
 #include <algorithm>
 #include <random>
@@ -118,6 +119,7 @@ template ComponentRigidbody* GameObject::createComponent<ComponentRigidbody>();
 template ComponentBounds*    GameObject::createComponent<ComponentBounds>();
 template ComponentDecal*     GameObject::createComponent<ComponentDecal>();
 template ComponentBillboard* GameObject::createComponent<ComponentBillboard>();
+template ComponentParticleSystem* GameObject::createComponent<ComponentParticleSystem>();
 
 template ComponentTransform* GameObject::getComponent<ComponentTransform>() const;
 template ComponentMesh* GameObject::getComponent<ComponentMesh>() const;
@@ -132,6 +134,7 @@ template ComponentRigidbody* GameObject::getComponent<ComponentRigidbody>() cons
 template ComponentBounds*    GameObject::getComponent<ComponentBounds>() const;
 template ComponentDecal*     GameObject::getComponent<ComponentDecal>() const;
 template ComponentBillboard* GameObject::getComponent<ComponentBillboard>() const;
+template ComponentParticleSystem* GameObject::getComponent<ComponentParticleSystem>() const;
 
 template bool GameObject::removeComponent<ComponentMesh>();
 template bool GameObject::removeComponent<ComponentCamera>();

@@ -119,7 +119,6 @@ void BillboardPass::render(ID3D12GraphicsCommandList* cmd,
 
     BEGIN_EVENT(cmd, L"Billboard Pass");
 
-    cmd->SetPipelineState(m_pipeline.getPSO());
     cmd->SetGraphicsRootSignature(m_pipeline.getRootSig());
 
     ID3D12DescriptorHeap* heaps[] = {
@@ -138,8 +137,18 @@ void BillboardPass::render(ID3D12GraphicsCommandList* cmd,
     const UINT cbStride = cbAlign(sizeof(BillboardInstanceCB));
     const UINT count = std::min((UINT)billboards.size(), MAX_BILLBOARDS);
 
+    bool additiveBound = false;
+    cmd->SetPipelineState(m_pipeline.getPSO());
+
     for (UINT i = 0; i < count; ++i) {
         const BillboardInstance& bb = billboards[i];
+
+        // Switch PSO only when the blend mode actually changes between consecutive
+        // draws — instances are sorted back-to-front so runs are usually contiguous.
+        if (bb.additive != additiveBound) {
+            additiveBound = bb.additive;
+            cmd->SetPipelineState(additiveBound ? m_pipeline.getAdditivePSO() : m_pipeline.getPSO());
+        }
 
         void* dst = reinterpret_cast<uint8_t*>(m_cbMapped) + i * cbStride;
         memcpy(dst, &bb.cb, sizeof(BillboardInstanceCB));

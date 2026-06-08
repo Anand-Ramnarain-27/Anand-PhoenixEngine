@@ -77,5 +77,14 @@ bool BillboardPipeline::createPSO(ID3D12Device* device) {
 
     HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_pso));
     if (FAILED(hr)) { LOG("BillboardPipeline: CreateGraphicsPipelineState failed 0x%08X", hr); return false; }
+
+    // Additive variant — same desc, only the blend mode differs:
+    // src*srcAlpha + dst*1 (lecture: "Set additive blending for alpha").
+    auto& art = desc.BlendState.RenderTarget[0];
+    art.SrcBlend  = D3D12_BLEND_SRC_ALPHA;
+    art.DestBlend = D3D12_BLEND_ONE;
+    hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_additivePso));
+    if (FAILED(hr)) { LOG("BillboardPipeline: CreateGraphicsPipelineState (additive) failed 0x%08X", hr); return false; }
+
     return true;
 }

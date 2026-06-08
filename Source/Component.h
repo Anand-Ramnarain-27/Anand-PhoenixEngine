@@ -21,6 +21,7 @@ public:
         Bounds = 11,
         Decal = 12,
         Billboard = 13,
+        ParticleSystem = 14,
     };
 
     explicit Component(GameObject* owner) : owner(owner) {}

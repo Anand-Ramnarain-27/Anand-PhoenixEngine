@@ -134,6 +134,9 @@
     <ClCompile Include="ComponentBillboard.cpp">
       <Filter>Engine\Scene\Components</Filter>
     </ClCompile>
+    <ClCompile Include="ComponentParticleSystem.cpp">
+      <Filter>Engine\Scene\Components</Filter>
+    </ClCompile>
     <!-- Engine\Scene\Prefabs -->
     <ClCompile Include="PrefabManager.cpp">
       <Filter>Engine\Scene\Prefabs</Filter>
@@ -575,6 +578,9 @@
       <Filter>Engine\Scene\Components</Filter>
     </ClInclude>
     <ClInclude Include="ComponentBillboard.h">
+      <Filter>Engine\Scene\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentParticleSystem.h">
       <Filter>Engine\Scene\Components</Filter>
     </ClInclude>
     <!-- Engine\Scene\Prefabs -->

@@ -18,6 +18,7 @@
 #include "DecalPass.h"
 #include "ComponentDecal.h"
 #include "ComponentBillboard.h"
+#include "ComponentParticleSystem.h"
 #include "RenderTexture.h"
 #include "EmptyScene.h"
 #include "ModuleScene.h"
@@ -547,6 +548,8 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
         const Vector3 camPos = camera->getPos();
         gatherBillboards(moduleScene->getRoot(), billboards, view, viewProj,
                          camPos, camera->getRight(), camera->getUp());
+        gatherParticleSystems(moduleScene->getRoot(), billboards, viewProj,
+                              camPos, camera->getRight(), camera->getUp());
     }
 
     // GBuffer geometry pass — fills albedo / normalMetalRough / emissiveAO / depth MRTs.
@@ -619,8 +622,13 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
         if (m_billboardPass && moduleScene && outputRT && outputRT->isValid()) {
             const Vector3 camPos = camera->getPos();
             if (!billboards.empty()) {
+                // Group by blend mode first (alpha before additive — additive fx like
+                // fire/glow/sparks composite on top), back-to-front within each group.
+                // This keeps PSO switches to at most one per frame while preserving
+                // correct alpha-blend ordering (lecture: render translucent back-to-front).
                 std::sort(billboards.begin(), billboards.end(),
                           [&camPos](const BillboardInstance& a, const BillboardInstance& b) {
+                              if (a.additive != b.additive) return !a.additive && b.additive;
                               Vector3 pa(a.cb.centerHalfWidth.x, a.cb.centerHalfWidth.y, a.cb.centerHalfWidth.z);
                               Vector3 pb(b.cb.centerHalfWidth.x, b.cb.centerHalfWidth.y, b.cb.centerHalfWidth.z);
                               float da = Vector3::DistanceSquared(pa, camPos);
@@ -916,6 +924,66 @@ void ModuleEditor::gatherBillboards(GameObject* node, std::vector<BillboardInsta
     for (auto* c : node->getChildren()) gatherBillboards(c, out, view, viewProj, camPos, camRight, camUp);
 }
 
+// Converts every live particle of every ComponentParticleSystem in the scene into
+// a screen-aligned BillboardInstance (lecture: "Rendering — usually rendered using
+// billboards, configurable alignment to camera"). Reuses the billboard pipeline so
+// no separate particle render pass is needed — Approach 0 from "Improving Render"
+// (per-instance constant buffer, one draw per quad) at editor-scale particle counts.
+void ModuleEditor::gatherParticleSystems(GameObject* node, std::vector<BillboardInstance>& out,
+                                          const Matrix& viewProj,
+                                          const Vector3& camPos, const Vector3& camRight, const Vector3& camUp) const {
+    if (!node || !node->isActive()) return;
+
+    if (auto* ps = node->getComponent<ComponentParticleSystem>(); ps && ps->enabled) {
+        const int cols = std::max(1, ps->sheetColumns);
+        const int rows = std::max(1, ps->sheetRows);
+        const int totalTiles = cols * rows;
+
+        auto tileRect = [cols, rows](int tileIndex) -> Vector4 {
+            int tx = tileIndex % cols;
+            int ty = tileIndex / cols;
+            ty = (rows - 1) - ty; // flip V: animation top-down, UV bottom-up
+            float u0 = (float)tx / (float)cols;
+            float v0 = (float)ty / (float)rows;
+            return Vector4(u0, v0, u0 + 1.f / cols, v0 + 1.f / rows);
+        };
+
+        for (const auto& p : ps->getParticles()) {
+            if (!p.alive) continue;
+            if (out.size() >= BillboardPass::MAX_BILLBOARDS) break;
+
+            const float t = std::clamp(p.age / std::max(0.0001f, p.lifetime), 0.f, 1.f);
+            const float size = p.baseSize * ps->sizeMultiplierAt(t);
+            const Vector4 color = ps->colorAt(t);
+
+            // Screen-aligned billboard frame, rotated around the view axis by the
+            // particle's current rotation (lecture: "Rotation — rotation over normal vector axis").
+            const float rad = p.rotationDeg * (3.14159265358979323846f / 180.f);
+            const float cs = std::cos(rad), sn = std::sin(rad);
+            const Vector3 right = camRight * cs + camUp * sn;
+            const Vector3 up    = camUp * cs - camRight * sn;
+
+            const Vector4 frameA = tileRect(p.frameIndex % totalTiles);
+
+            BillboardInstance inst;
+            inst.cb.viewProj        = viewProj.Transpose();
+            inst.cb.centerHalfWidth = Vector4(p.position.x, p.position.y, p.position.z, size * 0.5f);
+            inst.cb.rightHalfHeight = Vector4(right.x, right.y, right.z, size * 0.5f);
+            inst.cb.up              = Vector4(up.x, up.y, up.z, 0.f);
+            inst.cb.tint            = color;
+            inst.cb.frameRectA      = frameA;
+            inst.cb.frameRectB      = frameA;
+            inst.cb.blendFactor     = Vector4(0.f, 0.f, 0.f, 0.f);
+            inst.texturePath        = ps->texturePath;
+            inst.additive           = (ps->blendMode == ComponentParticleSystem::BlendMode::Additive);
+
+            out.push_back(std::move(inst));
+        }
+    }
+
+    for (auto* c : node->getChildren()) gatherParticleSystems(c, out, viewProj, camPos, camRight, camUp);
+}
+
 void ModuleEditor::drawDockspace() {
     constexpr ImGuiWindowFlags kF =
         ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
@@ -1059,6 +1127,11 @@ void ModuleEditor::drawMenuBar() {
             if (ImGui::MenuItem("Spot Light"))        spawnLight("Spot Light",        Component::Type::SpotLight);
             ImGui::EndMenu();
         }
+        if (ImGui::BeginMenu("Particle Effects")) {
+            if (ImGui::MenuItem("Fire (Exercise 1)"))
+                spawnFireParticleSystem(Vector3(0.f, 0.f, 0.f));
+            ImGui::EndMenu();
+        }
         ImGui::Separator();
         if (ImGui::MenuItem("Random Primitive + Physics", "Shift+P")) {
             static int menuSpawnIdx = 0; ++menuSpawnIdx;
@@ -1087,6 +1160,7 @@ void ModuleEditor::drawMenuBar() {
         addToSel("Bounds",     Component::Type::Bounds);
         addToSel("Decal",      Component::Type::Decal);
         addToSel("Billboard",  Component::Type::Billboard);
+        addToSel("Particle System", Component::Type::ParticleSystem);
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Debug")) {
@@ -1699,6 +1773,136 @@ GameObject* ModuleEditor::spawnPrimitive(PrimitiveType type,
     m_selection.object = go;
     log(std::string("Spawned ").append(name).c_str(), EditorColors::Success);
     return go;
+}
+
+// ---------------------------------------------------------------------------
+// spawnFireParticleSystem — Lecture 11 Exercise 1: "Fire particle system"
+//
+// Builds the four emitters the exercise describes as children of a root object:
+//   a. Fire flames     — cone emitter, sheet random sub-image, alpha blend
+//   b. Brighter flames — clone of (a), smaller + additive, simulates inner light
+//   c. Fire glow       — clone of (a), additive, modified size/colour over time
+//   d. Sparks          — small additive points shooting upward
+// All four use textures already available under Assets/Textures (Flames.png /
+// FireSmokeTest.png) since the exercise's original txt_fire_01.tga /
+// default_particle.jpg assets aren't part of this project.
+// ---------------------------------------------------------------------------
+GameObject* ModuleEditor::spawnFireParticleSystem(const Vector3& position) {
+    ModuleScene* scene = getActiveModuleScene();
+    if (!scene) return nullptr;
+
+    const std::string flameTex = "Assets/Textures/Flames.png";
+    const std::string glowTex  = "Assets/Textures/FireSmokeTest.png";
+
+    GameObject* root = scene->createGameObject("Fire (Exercise 1)");
+    root->getTransform()->position = position;
+    root->getTransform()->markDirty();
+
+    // a. Fire flames — cone emitter, random sub-image selection, random initial
+    //    rotation in [-45, +45] (lecture wording uses the typo "[-450,+450]" for degrees),
+    //    size + colour over time, alpha blend.
+    {
+        GameObject* go = scene->createGameObject("Flames", root);
+        auto* ps = go->createComponent<ComponentParticleSystem>();
+        ps->shape          = ComponentParticleSystem::EmitterShape::Cone;
+        ps->shapeRadius    = 0.35f;
+        ps->coneAngleDeg   = 18.f;
+        ps->emissionRate   = 30.f;
+        ps->maxParticles   = 200;
+        ps->lifeRange      = Vector2(0.8f, 1.4f);
+        ps->speedRange     = Vector2(0.8f, 1.6f);
+        ps->sizeRange      = Vector2(0.4f, 0.8f);
+        ps->rotationRange  = Vector2(-45.f, 45.f);
+        ps->startColor     = Vector4(1.f, 0.95f, 0.6f, 1.f);
+        ps->endColor       = Vector4(1.f, 0.25f, 0.05f, 0.f);
+        ps->startSizeMul   = 0.6f;
+        ps->endSizeMul     = 1.4f;
+        ps->texturePath    = flameTex;
+        ps->sheetColumns   = 2;
+        ps->sheetRows      = 2;
+        ps->randomFrame    = true;
+        ps->blendMode      = ComponentParticleSystem::BlendMode::Alpha;
+        ps->layer          = 0;
+    }
+
+    // b. Brighter / smaller flames — additive, simulates light at the flame core,
+    //    rendered after (a) via a higher layer value.
+    {
+        GameObject* go = scene->createGameObject("Flames Inner Light", root);
+        auto* ps = go->createComponent<ComponentParticleSystem>();
+        ps->shape          = ComponentParticleSystem::EmitterShape::Cone;
+        ps->shapeRadius    = 0.2f;
+        ps->coneAngleDeg   = 14.f;
+        ps->emissionRate   = 24.f;
+        ps->maxParticles   = 150;
+        ps->lifeRange      = Vector2(0.6f, 1.0f);
+        ps->speedRange     = Vector2(0.8f, 1.5f);
+        ps->sizeRange      = Vector2(0.18f, 0.35f); // smaller than (a)
+        ps->rotationRange  = Vector2(-45.f, 45.f);
+        ps->startColor     = Vector4(1.f, 1.f, 0.85f, 1.f);
+        ps->endColor       = Vector4(1.f, 0.5f, 0.1f, 0.f);
+        ps->startSizeMul   = 0.7f;
+        ps->endSizeMul     = 1.2f;
+        ps->texturePath    = flameTex;
+        ps->sheetColumns   = 2;
+        ps->sheetRows      = 2;
+        ps->randomFrame    = true;
+        ps->blendMode      = ComponentParticleSystem::BlendMode::Additive;
+        ps->layer          = 1; // render after (a)
+    }
+
+    // c. Fire glow — clone of (a) with default_particle-equivalent texture,
+    //    additive, larger / slower / longer-lived, modified size & colour curves.
+    {
+        GameObject* go = scene->createGameObject("Fire Glow", root);
+        auto* ps = go->createComponent<ComponentParticleSystem>();
+        ps->shape          = ComponentParticleSystem::EmitterShape::Cone;
+        ps->shapeRadius    = 0.4f;
+        ps->coneAngleDeg   = 10.f;
+        ps->emissionRate   = 8.f;
+        ps->maxParticles   = 60;
+        ps->lifeRange      = Vector2(1.2f, 2.0f);   // modified: longer life
+        ps->speedRange     = Vector2(0.2f, 0.5f);   // modified: slower
+        ps->sizeRange      = Vector2(1.0f, 1.6f);   // modified: bigger
+        ps->rotationRange  = Vector2(-30.f, 30.f);
+        ps->startColor     = Vector4(1.f, 0.6f, 0.2f, 0.35f);
+        ps->endColor       = Vector4(1.f, 0.3f, 0.05f, 0.f);
+        ps->startSizeMul   = 0.5f;
+        ps->endSizeMul     = 1.8f;
+        ps->texturePath    = glowTex;
+        ps->sheetColumns   = 1;
+        ps->sheetRows      = 1;
+        ps->randomFrame    = false;
+        ps->blendMode      = ComponentParticleSystem::BlendMode::Additive;
+        ps->layer          = 2; // render after (a) and (b)
+    }
+
+    // d. Sparks — small bright additive points shooting upward and fading out.
+    {
+        GameObject* go = scene->createGameObject("Sparks", root);
+        auto* ps = go->createComponent<ComponentParticleSystem>();
+        ps->shape          = ComponentParticleSystem::EmitterShape::Cone;
+        ps->shapeRadius    = 0.15f;
+        ps->coneAngleDeg   = 30.f;
+        ps->emissionRate   = 12.f;
+        ps->maxParticles   = 80;
+        ps->lifeRange      = Vector2(0.4f, 0.9f);
+        ps->speedRange     = Vector2(2.0f, 4.0f);
+        ps->sizeRange      = Vector2(0.03f, 0.07f);
+        ps->rotationRange  = Vector2(0.f, 0.f);
+        ps->startColor     = Vector4(1.f, 0.9f, 0.5f, 1.f);
+        ps->endColor       = Vector4(1.f, 0.4f, 0.1f, 0.f);
+        ps->startSizeMul   = 1.f;
+        ps->endSizeMul     = 0.4f;
+        ps->gravity        = Vector3(0.f, -1.5f, 0.f); // arc back down
+        ps->texturePath.clear();                       // fallback white quad — additive tint does the work
+        ps->blendMode      = ComponentParticleSystem::BlendMode::Additive;
+        ps->layer          = 3;
+    }
+
+    m_selection.object = root;
+    log("Spawned Fire (Exercise 1): Flames + Inner Light + Glow + Sparks", EditorColors::Success);
+    return root;
 }
 
 // ---------------------------------------------------------------------------

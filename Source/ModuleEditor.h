@@ -98,6 +98,10 @@ public:
                                const Vector3& scale    = Vector3::One,
                                bool           addPhysics = false);
 
+    // Lecture 11 "Particle Systems I" — Exercise 1: builds the 4-emitter fire rig
+    // (flames / brighter inner light / glow / sparks) as a parented GameObject group.
+    GameObject* spawnFireParticleSystem(const Vector3& position = Vector3::Zero);
+
     // Stop playback, clear editor selection and undo stack so no stale pointers
     // remain after the scene is restored.
     void stopPlay();
@@ -202,6 +206,9 @@ private:
     void gatherBillboards(GameObject* node, std::vector<BillboardInstance>& out,
                           const Matrix& view, const Matrix& viewProj,
                           const Vector3& camPos, const Vector3& camRight, const Vector3& camUp) const;
+    void gatherParticleSystems(GameObject* node, std::vector<BillboardInstance>& out,
+                               const Matrix& viewProj,
+                               const Vector3& camPos, const Vector3& camRight, const Vector3& camUp) const;
     void debugDrawLights(ModuleScene* scene, float lightSize);
     void updateMemory();
     void handleNewScenePopup(ID3D12GraphicsCommandList* cmd);

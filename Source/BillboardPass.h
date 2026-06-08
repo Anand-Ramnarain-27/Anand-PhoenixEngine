@@ -30,6 +30,7 @@ struct BillboardInstanceCB {
 struct BillboardInstance {
     BillboardInstanceCB cb;
     std::string texturePath; // empty = fallback (white) texture
+    bool additive = false;   // false = alpha blend, true = additive (lecture: particle blend modes)
 };
 
 // Forward billboard rendering pass.

@@ -15,8 +15,11 @@ public:
 
     bool init(ID3D12Device* device);
 
-    ID3D12PipelineState* getPSO()     const { return m_pso.Get(); }
-    ID3D12RootSignature* getRootSig() const { return m_rootSig.Get(); }
+    // Alpha: src*srcAlpha + dst*(1-srcAlpha) — standard transparency.
+    // Additive: src + dst — fire / glow / sparks (lecture: "Set additive blending").
+    ID3D12PipelineState* getPSO()         const { return m_pso.Get(); }
+    ID3D12PipelineState* getAdditivePSO() const { return m_additivePso.Get(); }
+    ID3D12RootSignature* getRootSig()     const { return m_rootSig.Get(); }
 
 private:
     bool createRootSignature(ID3D12Device* device);
@@ -24,4 +27,5 @@ private:
 
     ComPtr<ID3D12RootSignature> m_rootSig;
     ComPtr<ID3D12PipelineState> m_pso;
+    ComPtr<ID3D12PipelineState> m_additivePso;
 };

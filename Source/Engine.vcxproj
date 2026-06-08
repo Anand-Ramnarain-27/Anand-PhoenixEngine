@@ -249,6 +249,7 @@
     <ClInclude Include="BillboardPipeline.h" />
     <ClInclude Include="BillboardPass.h" />
     <ClInclude Include="ComponentBillboard.h" />
+    <ClInclude Include="ComponentParticleSystem.h" />
     <ClInclude Include="GBuffer.h" />
     <ClInclude Include="GBufferPipeline.h" />
     <ClInclude Include="GBufferPass.h" />
@@ -429,6 +430,7 @@
     <ClCompile Include="BillboardPipeline.cpp" />
     <ClCompile Include="BillboardPass.cpp" />
     <ClCompile Include="ComponentBillboard.cpp" />
+    <ClCompile Include="ComponentParticleSystem.cpp" />
     <ClCompile Include="GBuffer.cpp" />
     <ClCompile Include="GBufferPipeline.cpp" />
     <ClCompile Include="GBufferPass.cpp" />
