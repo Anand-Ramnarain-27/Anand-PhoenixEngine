@@ -246,6 +246,9 @@
     <ClInclude Include="DecalPipeline.h" />
     <ClInclude Include="DecalPass.h" />
     <ClInclude Include="ComponentDecal.h" />
+    <ClInclude Include="BillboardPipeline.h" />
+    <ClInclude Include="BillboardPass.h" />
+    <ClInclude Include="ComponentBillboard.h" />
     <ClInclude Include="GBuffer.h" />
     <ClInclude Include="GBufferPipeline.h" />
     <ClInclude Include="GBufferPass.h" />
@@ -423,6 +426,9 @@
     <ClCompile Include="DecalPipeline.cpp" />
     <ClCompile Include="DecalPass.cpp" />
     <ClCompile Include="ComponentDecal.cpp" />
+    <ClCompile Include="BillboardPipeline.cpp" />
+    <ClCompile Include="BillboardPass.cpp" />
+    <ClCompile Include="ComponentBillboard.cpp" />
     <ClCompile Include="GBuffer.cpp" />
     <ClCompile Include="GBufferPipeline.cpp" />
     <ClCompile Include="GBufferPass.cpp" />
@@ -561,6 +567,16 @@
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
     </FxCompile>
     <FxCompile Include="shaders\DecalPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
+    <FxCompile Include="shaders\BillboardVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
+    <FxCompile Include="shaders\BillboardPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>

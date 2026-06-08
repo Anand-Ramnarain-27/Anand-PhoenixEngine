@@ -17,6 +17,7 @@
 #include "DeferredLightingPass.h"
 #include "DecalPass.h"
 #include "ComponentDecal.h"
+#include "ComponentBillboard.h"
 #include "RenderTexture.h"
 #include "EmptyScene.h"
 #include "ModuleScene.h"
@@ -140,6 +141,13 @@ bool ModuleEditor::init() {
         // Non-fatal: engine runs without decals
         LOG("ModuleEditor: DecalPass init failed (non-fatal)");
         m_decalPass.reset();
+    }
+
+    m_billboardPass = std::make_unique<BillboardPass>();
+    if (!m_billboardPass->init(device)) {
+        // Non-fatal: engine runs without billboards
+        LOG("ModuleEditor: BillboardPass init failed (non-fatal)");
+        m_billboardPass.reset();
     }
 
     m_envSystem = std::make_unique<EnvironmentSystem>();
@@ -530,9 +538,21 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
         (isTranslucent ? translucentMeshes : opaqueMeshes).push_back(e);
     }
 
+    // Gather billboards up-front so an empty scene (no meshes at all, just billboards)
+    // still triggers the GBuffer pass below — billboards need a valid, cleared depth
+    // buffer in DEPTH_READ state to bind as their read-only DSV. Previously this gather
+    // happened *inside* the mesh-gated block, so billboard-only scenes rendered nothing.
+    std::vector<BillboardInstance> billboards;
+    if (m_billboardPass && moduleScene) {
+        const Vector3 camPos = camera->getPos();
+        gatherBillboards(moduleScene->getRoot(), billboards, view, viewProj,
+                         camPos, camera->getRight(), camera->getUp());
+    }
+
     // GBuffer geometry pass — fills albedo / normalMetalRough / emissiveAO / depth MRTs.
-    // Always run even for translucent-only frames so depth is cleared and in DEPTH_READ state.
-    if (m_gbufferPass && (!opaqueMeshes.empty() || !translucentMeshes.empty())) {
+    // Always run even for translucent-only or billboard-only frames so depth is cleared
+    // and in DEPTH_READ state.
+    if (m_gbufferPass && (!opaqueMeshes.empty() || !translucentMeshes.empty() || !billboards.empty())) {
         m_gbufferPass->render(cmd, opaqueMeshes, viewProj, w, h);
 
         // Rebind the output render target — GBuffer pass changed OMSetRenderTargets
@@ -591,6 +611,34 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
             m_meshRenderPass->renderTransparent(cmd, translucentMeshes, m_frameLights,
                                                  camPos, viewProj, envForIBL);
             END_EVENT(cmd);
+        }
+
+        // Billboards — camera-facing alpha-blended quads, sorted back-to-front,
+        // sharing the scene RT and read-only GBuffer depth. Rendered independently of
+        // whether any transparent meshes exist, so billboard-only scenes still draw.
+        if (m_billboardPass && moduleScene && outputRT && outputRT->isValid()) {
+            const Vector3 camPos = camera->getPos();
+            if (!billboards.empty()) {
+                std::sort(billboards.begin(), billboards.end(),
+                          [&camPos](const BillboardInstance& a, const BillboardInstance& b) {
+                              Vector3 pa(a.cb.centerHalfWidth.x, a.cb.centerHalfWidth.y, a.cb.centerHalfWidth.z);
+                              Vector3 pb(b.cb.centerHalfWidth.x, b.cb.centerHalfWidth.y, b.cb.centerHalfWidth.z);
+                              float da = Vector3::DistanceSquared(pa, camPos);
+                              float db = Vector3::DistanceSquared(pb, camPos);
+                              return da > db;
+                          });
+
+                // Bind scene RT + GBuffer read-only depth (DEPTH_READ state, no writes allowed)
+                auto rtv = outputRT->getRtvHandle();
+                auto roDsv = m_gbufferPass->getGBuffer().getReadOnlyDsvHandle();
+                cmd->OMSetRenderTargets(1, &rtv, FALSE, &roDsv);
+                D3D12_VIEWPORT vp = { 0.f, 0.f, float(w), float(h), 0.f, 1.f };
+                D3D12_RECT sc = { 0, 0, LONG(w), LONG(h) };
+                cmd->RSSetViewports(1, &vp);
+                cmd->RSSetScissorRects(1, &sc);
+
+                m_billboardPass->render(cmd, billboards, w, h);
+            }
         }
 
         // Restore descriptor heaps for subsequent passes
@@ -788,6 +836,86 @@ void ModuleEditor::gatherDecals(GameObject* node, std::vector<DecalInstance>& ou
     for (auto* c : node->getChildren()) gatherDecals(c, out, view, proj, w, h);
 }
 
+void ModuleEditor::gatherBillboards(GameObject* node, std::vector<BillboardInstance>& out,
+                                     const Matrix& view, const Matrix& viewProj,
+                                     const Vector3& camPos, const Vector3& camRight, const Vector3& camUp) const {
+    if (!node || !node->isActive()) return;
+
+    if (auto* bb = node->getComponent<ComponentBillboard>(); bb && bb->enabled) {
+        if (out.size() < BillboardPass::MAX_BILLBOARDS) {
+            const Vector3 center = node->getTransform()->getGlobalMatrix().Translation();
+
+            // Compute the quad's right/up axes per the alignment mode (lecture: N/U/R billboard frame)
+            Vector3 right, up;
+            switch (bb->alignment) {
+            case ComponentBillboard::Alignment::Screen:
+                // Screen alignment: axes locked to the camera/screen — used for HUD-like 2D fx
+                right = camRight;
+                up    = camUp;
+                break;
+            case ComponentBillboard::Alignment::World: {
+                // World (view-point) alignment: N points from billboard to camera, U = world up
+                Vector3 worldUp(0.f, 1.f, 0.f);
+                Vector3 n = camPos - center;
+                if (n.LengthSquared() < 1e-8f) n = -camRight; // degenerate: camera at billboard centre
+                n.Normalize();
+                right = worldUp.Cross(n);
+                if (right.LengthSquared() < 1e-8f) right = camRight; // n parallel to world up
+                right.Normalize();
+                up = n.Cross(right);
+                break;
+            }
+            case ComponentBillboard::Alignment::Axial:
+            default: {
+                // Axial alignment: U fixed (world up); R = (camera-billboard) x U; N = R x U
+                Vector3 fixedUp(0.f, 1.f, 0.f);
+                Vector3 toCam = camPos - center;
+                right = toCam.Cross(fixedUp);
+                if (right.LengthSquared() < 1e-8f) right = camRight; // camera directly above/below
+                right.Normalize();
+                up = fixedUp;
+                break;
+            }
+            }
+
+            // Sprite-sheet tile rects for the current (possibly fractional) frame —
+            // see lecture "Sheet animation": convert frame -> tile X,Y, flip V to bottom-up,
+            // then interpolate between consecutive tiles using the fractional part.
+            const int cols = std::max(1, bb->sheetColumns);
+            const int rows = std::max(1, bb->sheetRows);
+            const int totalTiles = cols * rows;
+            const float frame = bb->getCurrentFrame();
+            const int frameA = ((int)frame) % totalTiles;
+            const int frameB = (frameA + 1) % totalTiles;
+            const float blend = frame - floorf(frame);
+
+            auto tileRect = [cols, rows](int tileIndex) -> Vector4 {
+                int tx = tileIndex % cols;
+                int ty = tileIndex / cols;
+                ty = (rows - 1) - ty; // animation is top-down but UV is bottom-up — flip V
+                float u0 = (float)tx / (float)cols;
+                float v0 = (float)ty / (float)rows;
+                return Vector4(u0, v0, u0 + 1.f / cols, v0 + 1.f / rows);
+            };
+
+            BillboardInstance inst;
+            inst.cb.viewProj         = viewProj.Transpose();
+            inst.cb.centerHalfWidth  = Vector4(center.x, center.y, center.z, bb->size.x * 0.5f);
+            inst.cb.rightHalfHeight  = Vector4(right.x, right.y, right.z, bb->size.y * 0.5f);
+            inst.cb.up               = Vector4(up.x, up.y, up.z, 0.f);
+            inst.cb.tint             = bb->tint;
+            inst.cb.frameRectA       = tileRect(frameA);
+            inst.cb.frameRectB       = (totalTiles > 1) ? tileRect(frameB) : inst.cb.frameRectA;
+            inst.cb.blendFactor      = Vector4(blend, 0.f, 0.f, 0.f);
+            inst.texturePath         = bb->texturePath;
+
+            out.push_back(std::move(inst));
+        }
+    }
+
+    for (auto* c : node->getChildren()) gatherBillboards(c, out, view, viewProj, camPos, camRight, camUp);
+}
+
 void ModuleEditor::drawDockspace() {
     constexpr ImGuiWindowFlags kF =
         ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
@@ -957,6 +1085,8 @@ void ModuleEditor::drawMenuBar() {
         addToSel("Spot Light",        Component::Type::SpotLight);
         addToSel("Animation",  Component::Type::Animation);
         addToSel("Bounds",     Component::Type::Bounds);
+        addToSel("Decal",      Component::Type::Decal);
+        addToSel("Billboard",  Component::Type::Billboard);
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Debug")) {

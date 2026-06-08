@@ -19,6 +19,7 @@
 #include "ComponentLights.h"
 #include "ComponentAnimation.h"
 #include "ComponentDecal.h"
+#include "ComponentBillboard.h"
 #include "ComponentFactory.h"
 #include "PrefabManager.h"
 #include "TextureImporter.h"
@@ -184,6 +185,7 @@ void InspectorPanel::drawContent() {
             comp->getType() == Component::Type::Rigidbody ? "Rigidbody" :
             comp->getType() == Component::Type::Bounds    ? "Bounds" :
             comp->getType() == Component::Type::Decal     ? "Decal" :
+            comp->getType() == Component::Type::Billboard ? "Billboard" :
             "Component";
 
         ImGui::PushID((int)comp->getType());
@@ -382,6 +384,7 @@ void InspectorPanel::drawAddComponentMenu() {
     ImGui::Separator();
     // ---- Visual effects ----
     addComp("Decal", Component::Type::Decal, go->getComponent<ComponentDecal>() != nullptr);
+    addComp("Billboard", Component::Type::Billboard, go->getComponent<ComponentBillboard>() != nullptr);
     ImGui::EndPopup();
 }
 

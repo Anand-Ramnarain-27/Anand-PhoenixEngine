@@ -11,6 +11,8 @@
 #include "ComponentLights.h"
 #include "ComponentAnimation.h"
 #include "ComponentRigidbody.h"
+#include "ComponentDecal.h"
+#include "ComponentBillboard.h"
 #include <algorithm>
 #include "ComponentFactory.h"
 #include "EditorSelection.h"
@@ -281,6 +283,8 @@ void HierarchyPanel::itemContextMenu(GameObject* go) {
         addIf("Directional Light", Component::Type::DirectionalLight, go->getComponent<ComponentDirectionalLight>() != nullptr);
         addIf("Point Light", Component::Type::PointLight, go->getComponent<ComponentPointLight>() != nullptr);
         addIf("Spot Light", Component::Type::SpotLight, go->getComponent<ComponentSpotLight>() != nullptr);
+        addIf("Decal", Component::Type::Decal, go->getComponent<ComponentDecal>() != nullptr);
+        addIf("Billboard", Component::Type::Billboard, go->getComponent<ComponentBillboard>() != nullptr);
 
         if (ImGui::BeginMenu("Add Script")) {
             auto* hr = m_editor->getHotReloadManager();

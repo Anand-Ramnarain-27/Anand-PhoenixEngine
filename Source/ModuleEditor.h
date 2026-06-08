@@ -13,6 +13,7 @@
 #include "GBufferPass.h"
 #include "DeferredLightingPass.h"
 #include "DecalPass.h"
+#include "BillboardPass.h"
 #include "SkinningPass.h"
 
 #include <memory>
@@ -130,6 +131,7 @@ private:
     std::unique_ptr<GBufferPass> m_gbufferPass;
     std::unique_ptr<DeferredLightingPass> m_deferredLightingPass;
     std::unique_ptr<DecalPass> m_decalPass;
+    std::unique_ptr<BillboardPass> m_billboardPass;
     std::unique_ptr<EnvironmentSystem> m_envSystem;
     std::unique_ptr<HotReloadManager> m_hotReload;
     std::unique_ptr<SkinningPass> m_skinningPass;
@@ -197,6 +199,9 @@ private:
     void gatherDecals(GameObject* node, std::vector<DecalInstance>& out,
                       const Matrix& view, const Matrix& proj,
                       uint32_t w, uint32_t h) const;
+    void gatherBillboards(GameObject* node, std::vector<BillboardInstance>& out,
+                          const Matrix& view, const Matrix& viewProj,
+                          const Vector3& camPos, const Vector3& camRight, const Vector3& camUp) const;
     void debugDrawLights(ModuleScene* scene, float lightSize);
     void updateMemory();
     void handleNewScenePopup(ID3D12GraphicsCommandList* cmd);

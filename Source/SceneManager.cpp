@@ -19,7 +19,14 @@ void SceneManager::setScene(std::unique_ptr<IScene> scene, ID3D12Device* device)
 
 void SceneManager::clearScene() {
     if (m_editingPrefab) exitPrefabEdit();
-    if (activeScene) { activeScene->onExit(); activeScene->shutdown(); activeScene.reset(); }
+    if (activeScene) {
+        // Make sure the GPU is done with any in-flight command lists before we start
+        // destroying GameObjects/Components — meshes own GPU resources (e.g. the legacy
+        // vertex buffer "MeshVB_Legacy") that would otherwise be deleted while still
+        // referenced by a command list, triggering OBJECT_DELETED_WHILE_STILL_IN_USE.
+        if (auto* d3d = app->getD3D12()) d3d->flush();
+        activeScene->onExit(); activeScene->shutdown(); activeScene.reset();
+    }
     state = PlayState::Stopped;
     hasSerializedState = false;
 }
@@ -44,6 +51,17 @@ void SceneManager::pause() {
 
 void SceneManager::stop() {
     if (!activeScene || state == PlayState::Stopped) return;
+
+    // Entering Stop tears down and rebuilds the scene graph (LoadTempScene / reset),
+    // which destroys GameObjects/Components — including ComponentMesh, whose Mesh
+    // resources (legacy VB/IB committed buffers) may still be referenced by command
+    // lists the GPU hasn't finished executing yet (this frame's render, or the previous
+    // frame still in flight). Destroying them early causes the D3D12 debug layer to
+    // raise EXECUTION ERROR #921 OBJECT_DELETED_WHILE_STILL_IN_USE, which — with
+    // "break on message" enabled — surfaces as an unhandled exception/crash.
+    // Block here until the GPU has fully drained before tearing anything down.
+    if (auto* d3d = app->getD3D12()) d3d->flush();
+
     auto* ms = activeScene->getModuleScene();
     if (hasSerializedState && ms) {
         if (!SceneSerializer::LoadTempScene(ms)) { LOG("SceneManager: Failed to restore temp scene, falling back to reset()"); activeScene->reset(); }
