@@ -45,9 +45,9 @@ float3 screenToView(float2 screenPos, float viewZ)
 }
 
 // Signed distance from a plane defined by its normal (D=0, passes through origin).
-float distFromPlane(float3 planeNormal, float3 pos)
+float distFromPlane(float3 planeNormal, float3 point)
 {
-    return dot(planeNormal, pos);
+    return dot(planeNormal, point);
 }
 
 // Linear tile index from tile (x,y) coordinates.

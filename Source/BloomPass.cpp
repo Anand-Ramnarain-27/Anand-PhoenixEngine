@@ -4,8 +4,6 @@
 #include "Application.h"
 #include "ModuleD3D12.h"
 #include "ModuleShaderDescriptors.h"
-#include "ModuleRTDescriptors.h"
-#include "ModuleDSDescriptors.h"
 #include "ModuleSamplerHeap.h"
 #include "ModuleGPUResources.h"
 #include <d3dx12.h>
