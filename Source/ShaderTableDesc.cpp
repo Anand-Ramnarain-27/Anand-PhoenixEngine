@@ -5,20 +5,17 @@
 #include "ModuleD3D12.h"
 
 ShaderTableDesc::ShaderTableDesc(UINT handle, UINT* refCount, ModuleShaderDescriptors* mgr)
-    : m_handle(handle), m_refCount(refCount), m_manager(mgr)
-{
+    : m_handle(handle), m_refCount(refCount), m_manager(mgr){
     addRef();
 }
 
 ShaderTableDesc::ShaderTableDesc(const ShaderTableDesc& other)
-    : m_handle(other.m_handle), m_refCount(other.m_refCount), m_manager(other.m_manager)
-{
+    : m_handle(other.m_handle), m_refCount(other.m_refCount), m_manager(other.m_manager){
     addRef();
 }
 
 ShaderTableDesc::ShaderTableDesc(ShaderTableDesc&& other) noexcept
-    : m_handle(other.m_handle), m_refCount(other.m_refCount), m_manager(other.m_manager)
-{
+    : m_handle(other.m_handle), m_refCount(other.m_refCount), m_manager(other.m_manager){
     other.m_handle = INVALID_HANDLE;
     other.m_refCount = nullptr;
     other.m_manager = nullptr;

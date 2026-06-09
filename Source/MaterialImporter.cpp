@@ -12,7 +12,7 @@
 std::string MaterialImporter::importTexture(int texIndex, const tinygltf::Model& model,
 	const std::string& sceneName,
 	const std::string& basePath,
-	TextureImporter::TextureType type) {
+	TextureImporter::TextureType type){
 	if (texIndex < 0 || texIndex >= (int)model.textures.size()) return {};
 	const auto& tex = model.textures[texIndex];
 	if (tex.source < 0 || tex.source >= (int)model.images.size()) return {};
@@ -128,7 +128,7 @@ bool MaterialImporter::Import(const tinygltf::Material& gltfMat, const tinygltf:
 	return Save(header, baseColorPath, normalPath, aoPath, emissivePath, metalRoughPath, outputFile);
 }
 
-bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& outMaterial) {
+bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& outMaterial){
 	MaterialHeader header;
 	std::vector<char> rawBuffer;
 	if (!ImporterUtils::LoadBuffer(file, header, rawBuffer)) return false;
@@ -213,7 +213,7 @@ bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& 
 bool MaterialImporter::Save(const MaterialHeader& header,
 	const std::string& baseColorPath, const std::string& normalPath,
 	const std::string& aoPath, const std::string& emissivePath,
-	const std::string& metalRoughPath, const std::string& file) {
+	const std::string& metalRoughPath, const std::string& file){
 	std::vector<char> payload;
 	payload.reserve(baseColorPath.size() + normalPath.size() + aoPath.size()
 		+ emissivePath.size() + metalRoughPath.size());

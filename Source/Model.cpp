@@ -15,7 +15,7 @@
 #include <cstring>
 #include <d3dx12.h>
 
-static bool materialsNeedReimport(const std::string& matFolder, uint32_t materialCount) {
+static bool materialsNeedReimport(const std::string& matFolder, uint32_t materialCount){
     if (materialCount == 0) return false;
 
     std::string firstMat = ImporterUtils::IndexedPath(matFolder, 0, ".mat");
@@ -29,7 +29,7 @@ static bool materialsNeedReimport(const std::string& matFolder, uint32_t materia
     return header.version < 7;
 }
 
-bool Model::load(const char* fileName, ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer) {
+bool Model::load(const char* fileName, ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer){
     m_srcFile = fileName;
     std::string modelName = std::filesystem::path(fileName).stem().string();
     std::string meshFolder = app->getFileSystem()->GetLibraryPath() + "Meshes/" + modelName;
@@ -54,7 +54,7 @@ bool Model::load(const char* fileName, ID3D12GraphicsCommandList* cmd, ModuleSta
     return loadFromLibrary(meshFolder, cmd, staticBuffer);
 }
 
-bool Model::importFromGLTF(const char* fileName) {
+bool Model::importFromGLTF(const char* fileName){
     tinygltf::TinyGLTF loader;
     tinygltf::Model gltfModel;
     std::string error, warning;
@@ -69,7 +69,7 @@ bool Model::importFromGLTF(const char* fileName) {
     return SceneImporter::ImportFromLoadedGLTF(gltfModel, std::filesystem::path(fileName).stem().string(), baseDir);
 }
 
-bool Model::loadFromLibrary(const std::string& folder, ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer) {
+bool Model::loadFromLibrary(const std::string& folder, ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer){
     ModuleFileSystem* fs = app->getFileSystem();
     if (!fs->Exists(folder.c_str())) { LOG("Model: Folder does not exist: %s", folder.c_str()); return false; }
 
@@ -103,7 +103,7 @@ bool Model::loadFromLibrary(const std::string& folder, ID3D12GraphicsCommandList
     return !m_meshes.empty();
 }
 
-void Model::rebuildMaterialCBs() const {
+void Model::rebuildMaterialCBs() const{
     m_materialCBs.resize(m_materials.size());
     auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer((sizeof(Material::Data) + 255) & ~255);
@@ -127,7 +127,7 @@ void Model::rebuildMaterialCBs() const {
     m_materialCBsDirty = false;
 }
 
-void Model::buildMeshEntries(const Matrix& parentWorld, std::vector<MeshEntry>& out) const {
+void Model::buildMeshEntries(const Matrix& parentWorld, std::vector<MeshEntry>& out) const{
     if (m_materialCBsDirty || m_materialCBs.size() != m_materials.size()) rebuildMaterialCBs();
 
     Matrix finalWorld = m_modelMatrix * parentWorld;

@@ -23,7 +23,7 @@ using namespace rapidjson;
 namespace fs = std::filesystem;
 
 static constexpr int kPrefabFormatVersion = 2;
-static std::string getPrefabDir() {
+static std::string getPrefabDir(){
     return app->getFileSystem()->GetLibraryPath() + "Prefabs/";
 }
 static constexpr char kPrefabExt[] = ".prefab";
@@ -34,22 +34,22 @@ struct PrefabManager::SerialiseCtx {
     explicit SerialiseCtx(Document& d) : doc(d), a(d.GetAllocator()) {}
 };
 
-std::unordered_map<const GameObject*, PrefabInstanceData>& PrefabManager::registry() {
+std::unordered_map<const GameObject*, PrefabInstanceData>& PrefabManager::registry(){
     static std::unordered_map<const GameObject*, PrefabInstanceData> s_registry;
     return s_registry;
 }
 
-uint32_t PrefabManager::makePrefabUID(const std::string& name) {
+uint32_t PrefabManager::makePrefabUID(const std::string& name){
     uint32_t hash = 2166136261u;
     for (unsigned char c : name) { hash ^= c; hash *= 16777619u; }
     return hash ? hash : 1u;
 }
 
-std::string PrefabManager::getPrefabPath(const std::string& name) {
+std::string PrefabManager::getPrefabPath(const std::string& name){
     return getPrefabDir() + name + kPrefabExt;
 }
 
-bool PrefabManager::writePrefabDocument(Document& doc, const std::string& path) {
+bool PrefabManager::writePrefabDocument(Document& doc, const std::string& path){
     FILE* fp = fopen(path.c_str(), "wb");
     if (!fp) return false;
     char buf[65536];
@@ -61,7 +61,7 @@ bool PrefabManager::writePrefabDocument(Document& doc, const std::string& path) 
     return true;
 }
 
-bool PrefabManager::readPrefabDocument(const std::string& path, Document& doc) {
+bool PrefabManager::readPrefabDocument(const std::string& path, Document& doc){
     FILE* fp = fopen(path.c_str(), "rb");
     if (!fp) return false;
     char buf[65536];
@@ -71,12 +71,12 @@ bool PrefabManager::readPrefabDocument(const std::string& path, Document& doc) {
     return !doc.HasParseError();
 }
 
-void PrefabManager::serialiseNode(const GameObject* go, SerialiseCtx& ctx) {
+void PrefabManager::serialiseNode(const GameObject* go, SerialiseCtx& ctx){
     (void)go; (void)ctx;
     assert(false && "Call serialiseNode overload with Value& out instead");
 }
 
-static void serialiseNodeInto(const GameObject* go, Value& out, Document::AllocatorType& a) {
+static void serialiseNodeInto(const GameObject* go, Value& out, Document::AllocatorType& a){
     out.SetObject();
     out.AddMember("Name", Value(go->getName().c_str(), a), a);
     out.AddMember("UID", go->getUID(), a);
@@ -118,7 +118,7 @@ static void serialiseNodeInto(const GameObject* go, Value& out, Document::Alloca
     out.AddMember("Children", children, a);
 }
 
-GameObject* PrefabManager::deserialiseNode(const Value& node, ModuleScene* scene, GameObject* parent) {
+GameObject* PrefabManager::deserialiseNode(const Value& node, ModuleScene* scene, GameObject* parent){
     if (!node.IsObject()) return nullptr;
     const char* name = node.HasMember("Name") ? node["Name"].GetString() : "Unnamed";
     GameObject* go = scene->createGameObject(name, parent);
@@ -158,7 +158,7 @@ GameObject* PrefabManager::deserialiseNode(const Value& node, ModuleScene* scene
     return go;
 }
 
-bool PrefabManager::createPrefab(const GameObject* go, const std::string& prefabName) {
+bool PrefabManager::createPrefab(const GameObject* go, const std::string& prefabName){
     if (!go || prefabName.empty()) { LOG("PrefabManager::createPrefab: null go or empty name"); return false; }
 
     app->getFileSystem()->CreateDir(getPrefabDir().c_str());
@@ -180,7 +180,7 @@ bool PrefabManager::createPrefab(const GameObject* go, const std::string& prefab
     return true;
 }
 
-GameObject* PrefabManager::instantiatePrefab(const std::string& prefabName, ModuleScene* scene) {
+GameObject* PrefabManager::instantiatePrefab(const std::string& prefabName, ModuleScene* scene){
     if (!scene || prefabName.empty()) return nullptr;
     std::string path = getPrefabPath(prefabName);
     if (!app->getFileSystem()->Exists(path.c_str())) { LOG("PrefabManager::instantiatePrefab: Prefab not found: %s", path.c_str()); return nullptr; }
@@ -200,7 +200,7 @@ GameObject* PrefabManager::instantiatePrefab(const std::string& prefabName, Modu
     return go;
 }
 
-static const GameObject* findPrefabRoot(const GameObject* go) {
+static const GameObject* findPrefabRoot(const GameObject* go){
     if (!go) return nullptr;
     const GameObject* root = nullptr;
     const GameObject* cur = go;
@@ -212,7 +212,7 @@ static const GameObject* findPrefabRoot(const GameObject* go) {
     return root;
 }
 
-bool PrefabManager::applyToPrefab(const GameObject* go, bool respectOverrides) {
+bool PrefabManager::applyToPrefab(const GameObject* go, bool respectOverrides){
     const PrefabInstanceData* inst = getInstanceData(go);
     if (!inst || inst->prefabName.empty()) {
         const GameObject* root = findPrefabRoot(go);
@@ -258,7 +258,7 @@ bool PrefabManager::applyToPrefab(const GameObject* go, bool respectOverrides) {
     return true;
 }
 
-bool PrefabManager::revertToPrefab(GameObject* go, ModuleScene* scene) {
+bool PrefabManager::revertToPrefab(GameObject* go, ModuleScene* scene){
     PrefabInstanceData* inst = getInstanceDataMutable(go);
     if (!inst || inst->prefabName.empty()) {
         const GameObject* root = findPrefabRoot(go);
@@ -321,12 +321,12 @@ bool PrefabManager::revertToPrefab(GameObject* go, ModuleScene* scene) {
     return true;
 }
 
-void PrefabManager::markPropertyOverride(GameObject* go, int componentType, const std::string& propertyName) {
+void PrefabManager::markPropertyOverride(GameObject* go, int componentType, const std::string& propertyName){
     PrefabInstanceData* inst = getInstanceDataMutable(go);
     if (inst) inst->overrides.modifiedProperties[componentType].insert(propertyName);
 }
 
-void PrefabManager::clearComponentOverrides(GameObject* go, int componentType) {
+void PrefabManager::clearComponentOverrides(GameObject* go, int componentType){
     PrefabInstanceData* inst = getInstanceDataMutable(go);
     if (!inst) return;
     inst->overrides.modifiedProperties.erase(componentType);
@@ -334,12 +334,12 @@ void PrefabManager::clearComponentOverrides(GameObject* go, int componentType) {
     auto& rv = inst->overrides.removedComponentTypes; rv.erase(std::remove(rv.begin(), rv.end(), componentType), rv.end());
 }
 
-void PrefabManager::clearAllOverrides(GameObject* go) {
+void PrefabManager::clearAllOverrides(GameObject* go){
     PrefabInstanceData* inst = getInstanceDataMutable(go);
     if (inst) inst->overrides.clear();
 }
 
-std::string PrefabManager::serializeGameObject(const GameObject* go) {
+std::string PrefabManager::serializeGameObject(const GameObject* go){
     if (!go) return {};
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
     Value goNode; serialiseNodeInto(go, goNode, a);
@@ -350,7 +350,7 @@ std::string PrefabManager::serializeGameObject(const GameObject* go) {
     return sb.GetString();
 }
 
-GameObject* PrefabManager::deserializeGameObject(const std::string& data, ModuleScene* scene) {
+GameObject* PrefabManager::deserializeGameObject(const std::string& data, ModuleScene* scene){
     if (data.empty() || !scene) return nullptr;
     Document doc;
     doc.Parse(data.c_str());
@@ -358,7 +358,7 @@ GameObject* PrefabManager::deserializeGameObject(const std::string& data, Module
     return deserialiseNode(doc["GameObject"], scene, nullptr);
 }
 
-bool PrefabManager::createVariant(const std::string& srcPrefabName, const std::string& dstPrefabName) {
+bool PrefabManager::createVariant(const std::string& srcPrefabName, const std::string& dstPrefabName){
     if (srcPrefabName.empty() || dstPrefabName.empty()) return false;
     std::string srcPath = getPrefabPath(srcPrefabName);
     if (!app->getFileSystem()->Exists(srcPath.c_str())) { LOG("PrefabManager::createVariant: Source not found: %s", srcPath.c_str()); return false; }
@@ -387,17 +387,17 @@ bool PrefabManager::isPrefabInstance(const GameObject* go) { return go && regist
 std::string PrefabManager::getPrefabName(const GameObject* go) { const PrefabInstanceData* d = getInstanceData(go); return d ? d->prefabName : ""; }
 uint32_t PrefabManager::getPrefabUID(const GameObject* go) { const PrefabInstanceData* d = getInstanceData(go); return d ? d->prefabUID : 0; }
 
-const PrefabInstanceData* PrefabManager::getInstanceData(const GameObject* go) {
+const PrefabInstanceData* PrefabManager::getInstanceData(const GameObject* go){
     auto it = registry().find(go);
     return (it != registry().end()) ? &it->second : nullptr;
 }
 
-PrefabInstanceData* PrefabManager::getInstanceDataMutable(GameObject* go) {
+PrefabInstanceData* PrefabManager::getInstanceDataMutable(GameObject* go){
     auto it = registry().find(go);
     return (it != registry().end()) ? &it->second : nullptr;
 }
 
-std::vector<PrefabManager::PrefabInfo> PrefabManager::listPrefabsInfo() {
+std::vector<PrefabManager::PrefabInfo> PrefabManager::listPrefabsInfo(){
     std::vector<PrefabInfo> results;
     if (!app->getFileSystem()->Exists(getPrefabDir().c_str())) return results;
 
@@ -449,7 +449,7 @@ std::vector<PrefabManager::PrefabInfo> PrefabManager::listPrefabsInfo() {
     return results;
 }
 
-std::vector<std::string> PrefabManager::listPrefabs() {
+std::vector<std::string> PrefabManager::listPrefabs(){
     std::vector<std::string> names;
     if (!app->getFileSystem()->Exists(getPrefabDir().c_str())) return names;
     try { for (const auto& e : fs::directory_iterator(getPrefabDir())) if (e.is_regular_file() && e.path().extension() == kPrefabExt) names.push_back(e.path().stem().string()); }

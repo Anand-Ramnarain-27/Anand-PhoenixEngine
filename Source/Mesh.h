@@ -76,7 +76,7 @@ public:
     // Falls back to the legacy (createDefaultBuffer) buffer so morph/skin jobs can dispatch
     // even when the static-buffer upload hasn't completed yet.  Legacy buffers are in
     // D3D12_RESOURCE_STATE_COMMON and auto-promote to NON_PIXEL_SHADER_RESOURCE for the CS read.
-    D3D12_GPU_VIRTUAL_ADDRESS getVertexBufferVA() const {
+    D3D12_GPU_VIRTUAL_ADDRESS getVertexBufferVA() const{
         if (m_vertexBufferView.BufferLocation != 0) return m_vertexBufferView.BufferLocation;
         return m_legacyVertexBuffer ? m_legacyVertexBuffer->GetGPUVirtualAddress() : 0;
     }

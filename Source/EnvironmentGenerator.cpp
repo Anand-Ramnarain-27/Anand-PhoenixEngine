@@ -7,7 +7,7 @@
 #include "ModuleShaderDescriptors.h"
 #include "ModuleSamplerHeap.h"
 
-std::unique_ptr<EnvironmentMap> EnvironmentGenerator::loadCubemap(const std::string& file) {
+std::unique_ptr<EnvironmentMap> EnvironmentGenerator::loadCubemap(const std::string& file){
 	auto* d3d12 = app->getD3D12();
 	auto* resources = app->getGPUResources();
 	auto* shaderDesc = app->getShaderDescriptors();
@@ -40,7 +40,7 @@ std::unique_ptr<EnvironmentMap> EnvironmentGenerator::loadCubemap(const std::str
 	return bakeIBL(d3d12, shaderDesc, std::move(env));
 }
 
-std::unique_ptr<EnvironmentMap> EnvironmentGenerator::loadHDR(const std::string& hdrFile, uint32_t cubeFaceSize) {
+std::unique_ptr<EnvironmentMap> EnvironmentGenerator::loadHDR(const std::string& hdrFile, uint32_t cubeFaceSize){
 	auto* d3d12 = app->getD3D12();
 	auto* resources = app->getGPUResources();
 	auto* shaderDesc = app->getShaderDescriptors();
@@ -99,7 +99,7 @@ std::unique_ptr<EnvironmentMap> EnvironmentGenerator::loadHDR(const std::string&
 	return env;
 }
 
-std::unique_ptr<EnvironmentMap> EnvironmentGenerator::bakeIBL(ModuleD3D12* d3d12, ModuleShaderDescriptors* shaderDesc, std::unique_ptr<EnvironmentMap> env) {
+std::unique_ptr<EnvironmentMap> EnvironmentGenerator::bakeIBL(ModuleD3D12* d3d12, ModuleShaderDescriptors* shaderDesc, std::unique_ptr<EnvironmentMap> env){
 	auto* samplerHeap = app->getSamplerHeap();
 
 	CommandContext ctx(d3d12, shaderDesc, samplerHeap);

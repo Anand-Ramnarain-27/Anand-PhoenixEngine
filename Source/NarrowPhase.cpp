@@ -10,13 +10,12 @@
 // normal points from B toward A.
 // ---------------------------------------------------------------------------
 static bool obbVsOBB(const CollisionBody& ba, const CollisionBody& bb,
-                     ContactPoint& contact)
-{
-    const Vector3  T  = bb.obbCenter - ba.obbCenter;
+                     ContactPoint& contact){
+    const Vector3 T = bb.obbCenter - ba.obbCenter;
     const Vector3* uA = ba.obbAxes;
-    const float*   eA = ba.obbHalves;
+    const float* eA = ba.obbHalves;
     const Vector3* uB = bb.obbAxes;
-    const float*   eB = bb.obbHalves;
+    const float* eB = bb.obbHalves;
 
     auto project = [](const Vector3* axes, const float* halves, const Vector3& L) -> float {
         return halves[0] * fabsf(axes[0].Dot(L))
@@ -24,15 +23,15 @@ static bool obbVsOBB(const CollisionBody& ba, const CollisionBody& bb,
              + halves[2] * fabsf(axes[2].Dot(L));
     };
 
-    float   minPen = FLT_MAX;
+    float minPen = FLT_MAX;
     Vector3 bestNrm;
 
     auto testAxis = [&](Vector3 L) -> bool {
         float len = L.Length();
         if (len < 1e-6f) return true;
         L /= len;
-        float ra  = project(uA, eA, L);
-        float rb  = project(uB, eB, L);
+        float ra = project(uA, eA, L);
+        float rb = project(uB, eB, L);
         float pen = ra + rb - fabsf(T.Dot(L));
         if (pen <= 0.f) return false;
         if (pen < minPen) { minPen = pen; bestNrm = (T.Dot(L) >= 0.f) ? -L : L; }
@@ -45,11 +44,11 @@ static bool obbVsOBB(const CollisionBody& ba, const CollisionBody& bb,
         for (int j = 0; j < 3; ++j)
             if (!testAxis(uA[i].Cross(uB[j]))) return false;
 
-    contact.a     = ba.go;
-    contact.b     = bb.go;
+    contact.a = ba.go;
+    contact.b = bb.go;
     contact.normal = bestNrm;
-    contact.depth  = minPen;
-    contact.point  = (ba.obbCenter + bb.obbCenter) * 0.5f;
+    contact.depth = minPen;
+    contact.point = (ba.obbCenter + bb.obbCenter) * 0.5f;
     return true;
 }
 
@@ -58,11 +57,10 @@ static bool obbVsOBB(const CollisionBody& ba, const CollisionBody& bb,
 // normal = (centerA - centerB) / dist  →  points from B toward A.
 // ---------------------------------------------------------------------------
 static bool sphereVsSphere(const CollisionBody& ba, const CollisionBody& bb,
-                            ContactPoint& contact)
-{
-    Vector3 diff  = ba.sphereCenter - bb.sphereCenter;
-    float   distSq = diff.LengthSquared();
-    float   rSum   = ba.sphereRadius + bb.sphereRadius;
+                            ContactPoint& contact){
+    Vector3 diff = ba.sphereCenter - bb.sphereCenter;
+    float distSq = diff.LengthSquared();
+    float rSum = ba.sphereRadius + bb.sphereRadius;
 
     if (distSq >= rSum * rSum) return false;
 
@@ -73,12 +71,12 @@ static bool sphereVsSphere(const CollisionBody& ba, const CollisionBody& bb,
 
     if (dist < 1e-6f) {
         contact.normal = Vector3(0.f, 1.f, 0.f); // arbitrary for perfectly coincident spheres
-        contact.depth  = rSum;
-        contact.point  = ba.sphereCenter;
+        contact.depth = rSum;
+        contact.point = ba.sphereCenter;
     } else {
-        contact.normal = diff / dist;                                   // B→A
-        contact.depth  = rSum - dist;
-        contact.point  = bb.sphereCenter + contact.normal * bb.sphereRadius; // surface of B
+        contact.normal = diff / dist; // B→A
+        contact.depth = rSum - dist;
+        contact.point = bb.sphereCenter + contact.normal * bb.sphereRadius; // surface of B
     }
     return true;
 }
@@ -89,8 +87,7 @@ static bool sphereVsSphere(const CollisionBody& ba, const CollisionBody& bb,
 // normal points from B (OBB surface) toward A (sphere centre).
 // ---------------------------------------------------------------------------
 static bool sphereVsOBB(const CollisionBody& bSphere, const CollisionBody& bOBB,
-                         ContactPoint& contact)
-{
+                         ContactPoint& contact){
     // Vector from OBB centre to sphere centre expressed in world space.
     Vector3 d = bSphere.sphereCenter - bOBB.obbCenter;
 
@@ -98,13 +95,13 @@ static bool sphereVsOBB(const CollisionBody& bSphere, const CollisionBody& bOBB,
     // onto each OBB axis and clamping to the half-extent.
     Vector3 closest = bOBB.obbCenter;
     for (int i = 0; i < 3; ++i) {
-        float proj    = d.Dot(bOBB.obbAxes[i]);
+        float proj = d.Dot(bOBB.obbAxes[i]);
         float clamped = std::clamp(proj, -bOBB.obbHalves[i], bOBB.obbHalves[i]);
         closest += bOBB.obbAxes[i] * clamped;
     }
 
-    Vector3 diff   = bSphere.sphereCenter - closest;
-    float   distSq = diff.LengthSquared();
+    Vector3 diff = bSphere.sphereCenter - closest;
+    float distSq = diff.LengthSquared();
 
     if (distSq >= bSphere.sphereRadius * bSphere.sphereRadius) return false;
 
@@ -114,23 +111,23 @@ static bool sphereVsOBB(const CollisionBody& bSphere, const CollisionBody& bOBB,
     float dist = sqrtf(distSq);
     if (dist < 1e-6f) {
         // Sphere centre is inside the OBB — find minimum-penetration face.
-        float  minPen = FLT_MAX;
+        float minPen = FLT_MAX;
         Vector3 bestNrm;
         for (int i = 0; i < 3; ++i) {
-            float q   = d.Dot(bOBB.obbAxes[i]);
+            float q = d.Dot(bOBB.obbAxes[i]);
             float pen = bOBB.obbHalves[i] - fabsf(q) + bSphere.sphereRadius;
             if (pen < minPen) {
-                minPen  = pen;
+                minPen = pen;
                 bestNrm = (q >= 0.f) ? bOBB.obbAxes[i] : -bOBB.obbAxes[i];
             }
         }
         contact.normal = bestNrm;
-        contact.depth  = minPen;
-        contact.point  = closest;
+        contact.depth = minPen;
+        contact.point = closest;
     } else {
-        contact.normal = diff / dist;                   // OBB surface → sphere centre (B→A)
-        contact.depth  = bSphere.sphereRadius - dist;
-        contact.point  = closest;                       // point on OBB surface
+        contact.normal = diff / dist; // OBB surface → sphere centre (B→A)
+        contact.depth = bSphere.sphereRadius - dist;
+        contact.point = closest; // point on OBB surface
     }
     return true;
 }
@@ -139,8 +136,7 @@ static bool sphereVsOBB(const CollisionBody& bSphere, const CollisionBody& bOBB,
 
 std::vector<ContactPoint> NarrowPhase::test(
     const std::vector<CollisionPair>& pairs,
-    const std::vector<CollisionBody>& bodies)
-{
+    const std::vector<CollisionBody>& bodies){
     std::vector<ContactPoint> results;
     results.reserve(pairs.size());
 

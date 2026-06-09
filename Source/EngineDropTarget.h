@@ -13,7 +13,6 @@
 // ModuleEditor can draw a real-time overlay.  Drop expands any dropped
 // folders, filters by supported extension, and hands the list to
 // DragDropManager::QueueFiles for background processing.
-//
 // COM lifecycle: created by ModuleEditor::init() with refcount=1.
 // RegisterDragDrop adds another reference; RevokeDragDrop releases it.
 // ModuleEditor::cleanUp() calls Release() to drop the last reference.

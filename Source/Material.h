@@ -30,11 +30,11 @@ public:
 	Material() = default;
 	~Material() = default;
 
-	const Data& getData() const {
+	const Data& getData() const{
 		return m_data;
 	}
 
-	Data& getData() {
+	Data& getData(){
 		return m_data;
 	}
 
@@ -44,63 +44,63 @@ public:
 	void setEmissiveMap(ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv);
 	void setMetalRoughMap(ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv);
 
-	bool hasTexture() const {
+	bool hasTexture() const{
 		return m_hasBaseColor;
 	}
 
-	bool hasNormalMap() const {
+	bool hasNormalMap() const{
 		return m_hasNormal;
 	}
 
-	bool hasAOMap() const {
+	bool hasAOMap() const{
 		return m_hasAO;
 	}
 
-	bool hasEmissive() const {
+	bool hasEmissive() const{
 		return m_hasEmissive;
 	}
 
-	bool hasMetalRoughMap() const {
+	bool hasMetalRoughMap() const{
 		return m_hasMetalRough;
 	}
 
-	ID3D12Resource* getBaseColorResource() const {
+	ID3D12Resource* getBaseColorResource() const{
 		return m_baseColorTex.Get();
 	}
 
-	ID3D12Resource* getNormalMapResource() const {
+	ID3D12Resource* getNormalMapResource() const{
 		return m_normalTex.Get();
 	}
 
-	ID3D12Resource* getAOMapResource() const {
+	ID3D12Resource* getAOMapResource() const{
 		return m_aoTex.Get();
 	}
 
-	ID3D12Resource* getEmissiveResource() const {
+	ID3D12Resource* getEmissiveResource() const{
 		return m_emissiveTex.Get();
 	}
 
-	ID3D12Resource* getMetalRoughResource() const {
+	ID3D12Resource* getMetalRoughResource() const{
 		return m_metalRoughTex.Get();
 	}
 
-	D3D12_GPU_DESCRIPTOR_HANDLE getTextureGPUHandle() const {
+	D3D12_GPU_DESCRIPTOR_HANDLE getTextureGPUHandle() const{
 		return m_baseColorSRV;
 	}
 
-	D3D12_GPU_DESCRIPTOR_HANDLE getNormalMapGPUHandle() const {
+	D3D12_GPU_DESCRIPTOR_HANDLE getNormalMapGPUHandle() const{
 		return m_normalSRV;
 	}
 
-	D3D12_GPU_DESCRIPTOR_HANDLE getAOMapGPUHandle() const {
+	D3D12_GPU_DESCRIPTOR_HANDLE getAOMapGPUHandle() const{
 		return m_aoSRV;
 	}
 
-	D3D12_GPU_DESCRIPTOR_HANDLE getEmissiveGPUHandle() const {
+	D3D12_GPU_DESCRIPTOR_HANDLE getEmissiveGPUHandle() const{
 		return m_emissiveSRV;
 	}
 
-	D3D12_GPU_DESCRIPTOR_HANDLE getMetalRoughGPUHandle() const {
+	D3D12_GPU_DESCRIPTOR_HANDLE getMetalRoughGPUHandle() const{
 		return m_metalRoughSRV;
 	}
 

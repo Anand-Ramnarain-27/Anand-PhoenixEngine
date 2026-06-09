@@ -10,19 +10,19 @@ using Microsoft::WRL::ComPtr;
 
 class CommandContext {
 public:
-	CommandContext(ModuleD3D12* d3d12, ModuleShaderDescriptors* shaderDesc, ModuleSamplerHeap* samplerHeap) : m_d3d12(d3d12), m_shaderDesc(shaderDesc), m_samplerHeap(samplerHeap) {
+	CommandContext(ModuleD3D12* d3d12, ModuleShaderDescriptors* shaderDesc, ModuleSamplerHeap* samplerHeap) : m_d3d12(d3d12), m_shaderDesc(shaderDesc), m_samplerHeap(samplerHeap){
 		m_valid = init();
 	}
 
-	bool isValid() const {
+	bool isValid() const{
 		return m_valid;
 	}
 
-	ID3D12GraphicsCommandList* cmd() const {
+	ID3D12GraphicsCommandList* cmd() const{
 		return m_cmd.Get();
 	}
 
-	bool submitAndReset(const char* stage) {
+	bool submitAndReset(const char* stage){
 		if (!closeAndExecute(stage)) return false;
 
 		if (FAILED(m_alloc->Reset())) {
@@ -39,12 +39,12 @@ public:
 		return true;
 	}
 
-	bool submit(const char* stage) {
+	bool submit(const char* stage){
 		return closeAndExecute(stage);
 	}
 
 private:
-	bool init() {
+	bool init(){
 		ID3D12Device* device = getDevice();
 		if (!device) return false;
 
@@ -56,7 +56,7 @@ private:
 		return true;
 	}
 
-	bool closeAndExecute(const char* stage) {
+	bool closeAndExecute(const char* stage){
 		if (FAILED(m_cmd->Close())) {
 			LOG("CommandContext: cmd->Close() failed at '%s'", stage);
 			return false;
@@ -74,14 +74,14 @@ private:
 		return true;
 	}
 
-	void bindHeaps() {
+	void bindHeaps(){
 		ID3D12DescriptorHeap* heaps[] = { m_shaderDesc->getHeap(), m_samplerHeap->getHeap() };
 		m_cmd->SetDescriptorHeaps(2, heaps);
 	}
 
 	ID3D12Device* getDevice();
 	ID3D12CommandQueue* getDrawQueue();
-	ModuleD3D12* getD3D12() {
+	ModuleD3D12* getD3D12(){
 		return m_d3d12;
 	}
 

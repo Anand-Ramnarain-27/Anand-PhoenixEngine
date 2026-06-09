@@ -35,7 +35,7 @@ public:
 	                       const FrameLightData& lights, const Vector3& cameraPos,
 	                       const Matrix& viewProj, const EnvironmentSystem* env, int samplerType = 0);
 
-	MeshPipeline& getPipeline() {
+	MeshPipeline& getPipeline(){
 		return m_pipeline;
 	}
 

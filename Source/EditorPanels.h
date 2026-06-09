@@ -16,7 +16,7 @@ public:
     void clear() { m_entries.clear(); }
 
 protected:
-    void drawContent() override {
+    void drawContent() override{
         if (ImGui::Button("Clear")) clear();
         ImGui::SameLine();
         ImGui::Checkbox("Auto-scroll", &m_autoScroll);

@@ -21,7 +21,7 @@
 #include "ComponentScript.h"
 #include "HotReloadManager.h"
 
-static GameObject* findPrefabRoot(GameObject* go) {
+static GameObject* findPrefabRoot(GameObject* go){
     GameObject* cur = go;
     while (cur) {
         if (PrefabManager::isPrefabInstance(cur)) return cur;
@@ -31,18 +31,18 @@ static GameObject* findPrefabRoot(GameObject* go) {
 }
 
 // Returns a tag string + color for a GameObject based on its components.
-static const char* goTag(GameObject* go, ImVec4& outColor) {
+static const char* goTag(GameObject* go, ImVec4& outColor){
     if (go->getComponent<ComponentDirectionalLight>() || go->getComponent<ComponentPointLight>() || go->getComponent<ComponentSpotLight>()) {
         outColor = EditorColors::Warn; return "LIGHT";
     }
-    if (go->getComponent<ComponentCamera>())    { outColor = EditorColors::Inf;  return "CAM"; }
-    if (go->getComponent<ComponentAnimation>()) { outColor = EditorColors::Acc;  return "SKIN"; }
-    if (go->getComponent<ComponentMesh>())      { outColor = EditorColors::Ok;   return "MESH"; }
+    if (go->getComponent<ComponentCamera>()) { outColor = EditorColors::Inf; return "CAM"; }
+    if (go->getComponent<ComponentAnimation>()) { outColor = EditorColors::Acc; return "SKIN"; }
+    if (go->getComponent<ComponentMesh>()) { outColor = EditorColors::Ok; return "MESH"; }
     if (go->getComponent<ComponentRigidbody>()) { outColor = EditorColors::Crit; return "PHYS"; }
     outColor = {}; return nullptr;
 }
 
-void HierarchyPanel::drawContent() {
+void HierarchyPanel::drawContent(){
     ModuleScene* scene = m_editor->getActiveModuleScene();
     if (!scene) return;
     EditorSelection& sel = m_editor->getSelection();
@@ -91,7 +91,7 @@ void HierarchyPanel::drawContent() {
     blankContextMenu();
 }
 
-void HierarchyPanel::drawNode(GameObject* go, bool prefabMode, bool isRoot) {
+void HierarchyPanel::drawNode(GameObject* go, bool prefabMode, bool isRoot){
     if (!go) return;
 
     // Search filter: skip nodes whose name doesn't contain the search string.
@@ -128,7 +128,7 @@ void HierarchyPanel::drawNode(GameObject* go, bool prefabMode, bool isRoot) {
 
     bool isPrefabRoot = prefabMode && isRoot;
     bool isPrefabInst = !isPrefabRoot && PrefabManager::isPrefabInstance(go);
-    if (isPrefabRoot)  ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.75f, 0.20f, 1.f));
+    if (isPrefabRoot) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.75f, 0.20f, 1.f));
     else if (isPrefabInst) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.45f, 0.75f, 1.0f, 1.f));
 
     const char* label = (isPrefabRoot && m_editor->getSceneManager())
@@ -138,9 +138,9 @@ void HierarchyPanel::drawNode(GameObject* go, bool prefabMode, bool isRoot) {
     // Override header colors for selection: accent-dim bg + 2px left accent border
     bool isSelected = (go == sel.object);
     if (isSelected) {
-        ImGui::PushStyleColor(ImGuiCol_Header,        EditorColors::AccDim);
+        ImGui::PushStyleColor(ImGuiCol_Header, EditorColors::AccDim);
         ImGui::PushStyleColor(ImGuiCol_HeaderHovered, { EditorColors::AccDim.x, EditorColors::AccDim.y, EditorColors::AccDim.z, 0.28f });
-        ImGui::PushStyleColor(ImGuiCol_HeaderActive,  { EditorColors::AccDim.x, EditorColors::AccDim.y, EditorColors::AccDim.z, 0.45f });
+        ImGui::PushStyleColor(ImGuiCol_HeaderActive, { EditorColors::AccDim.x, EditorColors::AccDim.y, EditorColors::AccDim.z, 0.45f });
     }
 
     bool nodeOpen = ImGui::TreeNodeEx((void*)(uintptr_t)go->getUID(), flags, "%s", label);
@@ -165,10 +165,10 @@ void HierarchyPanel::drawNode(GameObject* go, bool prefabMode, bool isRoot) {
             ImGui::PushFont(g_fontMono);
             ImVec2 ts = ImGui::CalcTextSize(tag);
             float badgeW = ts.x + 8.f;
-            ImVec2 rMin  = ImGui::GetItemRectMin();
-            ImVec2 rMax  = ImGui::GetItemRectMax();
-            float bx     = rMax.x - badgeW - 4.f;
-            float by     = rMin.y + (rMax.y - rMin.y - ts.y) * 0.5f;
+            ImVec2 rMin = ImGui::GetItemRectMin();
+            ImVec2 rMax = ImGui::GetItemRectMax();
+            float bx = rMax.x - badgeW - 4.f;
+            float by = rMin.y + (rMax.y - rMin.y - ts.y) * 0.5f;
             ImGui::GetWindowDrawList()->AddRectFilled(
                 { bx, by - 2.f }, { bx + badgeW, by + ts.y + 2.f },
                 ImGui::ColorConvertFloat4ToU32({ tagColor.x, tagColor.y, tagColor.z, 0.18f }), 3.f);
@@ -204,7 +204,7 @@ void HierarchyPanel::drawNode(GameObject* go, bool prefabMode, bool isRoot) {
     }
 }
 
-void HierarchyPanel::itemContextMenu(GameObject* go) {
+void HierarchyPanel::itemContextMenu(GameObject* go){
     EditorSelection& sel = m_editor->getSelection();
     bool prefabMode = m_editor->getSceneManager() && m_editor->getSceneManager()->isEditingPrefab();
     bool isEditRoot = prefabMode && m_editor->getPrefabSession() && go == m_editor->getPrefabSession()->rootObject;
@@ -358,7 +358,7 @@ void HierarchyPanel::itemContextMenu(GameObject* go) {
     ImGui::EndDisabled();
 }
 
-void HierarchyPanel::blankContextMenu() {
+void HierarchyPanel::blankContextMenu(){
     if (!ImGui::BeginPopup("##HierBlank")) return;
     EditorSelection& sel = m_editor->getSelection();
     if (ImGui::MenuItem("Create Empty")) m_editor->createEmptyGameObject();

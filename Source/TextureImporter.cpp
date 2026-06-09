@@ -13,14 +13,14 @@
 
 using namespace DirectX;
 
-static std::string CanonicalPath(const std::string& p) {
+static std::string CanonicalPath(const std::string& p){
 	std::filesystem::path path = std::filesystem::weakly_canonical(p);
 	std::string s = path.string();
 	std::replace(s.begin(), s.end(), '\\', '/');
 	return s;
 }
 
-static bool ProcessAndSave(ScratchImage& image, const std::string& outputPath, TextureImporter::TextureType type) {
+static bool ProcessAndSave(ScratchImage& image, const std::string& outputPath, TextureImporter::TextureType type){
 	ScratchImage mipChain;
 	if (image.GetMetadata().mipLevels == 1) {
 		if (FAILED(GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), TEX_FILTER_DEFAULT, 0, mipChain))) mipChain = std::move(image);
@@ -75,7 +75,7 @@ static bool ProcessAndSave(ScratchImage& image, const std::string& outputPath, T
 	return true;
 }
 
-bool TextureImporter::Import(const char* sourcePath, const std::string& outputPath, TextureType type) {
+bool TextureImporter::Import(const char* sourcePath, const std::string& outputPath, TextureType type){
 	std::wstring wSource = std::filesystem::path(sourcePath).wstring();
 	std::wstring ext = std::filesystem::path(sourcePath).extension().wstring();
 	std::transform(ext.begin(), ext.end(), ext.begin(), ::towlower);
@@ -96,7 +96,7 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
 }
 
 bool TextureImporter::ImportFromMemory(const unsigned char* data, int width, int height, int channels,
-	const std::string& outputPath, TextureType type) {
+	const std::string& outputPath, TextureType type){
 	if (!data || width <= 0 || height <= 0 || channels < 1 || channels > 4) {
 		LOG("TextureImporter: ImportFromMemory invalid args (channels=%d, %dx%d)", channels, width, height);
 		return false;
@@ -133,7 +133,7 @@ bool TextureImporter::ImportFromMemory(const unsigned char* data, int width, int
 	return ProcessAndSave(image, outputPath, type);
 }
 
-bool TextureImporter::Load(const std::string& file, ComPtr<ID3D12Resource>& outTexture, D3D12_GPU_DESCRIPTOR_HANDLE& outSRV) {
+bool TextureImporter::Load(const std::string& file, ComPtr<ID3D12Resource>& outTexture, D3D12_GPU_DESCRIPTOR_HANDLE& outSRV){
 	std::string normFile = CanonicalPath(file);
 	std::string metaPath = ImporterUtils::MetaPath(normFile);
 
@@ -187,11 +187,11 @@ bool TextureImporter::Load(const std::string& file, ComPtr<ID3D12Resource>& outT
 	return true;
 }
 
-std::string TextureImporter::GetTextureName(const char* filePath) {
+std::string TextureImporter::GetTextureName(const char* filePath){
 	return std::filesystem::path(filePath).stem().string();
 }
 
-bool TextureImporter::SaveMetadata(const std::string& ddsPath, uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t format) {
+bool TextureImporter::SaveMetadata(const std::string& ddsPath, uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t format){
 	std::string normPath = CanonicalPath(ddsPath);
 
 	LOG("Saving meta for: %s", normPath.c_str());

@@ -49,14 +49,14 @@ public:
 
     // Returns dedicated GPU VRAM in bytes via the DXGI adapter descriptor.
     // Returns 0 if the adapter hasn't been initialised yet.
-    SIZE_T getDedicatedVideoMemory() const {
+    SIZE_T getDedicatedVideoMemory() const{
         if (!m_adapter) return 0;
         DXGI_ADAPTER_DESC3 desc = {};
         m_adapter->GetDesc3(&desc);
         return desc.DedicatedVideoMemory;
     }
     // Human-readable adapter name (e.g. "NVIDIA GeForce RTX 4070").
-    std::wstring getAdapterName() const {
+    std::wstring getAdapterName() const{
         if (!m_adapter) return L"Unknown";
         DXGI_ADAPTER_DESC3 desc = {};
         m_adapter->GetDesc3(&desc);

@@ -19,7 +19,7 @@ static const char* kTextureExts[] = { ".png", ".jpg", ".jpeg", ".tga", ".dds", "
 static const char* kAnimExts[] = { ".anim", nullptr };
 static const char* kMatExts[] = { ".mat", nullptr };
 
-bool DragDropManager::IsSupportedExtension(const std::string& ext) {
+bool DragDropManager::IsSupportedExtension(const std::string& ext){
     for (auto** p = kModelExts; *p; ++p) if (ext == *p) return true;
     for (auto** p = kTextureExts; *p; ++p) if (ext == *p) return true;
     for (auto** p = kAnimExts; *p; ++p) if (ext == *p) return true;
@@ -30,7 +30,7 @@ bool DragDropManager::IsSupportedExtension(const std::string& ext) {
 // ---------------------------------------------------------------------------
 // Singleton
 // ---------------------------------------------------------------------------
-DragDropManager& DragDropManager::Get() {
+DragDropManager& DragDropManager::Get(){
     static DragDropManager s_instance;
     return s_instance;
 }
@@ -44,14 +44,14 @@ bool DragDropManager::IsDragging() const { return m_isDragging.load(); }
 // ---------------------------------------------------------------------------
 // Callbacks
 // ---------------------------------------------------------------------------
-void DragDropManager::SetRefreshCallback(std::function<void()> cb) {
+void DragDropManager::SetRefreshCallback(std::function<void()> cb){
     m_refreshCallback = std::move(cb);
 }
 
 // ---------------------------------------------------------------------------
 // QueueItems — main thread entry point
 // ---------------------------------------------------------------------------
-void DragDropManager::QueueItems(std::vector<DropItem> items) {
+void DragDropManager::QueueItems(std::vector<DropItem> items){
     if (items.empty()) return;
 
     // Filter individual files to supported extensions only.
@@ -101,7 +101,7 @@ void DragDropManager::QueueItems(std::vector<DropItem> items) {
 }
 
 // Convenience wrapper for callers that only deal with individual file paths.
-void DragDropManager::QueueFiles(const std::vector<fs::path>& paths) {
+void DragDropManager::QueueFiles(const std::vector<fs::path>& paths){
     std::vector<DropItem> items;
     items.reserve(paths.size());
     for (const auto& p : paths) items.push_back({ p, false });
@@ -173,7 +173,7 @@ static void importFolderTask(const fs::path& srcFolder,
                      fs::copy_options::overwrite_existing);
             LOG("DragDrop: Copied folder '%s' -> '%s'",
                 srcFolder.string().c_str(), destRoot.string().c_str());
-        } catch (const std::exception& ex) {
+        } catch (const std::exception& ex){
             LOG("DragDrop: Failed to copy folder '%s': %s",
                 srcFolder.string().c_str(), ex.what());
             return;
@@ -205,12 +205,12 @@ static void importFolderTask(const fs::path& srcFolder,
                     entry.path().filename().string().c_str());
             }
         }
-    } catch (...) {
+    } catch (...){
         LOG("DragDrop: Error walking copied folder '%s'", destRoot.string().c_str());
     }
 }
 
-void DragDropManager::workerFunc() {
+void DragDropManager::workerFunc(){
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
     while (true) {
@@ -288,7 +288,7 @@ void DragDropManager::workerFunc() {
 // ---------------------------------------------------------------------------
 // Update — called every frame on the main thread
 // ---------------------------------------------------------------------------
-void DragDropManager::Update() {
+void DragDropManager::Update(){
     if (m_allDone.exchange(false)) {
         if (app && app->getAssets())
             app->getAssets()->refreshAssets();
@@ -319,7 +319,7 @@ void DragDropManager::Update() {
 // GetProgress — try_lock; falls back to cached copy so the main thread never
 // stalls waiting for a worker that holds the progress mutex.
 // ---------------------------------------------------------------------------
-DragDropManager::ImportProgress DragDropManager::GetProgress() {
+DragDropManager::ImportProgress DragDropManager::GetProgress(){
     if (m_progressMutex.try_lock()) {
         m_cachedProgress = m_progress;
         m_progressMutex.unlock();
@@ -330,7 +330,7 @@ DragDropManager::ImportProgress DragDropManager::GetProgress() {
 // ---------------------------------------------------------------------------
 // Shutdown — drain the queue and join all pool workers
 // ---------------------------------------------------------------------------
-void DragDropManager::Shutdown() {
+void DragDropManager::Shutdown(){
     {
         std::lock_guard<std::mutex> lk(m_queueMutex);
         m_taskQueue.clear();

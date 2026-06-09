@@ -9,17 +9,17 @@ using Microsoft::WRL::ComPtr;
 // scene colour target, sharing the GBuffer depth read-only.
 class BillboardPipeline {
 public:
-    static constexpr UINT SLOT_CB      = 0;  // b0 – CbBillboard (VS+PS)
-    static constexpr UINT SLOT_TEXTURE = 1;  // t0 – sprite sheet (PS)
-    static constexpr UINT SLOT_SAMPLER = 2;  // s0-s3 – samplers (PS)
+    static constexpr UINT SLOT_CB = 0; // b0 – CbBillboard (VS+PS)
+    static constexpr UINT SLOT_TEXTURE = 1; // t0 – sprite sheet (PS)
+    static constexpr UINT SLOT_SAMPLER = 2; // s0-s3 – samplers (PS)
 
     bool init(ID3D12Device* device);
 
     // Alpha: src*srcAlpha + dst*(1-srcAlpha) — standard transparency.
-    // Additive: src + dst — fire / glow / sparks (lecture: "Set additive blending").
-    ID3D12PipelineState* getPSO()         const { return m_pso.Get(); }
+    // Additive: src + dst — fire / glow / sparks.
+    ID3D12PipelineState* getPSO() const { return m_pso.Get(); }
     ID3D12PipelineState* getAdditivePSO() const { return m_additivePso.Get(); }
-    ID3D12RootSignature* getRootSig()     const { return m_rootSig.Get(); }
+    ID3D12RootSignature* getRootSig() const { return m_rootSig.Get(); }
 
 private:
     bool createRootSignature(ID3D12Device* device);

@@ -28,7 +28,7 @@ namespace {
     };
 }
 
-void GBuffer::resize(uint32_t w, uint32_t h) {
+void GBuffer::resize(uint32_t w, uint32_t h){
     if (m_width == w && m_height == h) return;
     release();
     if (w == 0 || h == 0) return;
@@ -94,7 +94,7 @@ void GBuffer::resize(uint32_t w, uint32_t h) {
     m_depthReadable = false;
 }
 
-void GBuffer::release() {
+void GBuffer::release(){
     auto* gpuRes = app->getGPUResources();
     for (int i = 0; i < NUM_COLOR_RTS; ++i) {
         if (m_colorTextures[i]) gpuRes->deferRelease(m_colorTextures[i]);
@@ -110,7 +110,7 @@ void GBuffer::release() {
     m_height = 0;
 }
 
-void GBuffer::beginGeomPass(ID3D12GraphicsCommandList* cmd, bool clear) {
+void GBuffer::beginGeomPass(ID3D12GraphicsCommandList* cmd, bool clear){
     if (!isValid()) return;
 
     // SRV -> RTV for all color targets; also transition depth back from readable state if needed
@@ -150,7 +150,7 @@ void GBuffer::beginGeomPass(ID3D12GraphicsCommandList* cmd, bool clear) {
     cmd->RSSetScissorRects(1, &sc);
 }
 
-void GBuffer::endGeomPass(ID3D12GraphicsCommandList* cmd) {
+void GBuffer::endGeomPass(ID3D12GraphicsCommandList* cmd){
     if (!isValid()) return;
 
     // RTV -> SRV for all color targets; depth DEPTH_WRITE -> DEPTH_READ|PSR for sampling
@@ -169,22 +169,22 @@ void GBuffer::endGeomPass(ID3D12GraphicsCommandList* cmd) {
     cmd->ResourceBarrier(NUM_COLOR_RTS + 1, barriers);
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE GBuffer::getSrvHandle(Target t) const {
+D3D12_GPU_DESCRIPTOR_HANDLE GBuffer::getSrvHandle(Target t) const{
     return m_srvTables[static_cast<int>(t)].getGPUHandle(0);
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE GBuffer::getDepthSrvHandle() const {
+D3D12_GPU_DESCRIPTOR_HANDLE GBuffer::getDepthSrvHandle() const{
     return m_depthSrvTable.getGPUHandle(0);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE GBuffer::getDsvHandle() const {
+D3D12_CPU_DESCRIPTOR_HANDLE GBuffer::getDsvHandle() const{
     return m_dsvDesc.getCPUHandle();
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE GBuffer::getReadOnlyDsvHandle() const {
+D3D12_CPU_DESCRIPTOR_HANDLE GBuffer::getReadOnlyDsvHandle() const{
     return m_dsvReadOnly.getCPUHandle();
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE GBuffer::getRtvHandle(Target t) const {
+D3D12_CPU_DESCRIPTOR_HANDLE GBuffer::getRtvHandle(Target t) const{
     return m_rtvDescs[static_cast<int>(t)].getCPUHandle();
 }

@@ -11,7 +11,7 @@ struct PrefabEditSession {
     std::unique_ptr<ModuleScene> isolatedScene;
     GameObject* rootObject = nullptr;
 
-    void clear() {
+    void clear(){
         active = false;
         prefabName.clear();
         rootObject = nullptr;

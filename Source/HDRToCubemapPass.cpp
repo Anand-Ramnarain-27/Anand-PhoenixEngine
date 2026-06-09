@@ -21,7 +21,7 @@ using namespace DirectX;
 HDRToCubemapPass::HDRToCubemapPass() = default;
 HDRToCubemapPass::~HDRToCubemapPass() = default;
 
-bool HDRToCubemapPass::loadHDRTexture(ID3D12Device* device, const std::string& hdrFile, EnvironmentMap& env) {
+bool HDRToCubemapPass::loadHDRTexture(ID3D12Device* device, const std::string& hdrFile, EnvironmentMap& env){
     auto* resources = app->getGPUResources();
     auto* shaderDescs = app->getShaderDescriptors();
 
@@ -52,7 +52,7 @@ bool HDRToCubemapPass::loadHDRTexture(ID3D12Device* device, const std::string& h
     return true;
 }
 
-bool HDRToCubemapPass::createCubemapResource(ID3D12Device* device, EnvironmentMap& env, uint32_t cubeFaceSize) {
+bool HDRToCubemapPass::createCubemapResource(ID3D12Device* device, EnvironmentMap& env, uint32_t cubeFaceSize){
     m_cubeFaceSize = cubeFaceSize;
 
     m_numMips = 1;
@@ -68,7 +68,7 @@ bool HDRToCubemapPass::createCubemapResource(ID3D12Device* device, EnvironmentMa
     return true;
 }
 
-bool HDRToCubemapPass::recordConversion(ID3D12GraphicsCommandList* cmd, EnvironmentMap& env) {
+bool HDRToCubemapPass::recordConversion(ID3D12GraphicsCommandList* cmd, EnvironmentMap& env){
     auto* shaderDescs = app->getShaderDescriptors();
     auto* samplers = app->getSamplerHeap();
     ID3D12DescriptorHeap* heaps[] = { shaderDescs->getHeap(), samplers->getHeap() };
@@ -82,7 +82,7 @@ bool HDRToCubemapPass::recordConversion(ID3D12GraphicsCommandList* cmd, Environm
     return true;
 }
 
-bool HDRToCubemapPass::recordMipLevel(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env, uint32_t mipIndex) {
+bool HDRToCubemapPass::recordMipLevel(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env, uint32_t mipIndex){
     auto* shaderDescs = app->getShaderDescriptors();
     auto* samplers = app->getSamplerHeap();
     ID3D12DescriptorHeap* heaps[] = { shaderDescs->getHeap(), samplers->getHeap() };
@@ -100,7 +100,7 @@ bool HDRToCubemapPass::recordMipLevel(ID3D12Device* device, ID3D12GraphicsComman
     return true;
 }
 
-bool HDRToCubemapPass::finaliseSRV(EnvironmentMap& env) {
+bool HDRToCubemapPass::finaliseSRV(EnvironmentMap& env){
     auto* shaderDescs = app->getShaderDescriptors();
     env.srvTable = shaderDescs->allocTable("SkyboxCubemap");
     if (!env.srvTable.isValid()) {
@@ -123,7 +123,7 @@ bool HDRToCubemapPass::finaliseSRV(EnvironmentMap& env) {
     return true;
 }
 
-bool HDRToCubemapPass::createConversionPipeline(ID3D12Device* device) {
+bool HDRToCubemapPass::createConversionPipeline(ID3D12Device* device){
     struct FaceConstants { XMFLOAT4X4 vp; int flipX; int flipZ; };
     static constexpr UINT kNumConstants = sizeof(FaceConstants) / sizeof(UINT);
 
@@ -182,7 +182,7 @@ bool HDRToCubemapPass::createConversionPipeline(ID3D12Device* device) {
     return true;
 }
 
-bool HDRToCubemapPass::createMipPipeline(ID3D12Device* device) {
+bool HDRToCubemapPass::createMipPipeline(ID3D12Device* device){
     CD3DX12_ROOT_PARAMETER params[3];
     params[0].InitAsConstants(1, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 
@@ -232,7 +232,7 @@ bool HDRToCubemapPass::createMipPipeline(ID3D12Device* device) {
     return true;
 }
 
-bool HDRToCubemapPass::ensureGeometry(ID3D12Device* device) {
+bool HDRToCubemapPass::ensureGeometry(ID3D12Device* device){
     if (m_geometryReady)
         return true;
 
@@ -252,7 +252,7 @@ bool HDRToCubemapPass::ensureGeometry(ID3D12Device* device) {
     return true;
 }
 
-void HDRToCubemapPass::renderFace(ID3D12GraphicsCommandList* cmd, ID3D12Resource* target, uint32_t faceIndex, uint32_t mipLevel, uint32_t totalMips, uint32_t baseFaceSize, D3D12_GPU_DESCRIPTOR_HANDLE sourceSRV, ID3D12RootSignature* rs, ID3D12PipelineState* pso, DXGI_FORMAT rtvFmt) {
+void HDRToCubemapPass::renderFace(ID3D12GraphicsCommandList* cmd, ID3D12Resource* target, uint32_t faceIndex, uint32_t mipLevel, uint32_t totalMips, uint32_t baseFaceSize, D3D12_GPU_DESCRIPTOR_HANDLE sourceSRV, ID3D12RootSignature* rs, ID3D12PipelineState* pso, DXGI_FORMAT rtvFmt){
     auto* rtDescs = app->getRTDescriptors();
     uint32_t mipSize = std::max(1u, baseFaceSize >> mipLevel);
 
@@ -295,7 +295,7 @@ void HDRToCubemapPass::renderFace(ID3D12GraphicsCommandList* cmd, ID3D12Resource
     cmd->ResourceBarrier(1, &toSRV);
 }
 
-void HDRToCubemapPass::blitMipFace(ID3D12GraphicsCommandList* cmd, ID3D12Resource* cubemap, uint32_t faceIndex, uint32_t dstMip, uint32_t totalMips, uint32_t baseFaceSize, ShaderTableDesc& mipTable) {
+void HDRToCubemapPass::blitMipFace(ID3D12GraphicsCommandList* cmd, ID3D12Resource* cubemap, uint32_t faceIndex, uint32_t dstMip, uint32_t totalMips, uint32_t baseFaceSize, ShaderTableDesc& mipTable){
     auto* rtDescs = app->getRTDescriptors();
     uint32_t dstSize = std::max(1u, baseFaceSize >> dstMip);
 

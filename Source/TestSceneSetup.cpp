@@ -67,7 +67,7 @@ void CreateTestScene(ModuleScene* scene,
 
 // ─── ValidateAnimationSetup ───────────────────────────────────────────────────
 
-static void check(bool ok, const char* msg) {
+static void check(bool ok, const char* msg){
     if (ok) { LOG("[OK]   %s", msg); }
     else { LOG("[FAIL] %s", msg); }
 }

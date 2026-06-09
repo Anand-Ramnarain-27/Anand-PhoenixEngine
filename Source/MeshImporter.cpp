@@ -12,18 +12,18 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "tiny_gltf.h"
 
-static const unsigned char* accessorData(const tinygltf::Model& model, const tinygltf::Accessor& acc) {
+static const unsigned char* accessorData(const tinygltf::Model& model, const tinygltf::Accessor& acc){
     const auto& view = model.bufferViews[acc.bufferView];
     return model.buffers[view.buffer].data.data() + view.byteOffset + acc.byteOffset;
 }
 
-static size_t accessorStride(const tinygltf::Model& model, const tinygltf::Accessor& acc, size_t defaultStride) {
+static size_t accessorStride(const tinygltf::Model& model, const tinygltf::Accessor& acc, size_t defaultStride){
     size_t stride = acc.ByteStride(model.bufferViews[acc.bufferView]);
     return stride ? stride : defaultStride;
 }
 
 template<typename T, typename SetFn>
-static void readAccessor(const tinygltf::Model& model, const tinygltf::Accessor& acc, size_t defaultStride, size_t count, SetFn setFn) {
+static void readAccessor(const tinygltf::Model& model, const tinygltf::Accessor& acc, size_t defaultStride, size_t count, SetFn setFn){
     const unsigned char* data = accessorData(model, acc);
     size_t stride = accessorStride(model, acc, defaultStride);
     for (size_t i = 0; i < count; ++i) setFn(i, reinterpret_cast<const float*>(data + i * stride));
@@ -37,7 +37,7 @@ struct SkinDataHeader {
     uint32_t pad = 0;
 };
 
-static bool SaveSkin(uint32_t vertexCount, const std::vector<Mesh::BoneWeight>& bw, const std::string& meshFile) {
+static bool SaveSkin(uint32_t vertexCount, const std::vector<Mesh::BoneWeight>& bw, const std::string& meshFile){
     std::string skinFile = meshFile.substr(0, meshFile.rfind('.')) + ".skin";
     SkinDataHeader hdr; hdr.vertexCount = vertexCount;
     std::vector<char> payload(vertexCount * sizeof(Mesh::BoneWeight));
@@ -45,7 +45,7 @@ static bool SaveSkin(uint32_t vertexCount, const std::vector<Mesh::BoneWeight>& 
     return ImporterUtils::SaveBuffer(skinFile, hdr, payload);
 }
 
-static bool LoadSkin(const std::string& meshFile, std::vector<Mesh::BoneWeight>& outBW) {
+static bool LoadSkin(const std::string& meshFile, std::vector<Mesh::BoneWeight>& outBW){
     std::string skinFile = meshFile.substr(0, meshFile.rfind('.')) + ".skin";
     SkinDataHeader hdr;
     std::vector<char> raw;
@@ -66,7 +66,7 @@ struct MorphDataHeader {
 };
 
 static bool SaveMorph(uint32_t numTargets, uint32_t vertexCount,
-                      const std::vector<Mesh::MorphVertex>& verts, const std::string& meshFile) {
+                      const std::vector<Mesh::MorphVertex>& verts, const std::string& meshFile){
     std::string morphFile = meshFile.substr(0, meshFile.rfind('.')) + ".morph";
     MorphDataHeader hdr; hdr.numTargets = numTargets; hdr.vertexCount = vertexCount;
     std::vector<char> payload(verts.size() * sizeof(Mesh::MorphVertex));
@@ -76,7 +76,7 @@ static bool SaveMorph(uint32_t numTargets, uint32_t vertexCount,
 
 static bool LoadMorph(const std::string& meshFile,
                       std::vector<Mesh::MorphTarget>& outTargets,
-                      std::vector<Mesh::MorphVertex>& outVerts) {
+                      std::vector<Mesh::MorphVertex>& outVerts){
     std::string morphFile = meshFile.substr(0, meshFile.rfind('.')) + ".morph";
     MorphDataHeader hdr;
     std::vector<char> raw;
@@ -91,7 +91,7 @@ static bool LoadMorph(const std::string& meshFile,
 }
 } // namespace
 
-bool MeshImporter::Import(const tinygltf::Primitive& primitive, const tinygltf::Model& model, const std::string& outputFile) {
+bool MeshImporter::Import(const tinygltf::Primitive& primitive, const tinygltf::Model& model, const std::string& outputFile){
     if (!primitive.attributes.count("POSITION")) return false;
     const auto& posAcc = model.accessors[primitive.attributes.at("POSITION")];
     size_t vertexCount = posAcc.count;
@@ -187,7 +187,7 @@ bool MeshImporter::Import(const tinygltf::Primitive& primitive, const tinygltf::
     return ok;
 }
 
-static bool LoadRaw(const std::string& file, MeshImporter::MeshHeader& header, std::vector<Mesh::Vertex>& vertices, std::vector<uint32_t>& indices) {
+static bool LoadRaw(const std::string& file, MeshImporter::MeshHeader& header, std::vector<Mesh::Vertex>& vertices, std::vector<uint32_t>& indices){
     std::vector<char> rawBuffer;
     if (!ImporterUtils::LoadBuffer(file, header, rawBuffer)) return false;
     if (!ImporterUtils::ValidateHeader(header, 0x4853454D)) return false;
@@ -208,7 +208,7 @@ static bool LoadRaw(const std::string& file, MeshImporter::MeshHeader& header, s
     return true;
 }
 
-bool MeshImporter::Load(const std::string& file, ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer, std::unique_ptr<Mesh>& outMesh) {
+bool MeshImporter::Load(const std::string& file, ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer, std::unique_ptr<Mesh>& outMesh){
     if (!cmd || !staticBuffer) { LOG("MeshImporter::Load: cmd and staticBuffer must not be null"); return false; }
     MeshHeader header;
     std::vector<Mesh::Vertex> vertices;
@@ -226,7 +226,7 @@ bool MeshImporter::Load(const std::string& file, ID3D12GraphicsCommandList* cmd,
     return true;
 }
 
-bool MeshImporter::Load(const std::string& file, std::unique_ptr<Mesh>& outMesh) {
+bool MeshImporter::Load(const std::string& file, std::unique_ptr<Mesh>& outMesh){
     MeshHeader header;
     std::vector<Mesh::Vertex> vertices;
     std::vector<uint32_t> indices;
@@ -243,11 +243,11 @@ bool MeshImporter::Load(const std::string& file, std::unique_ptr<Mesh>& outMesh)
     return true;
 }
 
-bool MeshImporter::LoadBoneWeights(const std::string& meshLibraryFile, std::vector<Mesh::BoneWeight>& outBW) {
+bool MeshImporter::LoadBoneWeights(const std::string& meshLibraryFile, std::vector<Mesh::BoneWeight>& outBW){
     return LoadSkin(meshLibraryFile, outBW);
 }
 
-bool MeshImporter::Save(const MeshHeader& header, const std::vector<Mesh::Vertex>& vertices, const std::vector<uint32_t>& indices, const std::string& file) {
+bool MeshImporter::Save(const MeshHeader& header, const std::vector<Mesh::Vertex>& vertices, const std::vector<uint32_t>& indices, const std::string& file){
     std::vector<char> payload(header.vertexCount * sizeof(Mesh::Vertex) + header.indexCount * sizeof(uint32_t));
     char* cursor = payload.data();
     memcpy(cursor, vertices.data(), header.vertexCount * sizeof(Mesh::Vertex));

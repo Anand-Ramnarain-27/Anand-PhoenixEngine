@@ -8,7 +8,7 @@
 #include "ModuleDSDescriptors.h"
 #include "ModuleRTDescriptors.h"
 
-void ViewportPanel::renderToTexture(ID3D12GraphicsCommandList* cmd) {
+void ViewportPanel::renderToTexture(ID3D12GraphicsCommandList* cmd){
     const uint32_t w = (uint32_t)viewport.size.x;
     const uint32_t h = (uint32_t)viewport.size.y;
     if (!viewport.rt || w == 0 || h == 0) return;
@@ -25,7 +25,7 @@ void ViewportPanel::renderToTexture(ID3D12GraphicsCommandList* cmd) {
     viewport.rt->endRender(cmd);
 }
 
-void ViewportPanel::handleResize() {
+void ViewportPanel::handleResize(){
     if (!viewport.pendingResize) return;
     if (viewport.newWidth > 4 && viewport.newHeight > 4) {
         app->getD3D12()->flush();
@@ -35,7 +35,7 @@ void ViewportPanel::handleResize() {
     viewport.pendingResize = false;
 }
 
-void ViewportPanel::drawContent() {
+void ViewportPanel::drawContent(){
     viewport.size = ImGui::GetContentRegionAvail();
     viewport.checkResize();
     if (viewport.isReady()) {

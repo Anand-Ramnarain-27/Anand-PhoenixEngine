@@ -13,12 +13,12 @@ using namespace rapidjson;
 
 ComponentCamera::ComponentCamera(GameObject* owner) : Component(owner) {}
 
-void ComponentCamera::update(float) {
+void ComponentCamera::update(float){
     rebuildFrustum();
     if (m_isMainCamera) app->getCamera()->setGameCameraFrustum(m_frustum);
 }
 
-void ComponentCamera::rebuildFrustum() {
+void ComponentCamera::rebuildFrustum(){
     auto* t = owner->getTransform();
     if (!t) return;
     const Matrix& world = t->getGlobalMatrix();
@@ -29,7 +29,7 @@ void ComponentCamera::rebuildFrustum() {
     m_frustum = Frustum::fromCamera(world.Translation(), forward, right, up, m_fov, app->getCamera()->aspectRatio, m_nearPlane, m_farPlane);
 }
 
-void ComponentCamera::onEditor() {
+void ComponentCamera::onEditor(){
     if (!ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) return;
     if (ImGui::Checkbox("Main Camera", &m_isMainCamera))
         if (!m_isMainCamera) app->getCamera()->clearGameCameraFrustum();
@@ -44,7 +44,7 @@ void ComponentCamera::onEditor() {
     ImGui::TextDisabled("Frustum drawn in viewport when 'Debug Draw Camera Frustums' is on.");
 }
 
-void ComponentCamera::onSave(std::string& outJson) const {
+void ComponentCamera::onSave(std::string& outJson) const{
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
     Value bg(kArrayType);
     bg.PushBack(m_backgroundColor.x, a).PushBack(m_backgroundColor.y, a).PushBack(m_backgroundColor.z, a).PushBack(m_backgroundColor.w, a);
@@ -57,7 +57,7 @@ void ComponentCamera::onSave(std::string& outJson) const {
     outJson = buf.GetString();
 }
 
-void ComponentCamera::onLoad(const std::string& jsonStr) {
+void ComponentCamera::onLoad(const std::string& jsonStr){
     Document doc; doc.Parse(jsonStr.c_str());
     if (doc.HasParseError()) { LOG("ComponentCamera: JSON parse error"); return; }
     if (doc.HasMember("FOV")) m_fov = doc["FOV"].GetFloat();
@@ -70,11 +70,11 @@ void ComponentCamera::onLoad(const std::string& jsonStr) {
     }
 }
 
-Matrix ComponentCamera::getViewMatrix() const {
+Matrix ComponentCamera::getViewMatrix() const{
     auto* t = owner->getTransform();
     return t ? t->getGlobalMatrix().Invert() : Matrix::Identity;
 }
 
-Matrix ComponentCamera::getProjectionMatrix(float aspectRatio) const {
+Matrix ComponentCamera::getProjectionMatrix(float aspectRatio) const{
     return Matrix::CreatePerspectiveFieldOfView(m_fov, aspectRatio, m_nearPlane, m_farPlane);
 }

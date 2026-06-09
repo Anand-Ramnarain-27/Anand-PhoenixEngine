@@ -17,20 +17,20 @@ class GBufferPass;
 // quad axes so the whole instance fits in one constant buffer.
 struct BillboardInstanceCB {
     Matrix viewProj;
-    Vector4 centerHalfWidth;  // xyz = world-space centre, w = half width
-    Vector4 rightHalfHeight;  // xyz = right axis (unit),  w = half height
-    Vector4 up;               // xyz = up axis (unit)
+    Vector4 centerHalfWidth; // xyz = world-space centre, w = half width
+    Vector4 rightHalfHeight; // xyz = right axis (unit),  w = half height
+    Vector4 up; // xyz = up axis (unit)
     Vector4 tint;
-    Vector4 frameRectA;       // u0,v0,u1,v1 — current sheet tile
-    Vector4 frameRectB;       // u0,v0,u1,v1 — next sheet tile
-    Vector4 blendFactor;      // x = blend between tile A and B
+    Vector4 frameRectA; // u0,v0,u1,v1 — current sheet tile
+    Vector4 frameRectB; // u0,v0,u1,v1 — next sheet tile
+    Vector4 blendFactor; // x = blend between tile A and B
 };
 
 // CPU-side instance: GPU data plus the texture to bind for this draw.
 struct BillboardInstance {
     BillboardInstanceCB cb;
     std::string texturePath; // empty = fallback (white) texture
-    bool additive = false;   // false = alpha blend, true = additive (lecture: particle blend modes)
+    bool additive = false; // false = alpha blend, true = additive
 };
 
 // Forward billboard rendering pass.

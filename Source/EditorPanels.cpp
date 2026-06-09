@@ -17,20 +17,20 @@
 #include "ModuleCamera.h"
 #include "GameObject.h"
 
-void PerformancePanel::drawContent() {
+void PerformancePanel::drawContent(){
     // Pass color palette — widths are proportional to reference ms values; the
     // bar is then scaled so the total matches the live GPU query.
     struct PassInfo { const char* name; float refMs; ImU32 col; };
     static const PassInfo kPasses[] = {
         { "D3D12 Core", 0.12f, IM_COL32(139,139,150,255) },
-        { "Env/IBL",    0.34f, IM_COL32( 98,176,201,255) },
-        { "Skinning",   0.61f, IM_COL32(111,206,154,255) },
-        { "G-Buffer",   2.18f, IM_COL32(232,146, 74,255) },
-        { "Deferred",   3.42f, IM_COL32(232, 96,110,255) },
-        { "Forward",    1.27f, IM_COL32(217,162, 62,255) },
-        { "Debug",      0.21f, IM_COL32(155,123,208,255) },
-        { "RenderTex",  0.44f, IM_COL32( 90,166,232,255) },
-        { "ImGui",      0.38f, IM_COL32(199,199,207,255) },
+        { "Env/IBL", 0.34f, IM_COL32( 98,176,201,255) },
+        { "Skinning", 0.61f, IM_COL32(111,206,154,255) },
+        { "G-Buffer", 2.18f, IM_COL32(232,146, 74,255) },
+        { "Deferred", 3.42f, IM_COL32(232, 96,110,255) },
+        { "Forward", 1.27f, IM_COL32(217,162, 62,255) },
+        { "Debug", 0.21f, IM_COL32(155,123,208,255) },
+        { "RenderTex", 0.44f, IM_COL32( 90,166,232,255) },
+        { "ImGui", 0.38f, IM_COL32(199,199,207,255) },
     };
     static constexpr int kN = (int)(sizeof(kPasses) / sizeof(kPasses[0]));
 
@@ -38,14 +38,14 @@ void PerformancePanel::drawContent() {
     for (auto& p : kPasses) refTotal += p.refMs;
 
     // Live GPU time from editor (falls back to refTotal before first readback).
-    const bool  gpuReady = m_editor->isGpuTimerReady();
-    const float gpuMs    = gpuReady ? (float)m_editor->getGpuFrameTimeMs() : refTotal;
-    const float cpuMs    = app->getAvgElapsedMs();
-    const float fps      = app->getFPS();
-    const float scale    = gpuMs / refTotal;
+    const bool gpuReady = m_editor->isGpuTimerReady();
+    const float gpuMs = gpuReady ? (float)m_editor->getGpuFrameTimeMs() : refTotal;
+    const float cpuMs = app->getAvgElapsedMs();
+    const float fps = app->getFPS();
+    const float scale = gpuMs / refTotal;
     const float budgetPc = std::min(100.f, gpuMs / 16.67f * 100.f);
 
-    ImDrawList* dl   = ImGui::GetWindowDrawList();
+    ImDrawList* dl = ImGui::GetWindowDrawList();
     const float winW = ImGui::GetContentRegionAvail().x;
 
     // ---- Top row: GPU ms (big) | CPU ms | Budget % | FPS ----
@@ -101,17 +101,17 @@ void PerformancePanel::drawContent() {
     ImGui::Spacing();
 
     // ---- Proportional stacked bar ----
-    const float barH  = 24.f;
-    const float barY  = ImGui::GetCursorScreenPos().y;
-    const float barX  = ImGui::GetCursorScreenPos().x;
-    const float barW  = winW;
+    const float barH = 24.f;
+    const float barY = ImGui::GetCursorScreenPos().y;
+    const float barX = ImGui::GetCursorScreenPos().x;
+    const float barW = winW;
 
     dl->AddRectFilled(ImVec2(barX, barY), ImVec2(barX + barW, barY + barH),
         ImGui::ColorConvertFloat4ToU32(EditorColors::Bg2), 4.f);
 
     float xOff = 0.f;
     for (int i = 0; i < kN; ++i) {
-        float w      = (kPasses[i].refMs / refTotal) * barW;
+        float w = (kPasses[i].refMs / refTotal) * barW;
         float passMs = kPasses[i].refMs * scale;
         dl->AddRectFilled(ImVec2(barX + xOff, barY),
                           ImVec2(barX + xOff + w, barY + barH),
@@ -141,9 +141,9 @@ void PerformancePanel::drawContent() {
     ImGui::PushFont(g_fontMono);
     float lx = barX;
     for (int i = 0; i < kN; ++i) {
-        float segW   = (kPasses[i].refMs / refTotal) * barW;
+        float segW = (kPasses[i].refMs / refTotal) * barW;
         float passMs = kPasses[i].refMs * scale;
-        char  lbl[64]; snprintf(lbl, sizeof(lbl), "%s %.2f", kPasses[i].name, passMs);
+        char lbl[64]; snprintf(lbl, sizeof(lbl), "%s %.2f", kPasses[i].name, passMs);
         ImVec2 ts = ImGui::CalcTextSize(lbl);
 
         ImVec2 cp = ImGui::GetCursorScreenPos();
@@ -179,7 +179,7 @@ void PerformancePanel::drawContent() {
     ImGui::PopStyleColor();
 }
 
-void ResourcesPanel::drawContent() {
+void ResourcesPanel::drawContent(){
     const auto& resources = app->getResources()->getLoadedResources();
     ImGui::Text("Resources in memory: %d", (int)resources.size());
     ImGui::Separator();
@@ -195,7 +195,7 @@ void ResourcesPanel::drawContent() {
     }
 }
 
-ImVec4 ResourcesPanel::typeColor(ResourceBase::Type t) {
+ImVec4 ResourcesPanel::typeColor(ResourceBase::Type t){
     switch (t) {
     case ResourceBase::Type::Mesh: return { 0.6f, 0.9f, 1.0f, 1.f };
     case ResourceBase::Type::Material: return { 1.0f, 0.85f, 0.5f, 1.f };
@@ -204,7 +204,7 @@ ImVec4 ResourcesPanel::typeColor(ResourceBase::Type t) {
     }
 }
 
-void CollisionDebugPanel::drawContent() {
+void CollisionDebugPanel::drawContent(){
     CollisionSystem* cs = m_editor->getCollisionSystem();
     if (!cs) { textMuted("No collision system."); return; }
 
@@ -226,25 +226,25 @@ void CollisionDebugPanel::drawContent() {
     struct PhaseRow { const char* phase; const char* impl; uint32_t pairs; float gpuMs; float cpuMs; };
     float totalGpu = r.broadPhaseMs; // Only broad phase timing is available currently
     PhaseRow rows[] = {
-        { "Broad",  "(SAP grid)",   r.broadCount, r.broadPhaseMs, r.broadPhaseMs * 2.1f },
-        { "Mid",    "(AABB tree)",  r.midCount,   r.broadPhaseMs * 0.45f, r.broadPhaseMs * 0.7f },
+        { "Broad", "(SAP grid)", r.broadCount, r.broadPhaseMs, r.broadPhaseMs * 2.1f },
+        { "Mid", "(AABB tree)", r.midCount, r.broadPhaseMs * 0.45f, r.broadPhaseMs * 0.7f },
         { "Narrow", "(GJK / EPA)", (uint32_t)r.contacts.size(), r.broadPhaseMs * 1.0f, r.broadPhaseMs * 0.58f },
     };
 
     auto msCol = [](float ms) -> ImVec4 {
         if (ms < 0.5f) return EditorColors::Ok;
-        if (ms < 2.f)  return EditorColors::Warn;
+        if (ms < 2.f) return EditorColors::Warn;
         return EditorColors::Crit;
     };
 
     if (ImGui::BeginTable("##coltiming", 5,
             ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit,
-            { leftW, 0.f })) {
-        ImGui::TableSetupColumn("PHASE",   ImGuiTableColumnFlags_WidthFixed, 80.f);
-        ImGui::TableSetupColumn("",        ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("PAIRS",   ImGuiTableColumnFlags_WidthFixed, 56.f);
-        ImGui::TableSetupColumn("GPU ms",  ImGuiTableColumnFlags_WidthFixed, 56.f);
-        ImGui::TableSetupColumn("CPU ms",  ImGuiTableColumnFlags_WidthFixed, 56.f);
+            { leftW, 0.f })){
+        ImGui::TableSetupColumn("PHASE", ImGuiTableColumnFlags_WidthFixed, 80.f);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("PAIRS", ImGuiTableColumnFlags_WidthFixed, 56.f);
+        ImGui::TableSetupColumn("GPU ms", ImGuiTableColumnFlags_WidthFixed, 56.f);
+        ImGui::TableSetupColumn("CPU ms", ImGuiTableColumnFlags_WidthFixed, 56.f);
         ImGui::TableHeadersRow();
 
         float gtotal = 0.f, ctotal = 0.f;
@@ -314,10 +314,10 @@ void CollisionDebugPanel::drawContent() {
 
     if (s) {
         ImGui::Checkbox("AABB Bounding Volumes", &s->debugDrawBounds);
-        ImGui::Checkbox("Broadphase Grid",       &s->debugDrawGrid);
-        ImGui::Checkbox("Show Light Proxies",    &s->debugDrawLights);
+        ImGui::Checkbox("Broadphase Grid", &s->debugDrawGrid);
+        ImGui::Checkbox("Show Light Proxies", &s->debugDrawLights);
         if (ModuleCamera* cam = app->getCamera())
-            ImGui::Checkbox("Camera Frustum",    &cam->debugDrawEditorFrustum);
+            ImGui::Checkbox("Camera Frustum", &cam->debugDrawEditorFrustum);
     }
     ImGui::EndGroup();
 
@@ -330,11 +330,11 @@ void CollisionDebugPanel::drawContent() {
     ImGui::Text("Active: %s", cs->getBroadPhaseName());
     ImGui::Spacing();
 
-    if (ImGui::Button("Brute Force"))  cs->useBruteForceBroadPhase();
+    if (ImGui::Button("Brute Force")) cs->useBruteForceBroadPhase();
     ImGui::SameLine();
     if (ImGui::Button("Uniform Grid")) cs->useGridBroadPhase();
     ImGui::SameLine();
-    if (ImGui::Button("Octree"))       cs->useOctreeBroadPhase();
+    if (ImGui::Button("Octree")) cs->useOctreeBroadPhase();
 
     // Grid-specific controls
     if (cs->isUsingGrid()) {
@@ -380,7 +380,7 @@ void CollisionDebugPanel::drawContent() {
     {
         float ms = r.broadPhaseMs;
         ImVec4 col = ms < 0.5f ? ImVec4(0.4f,1.f,0.4f,1.f) :
-                     ms < 2.f  ? ImVec4(1.f,0.85f,0.2f,1.f) :
+                     ms < 2.f ? ImVec4(1.f,0.85f,0.2f,1.f) :
                                  ImVec4(1.f,0.3f,0.3f,1.f);
         ImGui::PushStyleColor(ImGuiCol_Text, col);
         ImGui::Text("Broad phase time : %.3f ms", ms);
@@ -418,7 +418,7 @@ void CollisionDebugPanel::drawContent() {
         if (ImGui::TreeNodeEx("##cp", ImGuiTreeNodeFlags_DefaultOpen,
                               "%s  ×  %s  (depth %.3f)", na, nb, c.depth))
         {
-            ImGui::Text("  point   (%.2f, %.2f, %.2f)", c.point.x,  c.point.y,  c.point.z);
+            ImGui::Text("  point   (%.2f, %.2f, %.2f)", c.point.x, c.point.y, c.point.z);
             ImGui::Text("  normal  (%.2f, %.2f, %.2f)", c.normal.x, c.normal.y, c.normal.z);
             ImGui::TreePop();
         }
@@ -432,16 +432,16 @@ void CollisionDebugPanel::drawContent() {
 // ============================================================
 
 // Horizontal fill-bar helper. tipId is a ## unique id for tooltip.
-void GPUMemoryPanel::drawBar(const char* /*tipId*/, float used, float total, ImU32 color) {
+void GPUMemoryPanel::drawBar(const char* /*tipId*/, float used, float total, ImU32 color){
     const float barH = 14.f;
     ImVec2 p = ImGui::GetCursorScreenPos();
-    float w    = ImGui::GetContentRegionAvail().x;
+    float w = ImGui::GetContentRegionAvail().x;
     float fill = (total > 0.f) ? std::min(1.f, used / total) * w : 0.f;
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
-    dl->AddRectFilled(p, ImVec2(p.x + w,    p.y + barH), ImGui::ColorConvertFloat4ToU32(EditorColors::Bg0), 3.f);
+    dl->AddRectFilled(p, ImVec2(p.x + w, p.y + barH), ImGui::ColorConvertFloat4ToU32(EditorColors::Bg0), 3.f);
     ImU32 c0 = (color & 0x00FFFFFF) | ((((color >> 24) * 204u) / 255u) << 24);
-    dl->AddRectFilled(p,                      ImVec2(p.x + fill,          p.y + barH), c0, 3.f);
+    dl->AddRectFilled(p, ImVec2(p.x + fill, p.y + barH), c0, 3.f);
     dl->AddRectFilled(ImVec2(p.x + fill * 0.5f, p.y), ImVec2(p.x + fill, p.y + barH), color, 0.f);
     for (int i = 1; i < 12; ++i) {
         float gx = p.x + w * i / 11.f;
@@ -451,9 +451,9 @@ void GPUMemoryPanel::drawBar(const char* /*tipId*/, float used, float total, ImU
     ImGui::Dummy(ImVec2(w, barH));
 }
 
-void GPUMemoryPanel::drawContent() {
+void GPUMemoryPanel::drawContent(){
     const float labelW = 118.f;
-    const float valW   =  96.f;
+    const float valW = 96.f;
 
     ModuleStaticBuffer* sb = app->getStaticBuffer();
 
@@ -465,8 +465,8 @@ void GPUMemoryPanel::drawContent() {
         ImGui::SameLine();
         // VRAM display on the right
         float vramUsed = 0.f, vramTotal = 0.f;
-        if (sb) { vramUsed  = sb->getUsedBytes()  / (1024.f*1024.f*1024.f);
-                  vramTotal = sb->getTotalBytes()  / (1024.f*1024.f*1024.f); }
+        if (sb) { vramUsed = sb->getUsedBytes() / (1024.f*1024.f*1024.f);
+                  vramTotal = sb->getTotalBytes() / (1024.f*1024.f*1024.f); }
         char vramBuf[64];
         snprintf(vramBuf, sizeof(vramBuf), "resident %.2f / %.1f GB VRAM", vramUsed, vramTotal);
         float tw = ImGui::CalcTextSize(vramBuf).x;
@@ -481,17 +481,17 @@ void GPUMemoryPanel::drawContent() {
 
     struct HeapRow { const char* name; const char* sub; float used; float total; const char* unit; ImU32 color; };
     HeapRow heaps[] = {
-        { "CBV / SRV / UAV", "shader-visible", 2310.f, 4096.f, "desc", ImGui::ColorConvertFloat4ToU32(EditorColors::Inf)  },
-        { "Sampler",         "shader-visible",   48.f,  256.f, "desc", ImGui::ColorConvertFloat4ToU32(EditorColors::Ok)   },
-        { "RTV",             "cpu",              36.f,  128.f, "desc", ImGui::ColorConvertFloat4ToU32(EditorColors::Hot)  },
-        { "DSV",             "cpu",              12.f,   64.f, "desc", ImGui::ColorConvertFloat4ToU32(EditorColors::Acc)  },
+        { "CBV / SRV / UAV", "shader-visible", 2310.f, 4096.f, "desc", ImGui::ColorConvertFloat4ToU32(EditorColors::Inf) },
+        { "Sampler", "shader-visible", 48.f, 256.f, "desc", ImGui::ColorConvertFloat4ToU32(EditorColors::Ok) },
+        { "RTV", "cpu", 36.f, 128.f, "desc", ImGui::ColorConvertFloat4ToU32(EditorColors::Hot) },
+        { "DSV", "cpu", 12.f, 64.f, "desc", ImGui::ColorConvertFloat4ToU32(EditorColors::Acc) },
     };
 
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 4.f, 4.f });
     if (ImGui::BeginTable("##heaps", 3, ImGuiTableFlags_SizingFixedFit)) {
-        ImGui::TableSetupColumn("##n",  ImGuiTableColumnFlags_WidthFixed, labelW);
-        ImGui::TableSetupColumn("##b",  ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("##v",  ImGuiTableColumnFlags_WidthFixed, valW);
+        ImGui::TableSetupColumn("##n", ImGuiTableColumnFlags_WidthFixed, labelW);
+        ImGui::TableSetupColumn("##b", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("##v", ImGuiTableColumnFlags_WidthFixed, valW);
         for (auto& h : heaps) {
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
@@ -521,8 +521,8 @@ void GPUMemoryPanel::drawContent() {
     {
         // Donut chart (SVG-style using ImDrawList circles)
         const float radius = 40.f;
-        const float thick  =  9.f;
-        const float rpc    = 0.575f; // 57.5%
+        const float thick = 9.f;
+        const float rpc = 0.575f; // 57.5%
         ImVec2 center = { ImGui::GetCursorScreenPos().x + radius + 8.f,
                           ImGui::GetCursorScreenPos().y + radius + 4.f };
         ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -553,9 +553,9 @@ void GPUMemoryPanel::drawContent() {
         ImVec2 fStart = ImGui::GetCursorScreenPos();
         struct Frame { const char* n; float mb; ImU32 col; };
         Frame frames[] = {
-            { "N-2",  6.1f, IM_COL32( 58,106,140,255) },
-            { "N-1",  7.0f, IM_COL32( 74,168,232,255) },
-            { "N",    5.3f, IM_COL32(121,192,255,255) },
+            { "N-2", 6.1f, IM_COL32( 58,106,140,255) },
+            { "N-1", 7.0f, IM_COL32( 74,168,232,255) },
+            { "N", 5.3f, IM_COL32(121,192,255,255) },
         };
         float fx = fStart.x;
         for (int i = 0; i < 3; ++i) {
@@ -578,15 +578,15 @@ void GPUMemoryPanel::drawContent() {
 
         ImGui::PushFont(g_fontMono);
         ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
-        ImGui::Text("head offset");  ImGui::SameLine(80.f);
+        ImGui::Text("head offset"); ImGui::SameLine(80.f);
         ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx0);
         ImGui::TextUnformatted("0x1266666");
         ImGui::PopStyleColor();
-        ImGui::Text("per-frame budget");  ImGui::SameLine(80.f);
+        ImGui::Text("per-frame budget"); ImGui::SameLine(80.f);
         ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx0);
         ImGui::TextUnformatted("10.67 MB");
         ImGui::PopStyleColor();
-        ImGui::Text("wraps / sec");  ImGui::SameLine(80.f);
+        ImGui::Text("wraps / sec"); ImGui::SameLine(80.f);
         ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx0);
         ImGui::TextUnformatted("2.1");
         ImGui::PopStyleColor();
@@ -607,12 +607,12 @@ void GPUMemoryPanel::drawContent() {
 
     // If the static buffer is live, show it; otherwise use design-spec values.
     struct PoolRow { const char* name; float used; float total; const char* unit; ImU32 col; };
-    float sbUsedMB  = sb ? sb->getUsedBytes()  / (1024.f * 1024.f) : 412.f;
+    float sbUsedMB = sb ? sb->getUsedBytes() / (1024.f * 1024.f) : 412.f;
     float sbTotalMB = sb ? sb->getTotalBytes() / (1024.f * 1024.f) : 512.f;
     PoolRow pools[] = {
-        { "Static Vertex/Index",  sbUsedMB,  sbTotalMB,  "MB", ImGui::ColorConvertFloat4ToU32(EditorColors::Ok)  },
-        { "Texture Streaming",   2840.f,    4096.f, "MB", ImGui::ColorConvertFloat4ToU32(EditorColors::Hot) },
-        { "Readback",               6.f,      16.f, "MB", ImGui::ColorConvertFloat4ToU32(EditorColors::Acc) },
+        { "Static Vertex/Index", sbUsedMB, sbTotalMB, "MB", ImGui::ColorConvertFloat4ToU32(EditorColors::Ok) },
+        { "Texture Streaming", 2840.f, 4096.f, "MB", ImGui::ColorConvertFloat4ToU32(EditorColors::Hot) },
+        { "Readback", 6.f, 16.f, "MB", ImGui::ColorConvertFloat4ToU32(EditorColors::Acc) },
     };
 
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 4.f, 4.f });
@@ -640,7 +640,7 @@ void GPUMemoryPanel::drawContent() {
     ImGui::PopStyleVar();
 }
 
-const char* ResourcesPanel::typeName(ResourceBase::Type t) {
+const char* ResourcesPanel::typeName(ResourceBase::Type t){
     switch (t) {
     case ResourceBase::Type::Mesh: return "Mesh";
     case ResourceBase::Type::Texture: return "Texture";

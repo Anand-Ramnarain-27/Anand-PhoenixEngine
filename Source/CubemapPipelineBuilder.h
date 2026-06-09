@@ -10,7 +10,7 @@ using Microsoft::WRL::ComPtr;
 
 namespace CubemapPipelineBuilder
 {
-    inline bool buildCubeFacePipeline(ID3D12Device* device, const wchar_t* psCsoPath, DXGI_FORMAT rtvFmt, ComPtr<ID3D12RootSignature>& outRS, ComPtr<ID3D12PipelineState>& outPSO) {
+    inline bool buildCubeFacePipeline(ID3D12Device* device, const wchar_t* psCsoPath, DXGI_FORMAT rtvFmt, ComPtr<ID3D12RootSignature>& outRS, ComPtr<ID3D12PipelineState>& outPSO){
         CD3DX12_ROOT_PARAMETER params[4];
         params[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
         params[1].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -67,7 +67,7 @@ namespace CubemapPipelineBuilder
         return true;
     }
 
-    inline bool buildBRDFPipeline(ID3D12Device* device, ComPtr<ID3D12RootSignature>& outRS, ComPtr<ID3D12PipelineState>& outPSO) {
+    inline bool buildBRDFPipeline(ID3D12Device* device, ComPtr<ID3D12RootSignature>& outRS, ComPtr<ID3D12PipelineState>& outPSO){
 
         CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
         rsDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);

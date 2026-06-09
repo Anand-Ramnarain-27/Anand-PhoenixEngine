@@ -21,7 +21,7 @@ struct HashString {
     bool operator!=(const HashString& o) const { return !(*this == o); }
     bool empty() const { return str.empty(); }
 
-    static uint32_t compute(const std::string& s) {
+    static uint32_t compute(const std::string& s){
         return static_cast<uint32_t>(std::hash<std::string>{}(s));
     }
 };

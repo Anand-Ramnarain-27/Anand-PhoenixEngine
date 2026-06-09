@@ -16,7 +16,7 @@ namespace {
     constexpr UINT cbAlign(UINT b) { return (b + 255u) & ~255u; }
 
     ComPtr<ID3D12Resource> makeUploadBuf(ID3D12Device* device, UINT64 bytes,
-                                          void** mapped, const wchar_t* name) {
+                                          void** mapped, const wchar_t* name){
         auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         auto bd = CD3DX12_RESOURCE_DESC::Buffer(bytes);
         ComPtr<ID3D12Resource> buf;
@@ -30,7 +30,7 @@ namespace {
     }
 
     void makeStructuredSRV(ShaderTableDesc& table, UINT slot,
-                            ID3D12Resource* buf, UINT numElems, UINT stride) {
+                            ID3D12Resource* buf, UINT numElems, UINT stride){
         D3D12_SHADER_RESOURCE_VIEW_DESC srv = {};
         srv.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
         srv.Format = DXGI_FORMAT_UNKNOWN;
@@ -40,7 +40,7 @@ namespace {
         table.createSRV(buf, slot, &srv);
     }
 
-    void writeFallbackCubeSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* cube) {
+    void writeFallbackCubeSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* cube){
         D3D12_SHADER_RESOURCE_VIEW_DESC sv = {};
         sv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         sv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
@@ -51,7 +51,7 @@ namespace {
         table.createSRV(cube, slot, &sv);
     }
 
-    void writeFallbackTex2DSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* tex) {
+    void writeFallbackTex2DSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* tex){
         D3D12_SHADER_RESOURCE_VIEW_DESC sv = {};
         sv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         sv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -61,7 +61,7 @@ namespace {
     }
 }
 
-bool DeferredLightingPass::init(ID3D12Device* device) {
+bool DeferredLightingPass::init(ID3D12Device* device){
     if (!m_pipeline.init(device)) {
         LOG("DeferredLightingPass: pipeline init failed");
         return false;
@@ -77,7 +77,7 @@ bool DeferredLightingPass::init(ID3D12Device* device) {
     return true;
 }
 
-bool DeferredLightingPass::createUploadBuffers(ID3D12Device* device) {
+bool DeferredLightingPass::createUploadBuffers(ID3D12Device* device){
     const UINT cbSz = cbAlign(sizeof(CbPerFrame));
     m_perFrameCB = makeUploadBuf(device, cbSz, &m_perFrameMapped, L"DeferredLight_PerFrameCB");
     if (!m_perFrameCB) return false;
@@ -96,7 +96,7 @@ bool DeferredLightingPass::createUploadBuffers(ID3D12Device* device) {
     return true;
 }
 
-bool DeferredLightingPass::createLightSRVs() {
+bool DeferredLightingPass::createLightSRVs(){
     auto* sd = app->getShaderDescriptors();
     m_dirLightSRV = sd->allocTable("DeferredLight_DirSRV");
     m_pointLightSRV = sd->allocTable("DeferredLight_PointSRV");
@@ -114,7 +114,7 @@ bool DeferredLightingPass::createLightSRVs() {
     return true;
 }
 
-bool DeferredLightingPass::createFallbackIBL(ID3D12Device* device) {
+bool DeferredLightingPass::createFallbackIBL(ID3D12Device* device){
     {
         D3D12_RESOURCE_DESC td = {};
         td.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -157,7 +157,7 @@ bool DeferredLightingPass::createFallbackIBL(ID3D12Device* device) {
     m_fallbackPrefilterSRV = sd->allocTable("DeferredLight_FallbackPref");
     m_fallbackBRDFSRV = sd->allocTable("DeferredLight_FallbackBRDF");
     if (!m_fallbackIrradianceSRV.isValid() || !m_fallbackPrefilterSRV.isValid()
-                                           || !m_fallbackBRDFSRV.isValid()) {
+                                           || !m_fallbackBRDFSRV.isValid()){
         LOG("DeferredLightingPass: fallback IBL SRV alloc failed");
         return false;
     }
@@ -167,7 +167,7 @@ bool DeferredLightingPass::createFallbackIBL(ID3D12Device* device) {
     return true;
 }
 
-void DeferredLightingPass::uploadLights(const FrameLightData& lights) {
+void DeferredLightingPass::uploadLights(const FrameLightData& lights){
     auto copy = [](void* dst, const void* src, size_t count, size_t stride, size_t maxCount) {
         UINT n = static_cast<UINT>(std::min(count, maxCount));
         if (n > 0) memcpy(dst, src, n * stride);
@@ -184,18 +184,18 @@ void DeferredLightingPass::uploadPerFrameCB(const FrameLightData& lights,
                                              const Vector3& cameraPos,
                                              const Matrix& invViewProj,
                                              uint32_t envRoughLevels,
-                                             uint32_t width, uint32_t height) {
+                                             uint32_t width, uint32_t height){
     CbPerFrame cb = {};
-    cb.dirLightCount      = static_cast<uint32_t>(std::min(lights.dirLights.size(), (size_t)MeshPipeline::MAX_DIR_LIGHTS));
-    cb.pointLightCount    = static_cast<uint32_t>(std::min(lights.pointLights.size(), (size_t)MeshPipeline::MAX_POINT_LIGHTS));
-    cb.spotLightCount     = static_cast<uint32_t>(std::min(lights.spotLights.size(), (size_t)MeshPipeline::MAX_SPOT_LIGHTS));
+    cb.dirLightCount = static_cast<uint32_t>(std::min(lights.dirLights.size(), (size_t)MeshPipeline::MAX_DIR_LIGHTS));
+    cb.pointLightCount = static_cast<uint32_t>(std::min(lights.pointLights.size(), (size_t)MeshPipeline::MAX_POINT_LIGHTS));
+    cb.spotLightCount = static_cast<uint32_t>(std::min(lights.spotLights.size(), (size_t)MeshPipeline::MAX_SPOT_LIGHTS));
     cb.envRoughnessLevels = envRoughLevels;
-    cb.cameraPosition     = cameraPos;
-    cb.framePad           = 0;
-    cb.invViewProj        = invViewProj.Transpose();
-    cb.viewportWidth      = width;
-    cb.viewportHeight     = height;
-    cb.pad0 = cb.pad1     = 0;
+    cb.cameraPosition = cameraPos;
+    cb.framePad = 0;
+    cb.invViewProj = invViewProj.Transpose();
+    cb.viewportWidth = width;
+    cb.viewportHeight = height;
+    cb.pad0 = cb.pad1 = 0;
     memcpy(m_perFrameMapped, &cb, sizeof(cb));
 }
 
@@ -207,7 +207,7 @@ void DeferredLightingPass::render(ID3D12GraphicsCommandList* cmd,
                                    const Matrix& projection,
                                    const Matrix& invViewProj,
                                    const EnvironmentSystem* env,
-                                   uint32_t width, uint32_t height) {
+                                   uint32_t width, uint32_t height){
     if (width == 0 || height == 0) return;
     if (!gbufferPass.getGBuffer().isValid()) return;
 

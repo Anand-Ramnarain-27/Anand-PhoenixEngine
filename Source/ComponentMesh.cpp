@@ -24,7 +24,7 @@ using namespace rapidjson;
 ComponentMesh::ComponentMesh(GameObject* owner) : Component(owner) {}
 ComponentMesh::~ComponentMesh() { releaseEntries(); }
 
-void ComponentMesh::releaseEntries() {
+void ComponentMesh::releaseEntries(){
     for (auto& e : m_entries) {
         if (e.meshRes) app->getResources()->ReleaseResource(e.meshRes);
         if (e.materialRes) app->getResources()->ReleaseResource(e.materialRes);
@@ -34,7 +34,7 @@ void ComponentMesh::releaseEntries() {
     m_entries.clear();
 }
 
-static ComPtr<ID3D12Resource> makeMaterialCB(const Material::Data& data) {
+static ComPtr<ID3D12Resource> makeMaterialCB(const Material::Data& data){
     auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer((sizeof(Material::Data) + 255) & ~255);
     ComPtr<ID3D12Resource> buf;
@@ -47,7 +47,7 @@ static ComPtr<ID3D12Resource> makeMaterialCB(const Material::Data& data) {
     return buf;
 }
 
-void ComponentMesh::rebuildEntry(MeshEntry& e) {
+void ComponentMesh::rebuildEntry(MeshEntry& e){
     // Initialise the per-instance material copy the first time (or after a reset).
     // Subsequent calls (e.g. from markMaterialsDirty) reuse the existing copy so
     // that in-editor changes to one instance are not clobbered.
@@ -63,12 +63,12 @@ void ComponentMesh::rebuildEntry(MeshEntry& e) {
 
 void ComponentMesh::markMaterialsDirty() { m_materialsDirty = true; }
 
-void ComponentMesh::flushDeferredReleases() {
+void ComponentMesh::flushDeferredReleases(){
     m_deferredRelease.clear();
     if (m_materialsDirty) { m_materialsDirty = false; rebuildMaterialBuffers(); }
 }
 
-void ComponentMesh::rebuildMaterialBuffers() {
+void ComponentMesh::rebuildMaterialBuffers(){
     for (auto& e : m_entries) rebuildEntry(e);
     if (m_proceduralModel) {
         m_proceduralMaterialBuffers.clear();
@@ -76,7 +76,7 @@ void ComponentMesh::rebuildMaterialBuffers() {
     }
 }
 
-static std::string resolveCanonicalPath(const char* filePath, UID& outUID) {
+static std::string resolveCanonicalPath(const char* filePath, UID& outUID){
     std::string normPath = filePath;
     for (char& c : normPath) if (c == '\\') c = '/';
     std::string sceneName = std::filesystem::path(normPath).stem().string();
@@ -101,7 +101,7 @@ static std::string resolveCanonicalPath(const char* filePath, UID& outUID) {
     return canonical.empty() ? normPath : canonical;
 }
 
-bool ComponentMesh::loadModel(const char* filePath) {
+bool ComponentMesh::loadModel(const char* filePath){
     releaseEntries();
     m_proceduralModel.reset();
     m_proceduralMaterialBuffers.clear();
@@ -161,7 +161,7 @@ bool ComponentMesh::loadModel(const char* filePath) {
     return !m_entries.empty();
 }
 
-bool ComponentMesh::loadMeshSubset(const std::string& assetPath, int startMesh, int meshCount) {
+bool ComponentMesh::loadMeshSubset(const std::string& assetPath, int startMesh, int meshCount){
     releaseEntries();
     m_proceduralModel.reset();
     m_proceduralMaterialBuffers.clear();
@@ -195,7 +195,7 @@ bool ComponentMesh::loadMeshSubset(const std::string& assetPath, int startMesh, 
     return !m_entries.empty();
 }
 
-void ComponentMesh::addMeshEntry(UID meshUID, UID materialUID) {
+void ComponentMesh::addMeshEntry(UID meshUID, UID materialUID){
     MeshEntry e;
     e.meshUID = meshUID;
     e.materialUID = materialUID;
@@ -205,19 +205,19 @@ void ComponentMesh::addMeshEntry(UID meshUID, UID materialUID) {
     m_entries.push_back(std::move(e));
 }
 
-void ComponentMesh::setSkinData(const ResourceModel::Skin& skin, std::vector<GameObject*> joints) {
+void ComponentMesh::setSkinData(const ResourceModel::Skin& skin, std::vector<GameObject*> joints){
     m_localSkin = skin;
     m_skinJoints = std::move(joints);
     m_hasSkin = true;
 }
 
-void ComponentMesh::setMorphWeight(int index, float weight) {
+void ComponentMesh::setMorphWeight(int index, float weight){
     if (index < 0 || index >= MAX_MORPH_WEIGHTS) return;
     m_morphWeights[index] = weight;
     m_morphWeightsDirty = true;
 }
 
-void ComponentMesh::setProceduralModel(std::unique_ptr<Model> model) {
+void ComponentMesh::setProceduralModel(std::unique_ptr<Model> model){
     releaseEntries();
     m_proceduralModel = std::shared_ptr<Model>(std::move(model));
     m_modelUID = 0;
@@ -227,7 +227,7 @@ void ComponentMesh::setProceduralModel(std::unique_ptr<Model> model) {
     computeLocalAABB();
 }
 
-void ComponentMesh::overrideMaterial(int slot, UID materialUID) {
+void ComponentMesh::overrideMaterial(int slot, UID materialUID){
     if (slot < 0 || slot >= (int)m_entries.size()) return;
     MeshEntry& e = m_entries[slot];
     if (e.materialRes) { app->getResources()->ReleaseResource(e.materialRes); e.materialRes = nullptr; }
@@ -237,17 +237,17 @@ void ComponentMesh::overrideMaterial(int slot, UID materialUID) {
     rebuildEntry(e);
 }
 
-void ComponentMesh::render(ID3D12GraphicsCommandList* /*cmd*/) {
+void ComponentMesh::render(ID3D12GraphicsCommandList* /*cmd*/){
     // Rendering is handled by MeshRenderPass via MeshEntry lists built in
     // ModuleEditor::renderSceneWithCamera. This override is intentionally empty.
 }
 
-void ComponentMesh::onEditor() {
+void ComponentMesh::onEditor(){
     if (!m_hasSkin) return;
     ImGui::Checkbox("Draw Bind Pose", &m_drawBindPose);
 }
 
-void ComponentMesh::onDrawGizmos() {
+void ComponentMesh::onDrawGizmos(){
     if (!m_drawBindPose || !m_hasSkin) return;
 
     const int n = (int)m_skinJoints.size();
@@ -271,7 +271,7 @@ void ComponentMesh::onDrawGizmos() {
     }
 }
 
-void ComponentMesh::onSave(std::string& outJson) const {
+void ComponentMesh::onSave(std::string& outJson) const{
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
     doc.AddMember("ModelUID", m_modelUID, a);
     Value pathVal; pathVal.SetString(m_modelPath.c_str(), a);
@@ -301,18 +301,18 @@ void ComponentMesh::onSave(std::string& outJson) const {
     outJson = buf.GetString();
 }
 
-static GameObject* findInSubtree(GameObject* node, const std::string& name) {
+static GameObject* findInSubtree(GameObject* node, const std::string& name){
     if (node->getName() == name) return node;
     for (auto* child : node->getChildren()) if (auto* found = findInSubtree(child, name)) return found;
     return nullptr;
 }
 
-static GameObject* hierarchyRoot(GameObject* go) {
+static GameObject* hierarchyRoot(GameObject* go){
     while (go->getParent() && go->getParent()->getParent()) go = go->getParent();
     return go;
 }
 
-void ComponentMesh::onLoad(const std::string& jsonStr) {
+void ComponentMesh::onLoad(const std::string& jsonStr){
     Document doc; doc.Parse(jsonStr.c_str());
     if (doc.HasParseError()) return;
 
@@ -375,7 +375,7 @@ void ComponentMesh::onLoad(const std::string& jsonStr) {
     }
 }
 
-void ComponentMesh::computeLocalAABB() {
+void ComponentMesh::computeLocalAABB(){
     m_localAABBMin = Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
     m_localAABBMax = Vector3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
     m_hasAABB = false;
@@ -397,7 +397,7 @@ void ComponentMesh::computeLocalAABB() {
     }
 }
 
-void ComponentMesh::getWorldAABB(Vector3& outMin, Vector3& outMax) const {
+void ComponentMesh::getWorldAABB(Vector3& outMin, Vector3& outMax) const{
     auto* t = owner->getTransform();
     Matrix world = t ? t->getGlobalMatrix() : Matrix::Identity;
     const Vector3& mn = m_localAABBMin;

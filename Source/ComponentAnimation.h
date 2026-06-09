@@ -45,7 +45,7 @@ public:
     const ResourceStateMachine* getStateMachine() const { return m_stateMachine; }
     const HashString& getActiveState() const { return m_activeState; }
     const AnimLayer* getLayerHead() const { return m_layerHead; }
-    int getLayerCount() const {
+    int getLayerCount() const{
         int n = 0;
         for (const AnimLayer* l = m_layerHead; l; l = l->next) ++n;
         return n;

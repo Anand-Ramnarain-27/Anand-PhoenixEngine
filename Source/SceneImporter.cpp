@@ -61,7 +61,7 @@ namespace {
     };
 
     void visitGLTFNode(int ni, int parentIdx, const tinygltf::Model& model,
-                       std::vector<TempNode>& nodes) {
+                       std::vector<TempNode>& nodes){
         if (ni < 0 || ni >= (int)model.nodes.size()) return;
         const auto& n = model.nodes[ni];
         TempNode tn{};
@@ -105,7 +105,7 @@ namespace {
     }
 }
 
-bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const std::string& sceneName, const std::string& basePath) {
+bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const std::string& sceneName, const std::string& basePath){
     if (!CreateSceneDirectory(sceneName)) LOG("SceneImporter: Warning: CreateSceneDirectory returned false for %s (may already exist)", sceneName.c_str());
     ModuleFileSystem* fs = app->getFileSystem();
     std::string meshFolder = fs->GetLibraryPath() + "Meshes/" + sceneName;
@@ -143,7 +143,7 @@ bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const
     return true;
 }
 
-bool SceneImporter::LoadScene(const std::string& sceneName, std::unique_ptr<Model>& outModel) {
+bool SceneImporter::LoadScene(const std::string& sceneName, std::unique_ptr<Model>& outModel){
     ModuleFileSystem* fs = app->getFileSystem();
     std::string folder = fs->GetLibraryPath() + "Meshes/" + sceneName;
     if (!fs->Exists(folder.c_str())) { LOG("SceneImporter: Scene folder does not exist: %s", folder.c_str()); return false; }
@@ -152,7 +152,7 @@ bool SceneImporter::LoadScene(const std::string& sceneName, std::unique_ptr<Mode
     return true;
 }
 
-bool SceneImporter::CreateSceneDirectory(const std::string& sceneName) {
+bool SceneImporter::CreateSceneDirectory(const std::string& sceneName){
     ModuleFileSystem* fs = app->getFileSystem();
     std::string lib = fs->GetLibraryPath();
     fs->CreateDir((lib + "Meshes").c_str());
@@ -160,7 +160,7 @@ bool SceneImporter::CreateSceneDirectory(const std::string& sceneName) {
     return fs->CreateDir((lib + "Meshes/" + sceneName).c_str()) && fs->CreateDir((lib + "Materials/" + sceneName).c_str());
 }
 
-bool SceneImporter::SaveSceneMetadata(const std::string& sceneName, const tinygltf::Model& gltfModel) {
+bool SceneImporter::SaveSceneMetadata(const std::string& sceneName, const tinygltf::Model& gltfModel){
     SceneHeader header;
     std::vector<int32_t> matIndices;
     for (const auto& mesh : gltfModel.meshes) {
@@ -182,7 +182,7 @@ bool SceneImporter::SaveSceneMetadata(const std::string& sceneName, const tinygl
     return ImporterUtils::SaveBuffer(app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/scene.meta", header, payload);
 }
 
-bool SceneImporter::LoadSceneMetadata(const std::string& sceneName, SceneHeader& header) {
+bool SceneImporter::LoadSceneMetadata(const std::string& sceneName, SceneHeader& header){
     std::vector<char> rawBuffer;
     std::string path = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/scene.meta";
     if (!ImporterUtils::LoadBuffer(path, header, rawBuffer)) return false;
@@ -190,7 +190,7 @@ bool SceneImporter::LoadSceneMetadata(const std::string& sceneName, SceneHeader&
     return true;
 }
 
-bool SceneImporter::SaveNodeMetadata(const std::string& sceneName, const tinygltf::Model& gltfModel) {
+bool SceneImporter::SaveNodeMetadata(const std::string& sceneName, const tinygltf::Model& gltfModel){
     // Build mesh-range table: gltfMeshIndex -> (firstFileIndex, primitiveCount)
     std::vector<NodeFileMeshRange> meshRanges;
     uint32_t fi = 0;
@@ -246,7 +246,7 @@ bool SceneImporter::SaveNodeMetadata(const std::string& sceneName, const tinyglt
     return ImporterUtils::SaveBuffer(path, header, payload);
 }
 
-bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinygltf::Model& gltfModel) {
+bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinygltf::Model& gltfModel){
     if (gltfModel.skins.empty()) return true;
 
     // Build GLTF global node index -> DFS engine index mapping.
@@ -307,13 +307,11 @@ bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinyglt
         }
 
         // Coordinate-frame correction.
-        //
         // Some exporters (including Blender without "Apply Transform") place the Z-up→Y-up
         // axis-conversion rotation on the armature OBJECT node (the non-joint parent of the
         // skeleton root).  The IBP matrices in the file are in that Y-up world space, but the
         // mesh vertices are in the armature's LOCAL (Z-up) space.  Unless we pre-multiply every
         // IBP by the armature's ROTATION the skinning formula IBP*jointWorld gives wrong results.
-        //
         // We use ONLY the rotation/scale component of the armature's world transform — NOT the
         // translation — so that moving the character in the editor never corrupts the palette.
         {
@@ -341,8 +339,8 @@ bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinyglt
                         } else {
                             Vector3 t(0,0,0), s(1,1,1); Quaternion r(0,0,0,1);
                             if (an.translation.size() >= 3) { t.x=(float)an.translation[0]; t.y=(float)an.translation[1]; t.z=(float)an.translation[2]; }
-                            if (an.rotation.size()    >= 4) { r.x=(float)an.rotation[0];    r.y=(float)an.rotation[1];    r.z=(float)an.rotation[2];    r.w=(float)an.rotation[3]; }
-                            if (an.scale.size()       >= 3) { s.x=(float)an.scale[0];       s.y=(float)an.scale[1];       s.z=(float)an.scale[2]; }
+                            if (an.rotation.size() >= 4) { r.x=(float)an.rotation[0]; r.y=(float)an.rotation[1]; r.z=(float)an.rotation[2]; r.w=(float)an.rotation[3]; }
+                            if (an.scale.size() >= 3) { s.x=(float)an.scale[0]; s.y=(float)an.scale[1]; s.z=(float)an.scale[2]; }
                             local = Matrix::CreateScale(s) * Matrix::CreateFromQuaternion(r) * Matrix::CreateTranslation(t);
                         }
                         armWorld = armWorld * local;
@@ -386,7 +384,7 @@ bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinyglt
     return ImporterUtils::SaveBuffer(path, hdr, payload);
 }
 
-bool SceneImporter::LoadSkins(const std::string& sceneName, std::vector<SkinInfo>& outSkins) {
+bool SceneImporter::LoadSkins(const std::string& sceneName, std::vector<SkinInfo>& outSkins){
     std::string path = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/skins.meta";
     SkinFileHeader hdr;
     std::vector<char> raw;
@@ -433,7 +431,7 @@ bool SceneImporter::LoadSkins(const std::string& sceneName, std::vector<SkinInfo
     return !outSkins.empty();
 }
 
-bool SceneImporter::LoadMaterialIndices(const std::string& sceneName, std::vector<int>& outMatIndices) {
+bool SceneImporter::LoadMaterialIndices(const std::string& sceneName, std::vector<int>& outMatIndices){
     SceneHeader header;
     std::vector<char> raw;
     std::string path = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/scene.meta";
@@ -449,7 +447,7 @@ bool SceneImporter::LoadMaterialIndices(const std::string& sceneName, std::vecto
     return true;
 }
 
-bool SceneImporter::LoadNodeTree(const std::string& sceneName, std::vector<NodeInfo>& outNodes) {
+bool SceneImporter::LoadNodeTree(const std::string& sceneName, std::vector<NodeInfo>& outNodes){
     std::string path = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/nodes.meta";
     NodeFileHeader header;
     std::vector<char> raw;

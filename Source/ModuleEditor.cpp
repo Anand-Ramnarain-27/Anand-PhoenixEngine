@@ -19,6 +19,7 @@
 #include "ComponentDecal.h"
 #include "ComponentBillboard.h"
 #include "ComponentParticleSystem.h"
+#include "ComponentTrail.h"
 #include "RenderTexture.h"
 #include "EmptyScene.h"
 #include "ModuleScene.h"
@@ -67,13 +68,13 @@
 #include <cstdio>
 
 namespace fs = std::filesystem;
-static constexpr float kDeg2Rad  = 0.0174532925f;
-static constexpr float kStatusH  = 22.f;   // height of the status bar overlay
+static constexpr float kDeg2Rad = 0.0174532925f;
+static constexpr float kStatusH = 22.f; // height of the status bar overlay
 
 ModuleEditor::ModuleEditor() = default;
 ModuleEditor::~ModuleEditor() = default;
 
-ComPtr<ID3D12Resource> ModuleEditor::createUploadBuffer(ID3D12Device* device, SIZE_T size, const wchar_t* name) {
+ComPtr<ID3D12Resource> ModuleEditor::createUploadBuffer(ID3D12Device* device, SIZE_T size, const wchar_t* name){
     auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     auto bd = CD3DX12_RESOURCE_DESC::Buffer((size + 255) & ~255);
     ComPtr<ID3D12Resource> buf;
@@ -82,7 +83,7 @@ ComPtr<ID3D12Resource> ModuleEditor::createUploadBuffer(ID3D12Device* device, SI
     return buf;
 }
 
-bool ModuleEditor::init() {
+bool ModuleEditor::init(){
     ModuleD3D12* d3d12 = app->getD3D12();
     ModuleShaderDescriptors* descs = app->getShaderDescriptors();
     ID3D12Device* device = d3d12->getDevice();
@@ -95,7 +96,7 @@ bool ModuleEditor::init() {
 
     m_imguiPass = std::make_unique<ImGuiPass>(device2.Get(), d3d12->getHWnd(), m_descTable.getCPUHandle(), m_descTable.getGPUHandle());
     m_debugDraw = std::make_unique<DebugDrawPass>(device4.Get(), d3d12->getDrawCommandQueue(), false);
-    m_collisionSystem  = std::make_unique<CollisionSystem>();
+    m_collisionSystem = std::make_unique<CollisionSystem>();
     m_collisionResponse = std::make_unique<CollisionResponse>();
     m_sceneManager = std::make_unique<SceneManager>();
     m_meshRenderPass = std::make_unique<MeshRenderPass>();
@@ -151,6 +152,13 @@ bool ModuleEditor::init() {
         m_billboardPass.reset();
     }
 
+    m_trailPass = std::make_unique<TrailPass>();
+    if (!m_trailPass->init(device)) {
+        // Non-fatal: engine runs without trails
+        LOG("ModuleEditor: TrailPass init failed (non-fatal)");
+        m_trailPass.reset();
+    }
+
     m_envSystem = std::make_unique<EnvironmentSystem>();
     if (!m_envSystem->init(device, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT, false)) return false;
 
@@ -204,7 +212,7 @@ bool ModuleEditor::init() {
     return true;
 }
 
-bool ModuleEditor::cleanUp() {
+bool ModuleEditor::cleanUp(){
     // Shut down background import worker before any module state is torn down.
     DragDropManager::Get().Shutdown();
 
@@ -234,15 +242,15 @@ bool ModuleEditor::cleanUp() {
     return true;
 }
 
-ModuleScene* ModuleEditor::getActiveModuleScene() const {
+ModuleScene* ModuleEditor::getActiveModuleScene() const{
     return m_sceneManager ? m_sceneManager->getModuleScene() : nullptr;
 }
 
-void ModuleEditor::log(const char* text, const ImVec4& color) {
+void ModuleEditor::log(const char* text, const ImVec4& color){
     if (m_console) m_console->add(text, color);
 }
 
-void ModuleEditor::preRender() {
+void ModuleEditor::preRender(){
     flushExitPrefabEdit();
     m_sceneView->handleResize();
     m_gameView->handleResize();
@@ -288,7 +296,7 @@ void ModuleEditor::preRender() {
     drawDragDropOverlay();
 }
 
-void ModuleEditor::render() {
+void ModuleEditor::render(){
     ModuleD3D12* d3d12 = app->getD3D12();
     ModuleShaderDescriptors* descs = app->getShaderDescriptors();
     ID3D12GraphicsCommandList* cmd = d3d12->getCommandList();
@@ -338,7 +346,7 @@ void ModuleEditor::render() {
     if (m_memoryUpdateTimer >= 1000.0f) { m_memoryUpdateTimer = 0.0f; updateMemory(); }
 }
 
-void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras, RenderTexture* outputRT) {
+void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras, RenderTexture* outputRT){
     ModuleCamera* camera = app->getCamera();
     ModuleScene* moduleScene = getActiveModuleScene();
 
@@ -430,7 +438,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                         const uint32_t vcount = mesh ? mesh->getVertexCount() : 0u;
                         const uint32_t jcount = hasBones ? (uint32_t)cm->getLocalSkin().jointNodeIndices.size() : 0u;
                         const bool withinVertexCap = (curVertexOffset + vcount <= SkinningPass::MAX_TOTAL_VERTICES);
-                        const bool withinJointCap  = (curPaletteOffset + jcount <= SkinningPass::MAX_TOTAL_JOINTS);
+                        const bool withinJointCap = (curPaletteOffset + jcount <= SkinningPass::MAX_TOTAL_JOINTS);
                         if (!withinVertexCap)
                             LOG("[SkinDebug] OVERFLOW: vertex cap %u exceeded (offset %u + count %u). Re-export at lower poly count.",
                                 SkinningPass::MAX_TOTAL_VERTICES, curVertexOffset, vcount);
@@ -552,6 +560,11 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                               camPos, camera->getRight(), camera->getUp());
     }
 
+    std::vector<TrailInstance> trails;
+    if (m_trailPass && moduleScene) {
+        gatherTrails(moduleScene->getRoot(), trails, viewProj, camera->getPos());
+    }
+
     // GBuffer geometry pass — fills albedo / normalMetalRough / emissiveAO / depth MRTs.
     // Always run even for translucent-only or billboard-only frames so depth is cleared
     // and in DEPTH_READ state.
@@ -649,6 +662,29 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
             }
         }
 
+        // Trails — CPU-generated camera-facing ribbon meshes,
+        // alpha/additive blended, sharing the scene RT and read-only GBuffer depth.
+        if (m_trailPass && moduleScene && outputRT && outputRT->isValid() && !trails.empty()) {
+            const Vector3 camPos = camera->getPos();
+            std::sort(trails.begin(), trails.end(),
+                      [&camPos](const TrailInstance& a, const TrailInstance& b) {
+                          if (a.additive != b.additive) return !a.additive && b.additive;
+                          float da = Vector3::DistanceSquared(a.sortPos, camPos);
+                          float db = Vector3::DistanceSquared(b.sortPos, camPos);
+                          return da > db;
+                      });
+
+            auto rtv = outputRT->getRtvHandle();
+            auto roDsv = m_gbufferPass->getGBuffer().getReadOnlyDsvHandle();
+            cmd->OMSetRenderTargets(1, &rtv, FALSE, &roDsv);
+            D3D12_VIEWPORT vp = { 0.f, 0.f, float(w), float(h), 0.f, 1.f };
+            D3D12_RECT sc = { 0, 0, LONG(w), LONG(h) };
+            cmd->RSSetViewports(1, &vp);
+            cmd->RSSetScissorRects(1, &sc);
+
+            m_trailPass->render(cmd, trails, viewProj, w, h);
+        }
+
         // Restore descriptor heaps for subsequent passes
         ID3D12DescriptorHeap* heaps2[] = { app->getShaderDescriptors()->getHeap(),
                                            app->getSamplerHeap()->getHeap() };
@@ -689,8 +725,8 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
             // depending on whether the object has a Bounds component.
             struct BoundsEntry {
                 BVType type;
-                AABB   box;     // used when type == AABB
-                Sphere sphere;  // used when type == Sphere
+                AABB box; // used when type == AABB
+                Sphere sphere; // used when type == Sphere
             };
             std::vector<BoundsEntry> boundsEntries;
 
@@ -708,7 +744,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                             const Vector3 lMin = cm->getLocalAABBMin();
                             const Vector3 lMax = cm->getLocalAABBMax();
                             const Vector3 lHalf = (lMax - lMin) * 0.5f;
-                            const Vector3 lCtr  = (lMin + lMax) * 0.5f;
+                            const Vector3 lCtr = (lMin + lMax) * 0.5f;
                             Vector3 center = Vector3::Transform(lCtr, W);
 
                             // Extract scale magnitudes from world matrix rows
@@ -720,13 +756,13 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                                 ? cb->radiusOverride
                                 : sqrtf(hx*hx + hy*hy + hz*hz);
 
-                            e.type   = BVType::Sphere;
+                            e.type = BVType::Sphere;
                             e.sphere = { center, radius };
                         } else {
                             Vector3 mn, mx;
                             cm->getWorldAABB(mn, mx);
-                            e.type   = BVType::AABB;
-                            e.box    = { mn, mx };
+                            e.type = BVType::AABB;
+                            e.box = { mn, mx };
                         }
                         boundsEntries.push_back(e);
                     }
@@ -744,7 +780,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                     bool hit = false;
                     const BoundsEntry& ei = boundsEntries[i];
                     const BoundsEntry& ej = boundsEntries[j];
-                    if (ei.type == BVType::AABB   && ej.type == BVType::AABB)
+                    if (ei.type == BVType::AABB && ej.type == BVType::AABB)
                         hit = ei.box.intersects(ej.box);
                     else if (ei.type == BVType::Sphere && ej.type == BVType::Sphere)
                         hit = ei.sphere.intersects(ej.sphere);
@@ -773,7 +809,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     }
 }
 
-void ModuleEditor::gatherLights(GameObject* node, FrameLightData& out) const {
+void ModuleEditor::gatherLights(GameObject* node, FrameLightData& out) const{
     if (!node || !node->isActive()) return;
 
     if (auto* dl = node->getComponent<ComponentDirectionalLight>(); dl && dl->enabled) {
@@ -820,18 +856,18 @@ void ModuleEditor::gatherLights(GameObject* node, FrameLightData& out) const {
 
 void ModuleEditor::gatherDecals(GameObject* node, std::vector<DecalInstance>& out,
                                   const Matrix& view, const Matrix& proj,
-                                  uint32_t w, uint32_t h) const {
+                                  uint32_t w, uint32_t h) const{
     if (!node || !node->isActive()) return;
 
     if (auto* dc = node->getComponent<ComponentDecal>(); dc && dc->enabled) {
         if (out.size() < DecalPass::MAX_DECALS) {
-            Matrix worldMat  = node->getTransform()->getGlobalMatrix();
-            Matrix viewProj  = view * proj;
+            Matrix worldMat = node->getTransform()->getGlobalMatrix();
+            Matrix viewProj = view * proj;
 
             DecalInstance inst;
-            inst.mvp        = (worldMat * viewProj).Transpose();
+            inst.mvp = (worldMat * viewProj).Transpose();
             worldMat.Invert(inst.invModel);
-            inst.invModel   = inst.invModel.Transpose();
+            inst.invModel = inst.invModel.Transpose();
 
             Matrix invVP;
             viewProj.Invert(invVP);
@@ -846,7 +882,7 @@ void ModuleEditor::gatherDecals(GameObject* node, std::vector<DecalInstance>& ou
 
 void ModuleEditor::gatherBillboards(GameObject* node, std::vector<BillboardInstance>& out,
                                      const Matrix& view, const Matrix& viewProj,
-                                     const Vector3& camPos, const Vector3& camRight, const Vector3& camUp) const {
+                                     const Vector3& camPos, const Vector3& camRight, const Vector3& camUp) const{
     if (!node || !node->isActive()) return;
 
     if (auto* bb = node->getComponent<ComponentBillboard>(); bb && bb->enabled) {
@@ -859,7 +895,7 @@ void ModuleEditor::gatherBillboards(GameObject* node, std::vector<BillboardInsta
             case ComponentBillboard::Alignment::Screen:
                 // Screen alignment: axes locked to the camera/screen — used for HUD-like 2D fx
                 right = camRight;
-                up    = camUp;
+                up = camUp;
                 break;
             case ComponentBillboard::Alignment::World: {
                 // World (view-point) alignment: N points from billboard to camera, U = world up
@@ -907,15 +943,15 @@ void ModuleEditor::gatherBillboards(GameObject* node, std::vector<BillboardInsta
             };
 
             BillboardInstance inst;
-            inst.cb.viewProj         = viewProj.Transpose();
-            inst.cb.centerHalfWidth  = Vector4(center.x, center.y, center.z, bb->size.x * 0.5f);
-            inst.cb.rightHalfHeight  = Vector4(right.x, right.y, right.z, bb->size.y * 0.5f);
-            inst.cb.up               = Vector4(up.x, up.y, up.z, 0.f);
-            inst.cb.tint             = bb->tint;
-            inst.cb.frameRectA       = tileRect(frameA);
-            inst.cb.frameRectB       = (totalTiles > 1) ? tileRect(frameB) : inst.cb.frameRectA;
-            inst.cb.blendFactor      = Vector4(blend, 0.f, 0.f, 0.f);
-            inst.texturePath         = bb->texturePath;
+            inst.cb.viewProj = viewProj.Transpose();
+            inst.cb.centerHalfWidth = Vector4(center.x, center.y, center.z, bb->size.x * 0.5f);
+            inst.cb.rightHalfHeight = Vector4(right.x, right.y, right.z, bb->size.y * 0.5f);
+            inst.cb.up = Vector4(up.x, up.y, up.z, 0.f);
+            inst.cb.tint = bb->tint;
+            inst.cb.frameRectA = tileRect(frameA);
+            inst.cb.frameRectB = (totalTiles > 1) ? tileRect(frameB) : inst.cb.frameRectA;
+            inst.cb.blendFactor = Vector4(blend, 0.f, 0.f, 0.f);
+            inst.texturePath = bb->texturePath;
 
             out.push_back(std::move(inst));
         }
@@ -931,7 +967,7 @@ void ModuleEditor::gatherBillboards(GameObject* node, std::vector<BillboardInsta
 // (per-instance constant buffer, one draw per quad) at editor-scale particle counts.
 void ModuleEditor::gatherParticleSystems(GameObject* node, std::vector<BillboardInstance>& out,
                                           const Matrix& viewProj,
-                                          const Vector3& camPos, const Vector3& camRight, const Vector3& camUp) const {
+                                          const Vector3& camPos, const Vector3& camRight, const Vector3& camUp) const{
     if (!node || !node->isActive()) return;
 
     if (auto* ps = node->getComponent<ComponentParticleSystem>(); ps && ps->enabled) {
@@ -957,25 +993,25 @@ void ModuleEditor::gatherParticleSystems(GameObject* node, std::vector<Billboard
             const Vector4 color = ps->colorAt(t);
 
             // Screen-aligned billboard frame, rotated around the view axis by the
-            // particle's current rotation (lecture: "Rotation — rotation over normal vector axis").
+            // particle's current rotation.
             const float rad = p.rotationDeg * (3.14159265358979323846f / 180.f);
             const float cs = std::cos(rad), sn = std::sin(rad);
             const Vector3 right = camRight * cs + camUp * sn;
-            const Vector3 up    = camUp * cs - camRight * sn;
+            const Vector3 up = camUp * cs - camRight * sn;
 
             const Vector4 frameA = tileRect(p.frameIndex % totalTiles);
 
             BillboardInstance inst;
-            inst.cb.viewProj        = viewProj.Transpose();
+            inst.cb.viewProj = viewProj.Transpose();
             inst.cb.centerHalfWidth = Vector4(p.position.x, p.position.y, p.position.z, size * 0.5f);
             inst.cb.rightHalfHeight = Vector4(right.x, right.y, right.z, size * 0.5f);
-            inst.cb.up              = Vector4(up.x, up.y, up.z, 0.f);
-            inst.cb.tint            = color;
-            inst.cb.frameRectA      = frameA;
-            inst.cb.frameRectB      = frameA;
-            inst.cb.blendFactor     = Vector4(0.f, 0.f, 0.f, 0.f);
-            inst.texturePath        = ps->texturePath;
-            inst.additive           = (ps->blendMode == ComponentParticleSystem::BlendMode::Additive);
+            inst.cb.up = Vector4(up.x, up.y, up.z, 0.f);
+            inst.cb.tint = color;
+            inst.cb.frameRectA = frameA;
+            inst.cb.frameRectB = frameA;
+            inst.cb.blendFactor = Vector4(0.f, 0.f, 0.f, 0.f);
+            inst.texturePath = ps->texturePath;
+            inst.additive = (ps->blendMode == ComponentParticleSystem::BlendMode::Additive);
 
             out.push_back(std::move(inst));
         }
@@ -984,7 +1020,28 @@ void ModuleEditor::gatherParticleSystems(GameObject* node, std::vector<Billboard
     for (auto* c : node->getChildren()) gatherParticleSystems(c, out, viewProj, camPos, camRight, camUp);
 }
 
-void ModuleEditor::drawDockspace() {
+void ModuleEditor::gatherTrails(GameObject* node, std::vector<TrailInstance>& out,
+                                const Matrix& viewProj, const Vector3& camPos) const{
+    if (!node || !node->isActive()) return;
+
+    if (auto* tr = node->getComponent<ComponentTrail>(); tr && tr->enabled) {
+        if (out.size() < TrailPass::MAX_TRAILS) {
+            TrailInstance inst;
+            if (tr->buildMesh(camPos, inst.vertices) && !inst.vertices.empty()) {
+                inst.tint = Vector4(1.f, 1.f, 1.f, 1.f);
+                inst.texturePath = tr->texturePath;
+                inst.additive = (tr->blendMode == ComponentTrail::BlendMode::Additive);
+                inst.sortPos = inst.vertices.front().position;
+                inst.layer = tr->layer;
+                out.push_back(std::move(inst));
+            }
+        }
+    }
+
+    for (auto* c : node->getChildren()) gatherTrails(c, out, viewProj, camPos);
+}
+
+void ModuleEditor::drawDockspace(){
     constexpr ImGuiWindowFlags kF =
         ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
         ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
@@ -1012,8 +1069,8 @@ void ModuleEditor::drawDockspace() {
 
         const float vpW = vp->WorkSize.x;
         const float vpH = vp->WorkSize.y - kStatusH;
-        const float leftRatio   = 220.f / vpW;
-        const float rightRatio  = 280.f / (vpW - 220.f);
+        const float leftRatio = 220.f / vpW;
+        const float rightRatio = 280.f / (vpW - 220.f);
         const float bottomRatio = 200.f / vpH;
 
         ImGui::DockBuilderRemoveNode(dock);
@@ -1022,42 +1079,42 @@ void ModuleEditor::drawDockspace() {
 
         ImGuiID left, mid, right, bottom;
         // Split off left column
-        ImGui::DockBuilderSplitNode(dock,  ImGuiDir_Left, leftRatio,  &left, &mid);
+        ImGui::DockBuilderSplitNode(dock, ImGuiDir_Left, leftRatio, &left, &mid);
         // Split off right column
-        ImGui::DockBuilderSplitNode(mid,   ImGuiDir_Right, rightRatio, &right, &mid);
+        ImGui::DockBuilderSplitNode(mid, ImGuiDir_Right, rightRatio, &right, &mid);
         // Split off bottom tab panel from center
-        ImGui::DockBuilderSplitNode(mid,   ImGuiDir_Down, bottomRatio, &bottom, &mid);
+        ImGui::DockBuilderSplitNode(mid, ImGuiDir_Down, bottomRatio, &bottom, &mid);
 
         // Left column: Hierarchy top, Scene Settings bottom
         ImGuiID leftTop, leftBot;
         ImGui::DockBuilderSplitNode(left, ImGuiDir_Down, 0.22f, &leftBot, &leftTop);
-        ImGui::DockBuilderDockWindow("Hierarchy",      leftTop);
+        ImGui::DockBuilderDockWindow("Hierarchy", leftTop);
         ImGui::DockBuilderDockWindow("Scene Settings", leftBot);
 
         // Center: viewport tabs (names must match panel getName() exactly)
         ImGui::DockBuilderDockWindow("Viewport", mid);
-        ImGui::DockBuilderDockWindow("Game",     mid);
+        ImGui::DockBuilderDockWindow("Game", mid);
 
         // Right column: Inspector top, GPU Memory bottom
         ImGuiID rightTop, rightBot;
         ImGui::DockBuilderSplitNode(right, ImGuiDir_Down, 0.42f, &rightBot, &rightTop);
-        ImGui::DockBuilderDockWindow("Inspector",   rightTop);
-        ImGui::DockBuilderDockWindow("GPU Memory",  rightBot);
+        ImGui::DockBuilderDockWindow("Inspector", rightTop);
+        ImGui::DockBuilderDockWindow("GPU Memory", rightBot);
 
         // Bottom tabs
-        ImGui::DockBuilderDockWindow("Render Graph",    bottom);
-        ImGui::DockBuilderDockWindow("Asset Browser",   bottom);
+        ImGui::DockBuilderDockWindow("Render Graph", bottom);
+        ImGui::DockBuilderDockWindow("Asset Browser", bottom);
         ImGui::DockBuilderDockWindow("Collision Debug", bottom);
-        ImGui::DockBuilderDockWindow("Console",         bottom);
-        ImGui::DockBuilderDockWindow("Performance",     bottom);
-        ImGui::DockBuilderDockWindow("Resources",       bottom);
+        ImGui::DockBuilderDockWindow("Console", bottom);
+        ImGui::DockBuilderDockWindow("Performance", bottom);
+        ImGui::DockBuilderDockWindow("Resources", bottom);
 
         ImGui::DockBuilderFinish(dock);
     }
     ImGui::End();
 }
 
-void ModuleEditor::drawMenuBar() {
+void ModuleEditor::drawMenuBar(){
     if (!ImGui::BeginMainMenuBar()) return;
 
     // ---- Brand ----
@@ -1081,21 +1138,21 @@ void ModuleEditor::drawMenuBar() {
     };
 
     if (ImGui::BeginMenu("File")) {
-        if (ImGui::MenuItem("New Scene",  "Ctrl+N"))         m_showNewSceneConfirm = true;
-        if (ImGui::MenuItem("Open Scene", "Ctrl+O"))         m_loadDialog->open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
+        if (ImGui::MenuItem("New Scene", "Ctrl+N")) m_showNewSceneConfirm = true;
+        if (ImGui::MenuItem("Open Scene", "Ctrl+O")) m_loadDialog->open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
         ImGui::Separator();
-        if (ImGui::MenuItem("Save Scene", "Ctrl+S"))         saveScene();
-        if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S"))   m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
+        if (ImGui::MenuItem("Save Scene", "Ctrl+S")) saveScene();
+        if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
         ImGui::Separator();
         if (ImGui::MenuItem("Quit", "Alt+F4")) {}
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Edit")) {
-        if (ImGui::MenuItem("Undo",      "Ctrl+Z", false, canUndo())) undoToSavePoint();
-        if (ImGui::MenuItem("Redo",      "Ctrl+Y", false, canRedo())) redo();
+        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, canUndo())) undoToSavePoint();
+        if (ImGui::MenuItem("Redo", "Ctrl+Y", false, canRedo())) redo();
         ImGui::Separator();
-        if (ImGui::MenuItem("Copy",      "Ctrl+C", false, m_selection.has())) copySelected();
-        if (ImGui::MenuItem("Paste",     "Ctrl+V", false, !m_clipboard.serialized.empty())) pasteClipboard();
+        if (ImGui::MenuItem("Copy", "Ctrl+C", false, m_selection.has())) copySelected();
+        if (ImGui::MenuItem("Paste", "Ctrl+V", false, !m_clipboard.serialized.empty())) pasteClipboard();
         if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, m_selection.has())) duplicateSelected();
         ImGui::Separator();
         if (ImGui::MenuItem("Create Empty", "Ctrl+Shift+N")) createEmptyGameObject();
@@ -1106,10 +1163,10 @@ void ModuleEditor::drawMenuBar() {
         if (ImGui::MenuItem("Create Empty Child") && m_selection.has()) createEmptyGameObject("Empty", m_selection.object);
         ImGui::Separator();
         if (ImGui::BeginMenu("Primitives")) {
-            if (ImGui::MenuItem("Cube"))     spawnPrimitive(PrimitiveType::Cube);
-            if (ImGui::MenuItem("Sphere"))   spawnPrimitive(PrimitiveType::Sphere);
-            if (ImGui::MenuItem("Capsule"))  spawnPrimitive(PrimitiveType::Capsule);
-            if (ImGui::MenuItem("Plane"))    spawnPrimitive(PrimitiveType::Plane);
+            if (ImGui::MenuItem("Cube")) spawnPrimitive(PrimitiveType::Cube);
+            if (ImGui::MenuItem("Sphere")) spawnPrimitive(PrimitiveType::Sphere);
+            if (ImGui::MenuItem("Capsule")) spawnPrimitive(PrimitiveType::Capsule);
+            if (ImGui::MenuItem("Plane")) spawnPrimitive(PrimitiveType::Plane);
             if (ImGui::MenuItem("Cylinder")) spawnPrimitive(PrimitiveType::Cylinder);
             ImGui::EndMenu();
         }
@@ -1123,13 +1180,15 @@ void ModuleEditor::drawMenuBar() {
                 log((std::string("Created ") + name).c_str(), EditorColors::Success);
             };
             if (ImGui::MenuItem("Directional Light")) spawnLight("Directional Light", Component::Type::DirectionalLight);
-            if (ImGui::MenuItem("Point Light"))       spawnLight("Point Light",       Component::Type::PointLight);
-            if (ImGui::MenuItem("Spot Light"))        spawnLight("Spot Light",        Component::Type::SpotLight);
+            if (ImGui::MenuItem("Point Light")) spawnLight("Point Light", Component::Type::PointLight);
+            if (ImGui::MenuItem("Spot Light")) spawnLight("Spot Light", Component::Type::SpotLight);
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Particle Effects")) {
             if (ImGui::MenuItem("Fire (Exercise 1)"))
                 spawnFireParticleSystem(Vector3(0.f, 0.f, 0.f));
+            if (ImGui::MenuItem("Sword Trail (Lecture 12 Exercise)"))
+                spawnSwordTrail(Vector3(0.f, 0.f, 0.f));
             ImGui::EndMenu();
         }
         ImGui::Separator();
@@ -1150,25 +1209,26 @@ void ModuleEditor::drawMenuBar() {
                 log((std::string("Added ") + label).c_str(), EditorColors::Success);
             }
         };
-        addToSel("Mesh",       Component::Type::Mesh);
-        addToSel("Rigidbody",  Component::Type::Rigidbody);
-        addToSel("Camera",     Component::Type::Camera);
+        addToSel("Mesh", Component::Type::Mesh);
+        addToSel("Rigidbody", Component::Type::Rigidbody);
+        addToSel("Camera", Component::Type::Camera);
         addToSel("Directional Light", Component::Type::DirectionalLight);
-        addToSel("Point Light",       Component::Type::PointLight);
-        addToSel("Spot Light",        Component::Type::SpotLight);
-        addToSel("Animation",  Component::Type::Animation);
-        addToSel("Bounds",     Component::Type::Bounds);
-        addToSel("Decal",      Component::Type::Decal);
-        addToSel("Billboard",  Component::Type::Billboard);
+        addToSel("Point Light", Component::Type::PointLight);
+        addToSel("Spot Light", Component::Type::SpotLight);
+        addToSel("Animation", Component::Type::Animation);
+        addToSel("Bounds", Component::Type::Bounds);
+        addToSel("Decal", Component::Type::Decal);
+        addToSel("Billboard", Component::Type::Billboard);
         addToSel("Particle System", Component::Type::ParticleSystem);
+        addToSel("Trail", Component::Type::Trail);
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Debug")) {
         if (m_sceneManager) {
             EditorSceneSettings& s = m_sceneManager->getSettings();
-            ImGui::MenuItem("AABB Bounding Volumes",    nullptr, &s.debugDrawBounds);
-            ImGui::MenuItem("Broadphase Grid",          nullptr, &s.debugDrawGrid);
-            ImGui::MenuItem("Show Light Proxies",       nullptr, &s.debugDrawLights);
+            ImGui::MenuItem("AABB Bounding Volumes", nullptr, &s.debugDrawBounds);
+            ImGui::MenuItem("Broadphase Grid", nullptr, &s.debugDrawGrid);
+            ImGui::MenuItem("Show Light Proxies", nullptr, &s.debugDrawLights);
             // Contact Points debug draw lives on the collision system; stored in debugDrawBounds for now.
         }
         ImGui::Separator();
@@ -1176,30 +1236,30 @@ void ModuleEditor::drawMenuBar() {
             ModuleCamera* cam = app->getCamera();
             if (cam) {
                 int cm = (int)cam->cullMode;
-                ImGui::Text("Cull Mode");  ImGui::SameLine();
-                if (ImGui::RadioButton("Off##cm",     &cm, 0)) cam->cullMode = ModuleCamera::CullMode::None;
+                ImGui::Text("Cull Mode"); ImGui::SameLine();
+                if (ImGui::RadioButton("Off##cm", &cm, 0)) cam->cullMode = ModuleCamera::CullMode::None;
                 ImGui::SameLine();
                 if (ImGui::RadioButton("Frustum##cm", &cm, 1)) cam->cullMode = ModuleCamera::CullMode::Frustum;
                 int cs = (int)cam->cullSource;
                 ImGui::Text("Cull From"); ImGui::SameLine();
-                if (ImGui::RadioButton("Editor##cs",  &cs, 0)) cam->cullSource = ModuleCamera::CullSource::EditorCamera;
+                if (ImGui::RadioButton("Editor##cs", &cs, 0)) cam->cullSource = ModuleCamera::CullSource::EditorCamera;
                 ImGui::SameLine();
-                if (ImGui::RadioButton("Game##cs",    &cs, 1)) cam->cullSource = ModuleCamera::CullSource::GameCamera;
+                if (ImGui::RadioButton("Game##cs", &cs, 1)) cam->cullSource = ModuleCamera::CullSource::GameCamera;
                 ImGui::Separator();
                 ImGui::Text("Debug Draw");
-                ImGui::MenuItem("Editor Frustum",      nullptr, &cam->debugDrawEditorFrustum);
-                ImGui::MenuItem("Cull Frustum",        nullptr, &cam->debugDrawCullFrustum);
-                ImGui::MenuItem("Camera Axes",         nullptr, &cam->debugDrawCameraAxes);
-                ImGui::MenuItem("Forward Ray",         nullptr, &cam->debugDrawForwardRay);
+                ImGui::MenuItem("Editor Frustum", nullptr, &cam->debugDrawEditorFrustum);
+                ImGui::MenuItem("Cull Frustum", nullptr, &cam->debugDrawCullFrustum);
+                ImGui::MenuItem("Camera Axes", nullptr, &cam->debugDrawCameraAxes);
+                ImGui::MenuItem("Forward Ray", nullptr, &cam->debugDrawForwardRay);
                 ImGui::Separator();
                 ImGui::Text("Camera Parameters");
                 float fovDeg = cam->fovY * 57.2957795f;
                 ImGui::SetNextItemWidth(140.f);
-                if (ImGui::SliderFloat("FOV##cam",    &fovDeg, 10.f, 170.f)) cam->fovY = fovDeg * 0.0174532925f;
+                if (ImGui::SliderFloat("FOV##cam", &fovDeg, 10.f, 170.f)) cam->fovY = fovDeg * 0.0174532925f;
                 ImGui::SetNextItemWidth(140.f);
-                ImGui::DragFloat("Near##cam",  &cam->nearZ,      0.01f, 0.01f,  10.f);
+                ImGui::DragFloat("Near##cam", &cam->nearZ, 0.01f, 0.01f, 10.f);
                 ImGui::SetNextItemWidth(140.f);
-                ImGui::DragFloat("Far##cam",   &cam->farZ,       1.f,   10.f,  5000.f);
+                ImGui::DragFloat("Far##cam", &cam->farZ, 1.f, 10.f, 5000.f);
                 ImGui::SetNextItemWidth(140.f);
                 ImGui::SliderFloat("Aspect##cam", &cam->aspectRatio, 0.5f, 4.f);
                 ImGui::Separator();
@@ -1251,17 +1311,17 @@ void ModuleEditor::drawMenuBar() {
 }
 
 // ---- Status bar (22px, always at screen bottom, above nothing) ----
-void ModuleEditor::drawStatusBar() {
+void ModuleEditor::drawStatusBar(){
     const ImGuiViewport* vp = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(ImVec2(vp->WorkPos.x, vp->WorkPos.y + vp->WorkSize.y - kStatusH));
     ImGui::SetNextWindowSize(ImVec2(vp->WorkSize.x, kStatusH));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,    0.f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,  0.f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,     ImVec2(10.f, 3.f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.f, 3.f));
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.048f, 0.048f, 0.060f, 1.f));
     constexpr ImGuiWindowFlags kF =
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
-        ImGuiWindowFlags_NoMove       | ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
         ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNav |
         ImGuiWindowFlags_NoScrollbar;
     if (!ImGui::Begin("##StatusBar", nullptr, kF)) {
@@ -1303,11 +1363,11 @@ void ModuleEditor::drawStatusBar() {
     // Right: Renderer · Passes · Draw Calls · VRAM
     // Draw directly with AddText so the text is never clipped by the left section.
     {
-        ModuleD3D12*        d3d = app->getD3D12();
-        ModuleStaticBuffer* sb  = app->getStaticBuffer();
+        ModuleD3D12* d3d = app->getD3D12();
+        ModuleStaticBuffer* sb = app->getStaticBuffer();
         SIZE_T vramBytes = d3d ? d3d->getDedicatedVideoMemory() : 0;
-        float  vramUsed  = sb ? (float)sb->getUsedBytes()  / (1024.f*1024.f*1024.f) : 0.f;
-        float  vramTotal = vramBytes > 0
+        float vramUsed = sb ? (float)sb->getUsedBytes() / (1024.f*1024.f*1024.f) : 0.f;
+        float vramTotal = vramBytes > 0
             ? (float)vramBytes / (1024.f*1024.f*1024.f)
             : (sb ? (float)sb->getTotalBytes() / (1024.f*1024.f*1024.f) : 0.f);
 
@@ -1316,22 +1376,22 @@ void ModuleEditor::drawStatusBar() {
             "Renderer: D3D12  \xC2\xB7  Passes: 9  \xC2\xB7  Draw Calls: %d  \xC2\xB7  ",
             m_frameDrawCalls);
         if (vramTotal > 0.f) snprintf(vram, sizeof(vram), "VRAM: %.2f / %.1f GB", vramUsed, vramTotal);
-        else                  snprintf(vram, sizeof(vram), "VRAM: —");
+        else snprintf(vram, sizeof(vram), "VRAM: —");
 
         float mainW = ImGui::CalcTextSize(main).x;
         float vramW = ImGui::CalcTextSize(vram).x;
         float totalW = mainW + vramW + 4.f;
 
-        ImVec2 wp  = ImGui::GetWindowPos();
-        float  wW  = ImGui::GetWindowWidth();
-        float  textY = wp.y + (kStatusH - ImGui::GetTextLineHeight()) * 0.5f;
-        float  rx    = wp.x + wW - totalW - 8.f;
+        ImVec2 wp = ImGui::GetWindowPos();
+        float wW = ImGui::GetWindowWidth();
+        float textY = wp.y + (kStatusH - ImGui::GetTextLineHeight()) * 0.5f;
+        float rx = wp.x + wW - totalW - 8.f;
 
         ImDrawList* ddl = ImGui::GetWindowDrawList();
         ddl->AddText(ImVec2(rx, textY),
             ImGui::ColorConvertFloat4ToU32(EditorColors::Tx2), main);
         ddl->AddText(ImVec2(rx + mainW + 4.f, textY),
-            ImGui::ColorConvertFloat4ToU32(EditorColors::Acc),  vram);
+            ImGui::ColorConvertFloat4ToU32(EditorColors::Acc), vram);
     }
 
     ImGui::PopFont();
@@ -1340,7 +1400,7 @@ void ModuleEditor::drawStatusBar() {
     ImGui::PopStyleVar(3);
 }
 
-void ModuleEditor::handleDialogs() {
+void ModuleEditor::handleDialogs(){
     auto tryScene = [&](bool ok, const char* good, const char* bad) { log(ok ? good : bad, ok ? EditorColors::Success : EditorColors::Danger); };
     if (m_saveDialog->draw() && m_sceneManager->getActiveScene()) {
         const std::string& p = m_saveDialog->getSelectedPath();
@@ -1359,7 +1419,7 @@ void ModuleEditor::handleDialogs() {
     }
 }
 
-void ModuleEditor::handleNewScenePopup(ID3D12GraphicsCommandList*) {
+void ModuleEditor::handleNewScenePopup(ID3D12GraphicsCommandList*){
     if (m_showNewSceneConfirm) { ImGui::OpenPopup("New Scene?"); m_showNewSceneConfirm = false; }
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     if (!ImGui::BeginPopupModal("New Scene?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
@@ -1382,7 +1442,7 @@ void ModuleEditor::handleNewScenePopup(ID3D12GraphicsCommandList*) {
     ImGui::EndPopup();
 }
 
-GameObject* ModuleEditor::createEmptyGameObject(const char* name, GameObject* parent) {
+GameObject* ModuleEditor::createEmptyGameObject(const char* name, GameObject* parent){
     ModuleScene* scene = getActiveModuleScene();
     if (!scene) return nullptr;
     GameObject* go = scene->createGameObject(name);
@@ -1419,7 +1479,7 @@ GameObject* ModuleEditor::createEmptyGameObject(const char* name, GameObject* pa
     return go;
 }
 
-void ModuleEditor::deleteGameObject(GameObject* go) {
+void ModuleEditor::deleteGameObject(GameObject* go){
     if (!go) return;
     // Clear selection if the selected object is go or any descendant of go.
     if (m_selection.object == go || isChildOf(go, m_selection.object)) m_selection.clear();
@@ -1464,12 +1524,12 @@ void ModuleEditor::deleteGameObject(GameObject* go) {
     // multi-object hierarchies — a full serialise/restore would need to handle the
     // whole subtree).
     pushCommand({
-        []() {},  // redo: nothing (objects already gone)
-        []() {}   // undo: not yet supported for subtree deletes
+        []() {}, // redo: nothing (objects already gone)
+        []() {} // undo: not yet supported for subtree deletes
     });
 }
 
-void ModuleEditor::spawnAssetAtPath(const std::string& path) {
+void ModuleEditor::spawnAssetAtPath(const std::string& path){
     if (path.empty() || !fs::exists(path) || fs::is_directory(path)) return;
     std::string ext = fs::path(path).extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
@@ -1489,7 +1549,7 @@ void ModuleEditor::spawnAssetAtPath(const std::string& path) {
     }
 }
 
-GameObject* ModuleEditor::spawnModel(const std::string& path) {
+GameObject* ModuleEditor::spawnModel(const std::string& path){
     ModuleScene* scene = getActiveModuleScene();
     if (!scene) return nullptr;
 
@@ -1540,14 +1600,14 @@ GameObject* ModuleEditor::spawnModel(const std::string& path) {
     return ok ? go : nullptr;
 }
 
-bool ModuleEditor::isChildOf(const GameObject* root, const GameObject* needle) {
+bool ModuleEditor::isChildOf(const GameObject* root, const GameObject* needle){
     if (!root || !needle) return false;
     if (root == needle) return true;
     for (const auto* c : root->getChildren()) if (isChildOf(c, needle)) return true;
     return false;
 }
 
-void ModuleEditor::updateMemory() {
+void ModuleEditor::updateMemory(){
     uint64_t gpuMB = 0, ramMB = 0;
     if (ID3D12Device* device = app->getD3D12()->getDevice()) {
         ComPtr<IDXGIDevice> dxgiDev;
@@ -1567,7 +1627,7 @@ void ModuleEditor::updateMemory() {
     m_performance->setMemory(gpuMB, ramMB);
 }
 
-void ModuleEditor::debugDrawLights(ModuleScene* scene, float sz) {
+void ModuleEditor::debugDrawLights(ModuleScene* scene, float sz){
     if (!scene) return;
     auto v = [](const Vector3& x) -> const float* { return &x.x; };
     std::function<void(GameObject*)> visit = [&](GameObject* node) {
@@ -1616,11 +1676,11 @@ void ModuleEditor::debugDrawLights(ModuleScene* scene, float sz) {
     visit(scene->getRoot());
 }
 
-ImVec2 ModuleEditor::getSceneViewSize() const {
+ImVec2 ModuleEditor::getSceneViewSize() const{
     return m_sceneView ? m_sceneView->viewport.size : ImVec2(0, 0);
 }
 
-void ModuleEditor::pushCommand(EditorCommand cmd) {
+void ModuleEditor::pushCommand(EditorCommand cmd){
     m_redoStack.clear();
     m_undoStack.push_back(std::move(cmd));
     if ((int)m_undoStack.size() > kMaxUndoSteps) {
@@ -1632,7 +1692,7 @@ void ModuleEditor::pushCommand(EditorCommand cmd) {
 bool ModuleEditor::canUndo() const { return (int)m_undoStack.size() > m_savePointIndex; }
 bool ModuleEditor::canRedo() const { return !m_redoStack.empty(); }
 
-void ModuleEditor::undoToSavePoint() {
+void ModuleEditor::undoToSavePoint(){
     if (!canUndo()) return;
     EditorCommand& cmd = m_undoStack.back();
     cmd.undo();
@@ -1640,7 +1700,7 @@ void ModuleEditor::undoToSavePoint() {
     m_undoStack.pop_back();
 }
 
-void ModuleEditor::redo() {
+void ModuleEditor::redo(){
     if (!canRedo()) return;
     EditorCommand& cmd = m_redoStack.back();
     cmd.execute();
@@ -1648,14 +1708,14 @@ void ModuleEditor::redo() {
     m_redoStack.pop_back();
 }
 
-void ModuleEditor::copySelected() {
+void ModuleEditor::copySelected(){
     if (!m_selection.has()) return;
     m_clipboard.name = m_selection.object->getName();
     m_clipboard.serialized = PrefabManager::serializeGameObject(m_selection.object);
     log(("Copied: " + m_clipboard.name).c_str(), EditorColors::Info);
 }
 
-void ModuleEditor::pasteClipboard() {
+void ModuleEditor::pasteClipboard(){
     if (m_clipboard.serialized.empty()) return;
     ModuleScene* scene = getActiveModuleScene();
     if (!scene) return;
@@ -1688,7 +1748,7 @@ void ModuleEditor::pasteClipboard() {
         });
 }
 
-void ModuleEditor::duplicateSelected() {
+void ModuleEditor::duplicateSelected(){
     if (!m_selection.has()) return;
     std::string serialized = PrefabManager::serializeGameObject(m_selection.object);
     std::string srcName = m_selection.object->getName();
@@ -1728,8 +1788,7 @@ void ModuleEditor::duplicateSelected() {
 GameObject* ModuleEditor::spawnPrimitive(PrimitiveType type,
                                           const Vector3& position,
                                           const Vector3& scale,
-                                          bool           addPhysics)
-{
+                                          bool addPhysics){
     ModuleScene* scene = getActiveModuleScene();
     if (!scene) return nullptr;
 
@@ -1739,10 +1798,10 @@ GameObject* ModuleEditor::spawnPrimitive(PrimitiveType type,
 
     std::unique_ptr<Mesh> mesh;
     switch (type) {
-    case PrimitiveType::Cube:     mesh = PrimitiveFactory::createCubeMesh();     break;
-    case PrimitiveType::Sphere:   mesh = PrimitiveFactory::createSphereMesh();   break;
-    case PrimitiveType::Capsule:  mesh = PrimitiveFactory::createCapsuleMesh();  break;
-    case PrimitiveType::Plane:    mesh = PrimitiveFactory::createPlaneMesh();    break;
+    case PrimitiveType::Cube: mesh = PrimitiveFactory::createCubeMesh(); break;
+    case PrimitiveType::Sphere: mesh = PrimitiveFactory::createSphereMesh(); break;
+    case PrimitiveType::Capsule: mesh = PrimitiveFactory::createCapsuleMesh(); break;
+    case PrimitiveType::Plane: mesh = PrimitiveFactory::createPlaneMesh(); break;
     case PrimitiveType::Cylinder: mesh = PrimitiveFactory::createCylinderMesh(); break;
     default: return nullptr;
     }
@@ -1750,7 +1809,7 @@ GameObject* ModuleEditor::spawnPrimitive(PrimitiveType type,
     GameObject* go = scene->createGameObject(name);
     auto* t = go->getTransform();
     t->position = position;
-    t->scale    = scale;
+    t->scale = scale;
     t->markDirty();
 
     auto* cm = go->createComponent<ComponentMesh>();
@@ -1764,9 +1823,9 @@ GameObject* ModuleEditor::spawnPrimitive(PrimitiveType type,
 
     if (addPhysics) {
         auto* rb = go->createComponent<ComponentRigidbody>();
-        rb->mass          = 1.f;
-        rb->useGravity    = true;
-        rb->restitution   = 0.5f;
+        rb->mass = 1.f;
+        rb->useGravity = true;
+        rb->restitution = 0.5f;
         rb->linearDamping = 0.1f;
     }
 
@@ -1777,7 +1836,6 @@ GameObject* ModuleEditor::spawnPrimitive(PrimitiveType type,
 
 // ---------------------------------------------------------------------------
 // spawnFireParticleSystem — Lecture 11 Exercise 1: "Fire particle system"
-//
 // Builds the four emitters the exercise describes as children of a root object:
 //   a. Fire flames     — cone emitter, sheet random sub-image, alpha blend
 //   b. Brighter flames — clone of (a), smaller + additive, simulates inner light
@@ -1787,12 +1845,12 @@ GameObject* ModuleEditor::spawnPrimitive(PrimitiveType type,
 // FireSmokeTest.png) since the exercise's original txt_fire_01.tga /
 // default_particle.jpg assets aren't part of this project.
 // ---------------------------------------------------------------------------
-GameObject* ModuleEditor::spawnFireParticleSystem(const Vector3& position) {
+GameObject* ModuleEditor::spawnFireParticleSystem(const Vector3& position){
     ModuleScene* scene = getActiveModuleScene();
     if (!scene) return nullptr;
 
     const std::string flameTex = "Assets/Textures/Flames.png";
-    const std::string glowTex  = "Assets/Textures/FireSmokeTest.png";
+    const std::string glowTex = "Assets/Textures/FireSmokeTest.png";
 
     GameObject* root = scene->createGameObject("Fire (Exercise 1)");
     root->getTransform()->position = position;
@@ -1804,25 +1862,25 @@ GameObject* ModuleEditor::spawnFireParticleSystem(const Vector3& position) {
     {
         GameObject* go = scene->createGameObject("Flames", root);
         auto* ps = go->createComponent<ComponentParticleSystem>();
-        ps->shape          = ComponentParticleSystem::EmitterShape::Cone;
-        ps->shapeRadius    = 0.35f;
-        ps->coneAngleDeg   = 18.f;
-        ps->emissionRate   = 30.f;
-        ps->maxParticles   = 200;
-        ps->lifeRange      = Vector2(0.8f, 1.4f);
-        ps->speedRange     = Vector2(0.8f, 1.6f);
-        ps->sizeRange      = Vector2(0.4f, 0.8f);
-        ps->rotationRange  = Vector2(-45.f, 45.f);
-        ps->startColor     = Vector4(1.f, 0.95f, 0.6f, 1.f);
-        ps->endColor       = Vector4(1.f, 0.25f, 0.05f, 0.f);
-        ps->startSizeMul   = 0.6f;
-        ps->endSizeMul     = 1.4f;
-        ps->texturePath    = flameTex;
-        ps->sheetColumns   = 2;
-        ps->sheetRows      = 2;
-        ps->randomFrame    = true;
-        ps->blendMode      = ComponentParticleSystem::BlendMode::Alpha;
-        ps->layer          = 0;
+        ps->shape = ComponentParticleSystem::EmitterShape::Cone;
+        ps->shapeRadius = 0.35f;
+        ps->coneAngleDeg = 18.f;
+        ps->emissionRate = 30.f;
+        ps->maxParticles = 200;
+        ps->lifeRange = Vector2(0.8f, 1.4f);
+        ps->speedRange = Vector2(0.8f, 1.6f);
+        ps->sizeRange = Vector2(0.4f, 0.8f);
+        ps->rotationRange = Vector2(-45.f, 45.f);
+        ps->startColor = Vector4(1.f, 0.95f, 0.6f, 1.f);
+        ps->endColor = Vector4(1.f, 0.25f, 0.05f, 0.f);
+        ps->startSizeMul = 0.6f;
+        ps->endSizeMul = 1.4f;
+        ps->texturePath = flameTex;
+        ps->sheetColumns = 2;
+        ps->sheetRows = 2;
+        ps->randomFrame = true;
+        ps->blendMode = ComponentParticleSystem::BlendMode::Alpha;
+        ps->layer = 0;
     }
 
     // b. Brighter / smaller flames — additive, simulates light at the flame core,
@@ -1830,25 +1888,25 @@ GameObject* ModuleEditor::spawnFireParticleSystem(const Vector3& position) {
     {
         GameObject* go = scene->createGameObject("Flames Inner Light", root);
         auto* ps = go->createComponent<ComponentParticleSystem>();
-        ps->shape          = ComponentParticleSystem::EmitterShape::Cone;
-        ps->shapeRadius    = 0.2f;
-        ps->coneAngleDeg   = 14.f;
-        ps->emissionRate   = 24.f;
-        ps->maxParticles   = 150;
-        ps->lifeRange      = Vector2(0.6f, 1.0f);
-        ps->speedRange     = Vector2(0.8f, 1.5f);
-        ps->sizeRange      = Vector2(0.18f, 0.35f); // smaller than (a)
-        ps->rotationRange  = Vector2(-45.f, 45.f);
-        ps->startColor     = Vector4(1.f, 1.f, 0.85f, 1.f);
-        ps->endColor       = Vector4(1.f, 0.5f, 0.1f, 0.f);
-        ps->startSizeMul   = 0.7f;
-        ps->endSizeMul     = 1.2f;
-        ps->texturePath    = flameTex;
-        ps->sheetColumns   = 2;
-        ps->sheetRows      = 2;
-        ps->randomFrame    = true;
-        ps->blendMode      = ComponentParticleSystem::BlendMode::Additive;
-        ps->layer          = 1; // render after (a)
+        ps->shape = ComponentParticleSystem::EmitterShape::Cone;
+        ps->shapeRadius = 0.2f;
+        ps->coneAngleDeg = 14.f;
+        ps->emissionRate = 24.f;
+        ps->maxParticles = 150;
+        ps->lifeRange = Vector2(0.6f, 1.0f);
+        ps->speedRange = Vector2(0.8f, 1.5f);
+        ps->sizeRange = Vector2(0.18f, 0.35f); // smaller than (a)
+        ps->rotationRange = Vector2(-45.f, 45.f);
+        ps->startColor = Vector4(1.f, 1.f, 0.85f, 1.f);
+        ps->endColor = Vector4(1.f, 0.5f, 0.1f, 0.f);
+        ps->startSizeMul = 0.7f;
+        ps->endSizeMul = 1.2f;
+        ps->texturePath = flameTex;
+        ps->sheetColumns = 2;
+        ps->sheetRows = 2;
+        ps->randomFrame = true;
+        ps->blendMode = ComponentParticleSystem::BlendMode::Additive;
+        ps->layer = 1; // render after (a)
     }
 
     // c. Fire glow — clone of (a) with default_particle-equivalent texture,
@@ -1856,48 +1914,57 @@ GameObject* ModuleEditor::spawnFireParticleSystem(const Vector3& position) {
     {
         GameObject* go = scene->createGameObject("Fire Glow", root);
         auto* ps = go->createComponent<ComponentParticleSystem>();
-        ps->shape          = ComponentParticleSystem::EmitterShape::Cone;
-        ps->shapeRadius    = 0.4f;
-        ps->coneAngleDeg   = 10.f;
-        ps->emissionRate   = 8.f;
-        ps->maxParticles   = 60;
-        ps->lifeRange      = Vector2(1.2f, 2.0f);   // modified: longer life
-        ps->speedRange     = Vector2(0.2f, 0.5f);   // modified: slower
-        ps->sizeRange      = Vector2(1.0f, 1.6f);   // modified: bigger
-        ps->rotationRange  = Vector2(-30.f, 30.f);
-        ps->startColor     = Vector4(1.f, 0.6f, 0.2f, 0.35f);
-        ps->endColor       = Vector4(1.f, 0.3f, 0.05f, 0.f);
-        ps->startSizeMul   = 0.5f;
-        ps->endSizeMul     = 1.8f;
-        ps->texturePath    = glowTex;
-        ps->sheetColumns   = 1;
-        ps->sheetRows      = 1;
-        ps->randomFrame    = false;
-        ps->blendMode      = ComponentParticleSystem::BlendMode::Additive;
-        ps->layer          = 2; // render after (a) and (b)
+        ps->shape = ComponentParticleSystem::EmitterShape::Cone;
+        ps->shapeRadius = 0.4f;
+        ps->coneAngleDeg = 10.f;
+        ps->emissionRate = 8.f;
+        ps->maxParticles = 60;
+        ps->lifeRange = Vector2(1.2f, 2.0f); // modified: longer life
+        ps->speedRange = Vector2(0.2f, 0.5f); // modified: slower
+        ps->sizeRange = Vector2(1.0f, 1.6f); // modified: bigger
+        ps->rotationRange = Vector2(-30.f, 30.f);
+        ps->startColor = Vector4(1.f, 0.6f, 0.2f, 0.35f);
+        ps->endColor = Vector4(1.f, 0.3f, 0.05f, 0.f);
+        ps->startSizeMul = 0.5f;
+        ps->endSizeMul = 1.8f;
+        ps->texturePath = glowTex;
+        ps->sheetColumns = 1;
+        ps->sheetRows = 1;
+        ps->randomFrame = false;
+        ps->blendMode = ComponentParticleSystem::BlendMode::Additive;
+        ps->layer = 2; // render after (a) and (b)
     }
 
     // d. Sparks — small bright additive points shooting upward and fading out.
     {
         GameObject* go = scene->createGameObject("Sparks", root);
         auto* ps = go->createComponent<ComponentParticleSystem>();
-        ps->shape          = ComponentParticleSystem::EmitterShape::Cone;
-        ps->shapeRadius    = 0.15f;
-        ps->coneAngleDeg   = 30.f;
-        ps->emissionRate   = 12.f;
-        ps->maxParticles   = 80;
-        ps->lifeRange      = Vector2(0.4f, 0.9f);
-        ps->speedRange     = Vector2(2.0f, 4.0f);
-        ps->sizeRange      = Vector2(0.03f, 0.07f);
-        ps->rotationRange  = Vector2(0.f, 0.f);
-        ps->startColor     = Vector4(1.f, 0.9f, 0.5f, 1.f);
-        ps->endColor       = Vector4(1.f, 0.4f, 0.1f, 0.f);
-        ps->startSizeMul   = 1.f;
-        ps->endSizeMul     = 0.4f;
-        ps->gravity        = Vector3(0.f, -1.5f, 0.f); // arc back down
-        ps->texturePath.clear();                       // fallback white quad — additive tint does the work
-        ps->blendMode      = ComponentParticleSystem::BlendMode::Additive;
-        ps->layer          = 3;
+        ps->shape = ComponentParticleSystem::EmitterShape::Cone;
+        ps->shapeRadius = 0.15f;
+        ps->coneAngleDeg = 30.f;
+        ps->emissionRate = 12.f;
+        ps->maxParticles = 80;
+        ps->lifeRange = Vector2(0.4f, 0.9f);
+        ps->speedRange = Vector2(2.0f, 4.0f);
+        ps->sizeRange = Vector2(0.03f, 0.07f);
+        ps->rotationRange = Vector2(0.f, 0.f);
+        ps->startColor = Vector4(1.f, 0.9f, 0.5f, 1.f);
+        ps->endColor = Vector4(1.f, 0.4f, 0.1f, 0.f);
+        ps->startSizeMul = 1.f;
+        ps->endSizeMul = 0.4f;
+        ps->gravity = Vector3(0.f, -1.5f, 0.f); // arc back down
+        ps->texturePath.clear(); // fallback white quad — additive tint does the work
+        ps->blendMode = ComponentParticleSystem::BlendMode::Additive;
+        ps->layer = 3;
+
+        // Lecture 12 "Noise" — "Exercise: Adding sparks to fire": perturb the
+        // sparks' rising motion with a 3D fractal-noise flow field so they
+        // drift and swirl instead of moving in straight lines.
+        ps->useTurbulence = true;
+        ps->turbulenceFrequency = 0.6f;
+        ps->turbulenceStrength = 1.2f;
+        ps->turbulenceOctaves = 3;
+        ps->turbulenceScroll = 0.4f;
     }
 
     m_selection.object = root;
@@ -1906,9 +1973,78 @@ GameObject* ModuleEditor::spawnFireParticleSystem(const Vector3& position) {
 }
 
 // ---------------------------------------------------------------------------
+// spawnSwordTrail — Lecture 12 "Trails", Exercise: "Sword trail" / Exercise 2
+// "Sword trail engine integration"
+// The exercise swings a sword mesh through the air and attaches a trail
+// renderer to its blade so the motion leaves a smooth, fading ribbon behind
+// it. Sword.gltf isn't part of this project's Assets, so a thin scaled cube
+// ("blade") stands in for the mesh — ComponentTrail's built-in `demoMotion`
+// drives it through a swinging arc automatically, so the exercise can be
+// observed without any external asset, animation rig, or scripting setup.
+// ---------------------------------------------------------------------------
+GameObject* ModuleEditor::spawnSwordTrail(const Vector3& position){
+    ModuleScene* scene = getActiveModuleScene();
+    if (!scene) return nullptr;
+
+    GameObject* root = scene->createGameObject("Sword Trail (Lecture 12 Exercise)");
+    root->getTransform()->position = position;
+    root->getTransform()->markDirty();
+
+    // "Blade" stand-in — thin elongated cube mesh.
+    GameObject* blade = scene->createGameObject("Blade", root);
+    {
+        auto* t = blade->getTransform();
+        t->position = Vector3(0.f, 1.f, 0.f);
+        t->scale = Vector3(0.06f, 1.0f, 0.06f);
+        t->markDirty();
+
+        auto mesh = PrimitiveFactory::createCubeMesh();
+        auto* cm = blade->createComponent<ComponentMesh>();
+        cm->setProceduralModel(PrimitiveFactory::meshToModel(std::move(mesh)));
+    }
+
+    // Trail emitter — placed at the blade tip so the ribbon traces the swing.
+    GameObject* tip = scene->createGameObject("Trail Emitter (Blade Tip)", blade);
+    {
+        auto* t = tip->getTransform();
+        t->position = Vector3(0.f, 1.f, 0.f); // local: tip of the 2-unit-tall blade
+        t->markDirty();
+
+        auto* tr = tip->createComponent<ComponentTrail>();
+        tr->enabled = true;
+        tr->emitting = true;
+        tr->duration = 0.5f;
+        tr->minPointDistance = 0.03f;
+        tr->width = 0.35f;
+        tr->useCatmullRom = true;
+        tr->catmullRomAlpha = 0.5f; // centripetal — lecture's recommended default
+        tr->subdivisions = 8;
+        tr->startColor = Vector4(0.6f, 0.85f, 1.0f, 0.9f); // bright cyan-white at the blade
+        tr->endColor = Vector4(0.1f, 0.2f, 0.6f, 0.0f); // fades to transparent blue
+        tr->startWidthMul = 1.0f;
+        tr->endWidthMul = 0.1f;
+        tr->texturePath.clear(); // fallback white ribbon — vertex colour does the work
+        tr->blendMode = ComponentTrail::BlendMode::Additive;
+        tr->textureMode = ComponentTrail::TextureMode::Stretch;
+        tr->layer = 0;
+
+        // Demo motion swings *this* node (the trail emitter / blade tip) through
+        // an arc so the ribbon has motion to trace immediately on spawn.
+        tr->demoMotion = true;
+        tr->demoRadius = 1.2f;
+        tr->demoSpeed = 3.0f;
+        tr->demoCenter = Vector3(0.f, 1.f, 0.f);
+    }
+
+    m_selection.object = root;
+    log("Spawned Sword Trail (Lecture 12 Exercise): Blade + Trail Emitter with demo swing motion", EditorColors::Success);
+    return root;
+}
+
+// ---------------------------------------------------------------------------
 // stopPlay — safe stop: restores scene then clears pointers that would dangle
 // ---------------------------------------------------------------------------
-void ModuleEditor::stopPlay() {
+void ModuleEditor::stopPlay(){
     if (m_sceneManager) m_sceneManager->stop();
     // The scene was just restored from the temp save; every raw pointer the
     // editor held is now dangling.  Clear them before the next frame.
@@ -1920,7 +2056,7 @@ void ModuleEditor::stopPlay() {
 
 // ---------------------------------------------------------------------------
 
-void ModuleEditor::handleShortcuts() {
+void ModuleEditor::handleShortcuts(){
     if (ImGui::GetIO().WantTextInput) return;
     ImGuiIO& io = ImGui::GetIO();
     bool ctrl = io.KeyCtrl;
@@ -1962,7 +2098,7 @@ void ModuleEditor::handleShortcuts() {
     }
 }
 
-void ModuleEditor::enterPrefabEdit(const std::string& prefabName) {
+void ModuleEditor::enterPrefabEdit(const std::string& prefabName){
     if (!m_sceneManager) return;
     app->getD3D12()->flush();
     if (m_sceneManager->isEditingPrefab()) m_sceneManager->exitPrefabEdit();
@@ -1982,12 +2118,12 @@ void ModuleEditor::enterPrefabEdit(const std::string& prefabName) {
     log(("Editing prefab: " + prefabName).c_str(), EditorColors::Active);
 }
 
-void ModuleEditor::exitPrefabEdit() {
+void ModuleEditor::exitPrefabEdit(){
     if (!m_sceneManager || !m_sceneManager->isEditingPrefab()) return;
     m_pendingExitPrefab = true;
 }
 
-void ModuleEditor::flushExitPrefabEdit() {
+void ModuleEditor::flushExitPrefabEdit(){
     if (!m_pendingExitPrefab) return;
     m_pendingExitPrefab = false;
     app->getD3D12()->flush();
@@ -1997,7 +2133,7 @@ void ModuleEditor::flushExitPrefabEdit() {
     log("Exited prefab edit.", EditorColors::Muted);
 }
 
-void ModuleEditor::onScriptFileEvent(const std::string& absPath, FileWatcher::Event ev) {
+void ModuleEditor::onScriptFileEvent(const std::string& absPath, FileWatcher::Event ev){
     if (absPath.size() < 4) return;
     std::string ext = absPath.substr(absPath.size() - 4);
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
@@ -2018,7 +2154,7 @@ void ModuleEditor::onScriptFileEvent(const std::string& absPath, FileWatcher::Ev
     }
 }
 
-void ModuleEditor::notifyScriptComponentsReload(const std::string& /*dllPath*/) {
+void ModuleEditor::notifyScriptComponentsReload(const std::string& /*dllPath*/){
     auto* scene = getActiveModuleScene();
     if (!scene) return;
 

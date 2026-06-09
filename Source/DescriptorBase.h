@@ -12,11 +12,11 @@ protected:
 
 public:
     DescriptorBase() = default;
-    DescriptorBase(UINT handle, UINT* refCount) : handle(handle), refCount(refCount) {
+    DescriptorBase(UINT handle, UINT* refCount) : handle(handle), refCount(refCount){
         if (refCount) ++(*refCount);
     }
 
-    DescriptorBase(const DescriptorBase& other) : handle(other.handle), refCount(other.refCount) {
+    DescriptorBase(const DescriptorBase& other) : handle(other.handle), refCount(other.refCount){
         if (refCount) ++(*refCount);
     }
 

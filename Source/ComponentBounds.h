@@ -4,7 +4,6 @@
 
 // Controls which bounding-volume shape is used for a GameObject in the
 // collision pipeline.  Without this component the pipeline defaults to AABB.
-//
 // BVType::AABB   — oriented bounding box derived from the mesh local AABB
 //                  (same behaviour as before this component existed).
 // BVType::Sphere — circumscribed sphere whose radius is either derived
@@ -14,11 +13,11 @@ class ComponentBounds final : public Component {
 public:
     explicit ComponentBounds(GameObject* owner);
 
-    BVType bvType        = BVType::AABB;
+    BVType bvType = BVType::AABB;
 
     // When >= 0: use this world-space radius (before object scale is applied)
     // instead of the value derived from the mesh.  Set to -1 for auto.
-    float  radiusOverride = -1.f;
+    float radiusOverride = -1.f;
 
     // ---- Component interface ----
     void onEditor() override;

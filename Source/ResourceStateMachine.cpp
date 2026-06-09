@@ -13,11 +13,11 @@ ResourceStateMachine::ResourceStateMachine(UID uid)
 
 // ─── ResourceBase interface ───────────────────────────────────────────────────
 
-bool ResourceStateMachine::LoadInMemory() {
+bool ResourceStateMachine::LoadInMemory(){
     return Load(libraryFile);
 }
 
-void ResourceStateMachine::UnloadFromMemory() {
+void ResourceStateMachine::UnloadFromMemory(){
     clips.clear();
     states.clear();
     transitions.clear();
@@ -26,19 +26,19 @@ void ResourceStateMachine::UnloadFromMemory() {
 
 // ─── Finders ─────────────────────────────────────────────────────────────────
 
-const SMClip* ResourceStateMachine::FindClip(const HashString& name) const {
+const SMClip* ResourceStateMachine::FindClip(const HashString& name) const{
     for (const auto& c : clips)
         if (c.name == name) return &c;
     return nullptr;
 }
 
-const SMState* ResourceStateMachine::FindState(const HashString& name) const {
+const SMState* ResourceStateMachine::FindState(const HashString& name) const{
     for (const auto& s : states)
         if (s.name == name) return &s;
     return nullptr;
 }
 
-int ResourceStateMachine::FindStateIndex(const HashString& name) const {
+int ResourceStateMachine::FindStateIndex(const HashString& name) const{
     for (int i = 0; i < (int)states.size(); ++i)
         if (states[i].name == name) return i;
     return -1;
@@ -46,7 +46,7 @@ int ResourceStateMachine::FindStateIndex(const HashString& name) const {
 
 // ─── JSON Save ───────────────────────────────────────────────────────────────
 
-bool ResourceStateMachine::Save(const std::string& path) const {
+bool ResourceStateMachine::Save(const std::string& path) const{
     Document doc;
     doc.SetObject();
     auto& a = doc.GetAllocator();
@@ -95,7 +95,7 @@ bool ResourceStateMachine::Save(const std::string& path) const {
 
 // ─── JSON Load ───────────────────────────────────────────────────────────────
 
-bool ResourceStateMachine::Load(const std::string& path) {
+bool ResourceStateMachine::Load(const std::string& path){
     clips.clear();
     states.clear();
     transitions.clear();
@@ -169,7 +169,7 @@ bool ResourceStateMachine::Load(const std::string& path) {
         for (SizeType i = 0; i < arr.Size(); ++i) {
             const Value& v = arr[i];
             if (!v.HasMember("Source") || !v["Source"].IsString() ||
-                !v.HasMember("Target") || !v["Target"].IsString()) {
+                !v.HasMember("Target") || !v["Target"].IsString()){
                 LOG("ResourceStateMachine: Transitions[%u] missing Source/Target — skipped", i);
                 continue;
             }
@@ -203,7 +203,7 @@ bool ResourceStateMachine::Load(const std::string& path) {
 static constexpr ImGuiTableFlags kTableFlags =
     ImGuiTableFlags_BordersOuter | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp;
 
-void ResourceStateMachine::DrawInspector() {
+void ResourceStateMachine::DrawInspector(){
 
     // ── Clips ─────────────────────────────────────────────────────────────────
     if (ImGui::CollapsingHeader("Clips", ImGuiTreeNodeFlags_DefaultOpen)) {

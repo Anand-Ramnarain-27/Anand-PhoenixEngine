@@ -14,7 +14,6 @@
 // Manages drag-and-drop file ingestion: tracks hover state, queues files for
 // background import, and exposes progress state for the ImGui overlay drawn by
 // ModuleEditor.
-//
 // Threading model:
 //   - kNumWorkers persistent worker threads pull tasks from m_taskQueue.
 //   - importAsset calls are serialized under m_importMutex (not guaranteed

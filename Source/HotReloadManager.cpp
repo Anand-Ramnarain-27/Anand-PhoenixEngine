@@ -7,14 +7,14 @@
 
 namespace fs = std::filesystem;
 
-static std::string norm(std::string p) {
+static std::string norm(std::string p){
     for (char& c : p) if (c == '\\') c = '/';
     return p;
 }
 
 HotReloadManager::~HotReloadManager() { unloadAll(); }
 
-bool HotReloadManager::loadLibrary(const std::string& dllPath) {
+bool HotReloadManager::loadLibrary(const std::string& dllPath){
     std::string key = norm(dllPath);
     if (m_libraries.count(key)) return true;
     ScriptLibrary lib;
@@ -23,7 +23,7 @@ bool HotReloadManager::loadLibrary(const std::string& dllPath) {
     return true;
 }
 
-bool HotReloadManager::reloadLibrary(const std::string& dllPath) {
+bool HotReloadManager::reloadLibrary(const std::string& dllPath){
     std::string key = norm(dllPath);
     auto it = m_libraries.find(key);
     if (it != m_libraries.end()) {
@@ -41,13 +41,13 @@ bool HotReloadManager::reloadLibrary(const std::string& dllPath) {
     return true;
 }
 
-void HotReloadManager::unloadAll() {
+void HotReloadManager::unloadAll(){
     for (auto& [k, lib] : m_libraries)
         if (lib.handle) FreeLibrary(lib.handle);
     m_libraries.clear();
 }
 
-IScript* HotReloadManager::createScript(const std::string& className) const {
+IScript* HotReloadManager::createScript(const std::string& className) const{
     for (const auto& [k, lib] : m_libraries) {
         auto it = lib.factories.find(className);
         if (it != lib.factories.end()) return it->second();
@@ -56,7 +56,7 @@ IScript* HotReloadManager::createScript(const std::string& className) const {
     return nullptr;
 }
 
-std::vector<std::string> HotReloadManager::getRegisteredClassNames() const {
+std::vector<std::string> HotReloadManager::getRegisteredClassNames() const{
     std::vector<std::string> names;
     for (const auto& [k, lib] : m_libraries)
         for (const auto& [name, fn] : lib.factories)
@@ -64,11 +64,11 @@ std::vector<std::string> HotReloadManager::getRegisteredClassNames() const {
     return names;
 }
 
-bool HotReloadManager::isLoaded(const std::string& dllPath) const {
+bool HotReloadManager::isLoaded(const std::string& dllPath) const{
     return m_libraries.count(norm(dllPath)) > 0;
 }
 
-bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLibrary& out) {
+bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLibrary& out){
     std::string pdbSrc = fs::path(dllPath).replace_extension(".pdb").string();
     out.pdbPath = versionedPdbPath(dllPath);
     if (fs::exists(pdbSrc))
@@ -116,7 +116,7 @@ bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLib
     return true;
 }
 
-std::string HotReloadManager::versionedPdbPath(const std::string& dllPath) {
+std::string HotReloadManager::versionedPdbPath(const std::string& dllPath){
     fs::path p(dllPath);
     std::string stem = p.stem().string();
     std::string dir = (fs::path(app->getFileSystem()->GetLibraryPath()) / "Scripts").string();

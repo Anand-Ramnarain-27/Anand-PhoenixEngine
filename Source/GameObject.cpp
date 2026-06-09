@@ -13,23 +13,24 @@
 #include "ComponentDecal.h"
 #include "ComponentBillboard.h"
 #include "ComponentParticleSystem.h"
+#include "ComponentTrail.h"
 #include "PrefabManager.h"
 #include <algorithm>
 #include <random>
 
-GameObject::GameObject(const std::string& name) : uid(generateUID()), name(name) {
+GameObject::GameObject(const std::string& name) : uid(generateUID()), name(name){
     transform = createComponent<ComponentTransform>();
 }
 
 GameObject::~GameObject() = default;
 
-uint32_t GameObject::generateUID() {
+uint32_t GameObject::generateUID(){
     static std::mt19937 gen(std::random_device{}());
     static std::uniform_int_distribution<uint32_t> dis;
     return dis(gen);
 }
 
-void GameObject::setParent(GameObject* newParent) {
+void GameObject::setParent(GameObject* newParent){
     if (parent == newParent) return;
     if (parent) {
         auto& s = parent->children;
@@ -40,13 +41,13 @@ void GameObject::setParent(GameObject* newParent) {
     transform->markDirty();
 }
 
-void GameObject::update(float deltaTime) {
+void GameObject::update(float deltaTime){
     if (!active) return;
     for (auto& c : components) c->update(deltaTime);
     for (auto* child : children) child->update(deltaTime);
 }
 
-void GameObject::render(ID3D12GraphicsCommandList* cmd) {
+void GameObject::render(ID3D12GraphicsCommandList* cmd){
     if (!active) return;
     for (auto& c : components) c->render(cmd);
     for (auto* child : children) child->render(cmd);
@@ -66,12 +67,12 @@ T* GameObject::createComponent(Args&&... args){
     return ptr;
 }
 
-void GameObject::addComponent(std::unique_ptr<Component> component) {
+void GameObject::addComponent(std::unique_ptr<Component> component){
     if (component) components.push_back(std::move(component));
 }
 
 template<typename T>
-T* GameObject::getComponent() const {
+T* GameObject::getComponent() const{
     for (const auto& c : components)
         if (auto* p = dynamic_cast<T*>(c.get())) return p;
     return nullptr;
@@ -116,10 +117,11 @@ template ComponentAnimation* GameObject::createComponent<ComponentAnimation>();
 template ComponentCharacterMotion* GameObject::createComponent<ComponentCharacterMotion>();
 template ComponentSimpleCharacterController* GameObject::createComponent<ComponentSimpleCharacterController>();
 template ComponentRigidbody* GameObject::createComponent<ComponentRigidbody>();
-template ComponentBounds*    GameObject::createComponent<ComponentBounds>();
-template ComponentDecal*     GameObject::createComponent<ComponentDecal>();
+template ComponentBounds* GameObject::createComponent<ComponentBounds>();
+template ComponentDecal* GameObject::createComponent<ComponentDecal>();
 template ComponentBillboard* GameObject::createComponent<ComponentBillboard>();
 template ComponentParticleSystem* GameObject::createComponent<ComponentParticleSystem>();
+template ComponentTrail* GameObject::createComponent<ComponentTrail>();
 
 template ComponentTransform* GameObject::getComponent<ComponentTransform>() const;
 template ComponentMesh* GameObject::getComponent<ComponentMesh>() const;
@@ -131,10 +133,11 @@ template ComponentAnimation* GameObject::getComponent<ComponentAnimation>() cons
 template ComponentCharacterMotion* GameObject::getComponent<ComponentCharacterMotion>() const;
 template ComponentSimpleCharacterController* GameObject::getComponent<ComponentSimpleCharacterController>() const;
 template ComponentRigidbody* GameObject::getComponent<ComponentRigidbody>() const;
-template ComponentBounds*    GameObject::getComponent<ComponentBounds>() const;
-template ComponentDecal*     GameObject::getComponent<ComponentDecal>() const;
+template ComponentBounds* GameObject::getComponent<ComponentBounds>() const;
+template ComponentDecal* GameObject::getComponent<ComponentDecal>() const;
 template ComponentBillboard* GameObject::getComponent<ComponentBillboard>() const;
 template ComponentParticleSystem* GameObject::getComponent<ComponentParticleSystem>() const;
+template ComponentTrail* GameObject::getComponent<ComponentTrail>() const;
 
 template bool GameObject::removeComponent<ComponentMesh>();
 template bool GameObject::removeComponent<ComponentCamera>();

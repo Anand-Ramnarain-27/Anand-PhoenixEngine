@@ -13,8 +13,9 @@
 #include "ComponentDecal.h"
 #include "ComponentBillboard.h"
 #include "ComponentParticleSystem.h"
+#include "ComponentTrail.h"
 
-std::unique_ptr<Component> ComponentFactory::CreateComponent(Component::Type type, GameObject* owner) {
+std::unique_ptr<Component> ComponentFactory::CreateComponent(Component::Type type, GameObject* owner){
     switch (type) {
     case Component::Type::Transform: return std::make_unique<ComponentTransform>(owner);
     case Component::Type::Mesh: return std::make_unique<ComponentMesh>(owner);
@@ -27,10 +28,11 @@ std::unique_ptr<Component> ComponentFactory::CreateComponent(Component::Type typ
     case Component::Type::CharacterMotion: return std::make_unique<ComponentCharacterMotion>(owner);
     case Component::Type::SimpleCharacterController: return std::make_unique<ComponentSimpleCharacterController>(owner);
     case Component::Type::Rigidbody: return std::make_unique<ComponentRigidbody>(owner);
-    case Component::Type::Bounds:    return std::make_unique<ComponentBounds>(owner);
-    case Component::Type::Decal:     return std::make_unique<ComponentDecal>(owner);
+    case Component::Type::Bounds: return std::make_unique<ComponentBounds>(owner);
+    case Component::Type::Decal: return std::make_unique<ComponentDecal>(owner);
     case Component::Type::Billboard: return std::make_unique<ComponentBillboard>(owner);
     case Component::Type::ParticleSystem: return std::make_unique<ComponentParticleSystem>(owner);
+        case Component::Type::Trail: return std::make_unique<ComponentTrail>(owner);
     default: LOG("ComponentFactory: Unknown component type %d", (int)type); return nullptr;
     }
 }

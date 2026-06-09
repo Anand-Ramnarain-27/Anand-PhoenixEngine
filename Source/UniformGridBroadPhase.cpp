@@ -7,26 +7,25 @@
 
 // ---------------------------------------------------------------------------
 // Cell-key encoding
-//
 // We pack (ix, iy, iz) into a single uint64_t using 21 bits per axis.
 // kOffset centres the range so negative cell coordinates are representable.
 // At the default cell size of 4 units this covers ±4 million world units per
 // axis — far beyond any practical scene.
 // ---------------------------------------------------------------------------
-static constexpr int      kBits   = 21;
-static constexpr int      kOffset = 1 << (kBits - 1); // 1 048 576
-static constexpr uint64_t kMask   = (1ull << kBits) - 1;
+static constexpr int kBits = 21;
+static constexpr int kOffset = 1 << (kBits - 1); // 1 048 576
+static constexpr uint64_t kMask = (1ull << kBits) - 1;
 
-static inline uint64_t packCell(int ix, int iy, int iz) {
+static inline uint64_t packCell(int ix, int iy, int iz){
     return (((uint64_t)(ix + kOffset) & kMask) << (kBits * 2))
-         | (((uint64_t)(iy + kOffset) & kMask) <<  kBits)
+         | (((uint64_t)(iy + kOffset) & kMask) << kBits)
          | (((uint64_t)(iz + kOffset) & kMask));
 }
 
-static inline void unpackCell(uint64_t key, int& ix, int& iy, int& iz) {
+static inline void unpackCell(uint64_t key, int& ix, int& iy, int& iz){
     ix = (int)((key >> (kBits * 2)) & kMask) - kOffset;
-    iy = (int)((key >>  kBits)      & kMask) - kOffset;
-    iz = (int)( key                  & kMask) - kOffset;
+    iy = (int)((key >> kBits) & kMask) - kOffset;
+    iz = (int)( key & kMask) - kOffset;
 }
 
 // ---------------------------------------------------------------------------
@@ -35,8 +34,7 @@ UniformGridBroadPhase::UniformGridBroadPhase(float cellSize)
     : m_cellSize(cellSize > 0.f ? cellSize : 4.f) {}
 
 std::vector<CollisionPair> UniformGridBroadPhase::query(
-    const std::vector<CollisionBody>& bodies)
-{
+    const std::vector<CollisionBody>& bodies){
     m_debugCells.clear();
     std::vector<CollisionPair> pairs;
 
@@ -109,7 +107,7 @@ std::vector<CollisionPair> UniformGridBroadPhase::query(
     return pairs;
 }
 
-void UniformGridBroadPhase::drawDebug() {
+void UniformGridBroadPhase::drawDebug(){
     for (const auto& cell : m_debugCells)
         dd::aabb(ddConvert(cell.min), ddConvert(cell.max), dd::colors::Cyan);
 }

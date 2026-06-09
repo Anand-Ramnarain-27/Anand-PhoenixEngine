@@ -22,7 +22,7 @@ struct EditorSceneSettings
     float debugLightSize = 1.0f;
 
     bool debugDrawBounds = false; // draws AABB or sphere depending on ComponentBounds
-    bool debugDrawGrid   = false; // draws occupied broad-phase grid cells (cyan wireframes)
+    bool debugDrawGrid = false; // draws occupied broad-phase grid cells (cyan wireframes)
 
     // NOTE: debugDrawCameraFrustums and debugDrawEditorCameraRay are declared here
     // but are unused — ModuleCamera owns its own per-instance debug-draw flags

@@ -3,6 +3,7 @@
 #include "GameObject.h"
 #include "ComponentTransform.h"
 #include "AssetBrowserPanel.h"
+#include "Noise.h"
 #include <imgui.h>
 #include <algorithm>
 #include <cmath>
@@ -11,7 +12,7 @@ namespace {
     constexpr float kPi = 3.14159265358979323846f;
     constexpr float kDeg2Rad = kPi / 180.f;
 
-    float randRange(std::mt19937& rng, float lo, float hi) {
+    float randRange(std::mt19937& rng, float lo, float hi){
         if (hi < lo) std::swap(lo, hi);
         std::uniform_real_distribution<float> dist(lo, hi);
         return dist(rng);
@@ -20,20 +21,19 @@ namespace {
 
 ComponentParticleSystem::ComponentParticleSystem(GameObject* owner) : Component(owner) {}
 
-// Direction sampling per emitter shape (lecture: "Emitter — shape type / shape
-// related parameters: angle, radius"). Directions are generated in the emitter's
+// Direction sampling per emitter shape. Directions are generated in the emitter's
 // local frame (forward = +Y of the owner's transform) then rotated to world space.
-Vector3 ComponentParticleSystem::randomEmitDirection(std::mt19937& rng) const {
+Vector3 ComponentParticleSystem::randomEmitDirection(std::mt19937& rng) const{
     Vector3 localDir(0.f, 1.f, 0.f);
 
     switch (shape) {
     case EmitterShape::Cone: {
         // Random direction within a cone around +Y, half-angle = coneAngleDeg.
         float maxAngle = std::max(0.f, coneAngleDeg) * kDeg2Rad;
-        float cosMax   = std::cos(maxAngle);
+        float cosMax = std::cos(maxAngle);
         float cosTheta = randRange(rng, cosMax, 1.f);
         float sinTheta = std::sqrt(std::max(0.f, 1.f - cosTheta * cosTheta));
-        float phi      = randRange(rng, 0.f, 2.f * kPi);
+        float phi = randRange(rng, 0.f, 2.f * kPi);
         localDir = Vector3(sinTheta * std::cos(phi), cosTheta, sinTheta * std::sin(phi));
         break;
     }
@@ -41,7 +41,7 @@ Vector3 ComponentParticleSystem::randomEmitDirection(std::mt19937& rng) const {
         // Uniform direction over the full sphere.
         float cosTheta = randRange(rng, -1.f, 1.f);
         float sinTheta = std::sqrt(std::max(0.f, 1.f - cosTheta * cosTheta));
-        float phi      = randRange(rng, 0.f, 2.f * kPi);
+        float phi = randRange(rng, 0.f, 2.f * kPi);
         localDir = Vector3(sinTheta * std::cos(phi), cosTheta, sinTheta * std::sin(phi));
         break;
     }
@@ -60,7 +60,7 @@ Vector3 ComponentParticleSystem::randomEmitDirection(std::mt19937& rng) const {
 }
 
 // Position sampling within the emitter shape, in world space, around the owner origin.
-Vector3 ComponentParticleSystem::randomEmitPosition(std::mt19937& rng) const {
+Vector3 ComponentParticleSystem::randomEmitPosition(std::mt19937& rng) const{
     Vector3 localOffset(0.f, 0.f, 0.f);
 
     switch (shape) {
@@ -79,7 +79,7 @@ Vector3 ComponentParticleSystem::randomEmitPosition(std::mt19937& rng) const {
     }
     case EmitterShape::Cone: {
         // Random point on the cone's circular base (XZ plane around the local origin).
-        float r   = shapeRadius * std::sqrt(randRange(rng, 0.f, 1.f));
+        float r = shapeRadius * std::sqrt(randRange(rng, 0.f, 1.f));
         float phi = randRange(rng, 0.f, 2.f * kPi);
         localOffset = Vector3(r * std::cos(phi), 0.f, r * std::sin(phi));
         break;
@@ -94,7 +94,7 @@ Vector3 ComponentParticleSystem::randomEmitPosition(std::mt19937& rng) const {
     return Vector3::Transform(localOffset, world);
 }
 
-void ComponentParticleSystem::spawnParticle() {
+void ComponentParticleSystem::spawnParticle(){
     Particle* slot = nullptr;
     if ((int)m_particles.size() < maxParticles) {
         m_particles.emplace_back();
@@ -109,20 +109,20 @@ void ComponentParticleSystem::spawnParticle() {
         }
     }
 
-    Particle& p   = *slot;
-    p.alive       = true;
-    p.age         = 0.f;
-    p.lifetime    = std::max(0.01f, randRange(m_rng, lifeRange.x, lifeRange.y));
-    p.position    = randomEmitPosition(m_rng);
-    p.velocity    = randomEmitDirection(m_rng) * randRange(m_rng, speedRange.x, speedRange.y);
+    Particle& p = *slot;
+    p.alive = true;
+    p.age = 0.f;
+    p.lifetime = std::max(0.01f, randRange(m_rng, lifeRange.x, lifeRange.y));
+    p.position = randomEmitPosition(m_rng);
+    p.velocity = randomEmitDirection(m_rng) * randRange(m_rng, speedRange.x, speedRange.y);
     p.rotationDeg = randRange(m_rng, rotationRange.x, rotationRange.y);
-    p.baseSize    = std::max(0.001f, randRange(m_rng, sizeRange.x, sizeRange.y));
+    p.baseSize = std::max(0.001f, randRange(m_rng, sizeRange.x, sizeRange.y));
 
     const int totalTiles = std::max(1, sheetColumns * sheetRows);
     p.frameIndex = randomFrame ? (int)(randRange(m_rng, 0.f, (float)totalTiles - 1e-3f)) : 0;
 }
 
-void ComponentParticleSystem::update(float dt) {
+void ComponentParticleSystem::update(float dt){
     if (!enabled) return;
 
     if (playing) {
@@ -143,11 +143,26 @@ void ComponentParticleSystem::update(float dt) {
         if (p.age >= p.lifetime) { p.alive = false; continue; }
 
         p.velocity += gravity * dt;
+
+        // Lecture 12 "Noise" — "Exercise: Sparks": perturb velocity using a 3D
+        // gradient/fractal noise flow field. The noise value at the particle's
+        // (scrolling) world position becomes a polar angle over the XZ plane;
+        // a second sample (offset) modulates the flow strength.
+        if (useTurbulence) {
+            Vector3 samplePos = p.position * turbulenceFrequency + Vector3(0.f, m_age * turbulenceScroll, 0.f);
+            float angleNoise = Noise::fbm3D(samplePos, turbulenceOctaves);
+            float strengthNoise = Noise::fbm3D(samplePos + Vector3(37.13f, -91.7f, 5.21f), turbulenceOctaves);
+            float angle = Noise::noiseToAngle(angleNoise);
+            Vector3 flow(std::cos(angle), 0.f, std::sin(angle));
+            float strength = std::clamp(strengthNoise * 0.5f + 0.5f, 0.f, 1.f) * turbulenceStrength;
+            p.velocity += flow * strength * dt;
+        }
+
         p.position += p.velocity * dt;
     }
 }
 
-void ComponentParticleSystem::onEditor() {
+void ComponentParticleSystem::onEditor(){
     ImGui::Checkbox("Enabled##ps", &enabled);
     ImGui::SameLine();
     if (ImGui::Checkbox("Playing##ps", &playing)) {}
@@ -179,6 +194,19 @@ void ComponentParticleSystem::onEditor() {
     ImGui::DragFloat2("Size", &sizeRange.x, 0.01f, 0.001f, 1000.f);
     ImGui::DragFloat2("Rotation (deg)", &rotationRange.x, 0.5f, -360.f, 360.f);
     ImGui::DragFloat3("Gravity", &gravity.x, 0.05f, -100.f, 100.f);
+
+    ImGui::Separator();
+    ImGui::TextUnformatted("Turbulence (lecture 12 \"Noise\" - flow field)");
+    ImGui::Checkbox("Use turbulence##ps", &useTurbulence);
+    if (useTurbulence) {
+        ImGui::DragFloat("Frequency##turb", &turbulenceFrequency, 0.01f, 0.001f, 10.f);
+        ImGui::DragFloat("Strength##turb", &turbulenceStrength, 0.05f, 0.f, 100.f);
+        ImGui::DragInt("Octaves##turb", &turbulenceOctaves, 1.f, 1, 8);
+        ImGui::DragFloat("Scroll speed##turb", &turbulenceScroll, 0.05f, -10.f, 10.f);
+        ImGui::TextWrapped("Samples a 3D fractal gradient noise field at each particle's "
+                           "world position; the result is used as a polar angle to build "
+                           "a flow vector (cos,0,sin) that perturbs velocity over time.");
+    }
 
     ImGui::Separator();
     ImGui::TextUnformatted("Over lifetime");
@@ -219,7 +247,7 @@ void ComponentParticleSystem::onEditor() {
     ImGui::Text("Live particles: %d / %d", alive, maxParticles);
 }
 
-void ComponentParticleSystem::onSave(std::string& outJson) const {
+void ComponentParticleSystem::onSave(std::string& outJson) const{
     outJson += "\"enabled\":" + std::string(enabled ? "true" : "false") + ",";
     outJson += "\"playing\":" + std::string(playing ? "true" : "false") + ",";
     outJson += "\"looping\":" + std::string(looping ? "true" : "false") + ",";
@@ -241,6 +269,11 @@ void ComponentParticleSystem::onSave(std::string& outJson) const {
     outJson += "\"startSizeMul\":" + std::to_string(startSizeMul) + ",";
     outJson += "\"endSizeMul\":" + std::to_string(endSizeMul) + ",";
     outJson += "\"gravity\":[" + std::to_string(gravity.x) + "," + std::to_string(gravity.y) + "," + std::to_string(gravity.z) + "],";
+    outJson += "\"useTurbulence\":" + std::string(useTurbulence ? "true" : "false") + ",";
+    outJson += "\"turbulenceFrequency\":" + std::to_string(turbulenceFrequency) + ",";
+    outJson += "\"turbulenceStrength\":" + std::to_string(turbulenceStrength) + ",";
+    outJson += "\"turbulenceOctaves\":" + std::to_string(turbulenceOctaves) + ",";
+    outJson += "\"turbulenceScroll\":" + std::to_string(turbulenceScroll) + ",";
     outJson += "\"texturePath\":\"" + texturePath + "\",";
     outJson += "\"sheetColumns\":" + std::to_string(sheetColumns) + ",";
     outJson += "\"sheetRows\":" + std::to_string(sheetRows) + ",";
@@ -249,7 +282,7 @@ void ComponentParticleSystem::onSave(std::string& outJson) const {
     outJson += "\"layer\":" + std::to_string(layer);
 }
 
-void ComponentParticleSystem::onLoad(const std::string& json) {
+void ComponentParticleSystem::onLoad(const std::string& json){
     auto extract = [&](const char* key) -> std::string {
         std::string k = "\"" + std::string(key) + "\":";
         auto pos = json.find(k);
@@ -282,35 +315,41 @@ void ComponentParticleSystem::onLoad(const std::string& json) {
         }
     };
 
-    auto getBool  = [&](const char* key, bool def) { auto v = extract(key); return v.empty() ? def : (v == "true"); };
+    auto getBool = [&](const char* key, bool def) { auto v = extract(key); return v.empty() ? def : (v == "true"); };
     auto getFloat = [&](const char* key, float def) { auto v = extract(key); return v.empty() ? def : std::stof(v); };
-    auto getInt   = [&](const char* key, int def)   { auto v = extract(key); return v.empty() ? def : std::stoi(v); };
+    auto getInt = [&](const char* key, int def) { auto v = extract(key); return v.empty() ? def : std::stoi(v); };
 
-    enabled      = getBool("enabled", true);
-    playing      = getBool("playing", true);
-    looping      = getBool("looping", true);
-    duration     = getFloat("duration", duration);
+    enabled = getBool("enabled", true);
+    playing = getBool("playing", true);
+    looping = getBool("looping", true);
+    duration = getFloat("duration", duration);
     emissionRate = getFloat("emissionRate", emissionRate);
     maxParticles = getInt("maxParticles", maxParticles);
-    shape        = (EmitterShape)getInt("shape", (int)shape);
-    shapeRadius  = getFloat("shapeRadius", shapeRadius);
+    shape = (EmitterShape)getInt("shape", (int)shape);
+    shapeRadius = getFloat("shapeRadius", shapeRadius);
     coneAngleDeg = getFloat("coneAngleDeg", coneAngleDeg);
-    worldSpace   = getBool("worldSpace", worldSpace);
+    worldSpace = getBool("worldSpace", worldSpace);
 
-    if (auto v = extract("lifeRange");     !v.empty()) extractArray(v, &lifeRange.x, 2);
-    if (auto v = extract("speedRange");    !v.empty()) extractArray(v, &speedRange.x, 2);
-    if (auto v = extract("sizeRange");     !v.empty()) extractArray(v, &sizeRange.x, 2);
+    if (auto v = extract("lifeRange"); !v.empty()) extractArray(v, &lifeRange.x, 2);
+    if (auto v = extract("speedRange"); !v.empty()) extractArray(v, &speedRange.x, 2);
+    if (auto v = extract("sizeRange"); !v.empty()) extractArray(v, &sizeRange.x, 2);
     if (auto v = extract("rotationRange"); !v.empty()) extractArray(v, &rotationRange.x, 2);
-    if (auto v = extract("startColor");    !v.empty()) extractArray(v, &startColor.x, 4);
-    if (auto v = extract("endColor");      !v.empty()) extractArray(v, &endColor.x, 4);
-    if (auto v = extract("gravity");       !v.empty()) extractArray(v, &gravity.x, 3);
+    if (auto v = extract("startColor"); !v.empty()) extractArray(v, &startColor.x, 4);
+    if (auto v = extract("endColor"); !v.empty()) extractArray(v, &endColor.x, 4);
+    if (auto v = extract("gravity"); !v.empty()) extractArray(v, &gravity.x, 3);
+
+    useTurbulence = getBool("useTurbulence", useTurbulence);
+    turbulenceFrequency = getFloat("turbulenceFrequency", turbulenceFrequency);
+    turbulenceStrength = getFloat("turbulenceStrength", turbulenceStrength);
+    turbulenceOctaves = getInt("turbulenceOctaves", turbulenceOctaves);
+    turbulenceScroll = getFloat("turbulenceScroll", turbulenceScroll);
 
     startSizeMul = getFloat("startSizeMul", startSizeMul);
-    endSizeMul   = getFloat("endSizeMul", endSizeMul);
-    texturePath  = extract("texturePath");
+    endSizeMul = getFloat("endSizeMul", endSizeMul);
+    texturePath = extract("texturePath");
     sheetColumns = getInt("sheetColumns", sheetColumns);
-    sheetRows    = getInt("sheetRows", sheetRows);
-    randomFrame  = getBool("randomFrame", randomFrame);
-    blendMode    = (BlendMode)getInt("blendMode", (int)blendMode);
-    layer        = getInt("layer", layer);
+    sheetRows = getInt("sheetRows", sheetRows);
+    randomFrame = getBool("randomFrame", randomFrame);
+    blendMode = (BlendMode)getInt("blendMode", (int)blendMode);
+    layer = getInt("layer", layer);
 }

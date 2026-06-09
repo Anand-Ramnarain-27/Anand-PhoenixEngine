@@ -6,7 +6,7 @@
 
 namespace fs = std::filesystem;
 
-void FileWatcher::start(const std::string& rootDir, Callback cb) {
+void FileWatcher::start(const std::string& rootDir, Callback cb){
     stop();
 
     m_root = rootDir;
@@ -22,7 +22,7 @@ void FileWatcher::start(const std::string& rootDir, Callback cb) {
     m_thread = std::thread(&FileWatcher::watchThread, this);
 }
 
-void FileWatcher::stop() {
+void FileWatcher::stop(){
     if (!m_running) return;
     m_running = false;
 
@@ -38,7 +38,7 @@ void FileWatcher::stop() {
     }
 }
 
-void FileWatcher::poll() {
+void FileWatcher::poll(){
     {
         std::lock_guard<std::mutex> lk(m_mutex);
         m_swap.swap(m_queue);
@@ -49,7 +49,7 @@ void FileWatcher::poll() {
     m_swap.clear();
 }
 
-void FileWatcher::watchThread() {
+void FileWatcher::watchThread(){
     m_dirHandle = CreateFileA(m_root.c_str(), FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, nullptr);
 
     if (m_dirHandle == INVALID_HANDLE_VALUE) {

@@ -10,15 +10,15 @@ public:
 	void loadHDR(const std::string& hdrFile, uint32_t cubeFaceSize = 2048);
 	void render(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& projection);
 
-	const EnvironmentMap* getEnvironmentMap() const {
+	const EnvironmentMap* getEnvironmentMap() const{
 		return m_environment.get();
 	}
 
-	bool hasIBL() const {
+	bool hasIBL() const{
 		return m_environment && m_environment->hasIBL();
 	}
 
-	bool isLoaded() const {
+	bool isLoaded() const{
 		return m_environment && m_environment->isValid();
 	}
 
