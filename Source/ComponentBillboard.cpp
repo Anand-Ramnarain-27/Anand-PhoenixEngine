@@ -15,7 +15,7 @@ ComponentBillboard::ComponentBillboard(GameObject* owner) : Component(owner) {}
 namespace {
     // Recursively collects image asset paths under <project>/Assets so the
     // inspector can offer a "pick from project" dropdown alongside drag-and-drop.
-    std::vector<std::string> collectTextureAssets() {
+    std::vector<std::string> collectTextureAssets(){
         std::vector<std::string> out;
         std::string lib = app->getFileSystem()->GetLibraryPath();
         while (!lib.empty() && (lib.back() == '/' || lib.back() == '\\')) lib.pop_back();
@@ -25,7 +25,7 @@ namespace {
         if (!std::filesystem::exists(assetsDir, ec)) return out;
 
         for (auto it = std::filesystem::recursive_directory_iterator(assetsDir, ec);
-             it != std::filesystem::recursive_directory_iterator(); it.increment(ec)) {
+             it != std::filesystem::recursive_directory_iterator(); it.increment(ec)){
             if (ec) break;
             if (it->is_directory(ec)) continue;
 
@@ -52,7 +52,7 @@ namespace {
     // grid (with a leading "None" tile). Returns true and writes `outPath` when the
     // user picks an entry (outPath is cleared for "None"); the popup closes itself.
     bool drawTexturePickerPopup(const char* popupId, const std::vector<std::string>& assets,
-                                std::string& outPath) {
+                                std::string& outPath){
         bool changed = false;
         ImGui::SetNextWindowSize(ImVec2(360, 420), ImGuiCond_FirstUseEver);
         if (!ImGui::BeginPopup(popupId)) return false;
@@ -138,7 +138,7 @@ namespace {
     }
 }
 
-void ComponentBillboard::update(float dt) {
+void ComponentBillboard::update(float dt){
     if (!enabled || framesPerSecond <= 0.f) return;
 
     const int totalTiles = std::max(1, sheetColumns * sheetRows);
@@ -152,7 +152,7 @@ void ComponentBillboard::update(float dt) {
     }
 }
 
-void ComponentBillboard::onEditor() {
+void ComponentBillboard::onEditor(){
     ImGui::Checkbox("Enabled##billboard", &enabled);
 
     // Unity-style object field: a thumbnail swatch + name that opens an asset
@@ -253,7 +253,7 @@ void ComponentBillboard::onEditor() {
     ImGui::Checkbox("Loop", &loop);
 }
 
-void ComponentBillboard::onSave(std::string& outJson) const {
+void ComponentBillboard::onSave(std::string& outJson) const{
     outJson += "\"texturePath\":\"" + texturePath + "\",";
     outJson += "\"alignment\":" + std::to_string((int)alignment) + ",";
     outJson += "\"size\":[" + std::to_string(size.x) + "," + std::to_string(size.y) + "],";
@@ -266,7 +266,7 @@ void ComponentBillboard::onSave(std::string& outJson) const {
     outJson += "\"enabled\":" + std::string(enabled ? "true" : "false");
 }
 
-void ComponentBillboard::onLoad(const std::string& json) {
+void ComponentBillboard::onLoad(const std::string& json){
     auto extract = [&](const char* key) -> std::string {
         std::string k = "\"" + std::string(key) + "\":";
         auto pos = json.find(k);

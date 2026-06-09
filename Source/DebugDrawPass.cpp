@@ -20,20 +20,20 @@ static const char linePointSource[] = R"(
     struct VertexInput
     {
         float3 position : POSITION;
-        float3 color    : COLOR;
+        float3 color : COLOR;
     };
 
     struct VertexOutput
     {
         float4 position : SV_POSITION;
-        float3 color    : COLOR;
+        float3 color : COLOR;
     };
 
     VertexOutput linePointVS(VertexInput input)
     {
         VertexOutput output;
         output.position = mul(float4(input.position, 1.0), mvp);
-        output.color    = input.color;
+        output.color = input.color;
 
         return output;
     }
@@ -54,7 +54,7 @@ static const char textSource[] = R"(
     {
         float2 position : POSITION;
         float2 texCoord : TEXCOORD;
-        float3 color    : COLOR;
+        float3 color : COLOR;
     };
 
     struct VertexOutput
@@ -73,7 +73,7 @@ static const char textSource[] = R"(
 
         output.position = float4(x, y, 0.0, 1.0);
         output.texCoord = input.texCoord;
-        output.color    = input.color;
+        output.color = input.color;
 
         return output;
     }

@@ -16,7 +16,7 @@ using namespace rapidjson;
 
 ComponentRigidbody::ComponentRigidbody(GameObject* owner) : Component(owner) {}
 
-void ComponentRigidbody::update(float dt) {
+void ComponentRigidbody::update(float dt){
     if (isStatic || mass <= 0.f) return;
 
     // Apply gravity — read scene-global Y acceleration; fall back to kGravityAccel if no scene loaded.
@@ -48,7 +48,7 @@ void ComponentRigidbody::update(float dt) {
             if (diameter < 1e-3f) diameter = 1e-3f;
         }
         float maxSpeed = velocityClampDiameters * diameter / dt;
-        float speed    = velocity.Length();
+        float speed = velocity.Length();
         if (speed > maxSpeed && speed > 0.f)
             velocity *= maxSpeed / speed;
     }
@@ -61,7 +61,7 @@ void ComponentRigidbody::update(float dt) {
     }
 }
 
-void ComponentRigidbody::onEditor() {
+void ComponentRigidbody::onEditor(){
     ImGui::SeparatorText("Body");
     ImGui::Checkbox("Is Static", &isStatic);
     if (ImGui::IsItemHovered())
@@ -115,17 +115,17 @@ void ComponentRigidbody::onEditor() {
     }
 }
 
-void ComponentRigidbody::onSave(std::string& outJson) const {
+void ComponentRigidbody::onSave(std::string& outJson) const{
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
-    doc.AddMember("mass",          mass,          a);
-    doc.AddMember("isStatic",      isStatic,      a);
-    doc.AddMember("restitution",   restitution,   a);
+    doc.AddMember("mass", mass, a);
+    doc.AddMember("isStatic", isStatic, a);
+    doc.AddMember("restitution", restitution, a);
     doc.AddMember("linearDamping", linearDamping, a);
-    doc.AddMember("useGravity",             useGravity,             a);
-    doc.AddMember("gravityScale",           gravityScale,           a);
-    doc.AddMember("useVelocityClamping",    useVelocityClamping,    a);
+    doc.AddMember("useGravity", useGravity, a);
+    doc.AddMember("gravityScale", gravityScale, a);
+    doc.AddMember("useVelocityClamping", useVelocityClamping, a);
     doc.AddMember("velocityClampDiameters", velocityClampDiameters, a);
-    doc.AddMember("isFastMoving",           isFastMoving,           a);
+    doc.AddMember("isFastMoving", isFastMoving, a);
     Value vel(kArrayType);
     vel.PushBack(velocity.x, a).PushBack(velocity.y, a).PushBack(velocity.z, a);
     doc.AddMember("velocity", vel, a);
@@ -133,18 +133,18 @@ void ComponentRigidbody::onSave(std::string& outJson) const {
     outJson = buf.GetString();
 }
 
-void ComponentRigidbody::onLoad(const std::string& jsonStr) {
+void ComponentRigidbody::onLoad(const std::string& jsonStr){
     Document doc; doc.Parse(jsonStr.c_str());
     if (doc.HasParseError()) return;
-    if (doc.HasMember("mass"))          mass          = doc["mass"].GetFloat();
-    if (doc.HasMember("isStatic"))      isStatic      = doc["isStatic"].GetBool();
-    if (doc.HasMember("restitution"))   restitution   = doc["restitution"].GetFloat();
+    if (doc.HasMember("mass")) mass = doc["mass"].GetFloat();
+    if (doc.HasMember("isStatic")) isStatic = doc["isStatic"].GetBool();
+    if (doc.HasMember("restitution")) restitution = doc["restitution"].GetFloat();
     if (doc.HasMember("linearDamping")) linearDamping = doc["linearDamping"].GetFloat();
-    if (doc.HasMember("useGravity"))             useGravity             = doc["useGravity"].GetBool();
-    if (doc.HasMember("gravityScale"))           gravityScale           = doc["gravityScale"].GetFloat();
-    if (doc.HasMember("useVelocityClamping"))    useVelocityClamping    = doc["useVelocityClamping"].GetBool();
+    if (doc.HasMember("useGravity")) useGravity = doc["useGravity"].GetBool();
+    if (doc.HasMember("gravityScale")) gravityScale = doc["gravityScale"].GetFloat();
+    if (doc.HasMember("useVelocityClamping")) useVelocityClamping = doc["useVelocityClamping"].GetBool();
     if (doc.HasMember("velocityClampDiameters")) velocityClampDiameters = doc["velocityClampDiameters"].GetFloat();
-    if (doc.HasMember("isFastMoving"))           isFastMoving           = doc["isFastMoving"].GetBool();
+    if (doc.HasMember("isFastMoving")) isFastMoving = doc["isFastMoving"].GetBool();
     if (doc.HasMember("velocity")) {
         const auto& v = doc["velocity"];
         velocity = { v[0].GetFloat(), v[1].GetFloat(), v[2].GetFloat() };

@@ -23,14 +23,14 @@ static constexpr ImVec4 kRed { 1.f, 0.f, 0.f, 1.f };
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 
-void StateMachineGraphEditor::Init(const std::string& settingsFilePath) {
+void StateMachineGraphEditor::Init(const std::string& settingsFilePath){
     m_settingsFile = settingsFilePath;
     ed::Config cfg;
     cfg.SettingsFile = m_settingsFile.c_str();
     m_context = ed::CreateEditor(&cfg);
 }
 
-void StateMachineGraphEditor::Shutdown() {
+void StateMachineGraphEditor::Shutdown(){
     if (m_context) {
         ed::DestroyEditor(m_context);
         m_context = nullptr;
@@ -39,7 +39,7 @@ void StateMachineGraphEditor::Shutdown() {
 
 // ─── Draw ─────────────────────────────────────────────────────────────────────
 
-void StateMachineGraphEditor::Draw(ResourceStateMachine& sm, const HashString* activeState) {
+void StateMachineGraphEditor::Draw(ResourceStateMachine& sm, const HashString* activeState){
     if (!m_context) return;
 
     ed::SetCurrentEditor(m_context);

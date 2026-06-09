@@ -16,10 +16,9 @@
 MousePicker::Ray MousePicker::buildRay(
     float mx, float my,
     float vpX, float vpY, float vpW, float vpH,
-    const Matrix& view, const Matrix& proj)
-{
+    const Matrix& view, const Matrix& proj){
     // Normalised device coordinates: x in [-1,1], y in [-1,1] (DX convention: y up).
-    float ndcX =  (2.f * (mx - vpX) / vpW) - 1.f;
+    float ndcX = (2.f * (mx - vpX) / vpW) - 1.f;
     float ndcY = -(2.f * (my - vpY) / vpH) + 1.f;
 
     // Unproject two points at near (z=0) and far (z=1) planes.
@@ -32,10 +31,10 @@ MousePicker::Ray MousePicker::buildRay(
     };
 
     Vector3 nearPt = unproject(0.f);
-    Vector3 farPt  = unproject(1.f);
+    Vector3 farPt = unproject(1.f);
 
     Ray r;
-    r.origin    = nearPt;
+    r.origin = nearPt;
     r.direction = farPt - nearPt;
     r.direction.Normalize();
     return r;
@@ -44,8 +43,7 @@ MousePicker::Ray MousePicker::buildRay(
 // ---------------------------------------------------------------------------
 // Ray vs AABB (slab method)
 // ---------------------------------------------------------------------------
-float MousePicker::rayVsAABB(const Ray& ray, const Vector3& mn, const Vector3& mx)
-{
+float MousePicker::rayVsAABB(const Ray& ray, const Vector3& mn, const Vector3& mx){
     float tmin = 0.f, tmax = FLT_MAX;
     const float* ro = &ray.origin.x;
     const float* rd = &ray.direction.x;
@@ -74,24 +72,23 @@ float MousePicker::rayVsAABB(const Ray& ray, const Vector3& mn, const Vector3& m
 float MousePicker::rayVsTriangle(const Ray& ray,
                                   const Vector3& v0,
                                   const Vector3& v1,
-                                  const Vector3& v2)
-{
+                                  const Vector3& v2){
     constexpr float kEps = 1e-8f;
 
     Vector3 e1 = v1 - v0;
     Vector3 e2 = v2 - v0;
-    Vector3 h  = ray.direction.Cross(e2);
-    float   a  = e1.Dot(h);
+    Vector3 h = ray.direction.Cross(e2);
+    float a = e1.Dot(h);
 
     if (std::abs(a) < kEps) return FLT_MAX; // parallel
 
-    float   f  = 1.f / a;
-    Vector3 s  = ray.origin - v0;
-    float   u  = f * s.Dot(h);
+    float f = 1.f / a;
+    Vector3 s = ray.origin - v0;
+    float u = f * s.Dot(h);
     if (u < 0.f || u > 1.f) return FLT_MAX;
 
-    Vector3 q  = s.Cross(e1);
-    float   v  = f * ray.direction.Dot(q);
+    Vector3 q = s.Cross(e1);
+    float v = f * ray.direction.Dot(q);
     if (v < 0.f || u + v > 1.f) return FLT_MAX;
 
     float t = f * e2.Dot(q);
@@ -103,8 +100,7 @@ float MousePicker::rayVsTriangle(const Ray& ray,
 // Transforms the ray into local space once per mesh to avoid transforming
 // every triangle vertex into world space.
 // ---------------------------------------------------------------------------
-float MousePicker::testMeshTriangles(const Ray& ray, GameObject* go)
-{
+float MousePicker::testMeshTriangles(const Ray& ray, GameObject* go){
     ComponentMesh* cm = go->getComponent<ComponentMesh>();
     if (!cm) return FLT_MAX;
 
@@ -116,7 +112,7 @@ float MousePicker::testMeshTriangles(const Ray& ray, GameObject* go)
 
     // Transform ray into local object space.
     Ray localRay;
-    localRay.origin    = Vector3::Transform(ray.origin, worldInv);
+    localRay.origin = Vector3::Transform(ray.origin, worldInv);
     // TransformNormal handles the linear part only (no translation).
     localRay.direction = Vector3::TransformNormal(ray.direction, worldInv);
     localRay.direction.Normalize();
@@ -128,10 +124,10 @@ float MousePicker::testMeshTriangles(const Ray& ray, GameObject* go)
         if (!mesh && entry.meshRes) mesh = entry.meshRes->getMesh();
         if (!mesh) continue;
 
-        const auto& verts   = mesh->getVertices();
+        const auto& verts = mesh->getVertices();
         const auto& indices = mesh->getIndices();
         for (size_t i = 0; i + 2 < indices.size(); i += 3) {
-            const Vector3& v0 = verts[indices[i    ]].position;
+            const Vector3& v0 = verts[indices[i ]].position;
             const Vector3& v1 = verts[indices[i + 1]].position;
             const Vector3& v2 = verts[indices[i + 2]].position;
             float d = rayVsTriangle(localRay, v0, v1, v2);
@@ -150,8 +146,7 @@ float MousePicker::testMeshTriangles(const Ray& ray, GameObject* go)
 // Recursive scene traversal
 // ---------------------------------------------------------------------------
 void MousePicker::traverse(const Ray& ray, GameObject* node,
-                            float& outDist, GameObject*& outHit)
-{
+                            float& outDist, GameObject*& outHit){
     if (!node || !node->isActive()) return;
 
     ComponentMesh* cm = node->getComponent<ComponentMesh>();
@@ -164,7 +159,7 @@ void MousePicker::traverse(const Ray& ray, GameObject* node,
             float triDist = testMeshTriangles(ray, node);
             if (triDist < outDist) {
                 outDist = triDist;
-                outHit  = node;
+                outHit = node;
             }
         }
     }
@@ -180,8 +175,7 @@ GameObject* MousePicker::pick(
     float mx, float my,
     float vpX, float vpY, float vpW, float vpH,
     const Matrix& view, const Matrix& proj,
-    ModuleScene* scene)
-{
+    ModuleScene* scene){
     if (!scene || vpW <= 0.f || vpH <= 0.f) return nullptr;
 
     Ray ray = buildRay(mx, my, vpX, vpY, vpW, vpH, view, proj);

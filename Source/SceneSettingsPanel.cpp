@@ -11,7 +11,7 @@
 
 namespace fs = std::filesystem;
 
-void SceneSettingsPanel::drawContent() {
+void SceneSettingsPanel::drawContent(){
     if (!m_editor->getSceneManager()) { textMuted("No scene manager."); return; }
     drawEnvironmentSection();
     drawLightingSection();
@@ -20,11 +20,11 @@ void SceneSettingsPanel::drawContent() {
 }
 
 // ---- 1. Environment --------------------------------------------------------
-void SceneSettingsPanel::drawEnvironmentSection() {
+void SceneSettingsPanel::drawEnvironmentSection(){
     if (!ImGui::CollapsingHeader("Environment", ImGuiTreeNodeFlags_DefaultOpen)) return;
-    SceneManager*         sm  = m_editor->getSceneManager();
-    EditorSceneSettings&  s   = sm->getSettings();
-    auto&                 sky = s.skybox;
+    SceneManager* sm = m_editor->getSceneManager();
+    EditorSceneSettings& s = sm->getSettings();
+    auto& sky = s.skybox;
 
     // Lazy-scan Assets/Skybox/ for .dds / .hdr files.
     // Choosing a file auto-enables the skybox; choosing "(none)" disables it.
@@ -55,7 +55,7 @@ void SceneSettingsPanel::drawEnvironmentSection() {
         bool noneSelected = (m_selectedSkybox < 0);
         if (ImGui::Selectable("(none)", noneSelected)) {
             m_selectedSkybox = -1;
-            sky.enabled      = false;
+            sky.enabled = false;
             sky.cubemapPath.clear();
         }
         if (noneSelected) ImGui::SetItemDefaultFocus();
@@ -64,15 +64,15 @@ void SceneSettingsPanel::drawEnvironmentSection() {
             bool sel = (m_selectedSkybox == i);
             if (ImGui::Selectable(m_skyboxFiles[i].c_str(), sel)) {
                 m_selectedSkybox = i;
-                std::string dir      = app->getFileSystem()->GetAssetsPath() + "Skybox/";
+                std::string dir = app->getFileSystem()->GetAssetsPath() + "Skybox/";
                 std::string fullPath = dir + m_skyboxFiles[i];
                 sky.cubemapPath = fullPath;
-                sky.enabled     = true;   // auto-enable when a file is chosen
+                sky.enabled = true; // auto-enable when a file is chosen
                 if (EnvironmentSystem* env = m_editor->getEnvSystem()) {
                     std::string ext = fs::path(fullPath).extension().string();
                     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
                     if (ext == ".hdr") env->loadHDR(fullPath);
-                    else               env->load(fullPath);
+                    else env->load(fullPath);
                     m_editor->log(("Skybox loaded: " + m_skyboxFiles[i]).c_str(), EditorColors::Success);
                 }
             }
@@ -83,7 +83,7 @@ void SceneSettingsPanel::drawEnvironmentSection() {
 }
 
 // ---- 2. Lighting -----------------------------------------------------------
-void SceneSettingsPanel::drawLightingSection() {
+void SceneSettingsPanel::drawLightingSection(){
     if (!ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen)) return;
     EditorSceneSettings& s = m_editor->getSceneManager()->getSettings();
 
@@ -100,7 +100,7 @@ void SceneSettingsPanel::drawLightingSection() {
 }
 
 // ---- 3. Physics ------------------------------------------------------------
-void SceneSettingsPanel::drawPhysicsSection() {
+void SceneSettingsPanel::drawPhysicsSection(){
     if (!ImGui::CollapsingHeader("Physics", ImGuiTreeNodeFlags_DefaultOpen)) return;
     EditorSceneSettings& s = m_editor->getSceneManager()->getSettings();
 
@@ -113,15 +113,15 @@ void SceneSettingsPanel::drawPhysicsSection() {
 }
 
 // ---- 4. Broadphase ---------------------------------------------------------
-void SceneSettingsPanel::drawBroadphaseSection() {
+void SceneSettingsPanel::drawBroadphaseSection(){
     if (!ImGui::CollapsingHeader("Broadphase", ImGuiTreeNodeFlags_DefaultOpen)) return;
     CollisionSystem* cs = m_editor->getCollisionSystem();
     if (!cs) { textMuted("No collision system."); return; }
 
     // Three-button selector.
-    const bool isGrid    = cs->isUsingGrid();
-    const bool isOctree  = cs->isUsingOctree();
-    const bool isBrute   = !isGrid && !isOctree;
+    const bool isGrid = cs->isUsingGrid();
+    const bool isOctree = cs->isUsingOctree();
+    const bool isBrute = !isGrid && !isOctree;
 
     auto styleActive = [](bool on) {
         if (on) ImGui::PushStyleColor(ImGuiCol_Button, EditorColors::Active);
@@ -130,11 +130,11 @@ void SceneSettingsPanel::drawBroadphaseSection() {
         if (on) ImGui::PopStyleColor();
     };
 
-    styleActive(isBrute);  if (ImGui::Button("Brute Force"))  { cs->useBruteForceBroadPhase(); } styleEnd(isBrute);
+    styleActive(isBrute); if (ImGui::Button("Brute Force")) { cs->useBruteForceBroadPhase(); } styleEnd(isBrute);
     ImGui::SameLine();
-    styleActive(isGrid);   if (ImGui::Button("Uniform Grid")) { cs->useGridBroadPhase(); }       styleEnd(isGrid);
+    styleActive(isGrid); if (ImGui::Button("Uniform Grid")) { cs->useGridBroadPhase(); } styleEnd(isGrid);
     ImGui::SameLine();
-    styleActive(isOctree); if (ImGui::Button("Octree"))       { cs->useOctreeBroadPhase(); }     styleEnd(isOctree);
+    styleActive(isOctree); if (ImGui::Button("Octree")) { cs->useOctreeBroadPhase(); } styleEnd(isOctree);
 
     // Complexity label.
     const char* complexity = isBrute ? "O(n\xC2\xB2)" : isGrid ? "O(n log n)" : "adaptive";

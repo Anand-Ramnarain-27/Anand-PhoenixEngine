@@ -11,14 +11,14 @@
 
 ComponentSimpleCharacterController::ComponentSimpleCharacterController(GameObject* owner) : Component(owner) {}
 
-void ComponentSimpleCharacterController::ensureInit() {
+void ComponentSimpleCharacterController::ensureInit(){
     if (m_initialized) return;
     m_motion = owner->getComponent<ComponentCharacterMotion>();
     m_anim = owner->getComponent<ComponentAnimation>();
     m_initialized = true;
 }
 
-void ComponentSimpleCharacterController::update(float dt) {
+void ComponentSimpleCharacterController::update(float dt){
     ensureInit();
     if (!m_motion) return;
 
@@ -79,7 +79,7 @@ void ComponentSimpleCharacterController::update(float dt) {
     }
 }
 
-void ComponentSimpleCharacterController::onEditor() {
+void ComponentSimpleCharacterController::onEditor(){
     ImGui::TextDisabled("Arrow keys / WASD + left gamepad stick.");
     ImGui::TextDisabled("Left Shift: run.  K: die (one-shot).");
     ImGui::TextDisabled("Requires ComponentCharacterMotion on same object.");
@@ -94,7 +94,7 @@ void ComponentSimpleCharacterController::onEditor() {
         ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.4f, 1.f), "Animation: not found (optional)");
 }
 
-void ComponentSimpleCharacterController::onSave(std::string& outJson) const {
+void ComponentSimpleCharacterController::onSave(std::string& outJson) const{
     outJson = "{}";
 }
 

@@ -22,6 +22,7 @@ public:
         Decal = 12,
         Billboard = 13,
         ParticleSystem = 14,
+        Trail = 15,
     };
 
     explicit Component(GameObject* owner) : owner(owner) {}

@@ -11,13 +11,13 @@
 
 SceneManager::~SceneManager() { clearScene(); }
 
-void SceneManager::setScene(std::unique_ptr<IScene> scene, ID3D12Device* device) {
+void SceneManager::setScene(std::unique_ptr<IScene> scene, ID3D12Device* device){
     if (m_editingPrefab) exitPrefabEdit();
     clearScene();
     if (scene && scene->initialize(device)) { activeScene = std::move(scene); activeScene->onEnter(); }
 }
 
-void SceneManager::clearScene() {
+void SceneManager::clearScene(){
     if (m_editingPrefab) exitPrefabEdit();
     if (activeScene) {
         // Make sure the GPU is done with any in-flight command lists before we start
@@ -31,12 +31,12 @@ void SceneManager::clearScene() {
     hasSerializedState = false;
 }
 
-ModuleScene* SceneManager::getModuleScene() const {
+ModuleScene* SceneManager::getModuleScene() const{
     if (m_editingPrefab && m_prefabScene) return m_prefabScene;
     return activeScene ? activeScene->getModuleScene() : nullptr;
 }
 
-void SceneManager::play() {
+void SceneManager::play(){
     if (!activeScene || m_editingPrefab) return;
     if (state == PlayState::Stopped) {
         if (auto* ms = activeScene->getModuleScene()) hasSerializedState = SceneSerializer::SaveTempScene(ms);
@@ -44,12 +44,12 @@ void SceneManager::play() {
     state = PlayState::Playing;
 }
 
-void SceneManager::pause() {
+void SceneManager::pause(){
     if (state == PlayState::Playing) state = PlayState::Paused;
     else if (state == PlayState::Paused) state = PlayState::Playing;
 }
 
-void SceneManager::stop() {
+void SceneManager::stop(){
     if (!activeScene || state == PlayState::Stopped) return;
 
     // Entering Stop tears down and rebuilds the scene graph (LoadTempScene / reset),
@@ -71,12 +71,12 @@ void SceneManager::stop() {
     state = PlayState::Stopped;
 }
 
-void SceneManager::update(float deltaTime) {
+void SceneManager::update(float deltaTime){
     if (m_editingPrefab) return;
     if (activeScene && state == PlayState::Playing) activeScene->update(deltaTime);
 }
 
-void SceneManager::updateAnimations(float deltaTime) {
+void SceneManager::updateAnimations(float deltaTime){
     if (m_editingPrefab) return;
     if (state == PlayState::Playing) return; // already updated via update()
     auto* ms = getModuleScene();
@@ -89,7 +89,7 @@ void SceneManager::updateAnimations(float deltaTime) {
     visit(ms->getRoot());
 }
 
-static void renderModuleScene(ModuleScene* ms, ID3D12GraphicsCommandList* cmd) {
+static void renderModuleScene(ModuleScene* ms, ID3D12GraphicsCommandList* cmd){
     if (!ms) return;
     std::function<void(GameObject*)> visit = [&](GameObject* node) {
         if (!node || !node->isActive()) return;
@@ -99,7 +99,7 @@ static void renderModuleScene(ModuleScene* ms, ID3D12GraphicsCommandList* cmd) {
     visit(ms->getRoot());
 }
 
-void SceneManager::render(ID3D12GraphicsCommandList* cmd, const ModuleCamera& camera, uint32_t w, uint32_t h) {
+void SceneManager::render(ID3D12GraphicsCommandList* cmd, const ModuleCamera& camera, uint32_t w, uint32_t h){
     if (m_editingPrefab) {
         renderModuleScene(m_prefabScene, cmd);
         return;
@@ -107,18 +107,18 @@ void SceneManager::render(ID3D12GraphicsCommandList* cmd, const ModuleCamera& ca
     if (activeScene) activeScene->render(cmd, camera, w, h);
 }
 
-void SceneManager::onViewportResized(uint32_t w, uint32_t h) {
+void SceneManager::onViewportResized(uint32_t w, uint32_t h){
     if (activeScene) activeScene->onViewportResized(w, h);
 }
 
-bool SceneManager::saveCurrentScene(const std::string& filePath) {
+bool SceneManager::saveCurrentScene(const std::string& filePath){
     if (m_editingPrefab) { LOG("SceneManager: Cannot save scene while editing a prefab"); return false; }
     auto* ms = activeScene ? activeScene->getModuleScene() : nullptr;
     if (!ms) { LOG("SceneManager: No active scene to save"); return false; }
     return SceneSerializer::SaveScene(ms, filePath);
 }
 
-bool SceneManager::loadScene(const std::string& filePath) {
+bool SceneManager::loadScene(const std::string& filePath){
     if (m_editingPrefab) { LOG("SceneManager: Cannot load scene while editing a prefab"); return false; }
     auto* ms = activeScene ? activeScene->getModuleScene() : nullptr;
     if (!ms) { LOG("SceneManager: No active scene to load into"); return false; }
@@ -126,7 +126,7 @@ bool SceneManager::loadScene(const std::string& filePath) {
     return SceneSerializer::LoadScene(filePath, ms);
 }
 
-void SceneManager::enterPrefabEdit(ModuleScene* prefabScene, const std::string& prefabName) {
+void SceneManager::enterPrefabEdit(ModuleScene* prefabScene, const std::string& prefabName){
     if (m_editingPrefab) exitPrefabEdit();
     m_savedScene = activeScene ? activeScene->getModuleScene() : nullptr;
     m_prefabScene = prefabScene;
@@ -134,7 +134,7 @@ void SceneManager::enterPrefabEdit(ModuleScene* prefabScene, const std::string& 
     m_editingPrefab = true;
 }
 
-void SceneManager::exitPrefabEdit() {
+void SceneManager::exitPrefabEdit(){
     if (!m_editingPrefab) return;
     m_editingPrefab = false;
     m_prefabEditName.clear();

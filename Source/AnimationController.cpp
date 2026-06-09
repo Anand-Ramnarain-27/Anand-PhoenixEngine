@@ -6,14 +6,14 @@
 #include <algorithm>
 #include <cmath>
 
-AnimationController::~AnimationController() {
+AnimationController::~AnimationController(){
     if (m_animation) {
         app->getResources()->ReleaseResource(m_animation);
         m_animation = nullptr;
     }
 }
 
-void AnimationController::Play(UID uid, bool loop) {
+void AnimationController::Play(UID uid, bool loop){
     // Release previous animation only when switching to a different one.
     if (m_animation && Resource != uid) {
         app->getResources()->ReleaseResource(m_animation);
@@ -46,12 +46,12 @@ void AnimationController::Play(UID uid, bool loop) {
     }
 }
 
-void AnimationController::Stop() {
+void AnimationController::Stop(){
     m_playing = false;
     CurrentTime = 0.f;
 }
 
-void AnimationController::Update(float deltaTime) {
+void AnimationController::Update(float deltaTime){
     if (!m_playing || !m_animation) return;
 
     CurrentTime += deltaTime;
@@ -69,7 +69,7 @@ void AnimationController::Update(float deltaTime) {
     }
 }
 
-bool AnimationController::GetTransform(const char* name, Vector3& pos, Quaternion& rot) const {
+bool AnimationController::GetTransform(const char* name, Vector3& pos, Quaternion& rot) const{
     if (!m_animation) return false;
 
     const auto& channels = m_animation->getChannels();
@@ -127,11 +127,11 @@ bool AnimationController::GetTransform(const char* name, Vector3& pos, Quaternio
     return true;
 }
 
-bool AnimationController::hasMorphChannel(const char* name) const {
+bool AnimationController::hasMorphChannel(const char* name) const{
     return m_animation && m_animation->getMorphChannel(name) != nullptr;
 }
 
-bool AnimationController::GetMorphWeights(const char* name, float* outWeights, uint32_t numTargets) const {
+bool AnimationController::GetMorphWeights(const char* name, float* outWeights, uint32_t numTargets) const{
     if (!m_animation || !outWeights || numTargets == 0) return false;
 
     const ResourceAnimation::MorphChannel* mc = m_animation->getMorphChannel(name);

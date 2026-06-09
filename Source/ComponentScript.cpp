@@ -11,7 +11,7 @@ using namespace rapidjson;
 
 ComponentScript::ComponentScript(GameObject* owner) : Component(owner) {}
 
-ComponentScript::~ComponentScript() {
+ComponentScript::~ComponentScript(){
     if (m_script) {
         m_script->Destroy();
         delete m_script;
@@ -19,7 +19,7 @@ ComponentScript::~ComponentScript() {
 }
 
 void ComponentScript::setScriptClass(const std::string& className,
-    HotReloadManager* mgr) {
+    HotReloadManager* mgr){
     if (m_script) {
         m_script->Destroy();
         delete m_script;
@@ -35,7 +35,7 @@ void ComponentScript::setScriptClass(const std::string& className,
     }
 }
 
-void ComponentScript::onDllReloaded(HotReloadManager* mgr) {
+void ComponentScript::onDllReloaded(HotReloadManager* mgr){
     std::string savedState;
     if (m_script) {
         savedState = m_script->Save();
@@ -51,7 +51,7 @@ void ComponentScript::onDllReloaded(HotReloadManager* mgr) {
     }
 }
 
-void ComponentScript::update(float dt) {
+void ComponentScript::update(float dt){
     if (!m_script) return;
     if (!m_started) {
         m_script->Start(owner);
@@ -60,7 +60,7 @@ void ComponentScript::update(float dt) {
     m_script->Update(dt);
 }
 
-void ComponentScript::onEditor() {
+void ComponentScript::onEditor(){
     ImGui::Text("Script class: %s",
         m_className.empty() ? "<none assigned>" : m_className.c_str());
     if (!m_script) {
@@ -71,7 +71,7 @@ void ComponentScript::onEditor() {
     m_script->Editor();
 }
 
-void ComponentScript::onSave(std::string& outJson) const {
+void ComponentScript::onSave(std::string& outJson) const{
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
     Value cn; cn.SetString(m_className.c_str(), a);
     doc.AddMember("ClassName", cn, a);
@@ -83,7 +83,7 @@ void ComponentScript::onSave(std::string& outJson) const {
     outJson = buf.GetString();
 }
 
-void ComponentScript::onLoad(const std::string& jsonStr) {
+void ComponentScript::onLoad(const std::string& jsonStr){
     Document doc; doc.Parse(jsonStr.c_str());
     if (doc.HasParseError()) return;
     if (doc.HasMember("ClassName"))

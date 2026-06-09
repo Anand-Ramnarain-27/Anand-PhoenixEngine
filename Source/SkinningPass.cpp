@@ -6,11 +6,11 @@
 #include <d3dx12.h>
 #include <cstring>
 
-bool SkinningPass::init(ID3D12Device* device) {
+bool SkinningPass::init(ID3D12Device* device){
     return createBuffers(device) && createPipeline(device);
 }
 
-void SkinningPass::cleanUp() {
+void SkinningPass::cleanUp(){
     m_upload.Reset();
     m_uploadMapped = nullptr;
     for (int i = 0; i < FRAMES_IN_FLIGHT; ++i) {
@@ -23,7 +23,7 @@ void SkinningPass::cleanUp() {
     m_pso.Reset();
 }
 
-bool SkinningPass::createBuffers(ID3D12Device* device) {
+bool SkinningPass::createBuffers(ID3D12Device* device){
     const UINT64 jointSz = UINT64(MAX_TOTAL_JOINTS) * sizeof(Matrix);
     const UINT64 morphWeightSz = UINT64(MAX_TOTAL_MORPH_WEIGHTS) * sizeof(float);
 
@@ -95,7 +95,7 @@ bool SkinningPass::createBuffers(ID3D12Device* device) {
     return true;
 }
 
-bool SkinningPass::createPipeline(ID3D12Device* device) {
+bool SkinningPass::createPipeline(ID3D12Device* device){
     // Root signature (no descriptor heap needed — all root descriptors):
     //   [0] b0 : root constants  5 x uint32  (numVertices, paletteOffset, vertexOffset, numMorphTargets, numJoints)
     //   [1] t0 : root SRV        StructuredBuffer<float4x4>    (palette)
@@ -149,7 +149,7 @@ bool SkinningPass::createPipeline(ID3D12Device* device) {
 
 void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
                              const std::vector<SkinJob>& jobs,
-                             UINT frameIndex) {
+                             UINT frameIndex){
     if (jobs.empty()) return;
 
     BEGIN_EVENT(cmd, "SkinningPass");
@@ -210,7 +210,7 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
 
     // ---- 2. Copy upload sections → GPU buffers ----
     auto transitionTo = [&](ComPtr<ID3D12Resource>& res, D3D12_RESOURCE_STATES& state,
-                             D3D12_RESOURCE_STATES newState) {
+                             D3D12_RESOURCE_STATES newState){
         if (state != newState) {
             auto b = CD3DX12_RESOURCE_BARRIER::Transition(res.Get(), state, newState);
             cmd->ResourceBarrier(1, &b);

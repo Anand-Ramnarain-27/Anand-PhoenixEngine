@@ -19,11 +19,11 @@ public:
 	};
 
 	enum class TextureType {
-		Color,          // BC1 (no alpha) or BC3 (alpha) — sRGB
-		ColorHQ,        // BC7 — higher quality sRGB, slower to compress
-		Emissive,       // BC1 (no alpha) or BC3 (alpha) — sRGB
-		Normal,         // BC5 — RG only, z reconstructed in shader
-		Occlusion,      // BC4 — single grayscale channel
+		Color, // BC1 (no alpha) or BC3 (alpha) — sRGB
+		ColorHQ, // BC7 — higher quality sRGB, slower to compress
+		Emissive, // BC1 (no alpha) or BC3 (alpha) — sRGB
+		Normal, // BC5 — RG only, z reconstructed in shader
+		Occlusion, // BC4 — single grayscale channel
 		MetalRoughness, // BC5 — R=metallic, G=roughness (two grayscale channels)
 	};
 

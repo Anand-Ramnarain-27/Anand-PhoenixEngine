@@ -15,10 +15,10 @@ class HandleManager
         UINT number : 8;
 
         Data() : index(Size), number(0) { ; }
-        explicit Data(UINT handle) {
+        explicit Data(UINT handle){
             *reinterpret_cast<UINT*>(this) = handle;
         }
-        operator UINT() const {
+        operator UINT() const{
             return *reinterpret_cast<const UINT*>(this);
         }
     };

@@ -24,18 +24,18 @@ namespace fs = std::filesystem;
 
 static const char* kSkipDirs[] = { "build","Build","x64","x86","Debug","Release",".vs",".git","CMakeFiles","obj","bin","Intermediate","Saved","DerivedDataCache" };
 
-static bool isDirSkipped(const std::string& name) {
+static bool isDirSkipped(const std::string& name){
     for (auto* s : kSkipDirs) if (name == s) return true;
     return false;
 }
 
-bool AssetBrowserPanel::isAssetFile(const std::string& ext) const {
+bool AssetBrowserPanel::isAssetFile(const std::string& ext) const{
     static const char* kAllowed[] = { ".gltf",".fbx",".obj",".dds",".png",".jpg",".jpeg",".json",".prefab",".wav",".mp3",".ogg" };
     for (auto* e : kAllowed) if (ext == e) return true;
     return false;
 }
 
-ImVec4 AssetBrowserPanel::typeColor(const std::string& ext) const {
+ImVec4 AssetBrowserPanel::typeColor(const std::string& ext) const{
     if (ext == ".gltf" || ext == ".fbx" || ext == ".obj") return { 0.40f, 0.80f, 1.00f, 1.f };
     if (ext == ".dds" || ext == ".png" || ext == ".jpg" || ext == ".jpeg") return { 0.75f, 0.50f, 1.00f, 1.f };
     if (ext == ".json") return { 1.00f, 0.80f, 0.35f, 1.f };
@@ -44,7 +44,7 @@ ImVec4 AssetBrowserPanel::typeColor(const std::string& ext) const {
     return EditorColors::Muted;
 }
 
-const char* AssetBrowserPanel::typeIcon(const std::string& ext) const {
+const char* AssetBrowserPanel::typeIcon(const std::string& ext) const{
     if (ext == ".gltf" || ext == ".fbx" || ext == ".obj") return "[M]";
     if (ext == ".dds" || ext == ".png" || ext == ".jpg" || ext == ".jpeg") return "[T]";
     if (ext == ".json") return "[S]";
@@ -53,11 +53,11 @@ const char* AssetBrowserPanel::typeIcon(const std::string& ext) const {
     return "[?]";
 }
 
-void AssetBrowserPanel::navigateTo(const std::string& path) {
+void AssetBrowserPanel::navigateTo(const std::string& path){
     m_currentPath = path; m_selectedPath.clear(); m_dirty = true;
 }
 
-void AssetBrowserPanel::refreshCurrentDir() {
+void AssetBrowserPanel::refreshCurrentDir(){
     m_entries.clear(); m_dirty = false;
     if (m_currentPath.empty()) return;
     std::vector<Entry> dirs, files;
@@ -83,7 +83,7 @@ void AssetBrowserPanel::refreshCurrentDir() {
     m_entries.insert(m_entries.end(), files.begin(), files.end());
 }
 
-void AssetBrowserPanel::drawContent() {
+void AssetBrowserPanel::drawContent(){
     if (m_roots.empty()) {
         std::string lib = app->getFileSystem()->GetLibraryPath();
         while (!lib.empty() && (lib.back() == '/' || lib.back() == '\\')) lib.pop_back();
@@ -118,14 +118,14 @@ void AssetBrowserPanel::drawContent() {
     drawModals();
 }
 
-void AssetBrowserPanel::drawFolderTree() {
+void AssetBrowserPanel::drawFolderTree(){
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 3);
     textMuted("FOLDERS");
     ImGui::Separator();
     for (const auto& root : m_roots) drawFolderNode(root.path, true);
 }
 
-void AssetBrowserPanel::drawFolderNode(const std::string& absPath, bool forceOpen) {
+void AssetBrowserPanel::drawFolderNode(const std::string& absPath, bool forceOpen){
     std::vector<std::string> subDirs;
     try {
         for (const auto& e : fs::directory_iterator(absPath)) {
@@ -157,7 +157,7 @@ void AssetBrowserPanel::drawFolderNode(const std::string& absPath, bool forceOpe
     }
 }
 
-void AssetBrowserPanel::drawBreadcrumb() {
+void AssetBrowserPanel::drawBreadcrumb(){
     const float searchW = 150.0f;
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - searchW);
     ImGui::SetNextItemWidth(searchW);
@@ -191,7 +191,7 @@ void AssetBrowserPanel::drawBreadcrumb() {
     ImGui::Spacing();
 }
 
-void AssetBrowserPanel::drawThumbnailGrid() {
+void AssetBrowserPanel::drawThumbnailGrid(){
     std::string filterLow = toLower(m_searchBuf);
     const float avail = ImGui::GetContentRegionAvail().x;
     const float cellW = kThumbSize + 24.0f;
@@ -294,7 +294,7 @@ void AssetBrowserPanel::drawThumbnailGrid() {
     ImGui::PopStyleColor();
 }
 
-void AssetBrowserPanel::drawItemContextMenu(int idx) {
+void AssetBrowserPanel::drawItemContextMenu(int idx){
     if (!ImGui::BeginPopupContextItem("##abctx")) return;
     const Entry& e = m_entries[idx];
     ImGui::PushStyleColor(ImGuiCol_Text, e.isDir ? EditorColors::Folder : typeColor(e.ext));
@@ -335,11 +335,11 @@ void AssetBrowserPanel::drawItemContextMenu(int idx) {
                 ImGui::TextDisabled("Block Compression format:");
                 ImGui::Separator();
                 struct { const char* label; const char* tip; int typeIdx; } opts[] = {
-                    { "Color (BC1/BC3)",      "BC1 for opaque, BC3 for alpha. Fast compress.",      0 },
-                    { "Color HQ (BC7)",       "BC7 — highest quality, slower to compress.",         1 },
-                    { "Normal Map (BC5)",     "BC5 — RG only. Z reconstructed in shader.",          2 },
-                    { "Metal/Roughness (BC5)","BC5 — two grayscale channels (R=metal, G=rough).",   3 },
-                    { "Occlusion (BC4)",      "BC4 — single grayscale channel.",                    4 },
+                    { "Color (BC1/BC3)", "BC1 for opaque, BC3 for alpha. Fast compress.", 0 },
+                    { "Color HQ (BC7)", "BC7 — highest quality, slower to compress.", 1 },
+                    { "Normal Map (BC5)", "BC5 — RG only. Z reconstructed in shader.", 2 },
+                    { "Metal/Roughness (BC5)","BC5 — two grayscale channels (R=metal, G=rough).", 3 },
+                    { "Occlusion (BC4)", "BC4 — single grayscale channel.", 4 },
                 };
                 for (auto& opt : opts) {
                     if (ImGui::MenuItem(opt.label)) {
@@ -369,7 +369,7 @@ void AssetBrowserPanel::drawItemContextMenu(int idx) {
     ImGui::EndPopup();
 }
 
-void AssetBrowserPanel::drawEmptyAreaContextMenu() {
+void AssetBrowserPanel::drawEmptyAreaContextMenu(){
     if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) && ImGui::IsMouseClicked(ImGuiMouseButton_Right) && !ImGui::IsAnyItemHovered()) ImGui::OpenPopup("##emptyCtx");
     if (!ImGui::BeginPopup("##emptyCtx")) return;
     textMuted("  %s", fs::path(m_currentPath).filename().string().c_str());
@@ -385,7 +385,7 @@ void AssetBrowserPanel::drawEmptyAreaContextMenu() {
     ImGui::EndPopup();
 }
 
-void AssetBrowserPanel::drawPrefabInstanceBar() {
+void AssetBrowserPanel::drawPrefabInstanceBar(){
     EditorSelection& sel = m_editor->getSelection();
     if (!sel.has()) return;
     GameObject* go = sel.object;
@@ -441,7 +441,7 @@ void AssetBrowserPanel::drawPrefabInstanceBar() {
     ImGui::PopStyleColor();
 }
 
-void AssetBrowserPanel::drawStatusBar() {
+void AssetBrowserPanel::drawStatusBar(){
     const float totalW = ImGui::GetContentRegionAvail().x;
     const float bw1 = 90.0f, bw2 = 54.0f;
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 3);
@@ -481,7 +481,7 @@ void AssetBrowserPanel::drawStatusBar() {
     }
 }
 
-void AssetBrowserPanel::drawModals() {
+void AssetBrowserPanel::drawModals(){
     ImVec2 centre = ImGui::GetMainViewport()->GetCenter();
     auto openModal = [&](bool& flag, const char* id) {
         if (flag) { ImGui::OpenPopup(id); flag = false; }
@@ -532,7 +532,7 @@ void AssetBrowserPanel::drawModals() {
     }
 }
 
-void AssetBrowserPanel::drawColoredBox(ImVec2 lp, ImVec4 col, const char* label) {
+void AssetBrowserPanel::drawColoredBox(ImVec2 lp, ImVec4 col, const char* label){
     ImDrawList* dl = ImGui::GetWindowDrawList();
     ImVec2 wp = ImGui::GetWindowPos();
     ImVec2 tl = { wp.x + lp.x - ImGui::GetScrollX(), wp.y + lp.y - ImGui::GetScrollY() };
@@ -545,7 +545,7 @@ void AssetBrowserPanel::drawColoredBox(ImVec2 lp, ImVec4 col, const char* label)
     }
 }
 
-void AssetBrowserPanel::spawnAsset(const std::string& path) {
+void AssetBrowserPanel::spawnAsset(const std::string& path){
     if (path.empty() || fs::is_directory(path)) return;
     std::string ext = fs::path(path).extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
@@ -570,7 +570,7 @@ void AssetBrowserPanel::spawnAsset(const std::string& path) {
 }
 
 
-void AssetBrowserPanel::prefabSaveSelected(const char* name) {
+void AssetBrowserPanel::prefabSaveSelected(const char* name){
     EditorSelection& sel = m_editor->getSelection();
     if (!sel.has()) { m_editor->log("No GameObject selected.", EditorColors::Danger); return; }
     if (PrefabManager::createPrefab(sel.object, name)) {
@@ -582,7 +582,7 @@ void AssetBrowserPanel::prefabSaveSelected(const char* name) {
     else m_editor->log("Prefab save failed.", EditorColors::Danger);
 }
 
-void AssetBrowserPanel::prefabInstantiate(const std::string& name) {
+void AssetBrowserPanel::prefabInstantiate(const std::string& name){
     ModuleScene* scene = m_editor->getActiveModuleScene();
     if (!scene) { m_editor->log("No active scene.", EditorColors::Danger); return; }
     if (GameObject* go = PrefabManager::instantiatePrefab(name, scene)) {
@@ -592,35 +592,35 @@ void AssetBrowserPanel::prefabInstantiate(const std::string& name) {
     else m_editor->log(("Failed: " + name).c_str(), EditorColors::Danger);
 }
 
-void AssetBrowserPanel::prefabApply() {
+void AssetBrowserPanel::prefabApply(){
     EditorSelection& sel = m_editor->getSelection();
     if (!sel.has()) return;
     bool ok = PrefabManager::applyToPrefab(sel.object, true);
     logResult(m_editor, ok, "Applied to prefab.", "Apply failed.");
 }
 
-void AssetBrowserPanel::prefabRevert() {
+void AssetBrowserPanel::prefabRevert(){
     EditorSelection& sel = m_editor->getSelection();
     if (!sel.has()) return;
     bool ok = PrefabManager::revertToPrefab(sel.object, m_editor->getActiveModuleScene());
     logResult(m_editor, ok, "Reverted.", "Revert failed.");
 }
 
-void AssetBrowserPanel::prefabDelete(const std::string& name) {
+void AssetBrowserPanel::prefabDelete(const std::string& name){
     std::string prefabDir = app->getFileSystem()->GetLibraryPath() + "Prefabs/";
     app->getFileSystem()->Delete((prefabDir + name + ".prefab").c_str());
     m_editor->log(("Deleted prefab: " + name).c_str(), EditorColors::Warning);
     m_dirty = true;
 }
 
-void AssetBrowserPanel::prefabCreateVariant(const std::string& src, const std::string& dst) {
+void AssetBrowserPanel::prefabCreateVariant(const std::string& src, const std::string& dst){
     if (dst.empty()) return;
     bool ok = PrefabManager::createVariant(src, dst);
     logResult(m_editor, ok, ("Variant: " + dst).c_str(), "Variant failed.");
     m_dirty = true;
 }
 
-void AssetBrowserPanel::prefabRename(const std::string& oldName, const std::string& newName) {
+void AssetBrowserPanel::prefabRename(const std::string& oldName, const std::string& newName){
     if (newName.empty() || newName == oldName) return;
     std::string prefabDir = app->getFileSystem()->GetLibraryPath() + "Prefabs/";
     std::string oldPath = prefabDir + oldName + ".prefab";
@@ -633,7 +633,7 @@ void AssetBrowserPanel::prefabRename(const std::string& oldName, const std::stri
 
 // Re-compresses an already-imported DDS file using the chosen TextureType.
 // The source is the DDS file itself (which is already the engine-side copy).
-void AssetBrowserPanel::reimportTextureAs(const std::string& ddsPath, int typeIndex) {
+void AssetBrowserPanel::reimportTextureAs(const std::string& ddsPath, int typeIndex){
     static const TextureImporter::TextureType kTypes[] = {
         TextureImporter::TextureType::Color,
         TextureImporter::TextureType::ColorHQ,

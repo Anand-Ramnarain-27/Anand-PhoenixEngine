@@ -43,7 +43,7 @@ namespace fs = std::filesystem;
 static constexpr float kDeg2Rad = 0.0174532925f;
 static constexpr float kRad2Deg = 57.2957795f;
 
-static GameObject* findPrefabRoot(GameObject* go) {
+static GameObject* findPrefabRoot(GameObject* go){
     GameObject* cur = go;
     while (cur) {
         if (PrefabManager::isPrefabInstance(cur)) return cur;
@@ -52,7 +52,7 @@ static GameObject* findPrefabRoot(GameObject* go) {
     return nullptr;
 }
 
-void InspectorPanel::drawContent() {
+void InspectorPanel::drawContent(){
     EditorSelection& sel = m_editor->getSelection();
     bool prefabMode = m_editor->getSceneManager() && m_editor->getSceneManager()->isEditingPrefab();
 
@@ -73,7 +73,7 @@ void InspectorPanel::drawContent() {
     GameObject* go = sel.object;
 
     PrefabEditSession* session = m_editor->getPrefabSession();
-    bool isEditRoot    = prefabMode && session && go == session->rootObject;
+    bool isEditRoot = prefabMode && session && go == session->rootObject;
     bool isInPrefabEdit = prefabMode && session && session->rootObject;
 
     // ---- Entity header: checkbox + editable name ----
@@ -157,16 +157,16 @@ void InspectorPanel::drawContent() {
     // Returns the accent border color for a component type.
     auto compBorderColor = [](Component::Type t) -> ImU32 {
         switch (t) {
-        case Component::Type::Mesh:               return ImGui::ColorConvertFloat4ToU32(EditorColors::Ok);
-        case Component::Type::Camera:             return ImGui::ColorConvertFloat4ToU32(EditorColors::Inf);
+        case Component::Type::Mesh: return ImGui::ColorConvertFloat4ToU32(EditorColors::Ok);
+        case Component::Type::Camera: return ImGui::ColorConvertFloat4ToU32(EditorColors::Inf);
         case Component::Type::DirectionalLight:
         case Component::Type::PointLight:
-        case Component::Type::SpotLight:          return ImGui::ColorConvertFloat4ToU32(EditorColors::Warn);
-        case Component::Type::Animation:          return ImGui::ColorConvertFloat4ToU32(EditorColors::Acc);
-        case Component::Type::Rigidbody:          return ImGui::ColorConvertFloat4ToU32(EditorColors::Hot);
-        case Component::Type::Bounds:             return ImGui::ColorConvertFloat4ToU32(EditorColors::Crit);
-        case Component::Type::Script:             return ImGui::ColorConvertFloat4ToU32(EditorColors::Tx1);
-        default:                                  return ImGui::ColorConvertFloat4ToU32(EditorColors::Tx2);
+        case Component::Type::SpotLight: return ImGui::ColorConvertFloat4ToU32(EditorColors::Warn);
+        case Component::Type::Animation: return ImGui::ColorConvertFloat4ToU32(EditorColors::Acc);
+        case Component::Type::Rigidbody: return ImGui::ColorConvertFloat4ToU32(EditorColors::Hot);
+        case Component::Type::Bounds: return ImGui::ColorConvertFloat4ToU32(EditorColors::Crit);
+        case Component::Type::Script: return ImGui::ColorConvertFloat4ToU32(EditorColors::Tx1);
+        default: return ImGui::ColorConvertFloat4ToU32(EditorColors::Tx2);
         }
     };
 
@@ -183,8 +183,8 @@ void InspectorPanel::drawContent() {
             comp->getType() == Component::Type::CharacterMotion ? "Character Motion" :
             comp->getType() == Component::Type::SimpleCharacterController ? "Character Controller" :
             comp->getType() == Component::Type::Rigidbody ? "Rigidbody" :
-            comp->getType() == Component::Type::Bounds    ? "Bounds" :
-            comp->getType() == Component::Type::Decal     ? "Decal" :
+            comp->getType() == Component::Type::Bounds ? "Bounds" :
+            comp->getType() == Component::Type::Decal ? "Decal" :
             comp->getType() == Component::Type::Billboard ? "Billboard" :
             "Component";
 
@@ -270,15 +270,15 @@ void InspectorPanel::drawContent() {
 // Draws a labeled row of three colored-axis DragFloat fields.
 // Returns true if any value was changed.
 static bool vec3Row(const char* label, float v[3], float speed,
-                    const char* fmt = "%.2f") {
+                    const char* fmt = "%.2f"){
     // Axis colors: X=red, Y=green, Z=blue — matching the viewport gizmo
     static const ImVec4 kAxisCol[3] = {
-        ImVec4(0.86f, 0.32f, 0.32f, 1.f),  // X red
-        ImVec4(0.30f, 0.78f, 0.45f, 1.f),  // Y green
-        ImVec4(0.30f, 0.55f, 0.90f, 1.f),  // Z blue
+        ImVec4(0.86f, 0.32f, 0.32f, 1.f), // X red
+        ImVec4(0.30f, 0.78f, 0.45f, 1.f), // Y green
+        ImVec4(0.30f, 0.55f, 0.90f, 1.f), // Z blue
     };
     static const char* kAxisLbl[3] = { "X","Y","Z" };
-    static const char* kIds[3]     = { "##vx","##vy","##vz" };
+    static const char* kIds[3] = { "##vx","##vy","##vz" };
 
     bool changed = false;
     ImGui::PushID(label);
@@ -290,7 +290,7 @@ static bool vec3Row(const char* label, float v[3], float speed,
     ImGui::SameLine(76.f);
 
     // Three equal-width fields
-    const float avail  = ImGui::GetContentRegionAvail().x;
+    const float avail = ImGui::GetContentRegionAvail().x;
     const float fieldW = (avail - 2.f) / 3.f;
 
     for (int i = 0; i < 3; ++i) {
@@ -316,7 +316,7 @@ static bool vec3Row(const char* label, float v[3], float speed,
     return changed;
 }
 
-void InspectorPanel::drawTransform() {
+void InspectorPanel::drawTransform(){
     GameObject* go = m_editor->getSelection().object;
     ComponentTransform* t = go->getTransform();
     if (!t || !ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) return;
@@ -344,7 +344,7 @@ void InspectorPanel::drawTransform() {
     ImGui::PopStyleVar();
 }
 
-void InspectorPanel::drawAddComponentMenu() {
+void InspectorPanel::drawAddComponentMenu(){
     GameObject* go = m_editor->getSelection().object;
     const float btnW = 180.0f;
     ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - btnW) * 0.5f + ImGui::GetCursorPosX());
@@ -362,24 +362,24 @@ void InspectorPanel::drawAddComponentMenu() {
         };
 
     // ---- Rendering ----
-    addComp("Mesh",      Component::Type::Mesh,      go->getComponent<ComponentMesh>()      != nullptr);
-    addComp("Camera",    Component::Type::Camera,    go->getComponent<ComponentCamera>()    != nullptr);
+    addComp("Mesh", Component::Type::Mesh, go->getComponent<ComponentMesh>() != nullptr);
+    addComp("Camera", Component::Type::Camera, go->getComponent<ComponentCamera>() != nullptr);
     ImGui::Separator();
     // ---- Lights submenu ----
     if (ImGui::BeginMenu("Lights")) {
         addComp("Directional Light", Component::Type::DirectionalLight, go->getComponent<ComponentDirectionalLight>() != nullptr);
-        addComp("Point Light",       Component::Type::PointLight,       go->getComponent<ComponentPointLight>()       != nullptr);
-        addComp("Spot Light",        Component::Type::SpotLight,        go->getComponent<ComponentSpotLight>()        != nullptr);
+        addComp("Point Light", Component::Type::PointLight, go->getComponent<ComponentPointLight>() != nullptr);
+        addComp("Spot Light", Component::Type::SpotLight, go->getComponent<ComponentSpotLight>() != nullptr);
         ImGui::EndMenu();
     }
     ImGui::Separator();
     // ---- Physics ----
     addComp("Rigidbody", Component::Type::Rigidbody, go->getComponent<ComponentRigidbody>() != nullptr);
-    addComp("Bounds",    Component::Type::Bounds,    go->getComponent<ComponentBounds>()    != nullptr);
+    addComp("Bounds", Component::Type::Bounds, go->getComponent<ComponentBounds>() != nullptr);
     ImGui::Separator();
     // ---- Animation / Character ----
-    addComp("Animation",           Component::Type::Animation,                go->getComponent<ComponentAnimation>()                != nullptr);
-    addComp("Character Motion",    Component::Type::CharacterMotion,          go->getComponent<ComponentCharacterMotion>()           != nullptr);
+    addComp("Animation", Component::Type::Animation, go->getComponent<ComponentAnimation>() != nullptr);
+    addComp("Character Motion", Component::Type::CharacterMotion, go->getComponent<ComponentCharacterMotion>() != nullptr);
     addComp("Character Controller",Component::Type::SimpleCharacterController,go->getComponent<ComponentSimpleCharacterController>() != nullptr);
     ImGui::Separator();
     // ---- Visual effects ----
@@ -388,7 +388,7 @@ void InspectorPanel::drawAddComponentMenu() {
     ImGui::EndPopup();
 }
 
-void InspectorPanel::drawComponentCamera(ComponentCamera* cam) {
+void InspectorPanel::drawComponentCamera(ComponentCamera* cam){
     bool isMain = cam->isMainCamera();
     if (ImGui::Checkbox("Is Active Camera", &isMain)) cam->setMainCamera(isMain);
     if (isMain) { ImGui::SameLine(); ImGui::TextColored(EditorColors::Success, "(rendering camera)"); }
@@ -521,7 +521,7 @@ void InspectorPanel::drawTexturePicker(ComponentMesh* mesh, Material* mat, int s
     ImGui::EndPopup();
 }
 
-void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
+void InspectorPanel::drawComponentMesh(ComponentMesh* mesh){
     bool hasEntries = !mesh->getEntries().empty();
     bool hasProcedural = (mesh->getProceduralModel() != nullptr);
     bool hasAnything = hasEntries || hasProcedural;
@@ -703,7 +703,7 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh) {
     }
 }
 
-void InspectorPanel::drawComponentAnimation(ComponentAnimation* anim) {
+void InspectorPanel::drawComponentAnimation(ComponentAnimation* anim){
     const auto& uids = anim->getAnimationUIDs();
     AnimationController& ctrl = anim->getController();
 

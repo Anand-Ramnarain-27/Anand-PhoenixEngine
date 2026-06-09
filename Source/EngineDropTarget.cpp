@@ -10,7 +10,7 @@ namespace fs = std::filesystem;
 // ---------------------------------------------------------------------------
 // IUnknown
 // ---------------------------------------------------------------------------
-HRESULT STDMETHODCALLTYPE EngineDropTarget::QueryInterface(REFIID riid, void** ppvObj) {
+HRESULT STDMETHODCALLTYPE EngineDropTarget::QueryInterface(REFIID riid, void** ppvObj){
     if (!ppvObj) return E_POINTER;
     if (riid == IID_IUnknown || riid == IID_IDropTarget) {
         *ppvObj = static_cast<IDropTarget*>(this);
@@ -21,11 +21,11 @@ HRESULT STDMETHODCALLTYPE EngineDropTarget::QueryInterface(REFIID riid, void** p
     return E_NOINTERFACE;
 }
 
-ULONG STDMETHODCALLTYPE EngineDropTarget::AddRef() {
+ULONG STDMETHODCALLTYPE EngineDropTarget::AddRef(){
     return ++m_refCount;
 }
 
-ULONG STDMETHODCALLTYPE EngineDropTarget::Release() {
+ULONG STDMETHODCALLTYPE EngineDropTarget::Release(){
     ULONG ref = --m_refCount;
     if (ref == 0) delete this;
     return ref;
@@ -50,7 +50,7 @@ HRESULT STDMETHODCALLTYPE EngineDropTarget::DragOver(
     return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE EngineDropTarget::DragLeave() {
+HRESULT STDMETHODCALLTYPE EngineDropTarget::DragLeave(){
     m_hasFiles = false;
     DragDropManager::Get().SetDragging(false);
     return S_OK;

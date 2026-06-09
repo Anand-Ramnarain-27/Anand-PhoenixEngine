@@ -9,13 +9,13 @@ using namespace rapidjson;
 
 ComponentBounds::ComponentBounds(GameObject* owner) : Component(owner) {}
 
-void ComponentBounds::onEditor() {
+void ComponentBounds::onEditor(){
     ImGui::SeparatorText("Shape");
 
     int typeIdx = (bvType == BVType::AABB) ? 0 : 1;
-    if (ImGui::RadioButton("AABB (box)", &typeIdx, 0))   bvType = BVType::AABB;
+    if (ImGui::RadioButton("AABB (box)", &typeIdx, 0)) bvType = BVType::AABB;
     ImGui::SameLine();
-    if (ImGui::RadioButton("Sphere",     &typeIdx, 1))   bvType = BVType::Sphere;
+    if (ImGui::RadioButton("Sphere", &typeIdx, 1)) bvType = BVType::Sphere;
 
     if (bvType == BVType::Sphere) {
         ImGui::Spacing();
@@ -31,15 +31,15 @@ void ComponentBounds::onEditor() {
     }
 }
 
-void ComponentBounds::onSave(std::string& outJson) const {
+void ComponentBounds::onSave(std::string& outJson) const{
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
-    doc.AddMember("bvType",         (int)bvType,    a);
+    doc.AddMember("bvType", (int)bvType, a);
     doc.AddMember("radiusOverride", radiusOverride, a);
     StringBuffer buf; Writer<StringBuffer> w(buf); doc.Accept(w);
     outJson = buf.GetString();
 }
 
-void ComponentBounds::onLoad(const std::string& jsonStr) {
+void ComponentBounds::onLoad(const std::string& jsonStr){
     Document doc; doc.Parse(jsonStr.c_str());
     if (doc.HasParseError()) return;
     if (doc.HasMember("bvType"))

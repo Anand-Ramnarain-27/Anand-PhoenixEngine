@@ -5,7 +5,7 @@
 ResourceTexture::ResourceTexture(UID uid) : ResourceBase(uid, Type::Texture) {}
 ResourceTexture::~ResourceTexture() { UnloadFromMemory(); }
 
-bool ResourceTexture::LoadInMemory() {
+bool ResourceTexture::LoadInMemory(){
     if (m_texture) return true;
     ComPtr<ID3D12Resource> tex;
     D3D12_GPU_DESCRIPTOR_HANDLE srv{};
@@ -15,7 +15,7 @@ bool ResourceTexture::LoadInMemory() {
     return true;
 }
 
-void ResourceTexture::UnloadFromMemory() {
+void ResourceTexture::UnloadFromMemory(){
     m_texture.Reset();
     m_srv = {};
 }

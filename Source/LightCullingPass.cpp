@@ -12,7 +12,7 @@
 namespace {
     constexpr UINT cbAlign(UINT b) { return (b + 255u) & ~255u; }
 
-    ComPtr<ID3D12Resource> makeUploadBuf(ID3D12Device* dev, UINT64 bytes, void** mapped, const wchar_t* name) {
+    ComPtr<ID3D12Resource> makeUploadBuf(ID3D12Device* dev, UINT64 bytes, void** mapped, const wchar_t* name){
         auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         auto bd = CD3DX12_RESOURCE_DESC::Buffer(bytes);
         ComPtr<ID3D12Resource> buf;
@@ -26,28 +26,28 @@ namespace {
     }
 
     void makeStructuredSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* buf,
-                            UINT numElems, UINT stride) {
+                            UINT numElems, UINT stride){
         D3D12_SHADER_RESOURCE_VIEW_DESC d = {};
         d.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
         d.Format = DXGI_FORMAT_UNKNOWN;
         d.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        d.Buffer.NumElements      = numElems;
+        d.Buffer.NumElements = numElems;
         d.Buffer.StructureByteStride = stride;
         table.createSRV(buf, slot, &d);
     }
 
     void makeStructuredUAV(ShaderTableDesc& table, UINT slot, ID3D12Resource* buf,
-                            UINT numElems, UINT stride) {
+                            UINT numElems, UINT stride){
         D3D12_UNORDERED_ACCESS_VIEW_DESC d = {};
-        d.ViewDimension       = D3D12_UAV_DIMENSION_BUFFER;
-        d.Format              = DXGI_FORMAT_UNKNOWN;
-        d.Buffer.NumElements  = numElems;
+        d.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+        d.Format = DXGI_FORMAT_UNKNOWN;
+        d.Buffer.NumElements = numElems;
         d.Buffer.StructureByteStride = stride;
         table.createUAV(buf, slot, &d);
     }
 }
 
-bool LightCullingPass::init(ID3D12Device* device) {
+bool LightCullingPass::init(ID3D12Device* device){
     if (!m_pipeline.init(device)) {
         LOG("LightCullingPass: pipeline init failed");
         return false;
@@ -58,7 +58,7 @@ bool LightCullingPass::init(ID3D12Device* device) {
     return true;
 }
 
-bool LightCullingPass::createUploadBuffers(ID3D12Device* device) {
+bool LightCullingPass::createUploadBuffers(ID3D12Device* device){
     const UINT cbSz = cbAlign(sizeof(CbCulling));
     m_cb = makeUploadBuf(device, cbSz, &m_cbMapped, L"LightCulling_CB");
     if (!m_cb) return false;
@@ -73,21 +73,21 @@ bool LightCullingPass::createUploadBuffers(ID3D12Device* device) {
 
     auto* sd = app->getShaderDescriptors();
     m_pointLightSRV = sd->allocTable("LightCulling_PointLightSRV");
-    m_spotLightSRV  = sd->allocTable("LightCulling_SpotLightSRV");
+    m_spotLightSRV = sd->allocTable("LightCulling_SpotLightSRV");
     if (!m_pointLightSRV.isValid() || !m_spotLightSRV.isValid()) {
         LOG("LightCullingPass: light SRV alloc failed");
         return false;
     }
     makeStructuredSRV(m_pointLightSRV, 0, m_pointLightBuf.Get(),
                       MeshPipeline::MAX_POINT_LIGHTS, sizeof(MeshPipeline::GPUPointLight));
-    makeStructuredSRV(m_spotLightSRV,  0, m_spotLightBuf.Get(),
-                      MeshPipeline::MAX_SPOT_LIGHTS,  sizeof(MeshPipeline::GPUSpotLight));
+    makeStructuredSRV(m_spotLightSRV, 0, m_spotLightBuf.Get(),
+                      MeshPipeline::MAX_SPOT_LIGHTS, sizeof(MeshPipeline::GPUSpotLight));
     return true;
 }
 
 // Allocate/reallocate the per-tile index UAV buffers when the viewport size changes.
 static bool allocTileBuffers(ID3D12Device* device, UINT numTiles, UINT maxPerTile,
-                              ComPtr<ID3D12Resource>& buf, const wchar_t* name) {
+                              ComPtr<ID3D12Resource>& buf, const wchar_t* name){
     UINT64 bytes = (UINT64)numTiles * maxPerTile * sizeof(int);
     auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     auto bd = CD3DX12_RESOURCE_DESC::Buffer(bytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
@@ -106,7 +106,7 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
                              const FrameLightData& lights,
                              const Matrix& view,
                              const Matrix& projection,
-                             uint32_t width, uint32_t height) {
+                             uint32_t width, uint32_t height){
     if (width == 0 || height == 0) return;
 
     const uint32_t tilesX = getNumTilesX(width);
@@ -119,43 +119,43 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
         if (!allocTileBuffers(device, numTiles, MAX_LIGHTS_PER_TILE,
                               m_pointListBuf, L"LightCulling_PointList")) return;
         if (!allocTileBuffers(device, numTiles, MAX_LIGHTS_PER_TILE,
-                              m_spotListBuf,  L"LightCulling_SpotList"))  return;
+                              m_spotListBuf, L"LightCulling_SpotList")) return;
         m_allocatedTiles = numTiles;
 
         // Recreate descriptors for the new buffers
         auto* sd = app->getShaderDescriptors();
         m_pointListUAV = sd->allocTable("LightCulling_PointUAV");
-        m_spotListUAV  = sd->allocTable("LightCulling_SpotUAV");
+        m_spotListUAV = sd->allocTable("LightCulling_SpotUAV");
         m_pointListSRV = sd->allocTable("LightCulling_PointSRV");
-        m_spotListSRV  = sd->allocTable("LightCulling_SpotSRV");
+        m_spotListSRV = sd->allocTable("LightCulling_SpotSRV");
 
         makeStructuredUAV(m_pointListUAV, 0, m_pointListBuf.Get(),
                           numTiles * MAX_LIGHTS_PER_TILE, sizeof(int));
-        makeStructuredUAV(m_spotListUAV,  0, m_spotListBuf.Get(),
+        makeStructuredUAV(m_spotListUAV, 0, m_spotListBuf.Get(),
                           numTiles * MAX_LIGHTS_PER_TILE, sizeof(int));
         makeStructuredSRV(m_pointListSRV, 0, m_pointListBuf.Get(),
                           numTiles * MAX_LIGHTS_PER_TILE, sizeof(int));
-        makeStructuredSRV(m_spotListSRV,  0, m_spotListBuf.Get(),
+        makeStructuredSRV(m_spotListSRV, 0, m_spotListBuf.Get(),
                           numTiles * MAX_LIGHTS_PER_TILE, sizeof(int));
     }
 
     // Upload light data
     {
         UINT nP = (UINT)std::min(lights.pointLights.size(), (size_t)MeshPipeline::MAX_POINT_LIGHTS);
-        UINT nS = (UINT)std::min(lights.spotLights.size(),  (size_t)MeshPipeline::MAX_SPOT_LIGHTS);
+        UINT nS = (UINT)std::min(lights.spotLights.size(), (size_t)MeshPipeline::MAX_SPOT_LIGHTS);
         if (nP) memcpy(m_pointLightMapped, lights.pointLights.data(), nP * sizeof(MeshPipeline::GPUPointLight));
-        if (nS) memcpy(m_spotLightMapped,  lights.spotLights.data(),  nS * sizeof(MeshPipeline::GPUSpotLight));
+        if (nS) memcpy(m_spotLightMapped, lights.spotLights.data(), nS * sizeof(MeshPipeline::GPUSpotLight));
     }
 
     // Upload CB
     {
         CbCulling cb = {};
         cb.numPointLights = (uint32_t)std::min(lights.pointLights.size(), (size_t)MeshPipeline::MAX_POINT_LIGHTS);
-        cb.numSpotLights  = (uint32_t)std::min(lights.spotLights.size(),  (size_t)MeshPipeline::MAX_SPOT_LIGHTS);
-        cb.viewportWidth  = width;
+        cb.numSpotLights = (uint32_t)std::min(lights.spotLights.size(), (size_t)MeshPipeline::MAX_SPOT_LIGHTS);
+        cb.viewportWidth = width;
         cb.viewportHeight = height;
-        cb.projection     = projection.Transpose();
-        cb.view           = view.Transpose();
+        cb.projection = projection.Transpose();
+        cb.view = view.Transpose();
         memcpy(m_cbMapped, &cb, sizeof(cb));
     }
 
@@ -230,6 +230,6 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
 
     END_EVENT(cmd);
 
-    m_lastWidth  = width;
+    m_lastWidth = width;
     m_lastHeight = height;
 }

@@ -45,7 +45,7 @@ private:
     ComPtr<ID3D12Resource> m_vb;
     ComPtr<ID3D12Resource> m_ib;
     D3D12_VERTEX_BUFFER_VIEW m_vbv = {};
-    D3D12_INDEX_BUFFER_VIEW  m_ibv = {};
+    D3D12_INDEX_BUFFER_VIEW m_ibv = {};
     UINT m_indexCount = 0;
 
     // Per-decal CB ring (upload heap, MAX_DECALS slots)

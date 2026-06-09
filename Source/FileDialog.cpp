@@ -8,14 +8,14 @@
 
 namespace fs = std::filesystem;
 
-void FileDialog::open(Type type, const std::string& title, const std::string& defaultPath) {
+void FileDialog::open(Type type, const std::string& title, const std::string& defaultPath){
     m_isOpen = true; m_type = type; m_title = title;
     m_selectedIndex = -1; m_selectedPath.clear(); m_fileName.clear();
     m_currentPath = (!defaultPath.empty() && fs::exists(defaultPath)) ? fs::absolute(defaultPath).string() : fs::current_path().string();
     refreshDirectory();
 }
 
-bool FileDialog::draw() {
+bool FileDialog::draw(){
     if (!m_isOpen) return false;
     bool fileSelected = false;
     ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
@@ -68,7 +68,7 @@ bool FileDialog::draw() {
     return fileSelected;
 }
 
-void FileDialog::refreshDirectory() {
+void FileDialog::refreshDirectory(){
     m_entries.clear();
     try {
         if (!fs::exists(m_currentPath)) { LOG("FileDialog: Directory does not exist: %s", m_currentPath.c_str()); return; }
@@ -86,7 +86,7 @@ void FileDialog::refreshDirectory() {
     catch (const fs::filesystem_error& e) { LOG("FileDialog: Error reading directory: %s", e.what()); }
 }
 
-bool FileDialog::matchesFilter(const std::string& filename) const {
+bool FileDialog::matchesFilter(const std::string& filename) const{
     if (m_extensionFilter.empty() || filename.length() < m_extensionFilter.length()) return m_extensionFilter.empty();
     return filename.compare(filename.length() - m_extensionFilter.length(), m_extensionFilter.length(), m_extensionFilter) == 0;
 }

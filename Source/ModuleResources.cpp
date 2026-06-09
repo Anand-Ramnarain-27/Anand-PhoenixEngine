@@ -15,11 +15,11 @@
 ModuleResources::ModuleResources() = default;
 ModuleResources::~ModuleResources() = default;
 
-bool ModuleResources::init() {
+bool ModuleResources::init(){
     return true;
 }
 
-bool ModuleResources::cleanUp() {
+bool ModuleResources::cleanUp(){
     StopAssetWatcher();
     for (auto& [uid, res] : m_resources) { res->UnloadFromMemory(); delete res; }
     m_resources.clear();
@@ -33,12 +33,12 @@ void ModuleResources::registerTexture(UID uid, const std::string& libraryPath) {
 void ModuleResources::registerModel(UID uid, const std::string& libraryPath) { m_registry[uid] = { libraryPath, ResourceBase::Type::Model, 0 }; }
 void ModuleResources::registerAnimation(UID uid, const std::string& libraryPath) { m_registry[uid] = { libraryPath, ResourceBase::Type::Animation, 0 }; }
 
-std::string ModuleResources::getLibraryPath(UID uid) const {
+std::string ModuleResources::getLibraryPath(UID uid) const{
     auto it = m_registry.find(uid);
     return it != m_registry.end() ? it->second.libraryPath : "";
 }
 
-ResourceBase* ModuleResources::RequestResource(UID uid) {
+ResourceBase* ModuleResources::RequestResource(UID uid){
     std::lock_guard<std::mutex> lock(m_resourceMutex);
     auto it = m_resources.find(uid);
     if (it != m_resources.end()) { it->second->addRef(); return it->second; }
@@ -50,7 +50,7 @@ ResourceBase* ModuleResources::RequestResource(UID uid) {
     return resource;
 }
 
-void ModuleResources::ReleaseResource(ResourceBase* resource) {
+void ModuleResources::ReleaseResource(ResourceBase* resource){
     if (!resource) return;
     std::lock_guard<std::mutex> lock(m_resourceMutex);
     resource->releaseRef();
@@ -63,7 +63,7 @@ ResourceTexture* ModuleResources::RequestTexture(UID uid) { return static_cast<R
 ResourceModel* ModuleResources::RequestModel(UID uid) { return static_cast<ResourceModel*>(RequestResource(uid)); }
 ResourceAnimation* ModuleResources::RequestAnimation(UID uid) { return static_cast<ResourceAnimation*>(RequestResource(uid)); }
 
-void ModuleResources::uploadPendingMeshes(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer) {
+void ModuleResources::uploadPendingMeshes(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer){
     std::lock_guard<std::mutex> lock(m_resourceMutex);
     for (auto& [uid, res] : m_resources) {
         if (res->type != ResourceBase::Type::Mesh) continue;
@@ -72,7 +72,7 @@ void ModuleResources::uploadPendingMeshes(ID3D12GraphicsCommandList* cmd, Module
     }
 }
 
-ResourceBase* ModuleResources::CreateResourceFromUID(UID uid) {
+ResourceBase* ModuleResources::CreateResourceFromUID(UID uid){
     auto regIt = m_registry.find(uid);
     if (regIt != m_registry.end()) {
         const ResourceRecord& rec = regIt->second;
@@ -94,17 +94,17 @@ ResourceBase* ModuleResources::CreateResourceFromUID(UID uid) {
     return nullptr;
 }
 
-void ModuleResources::StartAssetWatcher() {
+void ModuleResources::StartAssetWatcher(){
     m_watcherRunning = true;
     m_watcherThread = std::thread(&ModuleResources::AssetWatcherLoop, this);
 }
 
-void ModuleResources::StopAssetWatcher() {
+void ModuleResources::StopAssetWatcher(){
     m_watcherRunning = false;
     if (m_watcherThread.joinable()) m_watcherThread.join();
 }
 
-void ModuleResources::AssetWatcherLoop() {
+void ModuleResources::AssetWatcherLoop(){
     static constexpr std::string_view kMetaExt = ".meta";
     while (m_watcherRunning) {
         try {

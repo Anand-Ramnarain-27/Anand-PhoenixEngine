@@ -15,7 +15,7 @@ namespace {
     constexpr UINT cbAlign(UINT b) { return (b + 255u) & ~255u; }
 }
 
-bool BillboardPass::init(ID3D12Device* device) {
+bool BillboardPass::init(ID3D12Device* device){
     if (!m_pipeline.init(device)) {
         LOG("BillboardPass: pipeline init failed");
         return false;
@@ -29,7 +29,7 @@ bool BillboardPass::init(ID3D12Device* device) {
     return true;
 }
 
-bool BillboardPass::createUploadBuffer(ID3D12Device* device) {
+bool BillboardPass::createUploadBuffer(ID3D12Device* device){
     const UINT stride = cbAlign(sizeof(BillboardInstanceCB));
     const UINT64 total = stride * MAX_BILLBOARDS;
     auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
@@ -43,7 +43,7 @@ bool BillboardPass::createUploadBuffer(ID3D12Device* device) {
     return true;
 }
 
-bool BillboardPass::createFallbackTexture(ID3D12Device* device) {
+bool BillboardPass::createFallbackTexture(ID3D12Device* device){
     (void)device; // resource creation now goes through ModuleGPUResources
     // Upload actual opaque-white pixel data — a committed resource with no
     // initial data holds undefined GPU memory, which previously showed up as
@@ -63,15 +63,15 @@ bool BillboardPass::createFallbackTexture(ID3D12Device* device) {
         return false;
     }
     D3D12_SHADER_RESOURCE_VIEW_DESC sv = {};
-    sv.Format                  = DXGI_FORMAT_R8G8B8A8_UNORM;
-    sv.ViewDimension           = D3D12_SRV_DIMENSION_TEXTURE2D;
+    sv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    sv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     sv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    sv.Texture2D.MipLevels     = 1;
+    sv.Texture2D.MipLevels = 1;
     m_fallbackSRV.createSRV(m_fallbackTex.Get(), 0, &sv);
     return true;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE BillboardPass::getOrLoadTexture(const std::string& path) {
+D3D12_GPU_DESCRIPTOR_HANDLE BillboardPass::getOrLoadTexture(const std::string& path){
     if (path.empty())
         return m_fallbackSRV.getGPUHandle(0);
 
@@ -114,7 +114,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE BillboardPass::getOrLoadTexture(const std::string& p
 
 void BillboardPass::render(ID3D12GraphicsCommandList* cmd,
                             const std::vector<BillboardInstance>& billboards,
-                            uint32_t width, uint32_t height) {
+                            uint32_t width, uint32_t height){
     if (billboards.empty() || width == 0 || height == 0) return;
 
     BEGIN_EVENT(cmd, L"Billboard Pass");

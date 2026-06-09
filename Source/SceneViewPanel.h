@@ -30,6 +30,6 @@ private:
     float m_snapT[3] = { 0.5f, 0.5f, 0.5f };
     float m_snapR = 15.0f;
     float m_snapS = 0.1f;
-    bool      m_fullscreen   = false;
-    ImGuiID   m_savedDockId  = 0;     // dock node to return to after fullscreen
+    bool m_fullscreen = false;
+    ImGuiID m_savedDockId = 0; // dock node to return to after fullscreen
 };

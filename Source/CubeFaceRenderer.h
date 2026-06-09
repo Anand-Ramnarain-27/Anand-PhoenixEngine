@@ -24,7 +24,7 @@ public:
         D3D12_GPU_DESCRIPTOR_HANDLE samplerHandle;
     };
 
-    static void RenderFace(const RenderParams& params) {
+    static void RenderFace(const RenderParams& params){
         auto* rtDescs = app->getRTDescriptors();
         auto* samplers = app->getSamplerHeap();
         uint32_t mipSize = std::max(1u, params.baseFaceSize >> params.mipLevel);

@@ -22,5 +22,5 @@ public:
     Vector3 colour = Vector3(1.f, 1.f, 1.f);
 
     float opacity = 1.0f;
-    bool enabled  = true;
+    bool enabled = true;
 };

@@ -4,14 +4,11 @@
 class ModuleScene;
 
 // Programmatically builds the two-GO animation test scene.
-//
 // charModelPath  - absolute path to the character glTF (the one with skeletal anims)
 // faceModelPath  - absolute path to the face/morph glTF
 // smPath         - absolute path to character_sm.json (Assets/StateMachines/character_sm.json)
-//
 // Component order on TestCharacter guarantees correct per-frame ordering:
 //   SimpleCharacterController → ComponentAnimation → ComponentCharacterMotion
-//
 // After calling CreateTestScene(), edit the AnimationUIDs in character_sm.json to
 // match the UIDs assigned when your glTF animations were imported, then call
 // ValidateAnimationSetup() to confirm everything is wired.

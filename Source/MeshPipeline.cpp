@@ -7,11 +7,11 @@
 #include "ReadData.h"
 #include <d3dx12.h>
 
-bool MeshPipeline::init(ID3D12Device* device, bool useMSAA) {
+bool MeshPipeline::init(ID3D12Device* device, bool useMSAA){
 	return createRootSignature(device) && createPSO(device, useMSAA) && createTransparentPSO(device);
 }
 
-bool MeshPipeline::createRootSignature(ID3D12Device* device) {
+bool MeshPipeline::createRootSignature(ID3D12Device* device){
 	CD3DX12_DESCRIPTOR_RANGE dirRange;
 	dirRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 
@@ -69,7 +69,7 @@ bool MeshPipeline::createRootSignature(ID3D12Device* device) {
 	return true;
 }
 
-bool MeshPipeline::createPSO(ID3D12Device* device, bool useMSAA) {
+bool MeshPipeline::createPSO(ID3D12Device* device, bool useMSAA){
 	auto vs = DX::ReadData(L"PBRForwardVS.cso");
 	auto ps = DX::ReadData(L"PBRForwardPS.cso");
 
@@ -97,7 +97,7 @@ bool MeshPipeline::createPSO(ID3D12Device* device, bool useMSAA) {
 	return true;
 }
 
-bool MeshPipeline::createTransparentPSO(ID3D12Device* device) {
+bool MeshPipeline::createTransparentPSO(ID3D12Device* device){
 	auto vs = DX::ReadData(L"PBRForwardVS.cso");
 	auto ps = DX::ReadData(L"TransparentForwardPS.cso");
 
@@ -142,7 +142,7 @@ bool MeshPipeline::createTransparentPSO(ID3D12Device* device) {
 	return true;
 }
 
-void MeshPipeline::bindIBL(ID3D12GraphicsCommandList* cmd, const EnvironmentSystem* env) const {
+void MeshPipeline::bindIBL(ID3D12GraphicsCommandList* cmd, const EnvironmentSystem* env) const{
 	if (!env || !env->hasIBL()) return;
 	const EnvironmentMap* map = env->getEnvironmentMap();
 	cmd->SetGraphicsRootDescriptorTable(SLOT_IRRADIANCE, map->getIrradianceGPU());

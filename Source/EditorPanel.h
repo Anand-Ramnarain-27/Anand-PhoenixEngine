@@ -10,7 +10,7 @@ public:
     explicit EditorPanel(ModuleEditor* editor) : m_editor(editor) {}
     virtual ~EditorPanel() = default;
 
-    virtual void draw() {
+    virtual void draw(){
         if (noPadding()) ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         if (ImGui::Begin(getName(), &open, windowFlags())) drawContent();
         ImGui::End();

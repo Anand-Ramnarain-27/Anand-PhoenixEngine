@@ -15,7 +15,7 @@ namespace {
     constexpr UINT cbAlign(UINT b) { return (b + 255u) & ~255u; }
 
     ComPtr<ID3D12Resource> makeUploadBuf(ID3D12Device* device, UINT64 bytes, void** mapped,
-                                          const wchar_t* name) {
+                                          const wchar_t* name){
         auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         auto bd = CD3DX12_RESOURCE_DESC::Buffer(bytes);
         ComPtr<ID3D12Resource> buf;
@@ -31,7 +31,7 @@ namespace {
         return buf;
     }
 
-    void writeTex2DSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* tex) {
+    void writeTex2DSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* tex){
         D3D12_SHADER_RESOURCE_VIEW_DESC sv = {};
         sv.Format = tex->GetDesc().Format;
         sv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -40,7 +40,7 @@ namespace {
         table.createSRV(tex, slot, &sv);
     }
 
-    void writeFallbackSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* fallback) {
+    void writeFallbackSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* fallback){
         D3D12_SHADER_RESOURCE_VIEW_DESC sv = {};
         sv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         sv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -49,7 +49,7 @@ namespace {
         table.createSRV(fallback, slot, &sv);
     }
 
-    MeshPipeline::GpuMaterial toGpuMaterial(const Material* mat) {
+    MeshPipeline::GpuMaterial toGpuMaterial(const Material* mat){
         MeshPipeline::GpuMaterial gm;
         if (!mat) return gm;
         const Material::Data& d = mat->getData();
@@ -66,7 +66,7 @@ namespace {
     }
 }
 
-bool GBufferPass::init(ID3D12Device* device) {
+bool GBufferPass::init(ID3D12Device* device){
     if (!m_pipeline.init(device)) {
         LOG("GBufferPass: pipeline init failed");
         return false;
@@ -78,7 +78,7 @@ bool GBufferPass::init(ID3D12Device* device) {
     return true;
 }
 
-bool GBufferPass::createUploadBuffers(ID3D12Device* device) {
+bool GBufferPass::createUploadBuffers(ID3D12Device* device){
     const UINT mvpSz = cbAlign(sizeof(MeshPipeline::CbMVP));
     const UINT instSz = cbAlign(sizeof(MeshPipeline::CbPerInstance));
 
@@ -93,7 +93,7 @@ bool GBufferPass::createUploadBuffers(ID3D12Device* device) {
     return true;
 }
 
-bool GBufferPass::createFallbackTexture(ID3D12Device* device) {
+bool GBufferPass::createFallbackTexture(ID3D12Device* device){
     D3D12_RESOURCE_DESC td = {};
     td.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
     td.Width = td.Height = 1;
@@ -113,7 +113,7 @@ bool GBufferPass::createFallbackTexture(ID3D12Device* device) {
     return true;
 }
 
-bool GBufferPass::createMatTableRing() {
+bool GBufferPass::createMatTableRing(){
     auto* sd = app->getShaderDescriptors();
     m_matRing.reserve(MAX_INSTANCES);
     for (UINT i = 0; i < MAX_INSTANCES; ++i) {
@@ -135,7 +135,7 @@ bool GBufferPass::createMatTableRing() {
 void GBufferPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj,
                                    UINT slot,
                                    D3D12_GPU_VIRTUAL_ADDRESS& outMvpVA,
-                                   D3D12_GPU_VIRTUAL_ADDRESS& outInstVA) {
+                                   D3D12_GPU_VIRTUAL_ADDRESS& outInstVA){
     const UINT mvpSz = cbAlign(sizeof(MeshPipeline::CbMVP));
     const UINT instSz = cbAlign(sizeof(MeshPipeline::CbPerInstance));
 
@@ -170,7 +170,7 @@ void GBufferPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj
 void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
                           const std::vector<MeshEntry*>& meshes,
                           const Matrix& viewProj,
-                          uint32_t width, uint32_t height) {
+                          uint32_t width, uint32_t height){
     if (width == 0 || height == 0) return;
 
     m_gbuffer.resize(width, height);

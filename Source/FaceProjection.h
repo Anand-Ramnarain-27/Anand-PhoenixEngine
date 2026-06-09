@@ -25,7 +25,7 @@ namespace FaceProjection
         return kFaces;
     }
 
-    inline DirectX::XMMATRIX viewProj(uint32_t faceIndex) {
+    inline DirectX::XMMATRIX viewProj(uint32_t faceIndex){
         using namespace DirectX;
         static const XMFLOAT3 fronts[6] = {
             { 1, 0, 0}, {-1, 0, 0},

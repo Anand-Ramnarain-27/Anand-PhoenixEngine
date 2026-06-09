@@ -5,20 +5,20 @@
 #include "ReadData.h"
 #include <d3dx12.h>
 
-bool DecalPipeline::init(ID3D12Device* device) {
+bool DecalPipeline::init(ID3D12Device* device){
     return createRootSignature(device) && createPSO(device);
 }
 
-bool DecalPipeline::createRootSignature(ID3D12Device* device) {
-    CD3DX12_DESCRIPTOR_RANGE depthRange;   depthRange  .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-    CD3DX12_DESCRIPTOR_RANGE albedoRange;  albedoRange .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
+bool DecalPipeline::createRootSignature(ID3D12Device* device){
+    CD3DX12_DESCRIPTOR_RANGE depthRange; depthRange .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+    CD3DX12_DESCRIPTOR_RANGE albedoRange; albedoRange .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
     CD3DX12_DESCRIPTOR_RANGE samplerRange; samplerRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,
                                                              ModuleSamplerHeap::COUNT, 0);
 
     CD3DX12_ROOT_PARAMETER params[4];
-    params[SLOT_CB     ].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
-    params[SLOT_DEPTH  ].InitAsDescriptorTable(1, &depthRange,   D3D12_SHADER_VISIBILITY_PIXEL);
-    params[SLOT_ALBEDO ].InitAsDescriptorTable(1, &albedoRange,  D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_CB ].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
+    params[SLOT_DEPTH ].InitAsDescriptorTable(1, &depthRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_ALBEDO ].InitAsDescriptorTable(1, &albedoRange, D3D12_SHADER_VISIBILITY_PIXEL);
     params[SLOT_SAMPLER].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
     CD3DX12_ROOT_SIGNATURE_DESC desc;
@@ -38,7 +38,7 @@ bool DecalPipeline::createRootSignature(ID3D12Device* device) {
     return true;
 }
 
-bool DecalPipeline::createPSO(ID3D12Device* device) {
+bool DecalPipeline::createPSO(ID3D12Device* device){
     auto vs = DX::ReadData(L"DecalVS.cso");
     auto ps = DX::ReadData(L"DecalPS.cso");
 
@@ -49,22 +49,22 @@ bool DecalPipeline::createPSO(ID3D12Device* device) {
     };
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-    desc.pRootSignature       = m_rootSig.Get();
-    desc.VS                   = { vs.data(), vs.size() };
-    desc.PS                   = { ps.data(), ps.size() };
-    desc.InputLayout          = { layout, _countof(layout) };
+    desc.pRootSignature = m_rootSig.Get();
+    desc.VS = { vs.data(), vs.size() };
+    desc.PS = { ps.data(), ps.size() };
+    desc.InputLayout = { layout, _countof(layout) };
     desc.PrimitiveTopologyType= D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
     // Write only to albedo (RT0) and normalMetalRough (RT1).
     // RT2 (EmissiveAO) is not output by the PS.
-    desc.NumRenderTargets     = 2;
-    desc.RTVFormats[0]        = GBuffer::kAlbedoFormat;
-    desc.RTVFormats[1]        = GBuffer::kNormalMetalRoughFormat;
-    desc.DSVFormat            = GBuffer::kDepthFormat;
-    desc.SampleDesc           = { 1, 0 };
-    desc.SampleMask           = UINT_MAX;
+    desc.NumRenderTargets = 2;
+    desc.RTVFormats[0] = GBuffer::kAlbedoFormat;
+    desc.RTVFormats[1] = GBuffer::kNormalMetalRoughFormat;
+    desc.DSVFormat = GBuffer::kDepthFormat;
+    desc.SampleDesc = { 1, 0 };
+    desc.SampleMask = UINT_MAX;
 
-    desc.RasterizerState      = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     // No culling so the decal renders correctly whether the camera is inside or outside the box
     desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
@@ -72,20 +72,20 @@ bool DecalPipeline::createPSO(ID3D12Device* device) {
     desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     desc.BlendState.IndependentBlendEnable = TRUE;
     // RT0 (albedo): alpha-blend the decal colour
-    desc.BlendState.RenderTarget[0].BlendEnable    = TRUE;
-    desc.BlendState.RenderTarget[0].SrcBlend       = D3D12_BLEND_SRC_ALPHA;
-    desc.BlendState.RenderTarget[0].DestBlend      = D3D12_BLEND_INV_SRC_ALPHA;
-    desc.BlendState.RenderTarget[0].BlendOp        = D3D12_BLEND_OP_ADD;
-    desc.BlendState.RenderTarget[0].SrcBlendAlpha  = D3D12_BLEND_ONE;
+    desc.BlendState.RenderTarget[0].BlendEnable = TRUE;
+    desc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+    desc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+    desc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+    desc.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
     desc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
-    desc.BlendState.RenderTarget[0].BlendOpAlpha   = D3D12_BLEND_OP_ADD;
+    desc.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
     desc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
     // RT1 (normalMetalRough): do not write
     desc.BlendState.RenderTarget[1].RenderTargetWriteMask = 0;
 
     // Depth: read-only (test enabled, write disabled)
     desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-    desc.DepthStencilState.DepthEnable    = FALSE;
+    desc.DepthStencilState.DepthEnable = FALSE;
     desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 
     HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_pso));

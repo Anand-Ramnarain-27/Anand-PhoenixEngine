@@ -9,7 +9,7 @@
 ResourceMaterial::ResourceMaterial(UID uid) : ResourceBase(uid, Type::Material) {}
 ResourceMaterial::~ResourceMaterial() { UnloadFromMemory(); }
 
-bool ResourceMaterial::LoadInMemory() {
+bool ResourceMaterial::LoadInMemory(){
     if (m_material) return true;
     std::unique_ptr<Material> mat;
     if (!MaterialImporter::Load(libraryFile, mat)) { LOG("ResourceMaterial: Failed to load %s", libraryFile.c_str()); m_material = std::make_unique<Material>(); return true; }
@@ -21,7 +21,7 @@ bool ResourceMaterial::LoadInMemory() {
     return true;
 }
 
-void ResourceMaterial::UnloadFromMemory() {
+void ResourceMaterial::UnloadFromMemory(){
     if (textureUID != 0) {
         const auto& loaded = app->getResources()->getLoadedResources();
         auto it = loaded.find(textureUID);

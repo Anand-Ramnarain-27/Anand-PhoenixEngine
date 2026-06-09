@@ -19,9 +19,9 @@ public:
         uint32_t pointLightCount;
         uint32_t spotLightCount;
         uint32_t envRoughnessLevels;
-        Vector3  cameraPosition;
+        Vector3 cameraPosition;
         uint32_t framePad;
-        Matrix   invViewProj;
+        Matrix invViewProj;
         uint32_t viewportWidth;
         uint32_t viewportHeight;
         uint32_t pad0, pad1;

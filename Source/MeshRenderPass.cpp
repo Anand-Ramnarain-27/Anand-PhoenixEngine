@@ -19,11 +19,11 @@ static constexpr UINT MAT_SLOT_AO = 3;
 static constexpr UINT MAT_SLOT_EMISSIVE = 4;
 
 namespace {
-	constexpr UINT cbAlign(UINT b) {
+	constexpr UINT cbAlign(UINT b){
 		return (b + 255u) & ~255u;
 	}
 
-	ComPtr<ID3D12Resource> makeUploadBuf(ID3D12Device* device, UINT64 bytes, void** mapped, const wchar_t* name) {
+	ComPtr<ID3D12Resource> makeUploadBuf(ID3D12Device* device, UINT64 bytes, void** mapped, const wchar_t* name){
 		auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 		auto bd = CD3DX12_RESOURCE_DESC::Buffer(bytes);
 		ComPtr<ID3D12Resource> buf;
@@ -37,7 +37,7 @@ namespace {
 		return buf;
 	}
 
-	MeshPipeline::GpuMaterial toGpuMaterial(const Material* mat) {
+	MeshPipeline::GpuMaterial toGpuMaterial(const Material* mat){
 		MeshPipeline::GpuMaterial gm;
 		if (!mat) return gm;
 		const Material::Data& d = mat->getData();
@@ -53,7 +53,7 @@ namespace {
 		return gm;
 	}
 
-	void makeStructuredSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* buf, UINT numElems, UINT stride) {
+	void makeStructuredSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* buf, UINT numElems, UINT stride){
 		D3D12_SHADER_RESOURCE_VIEW_DESC srv = {};
 		srv.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 		srv.Format = DXGI_FORMAT_UNKNOWN;
@@ -63,7 +63,7 @@ namespace {
 		table.createSRV(buf, slot, &srv);
 	}
 
-	void writeTex2DSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* tex) {
+	void writeTex2DSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* tex){
 		D3D12_SHADER_RESOURCE_VIEW_DESC sv = {};
 		sv.Format = tex->GetDesc().Format;
 		sv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -72,7 +72,7 @@ namespace {
 		table.createSRV(tex, slot, &sv);
 	}
 
-	void writeFallbackTex2DSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* fallback) {
+	void writeFallbackTex2DSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* fallback){
 		D3D12_SHADER_RESOURCE_VIEW_DESC sv = {};
 		sv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		sv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -81,7 +81,7 @@ namespace {
 		table.createSRV(fallback, slot, &sv);
 	}
 
-	void writeFallbackCubeSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* cube) {
+	void writeFallbackCubeSRV(ShaderTableDesc& table, UINT slot, ID3D12Resource* cube){
 		D3D12_SHADER_RESOURCE_VIEW_DESC sv = {};
 		sv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		sv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
@@ -93,7 +93,7 @@ namespace {
 	}
 }
 
-bool MeshRenderPass::init(ID3D12Device* device, bool useMSAA) {
+bool MeshRenderPass::init(ID3D12Device* device, bool useMSAA){
 	if (!m_pipeline.init(device, useMSAA)) {
 		LOG("MeshRenderPass: pipeline init failed");
 		return false;
@@ -106,7 +106,7 @@ bool MeshRenderPass::init(ID3D12Device* device, bool useMSAA) {
 	return true;
 }
 
-bool MeshRenderPass::createUploadBuffers(ID3D12Device* device) {
+bool MeshRenderPass::createUploadBuffers(ID3D12Device* device){
 	const UINT mvpSz = cbAlign(sizeof(MeshPipeline::CbMVP));
 	const UINT instSz = cbAlign(sizeof(MeshPipeline::CbPerInstance));
 
@@ -127,7 +127,7 @@ bool MeshRenderPass::createUploadBuffers(ID3D12Device* device) {
 	return true;
 }
 
-bool MeshRenderPass::createLightSRVs() {
+bool MeshRenderPass::createLightSRVs(){
 	auto* sd = app->getShaderDescriptors();
 	m_dirLightSRV = sd->allocTable("MeshPass_DirSRV");
 	m_pointLightSRV = sd->allocTable("MeshPass_PointSRV");
@@ -144,7 +144,7 @@ bool MeshRenderPass::createLightSRVs() {
 	return true;
 }
 
-bool MeshRenderPass::createFallbackTextures(ID3D12Device* device) {
+bool MeshRenderPass::createFallbackTextures(ID3D12Device* device){
 	{
 		D3D12_RESOURCE_DESC td = {};
 		td.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -196,7 +196,7 @@ bool MeshRenderPass::createFallbackTextures(ID3D12Device* device) {
 	return true;
 }
 
-bool MeshRenderPass::createMatTableRing() {
+bool MeshRenderPass::createMatTableRing(){
 	auto* sd = app->getShaderDescriptors();
 	m_matRing.reserve(MAX_INSTANCES);
 
@@ -216,7 +216,7 @@ bool MeshRenderPass::createMatTableRing() {
 	return true;
 }
 
-void MeshRenderPass::uploadLights(const FrameLightData& lights) {
+void MeshRenderPass::uploadLights(const FrameLightData& lights){
 	auto copy = [](void* dst, const void* src, size_t count, size_t stride, size_t maxCount) {
 		UINT n = static_cast<UINT>(std::min(count, maxCount));
 		if (n > 0) memcpy(dst, src, n * stride);
@@ -226,7 +226,7 @@ void MeshRenderPass::uploadLights(const FrameLightData& lights) {
 	copy(m_spotLightMapped, lights.spotLights.data(), lights.spotLights.size(), sizeof(MeshPipeline::GPUSpotLight), MeshPipeline::MAX_SPOT_LIGHTS);
 }
 
-void MeshRenderPass::uploadPerFrameCB(const FrameLightData& lights, const Vector3& cameraPos, uint32_t envRoughLevels) {
+void MeshRenderPass::uploadPerFrameCB(const FrameLightData& lights, const Vector3& cameraPos, uint32_t envRoughLevels){
 	MeshPipeline::CbPerFrame cb;
 	cb.dirLightCount = static_cast<uint32_t>(std::min(lights.dirLights.size(), (size_t)MeshPipeline::MAX_DIR_LIGHTS));
 	cb.pointLightCount = static_cast<uint32_t>(std::min(lights.pointLights.size(), (size_t)MeshPipeline::MAX_POINT_LIGHTS));
@@ -237,7 +237,7 @@ void MeshRenderPass::uploadPerFrameCB(const FrameLightData& lights, const Vector
 	memcpy(m_perFrameMapped, &cb, sizeof(cb));
 }
 
-void MeshRenderPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj, UINT slot, D3D12_GPU_VIRTUAL_ADDRESS& outMvpVA, D3D12_GPU_VIRTUAL_ADDRESS& outInstVA) {
+void MeshRenderPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj, UINT slot, D3D12_GPU_VIRTUAL_ADDRESS& outMvpVA, D3D12_GPU_VIRTUAL_ADDRESS& outInstVA){
 	const UINT mvpSz = cbAlign(sizeof(MeshPipeline::CbMVP));
 	const UINT instSz = cbAlign(sizeof(MeshPipeline::CbPerInstance));
 
@@ -275,14 +275,14 @@ void MeshRenderPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewP
 
 void MeshRenderPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
                              const FrameLightData& lights, const Vector3& cameraPos,
-                             const Matrix& viewProj, const EnvironmentSystem* env, int samplerType) {
+                             const Matrix& viewProj, const EnvironmentSystem* env, int samplerType){
 	renderWithPSO(cmd, m_pipeline.getPSO(), meshes, lights, cameraPos, viewProj, env, samplerType,
 	              0, MAX_OPAQUE);
 }
 
 void MeshRenderPass::renderTransparent(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
                                         const FrameLightData& lights, const Vector3& cameraPos,
-                                        const Matrix& viewProj, const EnvironmentSystem* env, int samplerType) {
+                                        const Matrix& viewProj, const EnvironmentSystem* env, int samplerType){
 	renderWithPSO(cmd, m_pipeline.getTransparentPSO(), meshes, lights, cameraPos, viewProj, env, samplerType,
 	              MAX_OPAQUE, MAX_TRANSPARENT);
 }
@@ -291,7 +291,7 @@ void MeshRenderPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12Pipelin
                                     const std::vector<MeshEntry*>& meshes,
                                     const FrameLightData& lights, const Vector3& cameraPos,
                                     const Matrix& viewProj, const EnvironmentSystem* env,
-                                    int samplerType, UINT slotBase, UINT maxSlots) {
+                                    int samplerType, UINT slotBase, UINT maxSlots){
 	if (meshes.empty()) return;
 
 	uploadLights(lights);

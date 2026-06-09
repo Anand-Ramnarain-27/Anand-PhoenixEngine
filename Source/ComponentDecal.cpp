@@ -6,7 +6,7 @@
 
 ComponentDecal::ComponentDecal(GameObject* owner) : Component(owner) {}
 
-void ComponentDecal::onEditor() {
+void ComponentDecal::onEditor(){
     ImGui::Checkbox("Enabled##decal", &enabled);
     ImGui::ColorEdit3("Colour", &colour.x);
     ImGui::SliderFloat("Opacity", &opacity, 0.f, 1.f);
@@ -20,7 +20,7 @@ void ComponentDecal::onEditor() {
         ImGui::SetTooltip("Drag a texture asset here or type a path.");
 }
 
-void ComponentDecal::onSave(std::string& outJson) const {
+void ComponentDecal::onSave(std::string& outJson) const{
     // Simple JSON – enough to round-trip through the editor
     outJson += "\"texturePath\":\"" + texturePath + "\",";
     outJson += "\"colour\":[" + std::to_string(colour.x) + "," +
@@ -30,7 +30,7 @@ void ComponentDecal::onSave(std::string& outJson) const {
     outJson += "\"enabled\":" + std::string(enabled ? "true" : "false");
 }
 
-void ComponentDecal::onLoad(const std::string& json) {
+void ComponentDecal::onLoad(const std::string& json){
     // Basic key parsing – production code should use a real JSON library
     auto extract = [&](const char* key) -> std::string {
         std::string k = "\"" + std::string(key) + "\":";

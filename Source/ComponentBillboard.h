@@ -8,9 +8,9 @@
 class ComponentBillboard : public Component {
 public:
     enum class Alignment {
-        Screen = 0,  // N parallel to screen normal — locked to the camera, used for HUD-like 2D fx
-        World  = 1,  // N points from billboard to camera, U = world up — "look-at" billboard
-        Axial  = 2,  // U fixed (world up), billboard rotates only around that axis — trees/cylinders
+        Screen = 0, // N parallel to screen normal — locked to the camera, used for HUD-like 2D fx
+        World = 1, // N points from billboard to camera, U = world up — "look-at" billboard
+        Axial = 2, // U fixed (world up), billboard rotates only around that axis — trees/cylinders
     };
 
     explicit ComponentBillboard(GameObject* owner);
@@ -35,7 +35,7 @@ public:
 
     // Sprite-sheet grid. 1x1 = no animation, the whole texture is shown.
     int sheetColumns = 1;
-    int sheetRows    = 1;
+    int sheetRows = 1;
 
     // Frames played per second. 0 = static (first tile only).
     float framesPerSecond = 0.f;

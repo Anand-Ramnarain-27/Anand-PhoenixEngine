@@ -6,11 +6,11 @@
 #include "ReadData.h"
 #include <d3dx12.h>
 
-bool GBufferPipeline::init(ID3D12Device* device) {
+bool GBufferPipeline::init(ID3D12Device* device){
     return createRootSignature(device) && createPSO(device);
 }
 
-bool GBufferPipeline::createRootSignature(ID3D12Device* device) {
+bool GBufferPipeline::createRootSignature(ID3D12Device* device){
     // 5 material textures: t0..t4
     CD3DX12_DESCRIPTOR_RANGE matRange;
     matRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0);
@@ -46,7 +46,7 @@ bool GBufferPipeline::createRootSignature(ID3D12Device* device) {
     return true;
 }
 
-bool GBufferPipeline::createPSO(ID3D12Device* device) {
+bool GBufferPipeline::createPSO(ID3D12Device* device){
     auto vs = DX::ReadData(L"GBufferVS.cso");
     auto ps = DX::ReadData(L"GBufferPS.cso");
 

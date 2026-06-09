@@ -27,13 +27,13 @@ public:
     // High-level convenience: swap back to the O(N²) brute-force reference.
     void useBruteForceBroadPhase();
 
-    bool        isUsingGrid()        const;
-    const char* getBroadPhaseName()  const;
+    bool isUsingGrid() const;
+    const char* getBroadPhaseName() const;
 
     // Grid-specific accessors (no-ops / return 0 when grid is not active).
-    float       getGridCellSize()      const;
-    void        setGridCellSize(float s);
-    int         getLastGridCellCount() const;
+    float getGridCellSize() const;
+    void setGridCellSize(float s);
+    int getLastGridCellCount() const;
 
     // High-level convenience: swap to the octree implementation.
     // nodeCapacity — max bodies per leaf before subdivision (default 8).
@@ -42,12 +42,12 @@ public:
     bool isUsingOctree() const;
 
     // Octree-specific accessors (no-ops when octree is not active).
-    int  getOctreeNodeCapacity()   const;
+    int getOctreeNodeCapacity() const;
     void setOctreeNodeCapacity(int c);
-    int  getOctreeMaxDepth()       const;
+    int getOctreeMaxDepth() const;
     void setOctreeMaxDepth(int d);
-    int  getLastOctreeNodeCount()  const;
-    int  getLastOctreeLeafCount()  const;
+    int getLastOctreeNodeCount() const;
+    int getLastOctreeLeafCount() const;
 
     // Call from the editor's render loop (inside editorExtras) to let the
     // active broad-phase draw its spatial structure (grid cells, BVH nodes…).
@@ -65,7 +65,7 @@ private:
     static std::vector<CollisionBody> gatherBodies(ModuleScene* scene, float dt);
 
     std::unique_ptr<IBroadPhase> m_broadPhase;
-    std::unique_ptr<IMidPhase>   m_midPhase;
-    NarrowPhase                  m_narrowPhase;
-    CollisionResults             m_results;
+    std::unique_ptr<IMidPhase> m_midPhase;
+    NarrowPhase m_narrowPhase;
+    CollisionResults m_results;
 };

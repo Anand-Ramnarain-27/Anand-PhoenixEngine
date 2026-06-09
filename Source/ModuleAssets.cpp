@@ -17,24 +17,24 @@ namespace fs = std::filesystem;
 // For embedded images (GLB bufferViews with no URI), we fall back to the default
 // tinygltf decoder so that PNG/JPG embedded data still gets decoded.
 static bool engineImageLoader(tinygltf::Image* img, int idx, std::string* err, std::string* warn,
-    int req_w, int req_h, const unsigned char* bytes, int size, void* ud) {
+    int req_w, int req_h, const unsigned char* bytes, int size, void* ud){
     if (!img->uri.empty()) return true; // URI image — handled via TextureImporter
     return tinygltf::LoadImageData(img, idx, err, warn, req_w, req_h, bytes, size, ud);
 }
 
-static bool isModelExtension(const std::string& ext) {
+static bool isModelExtension(const std::string& ext){
     return ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".stl" || ext == ".blend";
 }
 
-static bool isTextureExtension(const std::string& ext) {
+static bool isTextureExtension(const std::string& ext){
     return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".dds" || ext == ".tga" || ext == ".bmp" || ext == ".hdr";
 }
 
-static bool isSupportedExtension(const std::string& ext) {
+static bool isSupportedExtension(const std::string& ext){
     return isModelExtension(ext) || isTextureExtension(ext);
 }
 
-static UID makeSubUID(UID parentUID, const std::string& type, int index) {
+static UID makeSubUID(UID parentUID, const std::string& type, int index){
     std::string key = std::to_string(parentUID) + "|" + type + "|" + std::to_string(index);
     UID hash = 14695981039346656037ULL;
     for (char c : key) {
@@ -44,12 +44,12 @@ static UID makeSubUID(UID parentUID, const std::string& type, int index) {
     return hash ? hash : 1;
 }
 
-static std::string normalisePath(std::string p) {
+static std::string normalisePath(std::string p){
     for (char& c : p) if (c == '\\') c = '/';
     return p;
 }
 
-bool ModuleAssets::init() {
+bool ModuleAssets::init(){
     ensureLibraryDirectories();
     refreshAssets();
 
@@ -60,11 +60,11 @@ bool ModuleAssets::init() {
     return true;
 }
 
-void ModuleAssets::update() {
+void ModuleAssets::update(){
     m_watcher.poll();
 }
 
-bool ModuleAssets::cleanUp() {
+bool ModuleAssets::cleanUp(){
     m_watcher.stop();
     m_pathToUID.clear();
     m_uidToPath.clear();
@@ -73,7 +73,7 @@ bool ModuleAssets::cleanUp() {
     return true;
 }
 
-void ModuleAssets::onAssetFileEvent(const std::string& absPath, FileWatcher::Event ev) {
+void ModuleAssets::onAssetFileEvent(const std::string& absPath, FileWatcher::Event ev){
     std::string path = normalisePath(absPath);
 
     fs::path p(path);
@@ -96,7 +96,7 @@ void ModuleAssets::onAssetFileEvent(const std::string& absPath, FileWatcher::Eve
     }
 }
 
-void ModuleAssets::ensureLibraryDirectories() {
+void ModuleAssets::ensureLibraryDirectories(){
     ModuleFileSystem* fsys = app->getFileSystem();
     std::string lib = fsys->GetLibraryPath();
     fsys->CreateDir(lib.c_str());
@@ -107,12 +107,12 @@ void ModuleAssets::ensureLibraryDirectories() {
     fsys->CreateDir((lib + "Animations").c_str());
 }
 
-void ModuleAssets::countLibraryFiles(const std::string& folder, const std::string& ext, int& count) const {
+void ModuleAssets::countLibraryFiles(const std::string& folder, const std::string& ext, int& count) const{
     count = 0;
     while (app->getFileSystem()->Exists((folder + std::to_string(count) + ext).c_str())) ++count;
 }
 
-static bool materialCacheNeedsUpgrade(const std::string& sceneName) {
+static bool materialCacheNeedsUpgrade(const std::string& sceneName){
     ModuleFileSystem* fsys = app->getFileSystem();
     std::string firstMat = fsys->GetLibraryPath() + "Materials/" + sceneName + "/0.mat";
     if (!fsys->Exists(firstMat.c_str())) return false;
@@ -130,13 +130,13 @@ static bool materialCacheNeedsUpgrade(const std::string& sceneName) {
 // Morph-only animations were silently skipped by the old importer (validCount==0 early-exit),
 // so any cache from before version 3 may be missing .anim files even though the glTF has
 // weight channels.  Triggering a reimport fixes this automatically.
-static bool animCacheNeedsUpgrade(const std::string& sceneName) {
+static bool animCacheNeedsUpgrade(const std::string& sceneName){
     SceneImporter::SceneHeader header;
     if (!SceneImporter::LoadSceneMetadata(sceneName, header)) return false;
     return header.version < 3;
 }
 
-void ModuleAssets::refreshAssets() {
+void ModuleAssets::refreshAssets(){
     std::string assetsRoot = app->getFileSystem()->GetAssetsPath();
     if (!fs::exists(assetsRoot)) return;
 
@@ -158,7 +158,7 @@ void ModuleAssets::refreshAssets() {
         if (isModelExtension(ext)) {
             std::string sceneName = entry.path().stem().string();
             if (!sceneExists(sceneName) || needsReimport(path) ||
-                materialCacheNeedsUpgrade(sceneName) || animCacheNeedsUpgrade(sceneName)) {
+                materialCacheNeedsUpgrade(sceneName) || animCacheNeedsUpgrade(sceneName)){
                 LOG("ModuleAssets: (Re)importing model %s", path.c_str());
                 importAsset(path.c_str());
             }
@@ -177,7 +177,7 @@ void ModuleAssets::refreshAssets() {
     }
 }
 
-void ModuleAssets::importTexture(const std::string& path, const std::string& /*ext*/, UID uid) {
+void ModuleAssets::importTexture(const std::string& path, const std::string& /*ext*/, UID uid){
     ModuleFileSystem* fsys = app->getFileSystem();
     std::string outDir = fsys->GetLibraryPath() + "Textures/";
     std::string outPath = outDir + TextureImporter::GetTextureName(path.c_str()) + ".dds";
@@ -198,7 +198,7 @@ void ModuleAssets::importTexture(const std::string& path, const std::string& /*e
     }
 }
 
-UID ModuleAssets::importAsset(const char* filePath) {
+UID ModuleAssets::importAsset(const char* filePath){
     std::string path = normalisePath(filePath);
 
     ModuleFileSystem* fsys = app->getFileSystem();
@@ -288,7 +288,7 @@ UID ModuleAssets::importAsset(const char* filePath) {
     return ok ? uid : 0;
 }
 
-void ModuleAssets::registerSceneSubResources(const std::string& filePath, const std::string& sceneName, int meshCount, int materialCount, int animCount) {
+void ModuleAssets::registerSceneSubResources(const std::string& filePath, const std::string& sceneName, int meshCount, int materialCount, int animCount){
     UID parent = findUID(filePath);
     if (parent == 0) return;
 
@@ -331,7 +331,7 @@ void ModuleAssets::registerSceneSubResources(const std::string& filePath, const 
         meshCount, materialCount, animCount, sceneName.c_str());
 }
 
-void ModuleAssets::deleteAsset(const std::string& assetPath) {
+void ModuleAssets::deleteAsset(const std::string& assetPath){
     std::string path = normalisePath(assetPath);
     ModuleFileSystem* fsys = app->getFileSystem();
 
@@ -375,18 +375,18 @@ void ModuleAssets::deleteAsset(const std::string& assetPath) {
     LOG("ModuleAssets: Asset deleted: %s", path.c_str());
 }
 
-std::string ModuleAssets::getAssetPathForScene(const std::string& sceneName) const {
+std::string ModuleAssets::getAssetPathForScene(const std::string& sceneName) const{
     auto it = m_sceneNameToPath.find(sceneName);
     return it != m_sceneNameToPath.end() ? it->second : "";
 }
 
-UID ModuleAssets::findSubUID(const std::string& sceneAssetPath, const std::string& type, int index) const {
+UID ModuleAssets::findSubUID(const std::string& sceneAssetPath, const std::string& type, int index) const{
     std::string path = normalisePath(sceneAssetPath);
     auto it = m_subUIDs.find(path + "|" + type + "|" + std::to_string(index));
     return it != m_subUIDs.end() ? it->second : 0;
 }
 
-UID ModuleAssets::findUID(const std::string& assetPath) const {
+UID ModuleAssets::findUID(const std::string& assetPath) const{
     std::string path = normalisePath(assetPath);
     auto it = m_pathToUID.find(path);
     if (it != m_pathToUID.end()) return it->second;
@@ -394,24 +394,24 @@ UID ModuleAssets::findUID(const std::string& assetPath) const {
     return MetaFileManager::load(path, meta) ? meta.uid : 0;
 }
 
-std::string ModuleAssets::getPathFromUID(UID uid) const {
+std::string ModuleAssets::getPathFromUID(UID uid) const{
     auto it = m_uidToPath.find(uid);
     return it != m_uidToPath.end() ? it->second : "";
 }
 
-bool ModuleAssets::needsReimport(const std::string& assetPath) const {
+bool ModuleAssets::needsReimport(const std::string& assetPath) const{
     std::string path = normalisePath(assetPath);
     MetaData meta;
     return !MetaFileManager::load(path, meta) || MetaFileManager::getLastModified(path) != meta.lastModified;
 }
 
-bool ModuleAssets::sceneExists(const std::string& sceneName) const {
+bool ModuleAssets::sceneExists(const std::string& sceneName) const{
     ModuleFileSystem* fsys = app->getFileSystem();
     std::string path = fsys->GetLibraryPath() + "Meshes/" + sceneName;
     return fsys->Exists(path.c_str()) && fsys->IsDirectory(path.c_str());
 }
 
-std::vector<ModuleAssets::SceneInfo> ModuleAssets::getImportedScenes() const {
+std::vector<ModuleAssets::SceneInfo> ModuleAssets::getImportedScenes() const{
     std::vector<SceneInfo> scenes;
     ModuleFileSystem* fsys = app->getFileSystem();
     std::string meshesPath = fsys->GetLibraryPath() + "Meshes/";

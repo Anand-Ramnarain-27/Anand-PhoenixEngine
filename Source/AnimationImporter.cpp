@@ -9,7 +9,6 @@
 #include <cstring>
 
 // Binary format written by this file and read by ResourceAnimation::LoadInMemory.
-//
 // [AnimFileHeader]   (version 2)
 // char[animNameLen]
 // For each transform channel (channelCount):
@@ -55,7 +54,7 @@ struct NodeMorph {
 };
 
 static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
-                      const std::string& sceneName, const std::string& outPath) {
+                      const std::string& sceneName, const std::string& outPath){
     const auto& anim = gltfModel.animations[animIdx];
 
     auto getNodeName = [&](int idx) -> std::string {
@@ -260,7 +259,7 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
 
 } // namespace
 
-int AnimationImporter::ImportAll(const tinygltf::Model& gltfModel, const std::string& sceneName) {
+int AnimationImporter::ImportAll(const tinygltf::Model& gltfModel, const std::string& sceneName){
     ModuleFileSystem* fs = app->getFileSystem();
     std::string animsDir = fs->GetLibraryPath() + "Animations/";
     std::string sceneDir = animsDir + sceneName;

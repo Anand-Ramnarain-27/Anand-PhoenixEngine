@@ -86,11 +86,11 @@ public:
         return CD3DX12_CPU_DESCRIPTOR_HANDLE(cpuStart, index, descriptorSize);
     }
 
-    bool isValid(UINT handle) const {
+    bool isValid(UINT handle) const{
         return handle != 0 && handles.validHandle(handle);
     }
 
-    UINT indexFromHandle(UINT handle) const {
+    UINT indexFromHandle(UINT handle) const{
         return handles.indexFromHandle(handle);
     }
 

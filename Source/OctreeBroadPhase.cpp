@@ -8,13 +8,11 @@
 
 // ---------------------------------------------------------------------------
 // OctreeNode — internal implementation type, not exposed in the header.
-//
 // A node holds a list of body indices when it is a leaf.  Once the list
 // exceeds nodeCapacity AND depth < maxDepth, subdivide() is called:
 //   • 8 children are created (one per octant).
 //   • All existing bodies are re-inserted into the children.
 //   • The node's own list is cleared — it is now an internal node.
-//
 // Multi-leaf insertion: every body is inserted into every leaf node whose
 // region overlaps the body's AABB.  Pair generation at the leaf level
 // combined with a uint64 deduplication set ensures correctness without
@@ -25,15 +23,15 @@ namespace {
 
 struct OctreeNode {
     AABB region;
-    int  depth = 0;
-    std::vector<uint32_t>          bodyIndices;
-    std::unique_ptr<OctreeNode>    children[8]; // null ⇒ leaf
+    int depth = 0;
+    std::vector<uint32_t> bodyIndices;
+    std::unique_ptr<OctreeNode> children[8]; // null ⇒ leaf
 
     bool isLeaf() const { return !children[0]; }
 
     // Return the idx-th octant of parent.
     // Bit 0 → X, bit 1 → Y, bit 2 → Z.
-    static AABB octant(const AABB& parent, int idx) {
+    static AABB octant(const AABB& parent, int idx){
         const Vector3 mid = (parent.min + parent.max) * 0.5f;
         Vector3 lo, hi;
         lo.x = (idx & 1) ? mid.x : parent.min.x;
@@ -47,11 +45,11 @@ struct OctreeNode {
 
     // Split this leaf into 8 children and re-distribute existing bodies.
     void subdivide(const std::vector<CollisionBody>& allBodies,
-                   int capacity, int maxDepth) {
+                   int capacity, int maxDepth){
         for (int i = 0; i < 8; ++i) {
             children[i] = std::make_unique<OctreeNode>();
             children[i]->region = octant(region, i);
-            children[i]->depth  = depth + 1;
+            children[i]->depth = depth + 1;
         }
         for (uint32_t b : bodyIndices)
             for (auto& c : children)
@@ -63,7 +61,7 @@ struct OctreeNode {
     // intersect this node's region.
     void insert(uint32_t idx, const AABB& bodyAABB,
                 const std::vector<CollisionBody>& allBodies,
-                int capacity, int maxDepth) {
+                int capacity, int maxDepth){
         if (!region.intersects(bodyAABB)) return;
         if (isLeaf()) {
             bodyIndices.push_back(idx);
@@ -79,7 +77,7 @@ struct OctreeNode {
     void collectPairs(std::unordered_set<uint64_t>& seen,
                       std::vector<CollisionPair>& pairs,
                       std::vector<AABB>& debugLeaves,
-                      int& nodeCount, int& leafCount) const {
+                      int& nodeCount, int& leafCount) const{
         ++nodeCount;
         if (isLeaf()) {
             ++leafCount;
@@ -112,12 +110,11 @@ OctreeBroadPhase::OctreeBroadPhase(int nodeCapacity, int maxDepth)
 {}
 
 std::vector<CollisionPair> OctreeBroadPhase::query(
-    const std::vector<CollisionBody>& bodies)
-{
+    const std::vector<CollisionBody>& bodies){
     m_debugLeaves.clear();
     m_lastNodeCount = 0;
     m_lastLeafCount = 0;
-    m_debugRoot     = {};
+    m_debugRoot = {};
 
     std::vector<CollisionPair> pairs;
     const uint32_t n = static_cast<uint32_t>(bodies.size());
@@ -125,7 +122,7 @@ std::vector<CollisionPair> OctreeBroadPhase::query(
 
     // ---- Compute root region from union of all worldAABBs ----
     AABB root;
-    root.min = Vector3( FLT_MAX,  FLT_MAX,  FLT_MAX);
+    root.min = Vector3( FLT_MAX, FLT_MAX, FLT_MAX);
     root.max = Vector3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
     for (const auto& b : bodies) {
         root.min = Vector3::Min(root.min, b.worldAABB.min);
@@ -140,7 +137,7 @@ std::vector<CollisionPair> OctreeBroadPhase::query(
     // ---- Build tree ----
     OctreeNode rootNode;
     rootNode.region = root;
-    rootNode.depth  = 0;
+    rootNode.depth = 0;
     for (uint32_t i = 0; i < n; ++i)
         rootNode.insert(i, bodies[i].worldAABB, bodies, m_nodeCapacity, m_maxDepth);
 
@@ -152,7 +149,7 @@ std::vector<CollisionPair> OctreeBroadPhase::query(
     return pairs;
 }
 
-void OctreeBroadPhase::drawDebug() {
+void OctreeBroadPhase::drawDebug(){
     // Root extent in cyan — shows the total world region covered.
     if (m_debugRoot.isValid())
         dd::aabb(ddConvert(m_debugRoot.min), ddConvert(m_debugRoot.max), dd::colors::Cyan);

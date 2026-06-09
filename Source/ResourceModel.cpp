@@ -12,7 +12,7 @@
 
 ResourceModel::ResourceModel(UID uid) : ResourceBase(uid, Type::Model) {}
 
-bool ResourceModel::LoadInMemory() {
+bool ResourceModel::LoadInMemory(){
     m_nodes.clear();
     m_skins.clear();
 
@@ -67,12 +67,12 @@ bool ResourceModel::LoadInMemory() {
     return !m_nodes.empty();
 }
 
-void ResourceModel::UnloadFromMemory() {
+void ResourceModel::UnloadFromMemory(){
     m_nodes.clear();
     m_skins.clear();
 }
 
-GameObject* ResourceModel::spawnIntoScene(ModuleScene* scene, GameObject* parent) const {
+GameObject* ResourceModel::spawnIntoScene(ModuleScene* scene, GameObject* parent) const{
     if (!scene || m_nodes.empty()) return nullptr;
 
     std::string modelName = std::filesystem::path(assetsFile).stem().string();

@@ -12,9 +12,9 @@ static constexpr float kCorrectionPercent = 0.8f;
 
 // Minimum penetration before correction kicks in (absorbs float precision
 // noise on resting contacts so they don't tremble).
-static constexpr float kCorrectionSlop    = 0.005f;
+static constexpr float kCorrectionSlop = 0.005f;
 
-void CollisionResponse::solve(const std::vector<ContactPoint>& contacts, float /*dt*/) {
+void CollisionResponse::solve(const std::vector<ContactPoint>& contacts, float /*dt*/){
     for (const auto& c : contacts) {
         if (!c.a || !c.b) continue;
 
@@ -24,8 +24,8 @@ void CollisionResponse::solve(const std::vector<ContactPoint>& contacts, float /
         // If neither object has a rigidbody, physics has nothing to act on.
         if (!rbA && !rbB) continue;
 
-        const float invMassA  = rbA ? rbA->getInvMass() : 0.f;
-        const float invMassB  = rbB ? rbB->getInvMass() : 0.f;
+        const float invMassA = rbA ? rbA->getInvMass() : 0.f;
+        const float invMassB = rbB ? rbB->getInvMass() : 0.f;
         const float invMassSum = invMassA + invMassB;
 
         // Both static — nothing moves.
@@ -54,9 +54,7 @@ void CollisionResponse::solve(const std::vector<ContactPoint>& contacts, float /
 
         // ----------------------------------------------------------------
         // Pass 2 — Velocity impulse
-        //
         // Impulse j = -(1 + e) * relVelAlongNormal / (1/mA + 1/mB)
-        //
         // This generalises the 1D elastic formula
         //   v1f = ((m1-m2)*v1i + 2*m2*v2i) / (m1+m2)
         //   v2f = ((m2-m1)*v2i + 2*m1*v1i) / (m1+m2)
@@ -75,7 +73,7 @@ void CollisionResponse::solve(const std::vector<ContactPoint>& contacts, float /
         // bouncing off a concrete floor uses the ball's restitution.
         const float restitA = rbA ? rbA->restitution : 0.f;
         const float restitB = rbB ? rbB->restitution : 0.f;
-        const float e       = std::min(restitA, restitB);
+        const float e = std::min(restitA, restitB);
 
         const float j = -(1.f + e) * relVelAlongNormal / invMassSum;
 

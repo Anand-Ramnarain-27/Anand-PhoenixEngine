@@ -25,7 +25,7 @@ using namespace rapidjson;
 // independently without disturbing the shared AnimationController state.
 
 static bool SampleTransform(const ResourceAnimation* anim, float timeSec,
-                             const char* name, Vector3& pos, Quaternion& rot) {
+                             const char* name, Vector3& pos, Quaternion& rot){
     if (!anim) return false;
     const auto& channels = anim->getChannels();
     const auto it = channels.find(name);
@@ -64,7 +64,7 @@ static bool SampleTransform(const ResourceAnimation* anim, float timeSec,
 }
 
 static bool SampleMorphWeights(const ResourceAnimation* anim, float timeSec,
-                                const char* name, float* out, uint32_t count) {
+                                const char* name, float* out, uint32_t count){
     if (!anim || !out || count == 0) return false;
     const ResourceAnimation::MorphChannel* mc = anim->getMorphChannel(name);
     if (!mc || mc->numTime == 0 || mc->numTargets == 0) return false;
@@ -99,13 +99,13 @@ static bool SampleMorphWeights(const ResourceAnimation* anim, float timeSec,
 
 ComponentAnimation::ComponentAnimation(GameObject* owner) : Component(owner) {}
 
-ComponentAnimation::~ComponentAnimation() {
+ComponentAnimation::~ComponentAnimation(){
     clearLayers();
 }
 
 // ─── Layer memory management ──────────────────────────────────────────────────
 
-void ComponentAnimation::freeLayerChain(AnimLayer* head) {
+void ComponentAnimation::freeLayerChain(AnimLayer* head){
     while (head) {
         AnimLayer* next = head->next;
         if (head->anim) app->getResources()->ReleaseResource(head->anim);
@@ -114,12 +114,12 @@ void ComponentAnimation::freeLayerChain(AnimLayer* head) {
     }
 }
 
-void ComponentAnimation::clearLayers() {
+void ComponentAnimation::clearLayers(){
     freeLayerChain(m_layerHead);
     m_layerHead = nullptr;
 }
 
-void ComponentAnimation::pushLayer(UID animUID, float transitionTimeMs, bool loop) {
+void ComponentAnimation::pushLayer(UID animUID, float transitionTimeMs, bool loop){
     ResourceAnimation* anim = app->getResources()->RequestAnimation(animUID);
     if (!anim) {
         LOG("ComponentAnimation::pushLayer: failed to load animation uid=%llu", animUID);
@@ -137,17 +137,17 @@ void ComponentAnimation::pushLayer(UID animUID, float transitionTimeMs, bool loo
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-void ComponentAnimation::OnPlay(UID uid, bool loop) {
+void ComponentAnimation::OnPlay(UID uid, bool loop){
     clearLayers();
     m_controller.Play(uid, loop);
 }
 
-void ComponentAnimation::OnStop() {
+void ComponentAnimation::OnStop(){
     clearLayers();
     m_controller.Stop();
 }
 
-void ComponentAnimation::OnPlay() {
+void ComponentAnimation::OnPlay(){
     clearLayers();
     if (!m_stateMachine) return;
 
@@ -161,7 +161,7 @@ void ComponentAnimation::OnPlay() {
     pushLayer(clip->animationUID, 0.f, clip->loop); // base layer: instant, no cross-fade
 }
 
-void ComponentAnimation::SendTrigger(const HashString& trigger) {
+void ComponentAnimation::SendTrigger(const HashString& trigger){
     if (!m_stateMachine) return;
 
     for (const auto& tr : m_stateMachine->transitions) {
@@ -182,7 +182,7 @@ void ComponentAnimation::SendTrigger(const HashString& trigger) {
 
 // ─── State machine from path ─────────────────────────────────────────────────
 
-void ComponentAnimation::LoadStateMachineFromPath(const std::string& path) {
+void ComponentAnimation::LoadStateMachineFromPath(const std::string& path){
     if (path.empty()) return;
     auto sm = std::make_unique<ResourceStateMachine>(0);
     if (!sm->Load(path)) {
@@ -197,7 +197,7 @@ void ComponentAnimation::LoadStateMachineFromPath(const std::string& path) {
 
 // ─── Animation list (inspector) ───────────────────────────────────────────────
 
-void ComponentAnimation::setAnimationList(const std::vector<UID>& uids) {
+void ComponentAnimation::setAnimationList(const std::vector<UID>& uids){
     m_animUIDs.clear();
     m_animNames.clear();
     for (UID uid : uids) {
@@ -215,7 +215,7 @@ void ComponentAnimation::setAnimationList(const std::vector<UID>& uids) {
 
 // ─── Per-frame update ─────────────────────────────────────────────────────────
 
-void ComponentAnimation::update(float deltaTime) {
+void ComponentAnimation::update(float deltaTime){
     if (m_layerHead) {
         // ── SM / layer-blending path ──────────────────────────────────────────
         const float dtMs = deltaTime * 1000.f;
@@ -241,7 +241,7 @@ void ComponentAnimation::update(float deltaTime) {
 
         // Cleanup: once the head has fully faded in, the older layers are invisible.
         if (m_layerHead->next &&
-            m_layerHead->fadeTimeMs >= m_layerHead->transitionTimeMs) {
+            m_layerHead->fadeTimeMs >= m_layerHead->transitionTimeMs){
             freeLayerChain(m_layerHead->next);
             m_layerHead->next = nullptr;
         }
@@ -287,7 +287,7 @@ void ComponentAnimation::update(float deltaTime) {
 // ─── Blended sampling ────────────────────────────────────────────────────────
 
 void ComponentAnimation::GetBlendedTransform(const char* name, AnimLayer* layer,
-                                              Vector3& pos, Quaternion& rot) const {
+                                              Vector3& pos, Quaternion& rot) const{
     if (!layer) return;
 
     const float timeSec = layer->currentTimeMs / 1000.f;
@@ -322,7 +322,7 @@ void ComponentAnimation::GetBlendedTransform(const char* name, AnimLayer* layer,
 }
 
 void ComponentAnimation::GetBlendedMorphWeights(const char* name, AnimLayer* layer,
-                                                  float* weights, uint32_t count) const {
+                                                  float* weights, uint32_t count) const{
     if (!layer || count == 0) return;
 
     const float timeSec = layer->currentTimeMs / 1000.f;
@@ -351,7 +351,7 @@ void ComponentAnimation::GetBlendedMorphWeights(const char* name, AnimLayer* lay
 
 // ─── Apply helpers ────────────────────────────────────────────────────────────
 
-void ComponentAnimation::applyAnimation(GameObject* go) {
+void ComponentAnimation::applyAnimation(GameObject* go){
     const char* nodeName = go->getName().c_str();
 
     auto* t = go->getTransform();
@@ -381,7 +381,7 @@ void ComponentAnimation::applyAnimation(GameObject* go) {
         applyAnimation(child);
 }
 
-void ComponentAnimation::applyBlendedAnimation(GameObject* go) {
+void ComponentAnimation::applyBlendedAnimation(GameObject* go){
     const char* name = go->getName().c_str();
     auto* t = go->getTransform();
 
@@ -412,7 +412,7 @@ void ComponentAnimation::applyBlendedAnimation(GameObject* go) {
 
 // ─── Editor ───────────────────────────────────────────────────────────────────
 
-void ComponentAnimation::onEditor() {
+void ComponentAnimation::onEditor(){
     int currentIdx = -1;
     for (int i = 0; i < (int)m_animUIDs.size(); ++i) {
         if (m_animUIDs[i] == m_controller.Resource) { currentIdx = i; break; }
@@ -465,7 +465,7 @@ void ComponentAnimation::onEditor() {
     drawStateMachineSection();
 }
 
-void ComponentAnimation::drawStateMachineSection() {
+void ComponentAnimation::drawStateMachineSection(){
     namespace fs = std::filesystem;
     ImGui::Spacing();
     ImGui::SeparatorText("State Machine");
@@ -484,7 +484,7 @@ void ComponentAnimation::drawStateMachineSection() {
         if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload(kDragAsset)) {
             std::string dropped(static_cast<const char*>(pl->Data), pl->DataSize - 1);
             if (dropped.size() >= 5 &&
-                dropped.compare(dropped.size() - 5, 5, ".json") == 0) {
+                dropped.compare(dropped.size() - 5, 5, ".json") == 0){
                 strncpy_s(smBuf, dropped.c_str(), sizeof(smBuf) - 1);
                 LoadStateMachineFromPath(dropped);
             }
@@ -572,7 +572,7 @@ void ComponentAnimation::drawStateMachineSection() {
         ImGui::TextDisabled("Graph  (%d states, %d transitions)",
             (int)m_stateMachine->states.size(), (int)m_stateMachine->transitions.size());
         if (ImGui::BeginChild("##SMGraph", ImVec2(0.f, 260.f), false,
-                              ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+                              ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)){
             m_graphEditor->Draw(*m_stateMachine, &m_activeState);
         }
         ImGui::EndChild();
@@ -583,7 +583,7 @@ void ComponentAnimation::drawStateMachineSection() {
 
 // ─── Gizmos ───────────────────────────────────────────────────────────────────
 
-void ComponentAnimation::onDrawGizmos() {
+void ComponentAnimation::onDrawGizmos(){
     if (!m_drawBones && !m_drawAxisTriads) return;
 
     auto draw = [&](auto& self, GameObject* go) -> void {
@@ -613,7 +613,7 @@ void ComponentAnimation::onDrawGizmos() {
 
 // ─── Serialisation ────────────────────────────────────────────────────────────
 
-void ComponentAnimation::onSave(std::string& outJson) const {
+void ComponentAnimation::onSave(std::string& outJson) const{
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
     doc.AddMember("animUID", Value(static_cast<uint64_t>(m_controller.Resource)), a);
     doc.AddMember("loop", Value(m_controller.Loop), a);
@@ -630,7 +630,7 @@ void ComponentAnimation::onSave(std::string& outJson) const {
     outJson = buf.GetString();
 }
 
-void ComponentAnimation::onLoad(const std::string& json) {
+void ComponentAnimation::onLoad(const std::string& json){
     Document doc; doc.Parse(json.c_str());
     if (doc.HasParseError()) { LOG("ComponentAnimation: JSON parse error"); return; }
 

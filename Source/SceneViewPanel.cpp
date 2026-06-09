@@ -20,11 +20,11 @@
 
 static constexpr float kDeg2Rad = 0.0174532925f;
 
-SceneViewPanel::SceneViewPanel(ModuleEditor* editor) : ViewportPanel(editor) {
+SceneViewPanel::SceneViewPanel(ModuleEditor* editor) : ViewportPanel(editor){
     viewport.rt = std::make_unique<RenderTexture>("SceneView", DXGI_FORMAT_R8G8B8A8_UNORM, Vector4(0.1f, 0.1f, 0.1f, 1.0f), DXGI_FORMAT_D32_FLOAT, 1.0f);
 }
 
-void SceneViewPanel::draw() {
+void SceneViewPanel::draw(){
     if (m_fullscreen) {
         // On the first fullscreen frame, save the current dock node so we can
         // return to it when the user exits fullscreen.
@@ -56,7 +56,7 @@ void SceneViewPanel::draw() {
     }
 }
 
-bool SceneViewPanel::buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView, Matrix& outProj) {
+bool SceneViewPanel::buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView, Matrix& outProj){
     ModuleCamera* camera = app->getCamera();
     if (!camera) return false;
     outView = camera->getView();
@@ -81,16 +81,16 @@ bool SceneViewPanel::buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView
     return true;
 }
 
-void SceneViewPanel::onPostRender(ID3D12GraphicsCommandList* cmd, uint32_t w, uint32_t h) {
+void SceneViewPanel::onPostRender(ID3D12GraphicsCommandList* cmd, uint32_t w, uint32_t h){
     BEGIN_EVENT(cmd, "Scene View");
     END_EVENT(cmd);
 }
 
-void SceneViewPanel::onResized(uint32_t w, uint32_t h) {
+void SceneViewPanel::onResized(uint32_t w, uint32_t h){
     if (auto* sm = m_editor->getSceneManager()) sm->onViewportResized(w, h);
 }
 
-void SceneViewPanel::onImageDrawn() {
+void SceneViewPanel::onImageDrawn(){
     if (ImGui::BeginDragDropTarget()) {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kDragAsset)) m_editor->spawnAssetAtPath(std::string(static_cast<const char*>(payload->Data), payload->DataSize - 1));
         ImGui::EndDragDropTarget();
@@ -99,7 +99,7 @@ void SceneViewPanel::onImageDrawn() {
     // Mouse picking: left-click on the viewport image while not dragging a gizmo.
     if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGuizmo::IsOver()) {
         ModuleCamera* cam = app->getCamera();
-        ModuleScene*  ms  = m_editor->getActiveModuleScene();
+        ModuleScene* ms = m_editor->getActiveModuleScene();
         if (cam && ms) {
             const float w = viewport.size.x, h = viewport.size.y;
             Matrix view = cam->getView();
@@ -118,13 +118,13 @@ void SceneViewPanel::onImageDrawn() {
     drawGizmo();
 }
 
-void SceneViewPanel::onDrawOverlays() {
+void SceneViewPanel::onDrawOverlays(){
     drawGizmoToolbar();
     drawPrefabExitButton();
     drawOverlay();
 }
 
-void SceneViewPanel::drawGizmoToolbar() {
+void SceneViewPanel::drawGizmoToolbar(){
     // Hotkeys
     if (!ImGui::GetIO().WantTextInput) {
         if (ImGui::IsKeyPressed(ImGuiKey_T)) m_gizmoOp = ImGuizmo::TRANSLATE;
@@ -135,27 +135,26 @@ void SceneViewPanel::drawGizmoToolbar() {
 
     // Render the toolbar directly in the current (Viewport) window so there
     // are no z-ordering issues with the docked panel.
-    //
     // Use viewport.pos (the ImGui::Image top-left, set in ViewportPanel::drawContent)
     // as the Y anchor.  This is always correct regardless of docking, tab-bar height,
     // or zero window padding, because it's the actual pixel origin of the rendered image.
-    ImDrawList* dl    = ImGui::GetWindowDrawList();
-    float       cW    = viewport.size.x;
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    float cW = viewport.size.x;
     ImVec2 toolOrigin = ImVec2(viewport.pos.x, viewport.pos.y);
 
     const float btnSz = 22.f;
     const float toolH = btnSz + 8.f;
-    const float padV  = 4.f;
+    const float padV = 4.f;
 
     // Semi-transparent toolbar strip drawn via DrawList (always on top of image)
     dl->AddRectFilled(
-        ImVec2(toolOrigin.x,      toolOrigin.y),
+        ImVec2(toolOrigin.x, toolOrigin.y),
         ImVec2(toolOrigin.x + cW, toolOrigin.y + toolH),
         IM_COL32(18, 18, 22, 210));
 
     // Push tight style for toolbar buttons
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(3.f, 2.f));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,  ImVec2(2.f, 2.f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2.f, 2.f));
 
     // Move cursor to toolbar area (overlaid on the image).
     // Must add a Dummy afterwards so ImGui registers the window boundary extension.
@@ -201,7 +200,7 @@ void SceneViewPanel::drawGizmoToolbar() {
     // -- Transport: centred in the toolbar --
     {
         bool playing = m_editor->getSceneManager() && m_editor->getSceneManager()->isPlaying();
-        bool paused  = m_editor->getSceneManager() &&
+        bool paused = m_editor->getSceneManager() &&
                        m_editor->getSceneManager()->getState() == SceneManager::PlayState::Paused;
         const char* state = playing ? "PLAYING" : paused ? "PAUSED" : "EDIT";
 
@@ -211,15 +210,15 @@ void SceneViewPanel::drawGizmoToolbar() {
                              + ImGui::CalcTextSize(state).x;
 
         // Current screen X after the left buttons
-        float leftEndX  = ImGui::GetItemRectMax().x;
+        float leftEndX = ImGui::GetItemRectMax().x;
         // Where the cluster should start to be centred over the full toolbar
-        float centreX   = toolOrigin.x + cW * 0.5f - clusterW * 0.5f;
-        float spacer    = centreX - leftEndX;
+        float centreX = toolOrigin.x + cW * 0.5f - clusterW * 0.5f;
+        float spacer = centreX - leftEndX;
         ImGui::SameLine(0, spacer > 2.f ? spacer : 2.f);
 
         // ▶ Play
         if (playing) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.10f,0.44f,0.20f,1.f));
-        else         ImGui::PushStyleColor(ImGuiCol_Button, EditorColors::Bg3);
+        else ImGui::PushStyleColor(ImGuiCol_Button, EditorColors::Bg3);
         if (ImGui::Button("\xe2\x96\xb6##tb_play", ImVec2(btnSz, btnSz)) && !playing)
             m_editor->getSceneManager()->play();
         ImGui::PopStyleColor();
@@ -227,7 +226,7 @@ void SceneViewPanel::drawGizmoToolbar() {
 
         // ⏸ Pause
         if (paused) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.44f,0.36f,0.08f,1.f));
-        else        ImGui::PushStyleColor(ImGuiCol_Button, EditorColors::Bg3);
+        else ImGui::PushStyleColor(ImGuiCol_Button, EditorColors::Bg3);
         if (ImGui::Button("\xe2\x8f\xb8##tb_pause", ImVec2(btnSz, btnSz)) && playing)
             m_editor->getSceneManager()->pause();
         ImGui::PopStyleColor();
@@ -252,17 +251,17 @@ void SceneViewPanel::drawGizmoToolbar() {
     const float litW = 50.f, showW = 58.f, iconW = btnSz;
     const float rightGroupW = litW + showW + iconW + 4.f * 2.f;
     float currentScreenX = ImGui::GetItemRectMax().x;
-    float targetScreenX  = toolOrigin.x + cW - rightGroupW - 8.f;
-    float spacer         = targetScreenX - currentScreenX;
+    float targetScreenX = toolOrigin.x + cW - rightGroupW - 8.f;
+    float spacer = targetScreenX - currentScreenX;
     if (spacer > 0.f) { ImGui::SameLine(0, spacer); }
-    else              { ImGui::SameLine(0, 4); }
+    else { ImGui::SameLine(0, 4); }
 
     if (ImGui::Button("Lit v", ImVec2(litW, btnSz)))
         ImGui::OpenPopup("##lit_pp");
     if (ImGui::BeginPopup("##lit_pp")) {
         ImGui::SeparatorText("Shading Mode");
-        ImGui::MenuItem("Lit",       nullptr, true);
-        ImGui::MenuItem("Unlit",     nullptr, false);
+        ImGui::MenuItem("Lit", nullptr, true);
+        ImGui::MenuItem("Unlit", nullptr, false);
         ImGui::MenuItem("Wireframe", nullptr, false);
         ImGui::EndPopup();
     }
@@ -309,7 +308,7 @@ void SceneViewPanel::drawGizmoToolbar() {
     ImGui::Dummy(ImVec2(cW, 1.f));
 }
 
-void SceneViewPanel::drawGizmo() {
+void SceneViewPanel::drawGizmo(){
     EditorSelection& sel = m_editor->getSelection();
     if (!sel.has()) return;
     ComponentTransform* t = sel.object->getTransform();
@@ -353,7 +352,7 @@ void SceneViewPanel::drawGizmo() {
     }
 }
 
-void SceneViewPanel::drawOverlay() {
+void SceneViewPanel::drawOverlay(){
     ImGuiWindow* win = ImGui::FindWindowByName("Viewport");
     if (!win) return;
     char buf[160];
@@ -361,7 +360,7 @@ void SceneViewPanel::drawOverlay() {
     ImGui::GetForegroundDrawList()->AddText({ win->Pos.x + 10, win->Pos.y + win->Size.y - 24 }, IM_COL32(0, 230, 0, 220), buf);
 }
 
-void SceneViewPanel::drawPrefabExitButton() {
+void SceneViewPanel::drawPrefabExitButton(){
     if (!m_editor->getSceneManager() || !m_editor->getSceneManager()->isEditingPrefab()) return;
     ImGuiWindow* win = ImGui::FindWindowByName("Viewport");
     if (!win) return;

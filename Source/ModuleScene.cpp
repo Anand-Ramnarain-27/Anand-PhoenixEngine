@@ -29,7 +29,7 @@ void ModuleScene::destroyGameObject(GameObject* go){
 
 void ModuleScene::update(float deltaTime) { root->update(deltaTime); }
 
-void ModuleScene::clear() {
+void ModuleScene::clear(){
     // MUST clear root's raw-pointer children vector BEFORE destroying the
     // unique_ptr<GameObject> objects.  ~GameObject() is = default and does NOT
     // call setParent(nullptr), so after objects.clear() the root would still

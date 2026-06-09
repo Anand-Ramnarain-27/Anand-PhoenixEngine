@@ -9,11 +9,11 @@
 
 using namespace DirectX;
 
-bool SkyboxRenderer::init(ID3D12Device* device, bool useMSAA) {
+bool SkyboxRenderer::init(ID3D12Device* device, bool useMSAA){
 	return createGeometry(device) && createConstantBuffer(device) && createRootSignature(device) && createPipeline(device, useMSAA);
 }
 
-bool SkyboxRenderer::createGeometry(ID3D12Device* device) {
+bool SkyboxRenderer::createGeometry(ID3D12Device* device){
 	auto* resources = app->getGPUResources();
 
 	vertexBuffer = resources->createDefaultBuffer(CubeGeometry::kCubeVerts, CubeGeometry::kCubeVertexSize, "SkyboxVB");
@@ -27,7 +27,7 @@ bool SkyboxRenderer::createGeometry(ID3D12Device* device) {
 	return true;
 }
 
-bool SkyboxRenderer::createConstantBuffer(ID3D12Device* device) {
+bool SkyboxRenderer::createConstantBuffer(ID3D12Device* device){
 	auto* resources = app->getGPUResources();
 
 	SkyboxCB zeroCB = {};
@@ -39,7 +39,7 @@ bool SkyboxRenderer::createConstantBuffer(ID3D12Device* device) {
 	return true;
 }
 
-bool SkyboxRenderer::createRootSignature(ID3D12Device* device) {
+bool SkyboxRenderer::createRootSignature(ID3D12Device* device){
 	CD3DX12_ROOT_PARAMETER params[3];
 	params[0].InitAsConstantBufferView(0);
 
@@ -64,7 +64,7 @@ bool SkyboxRenderer::createRootSignature(ID3D12Device* device) {
 	return SUCCEEDED(device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
 }
 
-bool SkyboxRenderer::createPipeline(ID3D12Device* device, bool useMSAA) {
+bool SkyboxRenderer::createPipeline(ID3D12Device* device, bool useMSAA){
 	auto vs = DX::ReadData(L"SkyboxVS.cso");
 	auto ps = DX::ReadData(L"SkyboxPS.cso");
 
@@ -97,7 +97,7 @@ bool SkyboxRenderer::createPipeline(ID3D12Device* device, bool useMSAA) {
 	return SUCCEEDED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
 }
 
-void SkyboxRenderer::render(ID3D12GraphicsCommandList* cmd, const EnvironmentMap& env, const Matrix& view, const Matrix& projection) {
+void SkyboxRenderer::render(ID3D12GraphicsCommandList* cmd, const EnvironmentMap& env, const Matrix& view, const Matrix& projection){
 	if (!env.isValid()) return;
 
 	Matrix viewNoTranslation = view;

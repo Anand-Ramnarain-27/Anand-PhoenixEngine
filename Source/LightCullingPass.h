@@ -15,7 +15,7 @@ class GBufferPass;
 // the deferred lighting pass.
 class LightCullingPass {
 public:
-    static constexpr UINT TILE_SIZE          = 16;
+    static constexpr UINT TILE_SIZE = 16;
     static constexpr UINT MAX_LIGHTS_PER_TILE= 64;
 
     struct CbCulling {
@@ -23,8 +23,8 @@ public:
         uint32_t numSpotLights;
         uint32_t viewportWidth;
         uint32_t viewportHeight;
-        Matrix   projection;
-        Matrix   view;
+        Matrix projection;
+        Matrix view;
     };
 
     bool init(ID3D12Device* device);
@@ -40,7 +40,7 @@ public:
 
     // SRV handles for the resulting per-tile light lists (bind into the lighting PS).
     D3D12_GPU_DESCRIPTOR_HANDLE getPointListSRV() const { return m_pointListSRV.getGPUHandle(0); }
-    D3D12_GPU_DESCRIPTOR_HANDLE getSpotListSRV()  const { return m_spotListSRV .getGPUHandle(0); }
+    D3D12_GPU_DESCRIPTOR_HANDLE getSpotListSRV() const { return m_spotListSRV .getGPUHandle(0); }
 
     uint32_t getNumTilesX(uint32_t w) const { return (w + TILE_SIZE - 1) / TILE_SIZE; }
     uint32_t getNumTilesY(uint32_t h) const { return (h + TILE_SIZE - 1) / TILE_SIZE; }
@@ -59,23 +59,23 @@ private:
     ComPtr<ID3D12Resource> m_spotListBuf;
     UINT m_allocatedTiles = 0;
 
-    ShaderTableDesc m_pointListUAV;   // UAV for compute write
+    ShaderTableDesc m_pointListUAV; // UAV for compute write
     ShaderTableDesc m_spotListUAV;
-    ShaderTableDesc m_pointListSRV;   // SRV for lighting PS read
+    ShaderTableDesc m_pointListSRV; // SRV for lighting PS read
     ShaderTableDesc m_spotListSRV;
 
     // Upload-heap light data used by the culling CB
     ComPtr<ID3D12Resource> m_pointLightBuf;
     ComPtr<ID3D12Resource> m_spotLightBuf;
     void* m_pointLightMapped = nullptr;
-    void* m_spotLightMapped  = nullptr;
+    void* m_spotLightMapped = nullptr;
 
-    ShaderTableDesc m_pointLightSRV;  // SRV for light array in compute shader
+    ShaderTableDesc m_pointLightSRV; // SRV for light array in compute shader
     ShaderTableDesc m_spotLightSRV;
 
     ComPtr<ID3D12Resource> m_cb;
     void* m_cbMapped = nullptr;
 
-    uint32_t m_lastWidth  = 0;
+    uint32_t m_lastWidth = 0;
     uint32_t m_lastHeight = 0;
 };

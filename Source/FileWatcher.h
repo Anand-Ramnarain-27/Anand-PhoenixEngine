@@ -14,7 +14,7 @@ public:
 	using Callback = std::function<void(const std::string& absPath, Event)>;
 
 	FileWatcher() = default;
-	~FileWatcher() {
+	~FileWatcher(){
 		stop();
 	}
 

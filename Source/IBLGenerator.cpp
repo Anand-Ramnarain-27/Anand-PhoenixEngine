@@ -16,7 +16,7 @@
 
 using namespace DirectX;
 
-bool IBLGenerator::ensureGeometry(ID3D12Device* device) {
+bool IBLGenerator::ensureGeometry(ID3D12Device* device){
     if (m_geometryReady) return true;
 
     auto* resources = app->getGPUResources();
@@ -34,7 +34,7 @@ bool IBLGenerator::ensureGeometry(ID3D12Device* device) {
     return true;
 }
 
-bool IBLGenerator::ensureFaceCB(ID3D12Device* device) {
+bool IBLGenerator::ensureFaceCB(ID3D12Device* device){
     if (m_faceCB) return true;
 
     FaceCB zero[kNumFaces] = {};
@@ -52,7 +52,7 @@ bool IBLGenerator::ensureFaceCB(ID3D12Device* device) {
     return true;
 }
 
-bool IBLGenerator::ensurePassCB(ID3D12Device* device) {
+bool IBLGenerator::ensurePassCB(ID3D12Device* device){
     if (m_passCB) return true;
 
     PassCB zero[kNumFaces] = {};
@@ -70,7 +70,7 @@ bool IBLGenerator::ensurePassCB(ID3D12Device* device) {
     return true;
 }
 
-static bool allocateIBLResources(ID3D12Device* device, EnvironmentMap& env, ComPtr<ID3D12RootSignature>& irradianceRS, ComPtr<ID3D12PipelineState>& irradiancePSO, ComPtr<ID3D12RootSignature>& prefilterRS, ComPtr<ID3D12PipelineState>& prefilterPSO, ComPtr<ID3D12RootSignature>& brdfRS, ComPtr<ID3D12PipelineState>& brdfPSO) {
+static bool allocateIBLResources(ID3D12Device* device, EnvironmentMap& env, ComPtr<ID3D12RootSignature>& irradianceRS, ComPtr<ID3D12PipelineState>& irradiancePSO, ComPtr<ID3D12RootSignature>& prefilterRS, ComPtr<ID3D12PipelineState>& prefilterPSO, ComPtr<ID3D12RootSignature>& brdfRS, ComPtr<ID3D12PipelineState>& brdfPSO){
 
     if (!D3D12ResourceFactory::createCubemapRT(device, IBLSettings::IrradianceSize, 1, DXGI_FORMAT_R16G16B16A16_FLOAT, L"IrradianceCubemap", env.irradianceCubemap)) {
         LOG("IBLGenerator: failed to create irradiance cubemap resource");
@@ -112,7 +112,7 @@ static bool allocateIBLResources(ID3D12Device* device, EnvironmentMap& env, ComP
     return true;
 }
 
-static bool writeSRVs(EnvironmentMap& env) {
+static bool writeSRVs(EnvironmentMap& env){
     auto* shaderDescs = app->getShaderDescriptors();
 
     env.irradianceSRVTable = shaderDescs->allocTable("IBL_Irradiance");
@@ -164,7 +164,7 @@ static bool writeSRVs(EnvironmentMap& env) {
     return true;
 }
 
-void IBLGenerator::renderCubeFace(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, ID3D12Resource* target, uint32_t faceIndex, uint32_t mipLevel, uint32_t totalMips, uint32_t baseFaceSize, float roughness, ID3D12RootSignature* rs, ID3D12PipelineState* pso, D3D12_GPU_DESCRIPTOR_HANDLE sourceSRV, DXGI_FORMAT rtvFmt, int numSamples, int cubemapSize) {
+void IBLGenerator::renderCubeFace(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, ID3D12Resource* target, uint32_t faceIndex, uint32_t mipLevel, uint32_t totalMips, uint32_t baseFaceSize, float roughness, ID3D12RootSignature* rs, ID3D12PipelineState* pso, D3D12_GPU_DESCRIPTOR_HANDLE sourceSRV, DXGI_FORMAT rtvFmt, int numSamples, int cubemapSize){
     auto* rtDescs = app->getRTDescriptors();
     auto* samplers = app->getSamplerHeap();
     uint32_t mipSize = std::max(1u, baseFaceSize >> mipLevel);
@@ -223,7 +223,7 @@ void IBLGenerator::renderCubeFace(ID3D12Device* device, ID3D12GraphicsCommandLis
     cmd->ResourceBarrier(1, &barrierToSRV);
 }
 
-bool IBLGenerator::generate(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env) {
+bool IBLGenerator::generate(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env){
 
     LOG("IBLGenerator: starting IBL bake...");
 
@@ -261,7 +261,7 @@ bool IBLGenerator::generate(ID3D12Device* device, ID3D12GraphicsCommandList* cmd
     return true;
 }
 
-bool IBLGenerator::prepareResources(ID3D12Device* device, EnvironmentMap& env) {
+bool IBLGenerator::prepareResources(ID3D12Device* device, EnvironmentMap& env){
 
     if (!env.isValid()) {
         LOG("IBLGenerator: source environment map is not valid");
@@ -275,7 +275,7 @@ bool IBLGenerator::prepareResources(ID3D12Device* device, EnvironmentMap& env) {
     return allocateIBLResources(device, env, m_irradianceRS, m_irradiancePSO, m_prefilterRS, m_prefilterPSO, m_brdfRS, m_brdfPSO);
 }
 
-bool IBLGenerator::bakeIrradiance(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env) {
+bool IBLGenerator::bakeIrradiance(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env){
     auto* samplers = app->getSamplerHeap();
     ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap(), samplers->getHeap() };
     cmd->SetDescriptorHeaps(2, heaps);
@@ -286,7 +286,7 @@ bool IBLGenerator::bakeIrradiance(ID3D12Device* device, ID3D12GraphicsCommandLis
     return true;
 }
 
-bool IBLGenerator::bakePrefilter(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env, uint32_t mipIndex) {
+bool IBLGenerator::bakePrefilter(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env, uint32_t mipIndex){
     auto* samplers = app->getSamplerHeap();
     ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap(), samplers->getHeap() };
     cmd->SetDescriptorHeaps(2, heaps);
@@ -299,7 +299,7 @@ bool IBLGenerator::bakePrefilter(ID3D12Device* device, ID3D12GraphicsCommandList
     return true;
 }
 
-bool IBLGenerator::bakeBRDFLut(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env) {
+bool IBLGenerator::bakeBRDFLut(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env){
     auto* rtDescs = app->getRTDescriptors();
     auto* shaderDescs = app->getShaderDescriptors();
     auto* samplers = app->getSamplerHeap();
@@ -338,7 +338,7 @@ bool IBLGenerator::bakeBRDFLut(ID3D12Device* device, ID3D12GraphicsCommandList* 
     return true;
 }
 
-bool IBLGenerator::finaliseSRVs(EnvironmentMap& env) {
+bool IBLGenerator::finaliseSRVs(EnvironmentMap& env){
     if (!writeSRVs(env)) return false;
 
     LOG("IBLGenerator: SRVs finalised.");

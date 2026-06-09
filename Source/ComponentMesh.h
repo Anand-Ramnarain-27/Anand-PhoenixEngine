@@ -56,7 +56,7 @@ public:
     const std::vector<GameObject*>& getSkinJoints() const { return m_skinJoints; }
 
     // Called by the editor before destroying a GameObject to prevent dangling joint pointers.
-    void nullifyJoint(const GameObject* go) {
+    void nullifyJoint(const GameObject* go){
         for (auto& j : m_skinJoints) if (j == go) j = nullptr;
     }
 

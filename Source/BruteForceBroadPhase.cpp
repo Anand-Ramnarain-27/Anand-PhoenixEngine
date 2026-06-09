@@ -2,8 +2,7 @@
 #include "BruteForceBroadPhase.h"
 
 std::vector<CollisionPair> BruteForceBroadPhase::query(
-    const std::vector<CollisionBody>& bodies)
-{
+    const std::vector<CollisionBody>& bodies){
     std::vector<CollisionPair> pairs;
     const uint32_t n = static_cast<uint32_t>(bodies.size());
     for (uint32_t i = 0; i < n; ++i) {

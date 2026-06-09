@@ -16,12 +16,12 @@ struct AnimFileHeader {
 
 ResourceAnimation::ResourceAnimation(UID uid) : ResourceBase(uid, Type::Animation) {}
 
-const ResourceAnimation::MorphChannel* ResourceAnimation::getMorphChannel(const std::string& nodeName) const {
+const ResourceAnimation::MorphChannel* ResourceAnimation::getMorphChannel(const std::string& nodeName) const{
     auto it = m_morphChannels.find(nodeName);
     return (it != m_morphChannels.end()) ? &it->second : nullptr;
 }
 
-bool ResourceAnimation::LoadInMemory() {
+bool ResourceAnimation::LoadInMemory(){
     m_channels.clear();
     m_morphChannels.clear();
     m_name.clear();
@@ -151,7 +151,7 @@ bool ResourceAnimation::LoadInMemory() {
     return !m_channels.empty() || !m_morphChannels.empty();
 }
 
-void ResourceAnimation::UnloadFromMemory() {
+void ResourceAnimation::UnloadFromMemory(){
     m_channels.clear();
     m_morphChannels.clear();
     m_name.clear();

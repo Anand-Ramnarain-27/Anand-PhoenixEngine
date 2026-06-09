@@ -12,7 +12,7 @@ using namespace rapidjson;
 
 ComponentCharacterMotion::ComponentCharacterMotion(GameObject* owner) : Component(owner) {}
 
-void ComponentCharacterMotion::update(float dt) {
+void ComponentCharacterMotion::update(float dt){
     ComponentTransform* t = owner->getTransform();
     if (!t) return;
 
@@ -33,13 +33,13 @@ void ComponentCharacterMotion::update(float dt) {
     mRotateDir = 0.f;
 }
 
-void ComponentCharacterMotion::onEditor() {
+void ComponentCharacterMotion::onEditor(){
     ImGui::DragFloat("Linear Speed", &mLinearSpeed, 0.1f, 0.f, 100.f);
     ImGui::DragFloat("Angular Speed", &mAngularSpeed, 0.01f, 0.f, 20.f);
     ImGui::LabelText("Yaw (rad)", "%.3f", mYaw);
 }
 
-void ComponentCharacterMotion::onSave(std::string& outJson) const {
+void ComponentCharacterMotion::onSave(std::string& outJson) const{
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
     doc.AddMember("linearSpeed", mLinearSpeed, a);
     doc.AddMember("angularSpeed", mAngularSpeed, a);
@@ -48,7 +48,7 @@ void ComponentCharacterMotion::onSave(std::string& outJson) const {
     outJson = buf.GetString();
 }
 
-void ComponentCharacterMotion::onLoad(const std::string& jsonStr) {
+void ComponentCharacterMotion::onLoad(const std::string& jsonStr){
     Document doc; doc.Parse(jsonStr.c_str());
     if (doc.HasParseError()) return;
     if (doc.HasMember("linearSpeed")) mLinearSpeed = doc["linearSpeed"].GetFloat();
