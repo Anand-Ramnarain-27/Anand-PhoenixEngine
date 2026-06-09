@@ -187,6 +187,7 @@
     <ClInclude Include="CollisionTypes.h" />
     <ClInclude Include="Application.h" />
     <ClInclude Include="AssetBrowserPanel.h" />
+    <ClInclude Include="AssetPickerWidget.h" />
     <ClInclude Include="DragDropManager.h" />
     <ClInclude Include="EngineDropTarget.h" />
     <ClInclude Include="CommandContext.h" />

@@ -1835,209 +1835,224 @@ GameObject* ModuleEditor::spawnPrimitive(PrimitiveType type,
 }
 
 // ---------------------------------------------------------------------------
-// spawnFireParticleSystem — Lecture 11 Exercise 1: "Fire particle system"
-// Builds the four emitters the exercise describes as children of a root object:
-//   a. Fire flames     — cone emitter, sheet random sub-image, alpha blend
-//   b. Brighter flames — clone of (a), smaller + additive, simulates inner light
-//   c. Fire glow       — clone of (a), additive, modified size/colour over time
-//   d. Sparks          — small additive points shooting upward
-// All four use textures already available under Assets/Textures (Flames.png /
-// FireSmokeTest.png) since the exercise's original txt_fire_01.tga /
-// default_particle.jpg assets aren't part of this project.
+// spawnFireParticleSystem — Lecture 11 Exercise 1 / Lecture 12 "Noise" Exercise
+//
+// Hierarchy:
+//   Fire (root)
+//   ├── Flames            — TXT_Fire_01.tga, 2×2 sheet, alpha blend
+//   ├── Flames Inner Light — TXT_Fire_01.tga, additive, smaller/hotter core
+//   ├── Fire Glow          — TXT_Fire_01.tga, additive, big slow soft blobs
+//   └── Sparks             — TXT_Sparks_01.tga, additive + noise turbulence
+//
+// Uses the project's actual lecture assets:
+//   Assets/Models/Fire/Textures/TXT_Fire_01.tga   (lecture "txt_fire_01.tga")
+//   Assets/Models/Fire/Textures/TXT_Sparks_01.tga (lecture "txt_sparks_01.tga")
 // ---------------------------------------------------------------------------
 GameObject* ModuleEditor::spawnFireParticleSystem(const Vector3& position){
     ModuleScene* scene = getActiveModuleScene();
     if (!scene) return nullptr;
 
-    const std::string flameTex = "Assets/Textures/Flames.png";
-    const std::string glowTex = "Assets/Textures/FireSmokeTest.png";
+    // Actual lecture assets — found under Assets/Models/Fire/Textures/
+    const std::string fireTex   = "Assets/Models/Fire/Textures/TXT_Fire_01.tga";
+    const std::string sparksTex = "Assets/Models/Fire/Textures/TXT_Sparks_01.tga";
 
     GameObject* root = scene->createGameObject("Fire (Exercise 1)");
     root->getTransform()->position = position;
     root->getTransform()->markDirty();
 
-    // a. Fire flames — cone emitter, random sub-image selection, random initial
-    //    rotation in [-45, +45] (lecture wording uses the typo "[-450,+450]" for degrees),
-    //    size + colour over time, alpha blend.
+    // a. Fire flames — cone emitter, 2×2 sheet atlas random sub-image, alpha blend.
+    //    Lecture: "Sub-image animation — Random row, Random start frame".
     {
         GameObject* go = scene->createGameObject("Flames", root);
         auto* ps = go->createComponent<ComponentParticleSystem>();
-        ps->shape = ComponentParticleSystem::EmitterShape::Cone;
-        ps->shapeRadius = 0.35f;
-        ps->coneAngleDeg = 18.f;
-        ps->emissionRate = 30.f;
-        ps->maxParticles = 200;
-        ps->lifeRange = Vector2(0.8f, 1.4f);
-        ps->speedRange = Vector2(0.8f, 1.6f);
-        ps->sizeRange = Vector2(0.4f, 0.8f);
-        ps->rotationRange = Vector2(-45.f, 45.f);
-        ps->startColor = Vector4(1.f, 0.95f, 0.6f, 1.f);
-        ps->endColor = Vector4(1.f, 0.25f, 0.05f, 0.f);
-        ps->startSizeMul = 0.6f;
-        ps->endSizeMul = 1.4f;
-        ps->texturePath = flameTex;
-        ps->sheetColumns = 2;
-        ps->sheetRows = 2;
-        ps->randomFrame = true;
-        ps->blendMode = ComponentParticleSystem::BlendMode::Alpha;
-        ps->layer = 0;
+        ps->shape          = ComponentParticleSystem::EmitterShape::Cone;
+        ps->shapeRadius    = 0.35f;
+        ps->coneAngleDeg   = 18.f;
+        ps->emissionRate   = 30.f;
+        ps->maxParticles   = 200;
+        ps->lifeRange      = Vector2(0.8f, 1.4f);
+        ps->speedRange     = Vector2(0.8f, 1.6f);
+        ps->sizeRange      = Vector2(0.4f, 0.8f);
+        ps->rotationRange  = Vector2(-45.f, 45.f);
+        ps->startColor     = Vector4(1.f, 0.95f, 0.6f, 1.f);
+        ps->endColor       = Vector4(1.f, 0.25f, 0.05f, 0.f);
+        ps->startSizeMul   = 0.6f;
+        ps->endSizeMul     = 1.4f;
+        ps->texturePath    = fireTex;
+        ps->sheetColumns   = 2;
+        ps->sheetRows      = 2;
+        ps->randomFrame    = true;
+        ps->blendMode      = ComponentParticleSystem::BlendMode::Alpha;
+        ps->layer          = 0;
     }
 
-    // b. Brighter / smaller flames — additive, simulates light at the flame core,
-    //    rendered after (a) via a higher layer value.
+    // b. Brighter / smaller inner-light flames — additive, hotter white core.
+    //    Lecture: "Cloned system with Additive blend, smaller size range".
     {
         GameObject* go = scene->createGameObject("Flames Inner Light", root);
         auto* ps = go->createComponent<ComponentParticleSystem>();
-        ps->shape = ComponentParticleSystem::EmitterShape::Cone;
-        ps->shapeRadius = 0.2f;
-        ps->coneAngleDeg = 14.f;
-        ps->emissionRate = 24.f;
-        ps->maxParticles = 150;
-        ps->lifeRange = Vector2(0.6f, 1.0f);
-        ps->speedRange = Vector2(0.8f, 1.5f);
-        ps->sizeRange = Vector2(0.18f, 0.35f); // smaller than (a)
-        ps->rotationRange = Vector2(-45.f, 45.f);
-        ps->startColor = Vector4(1.f, 1.f, 0.85f, 1.f);
-        ps->endColor = Vector4(1.f, 0.5f, 0.1f, 0.f);
-        ps->startSizeMul = 0.7f;
-        ps->endSizeMul = 1.2f;
-        ps->texturePath = flameTex;
-        ps->sheetColumns = 2;
-        ps->sheetRows = 2;
-        ps->randomFrame = true;
-        ps->blendMode = ComponentParticleSystem::BlendMode::Additive;
-        ps->layer = 1; // render after (a)
+        ps->shape          = ComponentParticleSystem::EmitterShape::Cone;
+        ps->shapeRadius    = 0.2f;
+        ps->coneAngleDeg   = 14.f;
+        ps->emissionRate   = 24.f;
+        ps->maxParticles   = 150;
+        ps->lifeRange      = Vector2(0.6f, 1.0f);
+        ps->speedRange     = Vector2(0.8f, 1.5f);
+        ps->sizeRange      = Vector2(0.18f, 0.35f);
+        ps->rotationRange  = Vector2(-45.f, 45.f);
+        ps->startColor     = Vector4(1.f, 1.f, 0.85f, 1.f);
+        ps->endColor       = Vector4(1.f, 0.5f, 0.1f, 0.f);
+        ps->startSizeMul   = 0.7f;
+        ps->endSizeMul     = 1.2f;
+        ps->texturePath    = fireTex;
+        ps->sheetColumns   = 2;
+        ps->sheetRows      = 2;
+        ps->randomFrame    = true;
+        ps->blendMode      = ComponentParticleSystem::BlendMode::Additive;
+        ps->layer          = 1;
     }
 
-    // c. Fire glow — clone of (a) with default_particle-equivalent texture,
-    //    additive, larger / slower / longer-lived, modified size & colour curves.
+    // c. Fire glow — large soft additive blobs, longer life, slower rise.
+    //    Lecture: "Cloned system, modified Duration, Speed, Size over lifetime".
     {
         GameObject* go = scene->createGameObject("Fire Glow", root);
         auto* ps = go->createComponent<ComponentParticleSystem>();
-        ps->shape = ComponentParticleSystem::EmitterShape::Cone;
-        ps->shapeRadius = 0.4f;
-        ps->coneAngleDeg = 10.f;
-        ps->emissionRate = 8.f;
-        ps->maxParticles = 60;
-        ps->lifeRange = Vector2(1.2f, 2.0f); // modified: longer life
-        ps->speedRange = Vector2(0.2f, 0.5f); // modified: slower
-        ps->sizeRange = Vector2(1.0f, 1.6f); // modified: bigger
-        ps->rotationRange = Vector2(-30.f, 30.f);
-        ps->startColor = Vector4(1.f, 0.6f, 0.2f, 0.35f);
-        ps->endColor = Vector4(1.f, 0.3f, 0.05f, 0.f);
-        ps->startSizeMul = 0.5f;
-        ps->endSizeMul = 1.8f;
-        ps->texturePath = glowTex;
-        ps->sheetColumns = 1;
-        ps->sheetRows = 1;
-        ps->randomFrame = false;
-        ps->blendMode = ComponentParticleSystem::BlendMode::Additive;
-        ps->layer = 2; // render after (a) and (b)
+        ps->shape          = ComponentParticleSystem::EmitterShape::Cone;
+        ps->shapeRadius    = 0.4f;
+        ps->coneAngleDeg   = 10.f;
+        ps->emissionRate   = 8.f;
+        ps->maxParticles   = 60;
+        ps->lifeRange      = Vector2(1.2f, 2.0f);
+        ps->speedRange     = Vector2(0.2f, 0.5f);
+        ps->sizeRange      = Vector2(1.0f, 1.6f);
+        ps->rotationRange  = Vector2(-30.f, 30.f);
+        ps->startColor     = Vector4(1.f, 0.6f, 0.2f, 0.35f);
+        ps->endColor       = Vector4(1.f, 0.3f, 0.05f, 0.f);
+        ps->startSizeMul   = 0.5f;
+        ps->endSizeMul     = 1.8f;
+        ps->texturePath    = fireTex;   // same fire sheet — single tile, no sheet anim
+        ps->sheetColumns   = 1;
+        ps->sheetRows      = 1;
+        ps->randomFrame    = false;
+        ps->blendMode      = ComponentParticleSystem::BlendMode::Additive;
+        ps->layer          = 2;
     }
 
-    // d. Sparks — small bright additive points shooting upward and fading out.
+    // d. Sparks — TXT_Sparks_01.tga, fast upward, gravity arc, noise turbulence.
+    //    Lecture 12 "Noise" exercise: perturb with a 3D fbm flow field so sparks
+    //    drift and swirl rather than flying in straight lines.
     {
         GameObject* go = scene->createGameObject("Sparks", root);
         auto* ps = go->createComponent<ComponentParticleSystem>();
-        ps->shape = ComponentParticleSystem::EmitterShape::Cone;
-        ps->shapeRadius = 0.15f;
-        ps->coneAngleDeg = 30.f;
-        ps->emissionRate = 12.f;
-        ps->maxParticles = 80;
-        ps->lifeRange = Vector2(0.4f, 0.9f);
-        ps->speedRange = Vector2(2.0f, 4.0f);
-        ps->sizeRange = Vector2(0.03f, 0.07f);
-        ps->rotationRange = Vector2(0.f, 0.f);
-        ps->startColor = Vector4(1.f, 0.9f, 0.5f, 1.f);
-        ps->endColor = Vector4(1.f, 0.4f, 0.1f, 0.f);
-        ps->startSizeMul = 1.f;
-        ps->endSizeMul = 0.4f;
-        ps->gravity = Vector3(0.f, -1.5f, 0.f); // arc back down
-        ps->texturePath.clear(); // fallback white quad — additive tint does the work
-        ps->blendMode = ComponentParticleSystem::BlendMode::Additive;
-        ps->layer = 3;
+        ps->shape          = ComponentParticleSystem::EmitterShape::Cone;
+        ps->shapeRadius    = 0.15f;
+        ps->coneAngleDeg   = 30.f;
+        ps->emissionRate   = 15.f;
+        ps->maxParticles   = 100;
+        ps->lifeRange      = Vector2(0.4f, 0.9f);
+        ps->speedRange     = Vector2(2.0f, 4.5f);
+        ps->sizeRange      = Vector2(0.04f, 0.10f);
+        ps->rotationRange  = Vector2(0.f, 0.f);
+        ps->startColor     = Vector4(1.f, 0.95f, 0.6f, 1.f);
+        ps->endColor       = Vector4(1.f, 0.35f, 0.05f, 0.f);
+        ps->startSizeMul   = 1.f;
+        ps->endSizeMul     = 0.3f;
+        ps->gravity        = Vector3(0.f, -1.5f, 0.f);
+        ps->texturePath    = sparksTex;
+        ps->sheetColumns   = 1;
+        ps->sheetRows      = 1;
+        ps->randomFrame    = false;
+        ps->blendMode      = ComponentParticleSystem::BlendMode::Additive;
+        ps->layer          = 3;
 
-        // Lecture 12 "Noise" — "Exercise: Adding sparks to fire": perturb the
-        // sparks' rising motion with a 3D fractal-noise flow field so they
-        // drift and swirl instead of moving in straight lines.
-        ps->useTurbulence = true;
+        // Noise turbulence — flow field built from lecture 12 fbm noise.
+        ps->useTurbulence       = true;
         ps->turbulenceFrequency = 0.6f;
-        ps->turbulenceStrength = 1.2f;
-        ps->turbulenceOctaves = 3;
-        ps->turbulenceScroll = 0.4f;
+        ps->turbulenceStrength  = 1.2f;
+        ps->turbulenceOctaves   = 3;
+        ps->turbulenceScroll    = 0.4f;
     }
 
     m_selection.object = root;
-    log("Spawned Fire (Exercise 1): Flames + Inner Light + Glow + Sparks", EditorColors::Success);
+    log("Spawned Fire (Exercise 1): using TXT_Fire_01 + TXT_Sparks_01 textures", EditorColors::Success);
     return root;
 }
 
 // ---------------------------------------------------------------------------
-// spawnSwordTrail — Lecture 12 "Trails", Exercise: "Sword trail" / Exercise 2
-// "Sword trail engine integration"
-// The exercise swings a sword mesh through the air and attaches a trail
-// renderer to its blade so the motion leaves a smooth, fading ribbon behind
-// it. Sword.gltf isn't part of this project's Assets, so a thin scaled cube
-// ("blade") stands in for the mesh — ComponentTrail's built-in `demoMotion`
-// drives it through a swinging arc automatically, so the exercise can be
-// observed without any external asset, animation rig, or scripting setup.
+// spawnSwordTrail — Lecture 12 "Trails" Exercise: "Sword trail"
+//
+// Hierarchy:
+//   Sword Trail (root — ComponentTrail here, demoMotion drives the swing)
+//   └── Sword        (ComponentMesh → Assets/Models/Sword/sword.gltf)
+//
+// Uses the project's actual lecture assets:
+//   Assets/Models/Sword/sword.gltf   (the real sword mesh)
+//   Assets/Models/Sword/swoosh.png   (dedicated trail/swoosh texture)
+//
+// demoMotion on ComponentTrail automatically swings the rig so the trail is
+// visible immediately.  Disable it in the Inspector once you drive the
+// transform from your own animation/controller.
 // ---------------------------------------------------------------------------
 GameObject* ModuleEditor::spawnSwordTrail(const Vector3& position){
     ModuleScene* scene = getActiveModuleScene();
     if (!scene) return nullptr;
 
+    const std::string swordModel = "Assets/Models/Sword/sword.gltf";
+    const std::string swooshTex  = "Assets/Models/Sword/swoosh.png";
+
+    // Root pivot — this is what demoMotion swings, so the mesh + trail move together.
     GameObject* root = scene->createGameObject("Sword Trail (Lecture 12 Exercise)");
-    root->getTransform()->position = position;
-    root->getTransform()->markDirty();
-
-    // "Blade" stand-in — thin elongated cube mesh.
-    GameObject* blade = scene->createGameObject("Blade", root);
     {
-        auto* t = blade->getTransform();
-        t->position = Vector3(0.f, 1.f, 0.f);
-        t->scale = Vector3(0.06f, 1.0f, 0.06f);
+        auto* t = root->getTransform();
+        t->position = position;
         t->markDirty();
-
-        auto mesh = PrimitiveFactory::createCubeMesh();
-        auto* cm = blade->createComponent<ComponentMesh>();
-        cm->setProceduralModel(PrimitiveFactory::meshToModel(std::move(mesh)));
     }
 
-    // Trail emitter — placed at the blade tip so the ribbon traces the swing.
-    GameObject* tip = scene->createGameObject("Trail Emitter (Blade Tip)", blade);
+    // Real sword mesh as a child of the pivot.
     {
-        auto* t = tip->getTransform();
-        t->position = Vector3(0.f, 1.f, 0.f); // local: tip of the 2-unit-tall blade
+        GameObject* swordGO = scene->createGameObject("Sword", root);
+        auto* t = swordGO->getTransform();
+        t->position = Vector3(0.f, 0.f, 0.f);
+        t->scale    = Vector3(1.f, 1.f, 1.f);
         t->markDirty();
 
-        auto* tr = tip->createComponent<ComponentTrail>();
-        tr->enabled = true;
-        tr->emitting = true;
-        tr->duration = 0.5f;
-        tr->minPointDistance = 0.03f;
-        tr->width = 0.35f;
-        tr->useCatmullRom = true;
-        tr->catmullRomAlpha = 0.5f; // centripetal — lecture's recommended default
-        tr->subdivisions = 8;
-        tr->startColor = Vector4(0.6f, 0.85f, 1.0f, 0.9f); // bright cyan-white at the blade
-        tr->endColor = Vector4(0.1f, 0.2f, 0.6f, 0.0f); // fades to transparent blue
-        tr->startWidthMul = 1.0f;
-        tr->endWidthMul = 0.1f;
-        tr->texturePath.clear(); // fallback white ribbon — vertex colour does the work
-        tr->blendMode = ComponentTrail::BlendMode::Additive;
-        tr->textureMode = ComponentTrail::TextureMode::Stretch;
-        tr->layer = 0;
+        auto* cm = swordGO->createComponent<ComponentMesh>();
+        if (!cm->loadModel(swordModel.c_str()))
+            LOG("spawnSwordTrail: could not load '%s'", swordModel.c_str());
+    }
 
-        // Demo motion swings *this* node (the trail emitter / blade tip) through
-        // an arc so the ribbon has motion to trace immediately on spawn.
-        tr->demoMotion = true;
-        tr->demoRadius = 1.2f;
-        tr->demoSpeed = 3.0f;
-        tr->demoCenter = Vector3(0.f, 1.f, 0.f);
+    // ComponentTrail on the root — ribbon traces the swing arc using swoosh.png.
+    {
+        auto* tr = root->createComponent<ComponentTrail>();
+        tr->enabled          = true;
+        tr->emitting         = true;
+        tr->duration         = 0.45f;
+        tr->minPointDistance = 0.02f;
+        tr->width            = 0.55f;
+
+        tr->useCatmullRom    = true;
+        tr->catmullRomAlpha  = 0.5f;   // centripetal
+        tr->subdivisions     = 10;
+
+        // Bright white-gold at the fresh edge → transparent amber as it fades.
+        tr->startColor       = Vector4(1.f, 1.f, 0.85f, 0.95f);
+        tr->endColor         = Vector4(1.f, 0.55f, 0.1f, 0.0f);
+        tr->startWidthMul    = 1.0f;
+        tr->endWidthMul      = 0.05f;
+
+        tr->texturePath      = swooshTex;   // Assets/Models/Sword/swoosh.png
+        tr->blendMode        = ComponentTrail::BlendMode::Additive;
+        tr->textureMode      = ComponentTrail::TextureMode::Stretch;
+        tr->layer            = 0;
+
+        tr->demoMotion  = true;
+        tr->demoRadius  = 1.4f;
+        tr->demoSpeed   = 2.8f;
+        tr->demoCenter  = Vector3(0.f, 1.2f, 0.f);
     }
 
     m_selection.object = root;
-    log("Spawned Sword Trail (Lecture 12 Exercise): Blade + Trail Emitter with demo swing motion", EditorColors::Success);
+    log("Spawned Sword Trail: sword.gltf + swoosh.png (real lecture assets)", EditorColors::Success);
     return root;
 }
 

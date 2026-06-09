@@ -875,6 +875,9 @@
     <ClInclude Include="AssetBrowserPanel.h">
       <Filter>Engine\Editor\Panels</Filter>
     </ClInclude>
+    <ClInclude Include="AssetPickerWidget.h">
+      <Filter>Engine\Editor\Panels</Filter>
+    </ClInclude>
     <ClInclude Include="HierarchyPanel.h">
       <Filter>Engine\Editor\Panels</Filter>
     </ClInclude>

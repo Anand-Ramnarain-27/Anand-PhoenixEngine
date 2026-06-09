@@ -3,6 +3,7 @@
 #include "GameObject.h"
 #include "ComponentTransform.h"
 #include "AssetBrowserPanel.h"
+#include "AssetPickerWidget.h"
 #include "Noise.h"
 #include <imgui.h>
 #include <algorithm>
@@ -218,18 +219,11 @@ void ComponentParticleSystem::onEditor(){
     ImGui::Separator();
     ImGui::TextUnformatted("Render");
     {
+        // Unity-style asset picker: click to open a searchable list, or drag from
+        // the Asset Browser. Shows the filename with a type tag; full path in tooltip.
         ImGui::TextUnformatted("Texture");
         ImGui::SameLine(90.f);
-        char buf[256];
-        strncpy_s(buf, texturePath.c_str(), sizeof(buf) - 1);
-        if (ImGui::InputText("##psTexture", buf, sizeof(buf)))
-            texturePath = buf;
-        if (ImGui::BeginDragDropTarget()) {
-            if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload(kDragAsset)) {
-                texturePath.assign(static_cast<const char*>(pl->Data), pl->DataSize - 1);
-            }
-            ImGui::EndDragDropTarget();
-        }
+        AssetPicker::Draw("##psTexture", texturePath, AssetPicker::kTextures);
     }
     ImGui::DragInt("Sheet columns", &sheetColumns, 1.f, 1, 64);
     ImGui::DragInt("Sheet rows", &sheetRows, 1.f, 1, 64);

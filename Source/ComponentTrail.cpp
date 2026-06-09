@@ -3,6 +3,7 @@
 #include "GameObject.h"
 #include "ComponentTransform.h"
 #include "AssetBrowserPanel.h"
+#include "AssetPickerWidget.h"
 #include <imgui.h>
 #include <algorithm>
 #include <cmath>
@@ -208,18 +209,11 @@ void ComponentTrail::onEditor(){
     ImGui::Separator();
     ImGui::TextUnformatted("Render");
     {
+        // Unity-style asset picker: click to open a searchable list, or drag from
+        // the Asset Browser. Shows the filename with a type tag; full path in tooltip.
         ImGui::TextUnformatted("Texture");
         ImGui::SameLine(90.f);
-        char buf[256];
-        strncpy_s(buf, texturePath.c_str(), sizeof(buf) - 1);
-        if (ImGui::InputText("##trailTexture", buf, sizeof(buf)))
-            texturePath = buf;
-        if (ImGui::BeginDragDropTarget()) {
-            if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload(kDragAsset)) {
-                texturePath.assign(static_cast<const char*>(pl->Data), pl->DataSize - 1);
-            }
-            ImGui::EndDragDropTarget();
-        }
+        AssetPicker::Draw("##trailTexture", texturePath, AssetPicker::kTextures);
     }
     static const char* kBlend[] = { "Alpha", "Additive" };
     int blendIdx = (int)blendMode;

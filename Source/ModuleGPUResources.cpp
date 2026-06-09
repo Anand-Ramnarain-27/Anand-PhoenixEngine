@@ -130,7 +130,13 @@ ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromFile(const std::file
     ScratchImage image;
     bool ok = SUCCEEDED(LoadFromDDSFile(fileName, DDS_FLAGS_NONE, nullptr, image));
     ok = ok || SUCCEEDED(LoadFromHDRFile(fileName, nullptr, image));
-    ok = ok || SUCCEEDED(LoadFromTGAFile(fileName, defaultSRGB ? TGA_FLAGS_DEFAULT_SRGB : TGA_FLAGS_NONE, nullptr, image));
+    // TGA: use TGA_FLAGS_NONE — TGA_FLAGS_DEFAULT_SRGB requires sRGB metadata to be
+    // embedded inside the TGA file itself (a rare authoring-tool extension). Game-asset
+    // TGAs (e.g. TXT_Fire_01.tga, TXT_Sparks_01.tga) don't carry that metadata, so the
+    // flag causes LoadFromTGAFile to return E_FAIL. TextureImporter uses the same
+    // no-flags call and successfully imports these files.  The sRGB interpretation is
+    // handled downstream by the DXGI_FORMAT of the SRV, not the TGA loader.
+    ok = ok || SUCCEEDED(LoadFromTGAFile(fileName, TGA_FLAGS_NONE, nullptr, image));
     ok = ok || SUCCEEDED(LoadFromWICFile(fileName, defaultSRGB ? WIC_FLAGS_DEFAULT_SRGB : WIC_FLAGS_NONE, nullptr, image));
     return ok ? createTextureFromImage(image, path.string().c_str()) : nullptr;
 }

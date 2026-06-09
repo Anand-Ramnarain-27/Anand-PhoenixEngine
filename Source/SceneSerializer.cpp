@@ -39,7 +39,11 @@ bool SceneSerializer::SaveScene(const ModuleScene* scene, const std::string& fil
                 if (go == scene->getRoot()) return;
                 Value node(kObjectType);
                 node.AddMember("UID", go->getUID(), a);
-                node.AddMember("ParentUID", go->getParent() ? go->getParent()->getUID() : 0u, a);
+                // Save 0 when parent is the scene root (it is excluded from serialization,
+                // so its UID can never be resolved on load — treat top-level GOs as parentless).
+                node.AddMember("ParentUID",
+                    (go->getParent() && go->getParent() != scene->getRoot())
+                        ? go->getParent()->getUID() : 0u, a);
                 node.AddMember("Name", Value(go->getName().c_str(), a), a);
                 node.AddMember("Active", go->isActive(), a);
 
