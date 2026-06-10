@@ -17,7 +17,6 @@
 #include "TrailPass.h"
 #include "ParticlePass.h"
 #include "SkinningPass.h"
-#include "RenderOctree.h"
 
 #include <memory>
 #include <vector>
@@ -192,11 +191,6 @@ private:
 
     EditorSelection m_selection;
     FrameLightData m_frameLights;
-
-    // Gap 1: hierarchical render (frustum) culling — built once per frame in
-    // preRender() from all renderable GameObjects, queried against the active
-    // game camera frustum when ModuleCamera::cullAlgorithm == Octree.
-    RenderOctree m_renderOctree;
     int m_samplerType = 0;
     bool m_firstFrame = true;
 

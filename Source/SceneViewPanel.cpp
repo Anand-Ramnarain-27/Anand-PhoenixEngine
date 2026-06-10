@@ -56,14 +56,11 @@ void SceneViewPanel::draw(){
     }
 }
 
-// SCENE VIEW — always uses editor fly-cam, never game camera
 bool SceneViewPanel::buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView, Matrix& outProj){
     ModuleCamera* camera = app->getCamera();
     if (!camera) return false;
     outView = camera->getView();
     outProj = ModuleCamera::getPerspectiveProj(float(w) / float(h));
-    // The active game camera (if any) is only used below to rebuild the debug
-    // frustum visualization — it never feeds outView/outProj for this viewport.
     camera->clearGameCameraFrustum();
     if (ModuleScene* ms = m_editor->getActiveModuleScene()) {
         float aspect = float(w) / float(h);

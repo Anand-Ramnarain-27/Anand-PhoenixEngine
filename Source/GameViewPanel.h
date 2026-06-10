@@ -15,7 +15,4 @@ protected:
 
 private:
     void drawPlaymodeOverlay();
-    void drawNoActiveCameraOverlay();
-
-    bool m_usingFallbackCamera = false;
 };

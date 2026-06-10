@@ -30,17 +30,6 @@ namespace {
 
 void GBuffer::resize(uint32_t w, uint32_t h){
     if (m_width == w && m_height == h) return;
-
-    // SAFETY: GPU flush required before freeing this resource — resources
-    // retired by a previous resize() may still be referenced by a command
-    // list recorded earlier this frame (e.g. SceneView rendered before a
-    // GameView-driven resize) and cannot be released until that work has
-    // fully executed on the GPU.
-    if (!m_retiredResources.empty()) {
-        app->getD3D12()->flush();
-        m_retiredResources.clear();
-    }
-
     release();
     if (w == 0 || h == 0) return;
 
@@ -106,17 +95,13 @@ void GBuffer::resize(uint32_t w, uint32_t h){
 }
 
 void GBuffer::release(){
+    auto* gpuRes = app->getGPUResources();
     for (int i = 0; i < NUM_COLOR_RTS; ++i) {
-        // SAFETY: GPU flush required before freeing this resource — retire it
-        // instead of destroying it immediately (still referenced by the
-        // in-progress command list). Released in resize() after a flush.
-        if (m_colorTextures[i]) m_retiredResources.push_back(m_colorTextures[i]);
-        m_colorTextures[i].Reset();
+        if (m_colorTextures[i]) gpuRes->deferRelease(m_colorTextures[i]);
         m_rtvDescs[i].reset();
         m_srvTables[i].reset();
     }
-    if (m_depthTexture) m_retiredResources.push_back(m_depthTexture);
-    m_depthTexture.Reset();
+    if (m_depthTexture) gpuRes->deferRelease(m_depthTexture);
     m_dsvDesc.reset();
     m_dsvReadOnly.reset();
     m_depthSrvTable.reset();

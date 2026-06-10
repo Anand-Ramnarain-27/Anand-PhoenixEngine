@@ -18,7 +18,6 @@
 #include "3rdParty/rapidjson/stringbuffer.h"
 #include <d3dx12.h>
 #include <filesystem>
-#include <algorithm>
 
 using namespace rapidjson;
 
@@ -238,45 +237,12 @@ void ComponentMesh::overrideMaterial(int slot, UID materialUID){
     rebuildEntry(e);
 }
 
-void ComponentMesh::setLODLevels(std::vector<LODLevel> levels){
-    m_lodLevels = std::move(levels);
-    m_currentLOD = 0;
-}
-
-void ComponentMesh::updateLOD(float coverage, int forceIndex){
-    if (m_lodLevels.empty() || m_entries.empty()) return;
-    m_lastScreenCoverage = coverage;
-
-    int selected = (int)m_lodLevels.size() - 1;
-    if (forceIndex >= 0) {
-        selected = std::min(forceIndex, (int)m_lodLevels.size() - 1);
-    } else {
-        for (int i = 0; i < (int)m_lodLevels.size(); ++i) {
-            if (coverage > m_lodLevels[i].screenCoverageThreshold) { selected = i; break; }
-        }
-    }
-
-    if (selected == m_currentLOD) return;
-    m_currentLOD = selected;
-
-    UID newMeshUID = m_lodLevels[selected].meshUID;
-    if (newMeshUID == 0 || newMeshUID == m_entries[0].meshUID) return;
-
-    MeshEntry& e = m_entries[0];
-    if (e.meshRes) app->getResources()->ReleaseResource(e.meshRes);
-    e.meshUID = newMeshUID;
-    e.meshRes = app->getResources()->RequestMesh(e.meshUID);
-}
-
 void ComponentMesh::render(ID3D12GraphicsCommandList* /*cmd*/){
     // Rendering is handled by MeshRenderPass via MeshEntry lists built in
     // ModuleEditor::renderSceneWithCamera. This override is intentionally empty.
 }
 
 void ComponentMesh::onEditor(){
-    if (hasLODLevels()) {
-        ImGui::Text("LOD: %d / %d   Coverage: %.3f", m_currentLOD, (int)m_lodLevels.size() - 1, m_lastScreenCoverage);
-    }
     if (!m_hasSkin) return;
     ImGui::Checkbox("Draw Bind Pose", &m_drawBindPose);
 }

@@ -113,26 +113,11 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
     const uint32_t tilesY = getNumTilesY(height);
     const UINT numTiles = tilesX * tilesY;
 
-    // Release any buffers retired by a previous resize. SAFETY: GPU flush required
-    // before freeing this resource — by now last frame's command list (which may
-    // still reference these buffers) has been fully consumed by the GPU.
-    if (!m_retiredBuffers.empty()) {
-        app->getD3D12()->flush();
-        m_retiredBuffers.clear();
-    }
-
-    // Grow-only: SceneView and GameView call cull() with different viewport sizes
-    // within the same frame's command list, so we must never shrink (that would
-    // invalidate descriptors/barriers already recorded for the larger viewport)
-    // and never destroy the old buffer immediately (see m_retiredBuffers above).
-    if (numTiles > m_allocatedTiles || !m_pointListBuf) {
-        if (m_pointListBuf) {
-            // SAFETY: GPU flush required before freeing this resource — defer by
-            // retiring it instead of destroying it immediately (still referenced
-            // by the in-progress command list).
-            m_retiredBuffers.push_back(m_pointListBuf);
-            m_retiredBuffers.push_back(m_spotListBuf);
-        }
+    // Reallocate tile buffers if viewport changed
+    if (numTiles != m_allocatedTiles || !m_pointListBuf) {
+        // The old buffers may still be referenced by an in-flight command list from a
+        // previous frame; wait for the GPU to finish before destroying/replacing them.
+        if (m_pointListBuf) app->getD3D12()->flush();
 
         auto* device = app->getD3D12()->getDevice();
         if (!allocTileBuffers(device, numTiles, MAX_LIGHTS_PER_TILE,
@@ -156,7 +141,6 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
                           numTiles * MAX_LIGHTS_PER_TILE, sizeof(int));
         makeStructuredSRV(m_spotListSRV, 0, m_spotListBuf.Get(),
                           numTiles * MAX_LIGHTS_PER_TILE, sizeof(int));
-        m_tileBuffersFreshlyAllocated = true;
     }
 
     // Upload light data
@@ -202,11 +186,9 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
         };
-        // Skip if the buffers were just (re)allocated this call — they start in
-        // UNORDERED_ACCESS state, so a PSR->UAV transition here would be invalid.
-        if (!m_tileBuffersFreshlyAllocated)
+        // Only issue these if not first frame (buffers start in UAV after alloc)
+        if (m_lastWidth != 0)
             cmd->ResourceBarrier(2, barriers);
-        m_tileBuffersFreshlyAllocated = false;
     }
 
     cmd->SetPipelineState(m_pipeline.getPSO());

@@ -11,23 +11,10 @@ EnemyScript::EnemyScript() = default;
 void EnemyScript::Start(GameObject* owner){
     m_owner = owner;
     m_isAggro = false;
-    m_aiFrameCounter = 0;
 }
 
 void EnemyScript::Update(float dt){
     (void)dt;
-}
-
-bool EnemyScript::shouldTickAI(bool isVisible, float distanceToCamera,
-    float aiCullDistance, int aiCullTickRate){
-    if (isVisible || distanceToCamera <= aiCullDistance) {
-        m_aiFrameCounter = 0;
-        return true;
-    }
-
-    ++m_aiFrameCounter;
-    int tickRate = aiCullTickRate > 0 ? aiCullTickRate : 1;
-    return (m_aiFrameCounter % tickRate) == 0;
 }
 
 void EnemyScript::Destroy(){

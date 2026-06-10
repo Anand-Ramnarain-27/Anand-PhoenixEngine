@@ -16,7 +16,6 @@
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
-#include <functional>
 
 using namespace rapidjson;
 
@@ -216,27 +215,7 @@ void ComponentAnimation::setAnimationList(const std::vector<UID>& uids){
 
 // ─── Per-frame update ─────────────────────────────────────────────────────────
 
-// Searches owner and its subtree for the first ComponentMesh and returns its
-// isVisible() flag (GAME VIEW visibility — see ComponentMesh::isVisible()).
-// Returns true (always update) if no mesh is found, e.g. armature-only rigs
-// where visibility can't be determined.
-bool ComponentAnimation::isOwnerMeshVisible() const{
-    std::function<const ComponentMesh*(const GameObject*)> findMesh = [&](const GameObject* go) -> const ComponentMesh* {
-        if (auto* cm = go->getComponent<ComponentMesh>()) return cm;
-        for (auto* child : go->getChildren())
-            if (auto* cm = findMesh(child)) return cm;
-        return nullptr;
-    };
-    const ComponentMesh* cm = findMesh(owner);
-    return !cm || cm->isVisible();
-}
-
 void ComponentAnimation::update(float deltaTime){
-    // PERF: skip skinning for off-screen meshes; re-enable on first visible frame to prevent pop.
-    // The animation clock (above) keeps advancing every frame regardless, so the
-    // pose computed on the first visible frame reflects the correct elapsed time
-    // — no pop from a stale pose.
-    const bool applyPose = isOwnerMeshVisible();
     if (m_layerHead) {
         // ── SM / layer-blending path ──────────────────────────────────────────
         const float dtMs = deltaTime * 1000.f;
@@ -267,18 +246,16 @@ void ComponentAnimation::update(float deltaTime){
             m_layerHead->next = nullptr;
         }
 
-        if (applyPose)
-            for (auto* child : owner->getChildren())
-                applyBlendedAnimation(child);
+        for (auto* child : owner->getChildren())
+            applyBlendedAnimation(child);
 
     } else {
         // ── Direct controller path (original behaviour) ───────────────────────
         if (!m_controller.isPlaying()) return;
         m_controller.Update(deltaTime);
 
-        if (applyPose)
-            for (auto* child : owner->getChildren())
-                applyAnimation(child);
+        for (auto* child : owner->getChildren())
+            applyAnimation(child);
 
         m_logTimer += deltaTime;
         if (m_logTimer >= 1.f) {

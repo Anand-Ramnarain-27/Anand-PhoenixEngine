@@ -72,30 +72,6 @@ public:
         for (auto& j : m_skinJoints) if (j == go) j = nullptr;
     }
 
-    // Gap 2 — LOD system. Each level swaps the mesh resource used for entry 0
-    // (the primary/only submesh of LOD test assets) once the projected screen
-    // coverage of the world AABB drops below screenCoverageThreshold.
-    // Levels must be ordered highest-detail first, e.g.:
-    //   LOD0 (full detail)   threshold > 0.3
-    //   LOD1 (medium detail) threshold > 0.05
-    //   LOD2 (low detail)    threshold > 0.0
-    struct LODLevel {
-        UID meshUID = 0;
-        float screenCoverageThreshold = 0.0f;
-    };
-    void setLODLevels(std::vector<LODLevel> levels);
-    const std::vector<LODLevel>& getLODLevels() const { return m_lodLevels; }
-    bool hasLODLevels() const { return !m_lodLevels.empty(); }
-
-    // Called once per frame (per viewport) by ModuleEditor before mesh entries
-    // are gathered. `coverage` is the projected-AABB-area / viewport-area ratio
-    // computed with that viewport's camera. `forceIndex` >= 0 overrides the
-    // threshold-based selection (ImGui "Force LOD" debug toggle); -1 = Auto.
-    // Swaps m_entries[0]'s mesh resource if the selected level changed.
-    void updateLOD(float coverage, int forceIndex);
-    int getCurrentLODIndex() const { return m_currentLOD; }
-    float getLastScreenCoverage() const { return m_lastScreenCoverage; }
-
     // Morph target weights — one float per target, written by the animation system each frame.
     // Shared across all mesh primitives in this component (index 0 = first target of the mesh).
     static constexpr int MAX_MORPH_WEIGHTS = 64;
@@ -121,10 +97,6 @@ private:
     bool m_hasAABB = false;
     bool m_materialsDirty = false;
     bool m_isVisible = true;
-
-    std::vector<LODLevel> m_lodLevels;
-    int m_currentLOD = 0;
-    float m_lastScreenCoverage = 1.0f;
 
     bool m_hasSkin = false;
     ResourceModel::Skin m_localSkin; // owned copy of the skin definition

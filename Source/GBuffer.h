@@ -1,6 +1,5 @@
 #pragma once
 
-#include <vector>
 #include "ShaderTableDesc.h"
 #include "RenderTargetDesc.h"
 #include "DepthStencilDesc.h"
@@ -43,12 +42,6 @@ public:
 private:
     ComPtr<ID3D12Resource> m_colorTextures[NUM_COLOR_RTS];
     ComPtr<ID3D12Resource> m_depthTexture;
-
-    // BUG 3-style fix: resources retired by a previous resize(), released only
-    // after a GPU flush so commands already recorded against them this frame
-    // (e.g. a SceneView pass recorded before a GameView-driven resize) finish
-    // executing first. SAFETY: GPU flush required before freeing this resource.
-    std::vector<ComPtr<ID3D12Resource>> m_retiredResources;
 
     RenderTargetDesc m_rtvDescs[NUM_COLOR_RTS];
     DepthStencilDesc m_dsvDesc;

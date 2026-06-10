@@ -11,17 +11,6 @@ public:
     enum class CullMode { None, Frustum };
     enum class CullSource { EditorCamera, GameCamera };
 
-    // Gap 1 — hierarchical render culling algorithm. Linear = per-mesh frustum
-    // plane test against every renderable (existing behaviour, kept as a
-    // togglable fallback). Octree = query RenderOctree with the active game
-    // camera frustum; objects not returned are auto-culled without per-object
-    // plane tests.
-    enum class CullAlgorithm { Linear, Octree };
-
-    // Gap 2 — debug override for ComponentMesh LOD selection.
-    // Auto = pick by screen-coverage thresholds; 0/1/2 force that LOD index.
-    enum class ForceLOD { Auto, LOD0, LOD1, LOD2 };
-
     bool init() override;
     void update() override;
 
@@ -85,22 +74,6 @@ public:
 
     CullMode cullMode = CullMode::Frustum;
     CullSource cullSource = CullSource::EditorCamera;
-
-    // Gap 1 — "Culling Mode: Linear | Octree" toggle (Debug -> Camera & Culling).
-    CullAlgorithm cullAlgorithm = CullAlgorithm::Linear;
-    // Stats from the most recent RenderOctree query (only meaningful when
-    // cullAlgorithm == Octree); shown next to the visible/total counter.
-    int octreeNodeCount = 0;
-    int octreeLeafCount = 0;
-
-    // Gap 2 — "Force LOD: Auto | 0 | 1 | 2" debug override (Debug -> Camera & Culling).
-    ForceLOD forceLOD = ForceLOD::Auto;
-
-    // Gap 3 — AI culling tunables (Debug -> Camera & Culling).
-    // Off-screen AI further than this from the active game camera ticks at
-    // 1/aiCullTickRate of the normal rate instead of every frame.
-    float aiCullDistance = 50.0f;
-    int aiCullTickRate = 10;
 
     bool debugDrawEditorFrustum = true;
     bool debugDrawCullFrustum = true;

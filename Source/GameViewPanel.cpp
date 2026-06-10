@@ -24,47 +24,27 @@ void GameViewPanel::draw(){
     if (playing) ImGui::PopStyleColor();
 }
 
-// GAME VIEW — always uses active game camera from ModuleCamera
 bool GameViewPanel::buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView, Matrix& outProj){
     // The Game view always renders through ModuleCamera's centralized "active game
     // camera" pointer. This is independent of the editor/scene-view fly camera —
     // selecting an active game camera never touches the Scene viewport's matrices.
     GameObject* activeCamGO = app->getCamera()->getActiveCamera();
-    ComponentCamera* cam = activeCamGO ? activeCamGO->getComponent<ComponentCamera>() : nullptr;
-    ComponentTransform* t = activeCamGO ? activeCamGO->getTransform() : nullptr;
+    if (!activeCamGO) return false;
+    auto* cam = activeCamGO->getComponent<ComponentCamera>();
+    auto* t = activeCamGO->getTransform();
+    if (!cam || !t) return false;
 
-    if (cam && t) {
-        m_usingFallbackCamera = false;
-        Matrix world = t->getGlobalMatrix();
-        Vector3 pos = world.Translation();
-        Vector3 fwd = Vector3::TransformNormal(-Vector3::UnitZ, world); fwd.Normalize();
-        Vector3 up = Vector3::TransformNormal(Vector3::UnitY, world); up.Normalize();
-        outView = Matrix::CreateLookAt(pos, pos + fwd, up);
-        outProj = Matrix::CreatePerspectiveFieldOfView(cam->getFOV(), float(w) / float(h), cam->getNearPlane(), cam->getFarPlane());
-        return true;
-    }
-
-    // Fallback: no active game camera set — show the editor fly-cam's view so the
-    // Game View isn't left blank/stale, with a visible warning overlay.
-    m_usingFallbackCamera = true;
-    ModuleCamera* editorCam = app->getCamera();
-    if (!editorCam) return false;
-    outView = editorCam->getView();
-    outProj = ModuleCamera::getPerspectiveProj(float(w) / float(h));
+    Matrix world = t->getGlobalMatrix();
+    Vector3 pos = world.Translation();
+    Vector3 fwd = Vector3::TransformNormal(-Vector3::UnitZ, world); fwd.Normalize();
+    Vector3 up = Vector3::TransformNormal(Vector3::UnitY, world); up.Normalize();
+    outView = Matrix::CreateLookAt(pos, pos + fwd, up);
+    outProj = Matrix::CreatePerspectiveFieldOfView(cam->getFOV(), float(w) / float(h), cam->getNearPlane(), cam->getFarPlane());
     return true;
 }
 
 void GameViewPanel::onDrawOverlays(){
     drawPlaymodeOverlay();
-    drawNoActiveCameraOverlay();
-}
-
-void GameViewPanel::drawNoActiveCameraOverlay(){
-    if (!m_usingFallbackCamera) return;
-    ImGuiWindow* win = ImGui::FindWindowByName("Game View");
-    if (!win) return;
-    ImGui::GetForegroundDrawList()->AddText({ win->Pos.x + 10, win->Pos.y + 10 },
-        IM_COL32(255, 80, 80, 255), "No active game camera set");
 }
 
 void GameViewPanel::drawPlaymodeOverlay(){
