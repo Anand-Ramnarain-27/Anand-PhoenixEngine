@@ -48,6 +48,18 @@ public:
     const Vector3& getLocalAABBMax() const { return m_localAABBMax; }
     void getWorldAABB(Vector3& outMin, Vector3& outMax) const;
 
+    // Frustum-culling visibility flag, recomputed once per frame in
+    // ModuleEditor::preRender() against the active game camera's frustum.
+    //
+    // We deliberately FLAG visibility instead of deactivating the GameObject or
+    // removing it from the scene graph. Deactivation would also stop physics,
+    // animation, AI and script updates for objects that are merely off-screen,
+    // which is incorrect (e.g. an off-screen enemy should keep moving/thinking).
+    // Visibility flagging lets the render loop skip just the draw call for this
+    // mesh while every other system continues to update it normally.
+    bool isVisible() const { return m_isVisible; }
+    void setVisible(bool v) { m_isVisible = v; }
+
     // Skinning data — call once when spawning a skinned GLTF model.
     // skin is copied into this component so ResourceModel can be released.
     void setSkinData(const ResourceModel::Skin& skin, std::vector<GameObject*> joints);
@@ -84,6 +96,7 @@ private:
     Vector3 m_localAABBMax = {};
     bool m_hasAABB = false;
     bool m_materialsDirty = false;
+    bool m_isVisible = true;
 
     bool m_hasSkin = false;
     ResourceModel::Skin m_localSkin; // owned copy of the skin definition

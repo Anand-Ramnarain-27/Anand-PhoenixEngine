@@ -3,6 +3,7 @@
 #include "Frustum.h"
 
 class FrustumDebugDraw;
+class GameObject;
 
 class ModuleCamera : public Module
 {
@@ -43,11 +44,33 @@ public:
 
     void setGameCameraFrustum(const Frustum& f) { m_gameFrustum = f; m_hasGameFrustum = true; }
     void clearGameCameraFrustum() { m_hasGameFrustum = false; }
+    const Frustum& getGameFrustum() const { return m_gameFrustum; }
+    bool hasGameFrustum() const { return m_hasGameFrustum; }
 
     bool isVisible(const Vector3& aabbMin, const Vector3& aabbMax) const;
 
+    // --- Active Game Camera (Unity/Unreal "Game" view camera) ---------------
+    // The active game camera determines the view/projection used for the final
+    // game render output (GameViewPanel). It is fully independent from the
+    // editor/scene-view fly camera (this ModuleCamera's own position/rotation),
+    // mirroring Unity's Scene vs Game view separation.
+    GameObject* getActiveCamera() const { return m_activeCameraGO; }
+    void setActiveCamera(GameObject* go) { m_activeCameraGO = go; }
+
     void onEditorDebugPanel();
     void buildDebugLines(FrustumDebugDraw& dd) const;
+
+    // Frustum-culling visibility stats, refreshed once per frame in
+    // ModuleEditor::preRender() and displayed by onEditorDebugPanel().
+    void setVisibilityStats(int visible, int total) { m_visibleCount = visible; m_totalCount = total; }
+    int getVisibleCount() const { return m_visibleCount; }
+    int getCulledCount() const { return m_totalCount - m_visibleCount; }
+    int getTotalCount() const { return m_totalCount; }
+
+    // ImGui toggle: "Show Frustum Culling Debug" — draws the active game
+    // camera's frustum wireframe plus per-object AABBs (green = visible,
+    // red = culled) in the scene viewport only. Never affects the game render.
+    bool showFrustumCullingDebug = false;
 
     CullMode cullMode = CullMode::Frustum;
     CullSource cullSource = CullSource::EditorCamera;
@@ -88,6 +111,10 @@ private:
     Frustum m_gameFrustum;
     Frustum m_cullFrustum;
     bool m_hasGameFrustum = false;
+
+    GameObject* m_activeCameraGO = nullptr;
+    int m_visibleCount = 0;
+    int m_totalCount = 0;
 
     void rebuildViewMatrix();
     void rebuildFrustum();

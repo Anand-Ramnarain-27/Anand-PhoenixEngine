@@ -133,6 +133,12 @@ void ModuleCamera::onEditorDebugPanel(){
     ImGui::Checkbox("Forward Ray (cyan)", &debugDrawForwardRay);
 
     ImGui::Separator();
+    ImGui::Checkbox("Show Frustum Culling Debug", &showFrustumCullingDebug);
+    if (showFrustumCullingDebug && !m_hasGameFrustum)
+        ImGui::TextColored(ImVec4(1, 0.4f, 0, 1), "  No active game camera frustum set");
+    ImGui::Text("Visible: %d / Total: %d  |  Culled: %d", m_visibleCount, m_totalCount, getCulledCount());
+
+    ImGui::Separator();
     ImGui::Text("Camera Parameters");
     float fovDeg = fovY * 57.2957795f;
     if (ImGui::SliderFloat("FOV (Y)", &fovDeg, 10.f, 170.f)) fovY = fovDeg * 0.0174532925f;

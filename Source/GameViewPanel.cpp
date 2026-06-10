@@ -7,6 +7,7 @@
 #include "GameObject.h"
 #include "ComponentCamera.h"
 #include "ComponentTransform.h"
+#include "ModuleCamera.h"
 #include "ModuleDSDescriptors.h"
 #include "ModuleRTDescriptors.h"
 #include "RenderTexture.h"
@@ -24,25 +25,22 @@ void GameViewPanel::draw(){
 }
 
 bool GameViewPanel::buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView, Matrix& outProj){
-    ModuleScene* scene = m_editor->getActiveModuleScene();
-    if (!scene) return false;
-    ComponentCamera* mainCam = nullptr;
-    std::function<void(GameObject*)> findCam = [&](GameObject* go) {
-        if (auto* c = go->getComponent<ComponentCamera>(); c && c->isMainCamera()) {
-            mainCam = c;
-            if (auto* t = go->getTransform()) {
-                Matrix world = t->getGlobalMatrix();
-                Vector3 pos = world.Translation();
-                Vector3 fwd = Vector3::TransformNormal(-Vector3::UnitZ, world); fwd.Normalize();
-                Vector3 up = Vector3::TransformNormal(Vector3::UnitY, world); up.Normalize();
-                outView = Matrix::CreateLookAt(pos, pos + fwd, up);
-                outProj = Matrix::CreatePerspectiveFieldOfView(c->getFOV(), float(w) / float(h), c->getNearPlane(), c->getFarPlane());
-            }
-        }
-        if (!mainCam) for (auto* child : go->getChildren()) findCam(child);
-        };
-    findCam(scene->getRoot());
-    return mainCam != nullptr;
+    // The Game view always renders through ModuleCamera's centralized "active game
+    // camera" pointer. This is independent of the editor/scene-view fly camera —
+    // selecting an active game camera never touches the Scene viewport's matrices.
+    GameObject* activeCamGO = app->getCamera()->getActiveCamera();
+    if (!activeCamGO) return false;
+    auto* cam = activeCamGO->getComponent<ComponentCamera>();
+    auto* t = activeCamGO->getTransform();
+    if (!cam || !t) return false;
+
+    Matrix world = t->getGlobalMatrix();
+    Vector3 pos = world.Translation();
+    Vector3 fwd = Vector3::TransformNormal(-Vector3::UnitZ, world); fwd.Normalize();
+    Vector3 up = Vector3::TransformNormal(Vector3::UnitY, world); up.Normalize();
+    outView = Matrix::CreateLookAt(pos, pos + fwd, up);
+    outProj = Matrix::CreatePerspectiveFieldOfView(cam->getFOV(), float(w) / float(h), cam->getNearPlane(), cam->getFarPlane());
+    return true;
 }
 
 void GameViewPanel::onDrawOverlays(){

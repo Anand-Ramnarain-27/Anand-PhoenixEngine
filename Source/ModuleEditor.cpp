@@ -270,6 +270,36 @@ void ModuleEditor::preRender(){
         m_sceneManager->updateAnimations(dt);
     }
 
+    // Frustum culling: recompute per-mesh visibility against the active game
+    // camera's frustum once per frame (after ComponentCamera::update has rebuilt
+    // it above). Visibility is FLAGGED, not deactivated — collectMeshes() in
+    // renderSceneWithCamera() checks isVisible() and simply skips the draw call,
+    // while physics/animation/AI/scripts keep updating off-screen objects normally.
+    if (ModuleCamera* cam = app->getCamera()) {
+        ModuleScene* scene = getActiveModuleScene();
+        int visible = 0, total = 0;
+        if (scene) {
+            std::function<void(GameObject*)> cullMeshes = [&](GameObject* node) {
+                if (!node || !node->isActive()) return;
+                if (auto* cm = node->getComponent<ComponentMesh>()) {
+                    if (cm->hasAABB()) {
+                        Vector3 mn, mx;
+                        cm->getWorldAABB(mn, mx);
+                        bool vis = !cam->hasGameFrustum() || cam->getGameFrustum().intersectsAABB(mn, mx);
+                        cm->setVisible(vis);
+                        ++total;
+                        if (vis) ++visible;
+                    } else {
+                        cm->setVisible(true);
+                    }
+                }
+                for (auto* child : node->getChildren()) cullMeshes(child);
+            };
+            cullMeshes(scene->getRoot());
+        }
+        cam->setVisibilityStats(visible, total);
+    }
+
     // Effects transport: tick trails + particles in edit mode independently of Play.
     // During scene Play the normal update() path already handles these; we only need
     // to step them here when the scene is NOT playing.
@@ -402,6 +432,16 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
             if (!node || !node->isActive()) return;
             if (auto* cm = node->getComponent<ComponentMesh>()) {
                 cm->flushDeferredReleases();
+
+                // Frustum culling: skip submitting draw data for meshes flagged
+                // as not visible this frame (see ComponentMesh::isVisible()).
+                // We still recurse into children below so transforms/hierarchy
+                // traversal is unaffected — only the draw call is skipped.
+                if (camera->cullMode == ModuleCamera::CullMode::Frustum && !cm->isVisible()) {
+                    for (auto* child : node->getChildren()) collectMeshes(child);
+                    return;
+                }
+
                 Matrix nodeWorld = node->getTransform()->getGlobalMatrix();
                 if (Model* model = cm->getProceduralModel()) {
                     model->buildMeshEntries(nodeWorld, ownedEntries);
@@ -861,6 +901,35 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
 
         if (s.debugDrawGrid && m_collisionSystem)
             m_collisionSystem->drawBroadPhaseDebug();
+
+        // Frustum Culling Debug — separate debug-only pass, drawn in the scene
+        // viewport regardless of which camera is active. Never affects the
+        // game render output (editorExtras is false for GameViewPanel).
+        if (camera->showFrustumCullingDebug) {
+            if (camera->hasGameFrustum()) {
+                FrustumDebugDraw gameFdd;
+                gameFdd.addFrustum(camera->getGameFrustum(), Vector3(1.f, 0.5f, 0.f));
+                for (const auto& line : gameFdd.lines) {
+                    ddVec3 f = { line.from.x, line.from.y, line.from.z };
+                    ddVec3 t = { line.to.x, line.to.y, line.to.z };
+                    dd::line(f, t, dd::colors::Orange);
+                }
+            }
+
+            if (moduleScene) {
+                std::function<void(GameObject*)> drawCullDebug = [&](GameObject* node) {
+                    if (!node || !node->isActive()) return;
+                    if (auto* cm = node->getComponent<ComponentMesh>(); cm && cm->hasAABB()) {
+                        Vector3 mn, mx;
+                        cm->getWorldAABB(mn, mx);
+                        const float* color = cm->isVisible() ? dd::colors::Green : dd::colors::Red;
+                        dd::aabb(ddConvert(mn), ddConvert(mx), color);
+                    }
+                    for (auto* child : node->getChildren()) drawCullDebug(child);
+                };
+                drawCullDebug(moduleScene->getRoot());
+            }
+        }
 
         m_debugDraw->record(cmd, w, h, view, proj);
     }
@@ -1375,6 +1444,33 @@ void ModuleEditor::drawMenuBar(){
         if (ImGui::BeginMenu("Camera & Culling")) {
             ModuleCamera* cam = app->getCamera();
             if (cam) {
+                // Active Game Camera picker — sets which ComponentCamera in the
+                // scene drives the Game view's render. Independent of the
+                // editor/scene-view fly camera (this ModuleCamera).
+                ImGui::Text("Active Game Camera");
+                GameObject* activeCamGO = cam->getActiveCamera();
+                const char* preview = activeCamGO ? activeCamGO->getName().c_str() : "(none)";
+                if (ImGui::BeginCombo("##ActiveGameCamera", preview)) {
+                    if (ImGui::Selectable("(none)", activeCamGO == nullptr)) {
+                        cam->setActiveCamera(nullptr);
+                        cam->clearGameCameraFrustum();
+                    }
+                    if (ModuleScene* scene = getActiveModuleScene()) {
+                        std::function<void(GameObject*)> listCams = [&](GameObject* node) {
+                            if (!node) return;
+                            if (node->getComponent<ComponentCamera>()) {
+                                bool selected = (node == activeCamGO);
+                                if (ImGui::Selectable(node->getName().c_str(), selected))
+                                    cam->setActiveCamera(node);
+                            }
+                            for (auto* child : node->getChildren()) listCams(child);
+                        };
+                        listCams(scene->getRoot());
+                    }
+                    ImGui::EndCombo();
+                }
+                ImGui::Separator();
+
                 int cm = (int)cam->cullMode;
                 ImGui::Text("Cull Mode"); ImGui::SameLine();
                 if (ImGui::RadioButton("Off##cm", &cm, 0)) cam->cullMode = ModuleCamera::CullMode::None;
@@ -1634,6 +1730,16 @@ void ModuleEditor::deleteGameObject(GameObject* go){
             for (auto* c : node->getChildren()) collect(c);
         };
         collect(go);
+    }
+
+    // Clear the active-game-camera pointer if it points at go or any descendant,
+    // to avoid a dangling GameObject* in ModuleCamera.
+    if (ModuleCamera* cam = app->getCamera()) {
+        GameObject* active = cam->getActiveCamera();
+        if (active && (active == go || isChildOf(go, active))) {
+            cam->setActiveCamera(nullptr);
+            cam->clearGameCameraFrustum();
+        }
     }
 
     // --- Nullify skin-joint references to every object in the subtree BEFORE
