@@ -65,9 +65,39 @@
 #include <filesystem>
 #include <algorithm>
 #include <functional>
+#include <unordered_set>
+#include <cfloat>
 
 namespace fs = std::filesystem;
 static constexpr float kDeg2Rad = 0.0174532925f;
+
+// Gap 2 (LOD): projected screen coverage = NDC-space bounding-box area of the
+// world AABB / total NDC area (2x2 = 4). Returns 0 if the AABB is fully behind
+// the camera or degenerate.
+static float computeScreenCoverage(const Vector3& mn, const Vector3& mx, const Matrix& viewProj){
+    Vector3 corners[8] = {
+        {mn.x,mn.y,mn.z},{mx.x,mn.y,mn.z},{mn.x,mx.y,mn.z},{mx.x,mx.y,mn.z},
+        {mn.x,mn.y,mx.z},{mx.x,mn.y,mx.z},{mn.x,mx.y,mx.z},{mx.x,mx.y,mx.z},
+    };
+    Vector2 ndcMin(FLT_MAX, FLT_MAX), ndcMax(-FLT_MAX, -FLT_MAX);
+    bool anyInFront = false;
+    for (const auto& c : corners) {
+        Vector4 clip = Vector4::Transform(Vector4(c.x, c.y, c.z, 1.0f), viewProj);
+        if (clip.w <= 0.0001f) continue; // behind camera
+        anyInFront = true;
+        float x = clip.x / clip.w;
+        float y = clip.y / clip.w;
+        ndcMin.x = std::min(ndcMin.x, x); ndcMax.x = std::max(ndcMax.x, x);
+        ndcMin.y = std::min(ndcMin.y, y); ndcMax.y = std::max(ndcMax.y, y);
+    }
+    if (!anyInFront) return 0.0f;
+    // Clip to the [-1,1] viewport before measuring area.
+    ndcMin.x = std::max(ndcMin.x, -1.0f); ndcMax.x = std::min(ndcMax.x, 1.0f);
+    ndcMin.y = std::max(ndcMin.y, -1.0f); ndcMax.y = std::min(ndcMax.y, 1.0f);
+    float w = std::max(0.0f, ndcMax.x - ndcMin.x);
+    float h = std::max(0.0f, ndcMax.y - ndcMin.y);
+    return (w * h) / 4.0f;
+}
 static constexpr float kStatusH = 22.f; // height of the status bar overlay
 
 ModuleEditor::ModuleEditor() = default;
@@ -275,27 +305,68 @@ void ModuleEditor::preRender(){
     // it above). Visibility is FLAGGED, not deactivated — collectMeshes() in
     // renderSceneWithCamera() checks isVisible() and simply skips the draw call,
     // while physics/animation/AI/scripts keep updating off-screen objects normally.
+    //
+    // GAME VIEW VISIBILITY ONLY: this flag (and the resulting culling in
+    // collectMeshes) only affects the Game View's render path. The Scene/editor
+    // viewport always renders every mesh regardless of isVisible() — see the
+    // `!editorExtras` check in collectMeshes(). The flag is still computed here
+    // every frame because the Scene view's debug overlay (green/red AABBs +
+    // game-camera frustum wireframe) and the visibility stats counter rely on it.
     if (ModuleCamera* cam = app->getCamera()) {
         ModuleScene* scene = getActiveModuleScene();
         int visible = 0, total = 0;
         if (scene) {
-            std::function<void(GameObject*)> cullMeshes = [&](GameObject* node) {
+            // Pass 1: collect every renderable mesh GameObject + its world AABB.
+            // Meshes without an AABB are always visible and skip culling entirely.
+            std::vector<RenderOctree::Entry> entries;
+            std::function<void(GameObject*)> collect = [&](GameObject* node) {
                 if (!node || !node->isActive()) return;
                 if (auto* cm = node->getComponent<ComponentMesh>()) {
                     if (cm->hasAABB()) {
                         Vector3 mn, mx;
                         cm->getWorldAABB(mn, mx);
-                        bool vis = !cam->hasGameFrustum() || cam->getGameFrustum().intersectsAABB(mn, mx);
-                        cm->setVisible(vis);
+                        entries.push_back({ node, AABB{ mn, mx } });
                         ++total;
-                        if (vis) ++visible;
                     } else {
                         cm->setVisible(true);
                     }
                 }
-                for (auto* child : node->getChildren()) cullMeshes(child);
+                for (auto* child : node->getChildren()) collect(child);
             };
-            cullMeshes(scene->getRoot());
+            collect(scene->getRoot());
+
+            if (cam->cullAlgorithm == ModuleCamera::CullAlgorithm::Octree) {
+                // Octree path: rebuild (lazily) and query the active game frustum
+                // for candidate visible objects — everything else is auto-culled
+                // without a per-object plane test.
+                m_renderOctree.clear();
+                for (const auto& e : entries) m_renderOctree.add(e.go, e.worldAABB);
+                m_renderOctree.build();
+                cam->octreeNodeCount = m_renderOctree.getNodeCount();
+                cam->octreeLeafCount = m_renderOctree.getLeafCount();
+
+                if (!cam->hasGameFrustum()) {
+                    for (const auto& e : entries) { e.go->getComponent<ComponentMesh>()->setVisible(true); ++visible; }
+                } else {
+                    std::vector<GameObject*> visibleSet;
+                    m_renderOctree.query(cam->getGameFrustum(), visibleSet);
+                    std::unordered_set<GameObject*> visibleLookup(visibleSet.begin(), visibleSet.end());
+                    for (const auto& e : entries) {
+                        bool vis = visibleLookup.count(e.go) != 0;
+                        e.go->getComponent<ComponentMesh>()->setVisible(vis);
+                        if (vis) ++visible;
+                    }
+                }
+            } else {
+                // Linear path (fallback): per-mesh frustum plane test against every renderable.
+                cam->octreeNodeCount = 0;
+                cam->octreeLeafCount = 0;
+                for (const auto& e : entries) {
+                    bool vis = !cam->hasGameFrustum() || cam->getGameFrustum().intersectsAABB(e.worldAABB.min, e.worldAABB.max);
+                    e.go->getComponent<ComponentMesh>()->setVisible(vis);
+                    if (vis) ++visible;
+                }
+            }
         }
         cam->setVisibilityStats(visible, total);
     }
@@ -394,6 +465,18 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     ModuleCamera* camera = app->getCamera();
     ModuleScene* moduleScene = getActiveModuleScene();
 
+    // Per-viewport camera position/right/up, derived from the `view` matrix that was
+    // built specifically for THIS viewport (SceneView's editor fly-cam, or GameView's
+    // active game camera). renderSceneWithCamera runs once per viewport per frame, but
+    // `camera` (app->getCamera(), the editor fly-cam) is shared — using camera->getPos()
+    // etc. directly here would bleed the editor camera's transform into Game View
+    // billboards/particles/trails/lighting. Always use these view-derived vectors for
+    // anything that should reflect "the camera currently rendering this viewport".
+    Matrix viewCamWorld; view.Invert(viewCamWorld);
+    const Vector3 viewCamPos = viewCamWorld.Translation();
+    Vector3 viewCamRight = Vector3::TransformNormal(Vector3::UnitX, viewCamWorld); viewCamRight.Normalize();
+    Vector3 viewCamUp = Vector3::TransformNormal(Vector3::UnitY, viewCamWorld); viewCamUp.Normalize();
+
     if (moduleScene) {
         std::function<void(GameObject*)> flush = [&](GameObject* node) {
             if (!node) return;
@@ -427,6 +510,12 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     uint32_t curVertexOffset = 0;
     uint32_t curMorphWeightOffset = 0;
 
+    // Gap 2 (LOD): per-viewport view*proj used to compute screen coverage. Computed
+    // here (before viewProj below, which is also used for sorting/culling) since
+    // collectMeshes runs first and needs it for LOD selection.
+    const Matrix lodViewProj = view * proj;
+    const int forceLODIndex = (int)camera->forceLOD - 1; // ForceLOD::Auto(0) -> -1, LOD0(1) -> 0, ...
+
     if (moduleScene) {
         std::function<void(GameObject*)> collectMeshes = [&](GameObject* node) {
             if (!node || !node->isActive()) return;
@@ -437,9 +526,23 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                 // as not visible this frame (see ComponentMesh::isVisible()).
                 // We still recurse into children below so transforms/hierarchy
                 // traversal is unaffected — only the draw call is skipped.
-                if (camera->cullMode == ModuleCamera::CullMode::Frustum && !cm->isVisible()) {
+                //
+                // GAME VIEW ONLY — isVisible() reflects the active GAME camera's
+                // frustum (computed in preRender()). The Scene/editor viewport
+                // (editorExtras == true) must always render every mesh regardless
+                // of the game camera's frustum, so culling is skipped entirely here.
+                if (!editorExtras && camera->cullMode == ModuleCamera::CullMode::Frustum && !cm->isVisible()) {
                     for (auto* child : node->getChildren()) collectMeshes(child);
                     return;
+                }
+
+                // Gap 2: select LOD for this viewport's camera before building mesh
+                // entries, so the swapped-in mesh resource (if any) is what gets drawn.
+                if (cm->hasLODLevels() && cm->hasAABB()) {
+                    Vector3 mn, mx;
+                    cm->getWorldAABB(mn, mx);
+                    float coverage = computeScreenCoverage(mn, mx, lodViewProj);
+                    cm->updateLOD(coverage, forceLODIndex);
                 }
 
                 Matrix nodeWorld = node->getTransform()->getGlobalMatrix();
@@ -607,16 +710,15 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     // happened *inside* the mesh-gated block, so billboard-only scenes rendered nothing.
     std::vector<BillboardInstance> billboards;
     if (m_billboardPass && moduleScene) {
-        const Vector3 camPos = camera->getPos();
         gatherBillboards(moduleScene->getRoot(), billboards, view, viewProj,
-                         camPos, camera->getRight(), camera->getUp());
+                         viewCamPos, viewCamRight, viewCamUp);
         gatherParticleSystems(moduleScene->getRoot(), billboards, viewProj,
-                              camPos, camera->getRight(), camera->getUp());
+                              viewCamPos, viewCamRight, viewCamUp);
     }
 
     std::vector<TrailInstance> trails;
     if (m_trailPass && moduleScene) {
-        gatherTrails(moduleScene->getRoot(), trails, viewProj, camera->getPos());
+        gatherTrails(moduleScene->getRoot(), trails, viewProj, viewCamPos);
     }
 
     // GPU particle requests — collected here so we have camera vectors available.
@@ -625,7 +727,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
     std::vector<ParticleDrawRequest> gpuParticleRequests;
     if (m_particlePass && moduleScene) {
         gatherGPUParticles(moduleScene->getRoot(), gpuParticleRequests,
-                           camera->getPos(), camera->getRight(), camera->getUp(),
+                           viewCamPos, viewCamRight, viewCamUp,
                            (float)app->getElapsedMilis() / 1000.f);
     }
 
@@ -659,15 +761,42 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
         if (m_deferredLightingPass) {
             Matrix invViewProj;
             viewProj.Invert(invViewProj);
-            m_deferredLightingPass->render(cmd, *m_gbufferPass, m_frameLights,
-                                            camera->getPos(), view, proj,
-                                            invViewProj, envForIBL, w, h);
+
+            // Gap 3 (lights): GAME VIEW ONLY — point/spot lights whose world-space
+            // sphere (position+range) is fully outside the active game camera's
+            // frustum are dropped before they reach the tile light grid / GPU at
+            // all. Directional lights are never culled. The Scene viewport always
+            // uses the full m_frameLights (editorExtras == true skips this).
+            if (!editorExtras && camera->hasGameFrustum()) {
+                const Frustum& gf = camera->getGameFrustum();
+                FrameLightData culledLights;
+                culledLights.dirLights = m_frameLights.dirLights;
+                culledLights.pointLights.reserve(m_frameLights.pointLights.size());
+                for (const auto& pl : m_frameLights.pointLights) {
+                    Sphere s{ pl.position, sqrtf(pl.squaredRadius) };
+                    AABB box = s.toAABB();
+                    if (gf.intersectsAABB(box.min, box.max)) culledLights.pointLights.push_back(pl);
+                }
+                culledLights.spotLights.reserve(m_frameLights.spotLights.size());
+                for (const auto& sl : m_frameLights.spotLights) {
+                    Sphere s{ sl.position, sqrtf(sl.squaredRadius) };
+                    AABB box = s.toAABB();
+                    if (gf.intersectsAABB(box.min, box.max)) culledLights.spotLights.push_back(sl);
+                }
+                m_deferredLightingPass->render(cmd, *m_gbufferPass, culledLights,
+                                                viewCamPos, view, proj,
+                                                invViewProj, envForIBL, w, h);
+            } else {
+                m_deferredLightingPass->render(cmd, *m_gbufferPass, m_frameLights,
+                                                viewCamPos, view, proj,
+                                                invViewProj, envForIBL, w, h);
+            }
         }
 
         // Transparent forward pass — sorted back-to-front, depth test only (no depth write)
         if (!translucentMeshes.empty() && m_meshRenderPass && outputRT && outputRT->isValid()) {
             // Sort furthest-first for correct alpha blending
-            const Vector3 camPos = camera->getPos();
+            const Vector3 camPos = viewCamPos;
             std::sort(translucentMeshes.begin(), translucentMeshes.end(),
                       [&camPos](const MeshEntry* a, const MeshEntry* b) {
                           Matrix wa, wb;
@@ -697,7 +826,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
         // sharing the scene RT and read-only GBuffer depth. Rendered independently of
         // whether any transparent meshes exist, so billboard-only scenes still draw.
         if (m_billboardPass && moduleScene && outputRT && outputRT->isValid()) {
-            const Vector3 camPos = camera->getPos();
+            const Vector3 camPos = viewCamPos;
             if (!billboards.empty()) {
                 // Group by blend mode first (alpha before additive — additive fx like
                 // fire/glow/sparks composite on top), back-to-front within each group.
@@ -729,7 +858,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
         // Trails — CPU-generated camera-facing ribbon meshes,
         // alpha/additive blended, sharing the scene RT and read-only GBuffer depth.
         if (m_trailPass && moduleScene && outputRT && outputRT->isValid() && !trails.empty()) {
-            const Vector3 camPos = camera->getPos();
+            const Vector3 camPos = viewCamPos;
             std::sort(trails.begin(), trails.end(),
                       [&camPos](const TrailInstance& a, const TrailInstance& b) {
                           if (a.additive != b.additive) return !a.additive && b.additive;
@@ -755,7 +884,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
         if (m_particlePass && moduleScene && outputRT && outputRT->isValid()
                            && !gpuParticleRequests.empty()) {
             // Sort: alpha before additive, then back-to-front within each group.
-            const Vector3 camPos = camera->getPos();
+            const Vector3 camPos = viewCamPos;
             std::sort(gpuParticleRequests.begin(), gpuParticleRequests.end(),
                       [&camPos](const ParticleDrawRequest& a, const ParticleDrawRequest& b) {
                           if (a.additive != b.additive) return !a.additive && b.additive;
@@ -777,7 +906,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
             cmd->RSSetScissorRects(1, &sc);
 
             m_particlePass->render(cmd, gpuParticleRequests, viewProj,
-                                   camera->getRight(), camera->getUp(),
+                                   viewCamRight, viewCamUp,
                                    (float)app->getElapsedMilis() / 1000.f,
                                    w, h);
         }

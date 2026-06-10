@@ -1,6 +1,7 @@
 #include "Globals.h"
 #include "ComponentTransform.h"
 #include "GameObject.h"
+#include "RenderOctree.h"
 #include "3rdParty/rapidjson/document.h"
 #include "3rdParty/rapidjson/writer.h"
 #include "3rdParty/rapidjson/stringbuffer.h"
@@ -11,6 +12,9 @@ ComponentTransform::ComponentTransform(GameObject* owner) : Component(owner) {}
 
 void ComponentTransform::markDirty(){
     dirty = true;
+    // Any world-space AABB derived from this transform is now stale — flag the
+    // render octree (Gap 1: hierarchical render culling) for a lazy rebuild.
+    RenderOctree::notifyTransformChanged();
     for (auto* child : owner->getChildren())
         if (auto* t = child->getTransform()) t->markDirty();
 }

@@ -5,6 +5,7 @@
 #include "Globals.h"
 #include <d3d12.h>
 #include <wrl.h>
+#include <vector>
 using Microsoft::WRL::ComPtr;
 
 class GBufferPass;
@@ -59,6 +60,14 @@ private:
     ComPtr<ID3D12Resource> m_spotListBuf;
     UINT m_allocatedTiles = 0;
 
+    // Buffers retired by a grow resize. SceneView and GameView call cull() with
+    // different viewport sizes within the SAME (not-yet-executed) command list,
+    // so an old buffer may still be referenced by barriers/descriptors recorded
+    // earlier this frame. Keep them alive here until the next cull() call, where
+    // we flush the GPU (waiting for last frame's command list to fully complete)
+    // before releasing them.
+    std::vector<ComPtr<ID3D12Resource>> m_retiredBuffers;
+
     ShaderTableDesc m_pointListUAV; // UAV for compute write
     ShaderTableDesc m_spotListUAV;
     ShaderTableDesc m_pointListSRV; // SRV for lighting PS read
@@ -78,4 +87,8 @@ private:
 
     uint32_t m_lastWidth = 0;
     uint32_t m_lastHeight = 0;
+
+    // True for the dispatch immediately following a (re)allocation — newly created
+    // buffers start in UNORDERED_ACCESS state, so the PSR->UAV transition must be skipped once.
+    bool m_tileBuffersFreshlyAllocated = false;
 };

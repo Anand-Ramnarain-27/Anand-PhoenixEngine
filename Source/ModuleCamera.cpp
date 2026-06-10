@@ -139,6 +139,31 @@ void ModuleCamera::onEditorDebugPanel(){
     ImGui::Text("Visible: %d / Total: %d  |  Culled: %d", m_visibleCount, m_totalCount, getCulledCount());
 
     ImGui::Separator();
+    ImGui::Text("Culling Mode"); ImGui::SameLine();
+    int ca = (int)cullAlgorithm;
+    if (ImGui::RadioButton("Linear##ca", &ca, 0)) cullAlgorithm = CullAlgorithm::Linear;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Octree##ca", &ca, 1)) cullAlgorithm = CullAlgorithm::Octree;
+    if (cullAlgorithm == CullAlgorithm::Octree)
+        ImGui::Text("Octree Nodes: %d  |  Leaves: %d", octreeNodeCount, octreeLeafCount);
+
+    ImGui::Separator();
+    ImGui::Text("Force LOD"); ImGui::SameLine();
+    int fl = (int)forceLOD;
+    if (ImGui::RadioButton("Auto##lod", &fl, 0)) forceLOD = ForceLOD::Auto;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("0##lod", &fl, 1)) forceLOD = ForceLOD::LOD0;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("1##lod", &fl, 2)) forceLOD = ForceLOD::LOD1;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("2##lod", &fl, 3)) forceLOD = ForceLOD::LOD2;
+
+    ImGui::Separator();
+    ImGui::Text("AI Culling");
+    ImGui::DragFloat("AI Cull Distance", &aiCullDistance, 1.0f, 0.0f, 1000.0f);
+    ImGui::DragInt("AI Cull Tick Rate", &aiCullTickRate, 1, 1, 60);
+
+    ImGui::Separator();
     ImGui::Text("Camera Parameters");
     float fovDeg = fovY * 57.2957795f;
     if (ImGui::SliderFloat("FOV (Y)", &fovDeg, 10.f, 170.f)) fovY = fovDeg * 0.0174532925f;

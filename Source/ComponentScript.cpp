@@ -2,6 +2,10 @@
 #include "ComponentScript.h"
 #include "HotReloadManager.h"
 #include "GameObject.h"
+#include "ComponentMesh.h"
+#include "ComponentTransform.h"
+#include "Application.h"
+#include "ModuleCamera.h"
 #include <imgui.h>
 
 #include "3rdParty/rapidjson/document.h"
@@ -57,6 +61,31 @@ void ComponentScript::update(float dt){
         m_script->Start(owner);
         m_started = true;
     }
+    // Gap 3 (AI culling): compute visibility + distance-to-camera here (Engine
+    // side) and pass as plain data — GameScript DLLs cannot link directly
+    // against Engine internals like GameObject/ComponentMesh/ComponentTransform.
+    bool isVisible = true;
+    if (auto* mesh = owner->getComponent<ComponentMesh>())
+        isVisible = mesh->isVisible();
+
+    float distanceToCamera = 0.0f;
+    float aiCullDistance = 50.0f;
+    int aiCullTickRate = 10;
+    if (ModuleCamera* camera = app->getCamera()) {
+        aiCullDistance = camera->aiCullDistance;
+        aiCullTickRate = camera->aiCullTickRate;
+        if (GameObject* activeCam = camera->getActiveCamera()) {
+            if (auto* camTransform = activeCam->getTransform()) {
+                if (auto* myTransform = owner->getTransform()) {
+                    distanceToCamera = Vector3::Distance(
+                        myTransform->getGlobalMatrix().Translation(),
+                        camTransform->getGlobalMatrix().Translation());
+                }
+            }
+        }
+    }
+
+    if (!m_script->shouldTickAI(isVisible, distanceToCamera, aiCullDistance, aiCullTickRate)) return;
     m_script->Update(dt);
 }
 
