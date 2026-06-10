@@ -115,6 +115,10 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
 
     // Reallocate tile buffers if viewport changed
     if (numTiles != m_allocatedTiles || !m_pointListBuf) {
+        // The old buffers may still be referenced by an in-flight command list from a
+        // previous frame; wait for the GPU to finish before destroying/replacing them.
+        if (m_pointListBuf) app->getD3D12()->flush();
+
         auto* device = app->getD3D12()->getDevice();
         if (!allocTileBuffers(device, numTiles, MAX_LIGHTS_PER_TILE,
                               m_pointListBuf, L"LightCulling_PointList")) return;
