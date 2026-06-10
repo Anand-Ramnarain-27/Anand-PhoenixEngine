@@ -10,6 +10,7 @@
 #include <d3dx12.h>
 #include <algorithm>
 #include <cstring>
+#include <filesystem>
 
 namespace {
     constexpr UINT cbAlign(UINT b) { return (b + 255u) & ~255u; }
@@ -80,7 +81,27 @@ D3D12_GPU_DESCRIPTOR_HANDLE BillboardPass::getOrLoadTexture(const std::string& p
         return it->second.srv.getGPUHandle(0);
 
     auto* gpu = app->getGPUResources();
+
+    // Try the path as-is first.  If it's a source-asset path (e.g. Assets/.../foo.tga)
+    // and the direct load fails, check whether the asset pipeline already imported an
+    // equivalent DDS into Library/Textures/<stem>.dds and load that instead.
+    std::string resolvedPath = path;
     ComPtr<ID3D12Resource> tex = gpu ? gpu->createTextureFromFile(path, true) : nullptr;
+    // If the raw path failed and it's not already a DDS, try the imported DDS in
+    // Library/Textures/<stem>.dds — that's where TextureImporter writes converted assets.
+    // Don't use fs::exists; just attempt the load (no CWD dependency on the check).
+    if (!tex) {
+        namespace fs = std::filesystem;
+        fs::path fp(path);
+        std::string ext = fp.extension().string();
+        // Lowercase compare
+        for (auto& c : ext) c = (char)std::tolower((unsigned char)c);
+        if (ext != ".dds") {
+            std::string ddsCandidate = "Library/Textures/" + fp.stem().string() + ".dds";
+            tex = gpu ? gpu->createTextureFromFile(ddsCandidate, true) : nullptr;
+            if (tex) resolvedPath = ddsCandidate;
+        }
+    }
     if (!tex) {
         LOG("BillboardPass: failed to load texture '%s', using fallback", path.c_str());
         if (auto* ed = app->getEditor())
@@ -102,9 +123,10 @@ D3D12_GPU_DESCRIPTOR_HANDLE BillboardPass::getOrLoadTexture(const std::string& p
 
     if (auto* ed = app->getEditor()) {
         D3D12_RESOURCE_DESC rd = tex->GetDesc();
-        ed->log(("Billboard: loaded texture '" + path + "' (" + std::to_string(rd.Width) + "x" +
-                 std::to_string(rd.Height) + ", fmt " + std::to_string((int)rd.Format) + ")").c_str(),
-                ImVec4(0.5f, 1.f, 0.5f, 1.f));
+        std::string logMsg = "Billboard: loaded '" + resolvedPath + "'";
+        if (resolvedPath != path) logMsg += " (resolved from '" + path + "')";
+        logMsg += " (" + std::to_string(rd.Width) + "x" + std::to_string(rd.Height) + ", fmt " + std::to_string((int)rd.Format) + ")";
+        ed->log(logMsg.c_str(), ImVec4(0.5f, 1.f, 0.5f, 1.f));
     }
 
     auto handle = srv.getGPUHandle(0);

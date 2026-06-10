@@ -4,6 +4,8 @@
 #include "ComponentTransform.h"
 #include "AssetBrowserPanel.h"
 #include "AssetPickerWidget.h"
+#include "Application.h"
+#include "ModuleEditor.h"
 #include <imgui.h>
 #include <algorithm>
 #include <cmath>
@@ -49,15 +51,23 @@ Vector3 ComponentTrail::catmullRom(const Vector3& p0, const Vector3& p1,
 void ComponentTrail::update(float dt){
     if (!enabled) return;
 
-    // Built-in demo motion — swings the owner along an arc so
-    // the trail has something to trace without requiring an external asset.
-    if (demoMotion && owner) {
-        m_demoTime += dt;
-        const float angle = std::sin(m_demoTime * demoSpeed) * 1.57079632679f; // +/- 90 degrees swing
-        Vector3 offset(std::sin(angle) * demoRadius, 0.f, std::cos(angle) * demoRadius - demoRadius);
+    // Preview orbit: move the owner in a circle (XZ) so the trail ribbon is visible
+    // in edit mode without requiring Play or a physics-driven object.
+    // Only active when previewOrbit == true; automatically disabled when effects stop.
+    if (previewOrbit && owner) {
         auto* xform = owner->getTransform();
-        xform->position = demoCenter + offset;
-        xform->rotation = Quaternion::CreateFromYawPitchRoll(angle, 0.f, 0.f);
+        if (!m_orbitInitialized) {
+            // Latch the owner's current position as the orbit centre.
+            orbitCenter = xform->getGlobalMatrix().Translation();
+            m_orbitAngle = 0.f;
+            m_orbitInitialized = true;
+        }
+        m_orbitAngle += orbitSpeed * dt;
+        // Move in XZ, keep the original Y so the object stays at its spawn height.
+        xform->position = Vector3(
+            orbitCenter.x + std::cos(m_orbitAngle) * orbitRadius,
+            orbitCenter.y,
+            orbitCenter.z + std::sin(m_orbitAngle) * orbitRadius);
         xform->markDirty();
     }
 
@@ -179,6 +189,25 @@ bool ComponentTrail::buildMesh(const Vector3& camPos, std::vector<TrailVertex>& 
 }
 
 void ComponentTrail::onEditor(){
+    // ---- Effects transport ----
+    // Lets you preview / stop / restart the trail in edit mode without pressing scene Play.
+    if (auto* ed = app->getEditor()) {
+        bool playing = ed->isEffectsPlaying();
+        ImGui::SeparatorText("Effects Transport");
+        if (ImGui::Button(playing ? "Stop##fxtr" : "Play##fxtr")) {
+            if (playing) ed->effectsStop(); else ed->effectsPlay();
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(playing ? "Stop effects preview" : "Play: updates trail + particles in edit mode");
+        ImGui::SameLine();
+        if (ImGui::Button("Restart##fxtr"))     ed->effectsRestartSelected();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Clear + replay this trail");
+        ImGui::SameLine();
+        if (ImGui::Button("Restart All##fxtr")) ed->effectsRestartAll();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Clear + replay ALL trails and particles in scene");
+    }
+    ImGui::Separator();
+
     ImGui::Checkbox("Enabled##trail", &enabled);
     ImGui::SameLine();
     ImGui::Checkbox("Emitting##trail", &emitting);
@@ -190,6 +219,7 @@ void ComponentTrail::onEditor(){
     ImGui::DragFloat("Duration", &duration, 0.02f, 0.05f, 30.f);
     ImGui::DragFloat("Min point distance", &minPointDistance, 0.005f, 0.001f, 10.f);
     ImGui::DragFloat("Width", &width, 0.01f, 0.001f, 50.f);
+    ImGui::DragFloat("Max segment angle (deg)", &maxSegmentAngle, 0.5f, 0.f, 180.f);
 
     ImGui::Separator();
     ImGui::TextUnformatted("Smoothing (Centripetal Catmull-Rom)");
@@ -228,12 +258,18 @@ void ComponentTrail::onEditor(){
     ImGui::DragInt("Layer", &layer, 1.f, -100, 100);
 
     ImGui::Separator();
-    ImGui::TextUnformatted("Demo motion (test helper - 'Sword trail' exercise)");
-    ImGui::Checkbox("Enable demo swing motion", &demoMotion);
-    if (demoMotion) {
-        ImGui::DragFloat("Swing radius", &demoRadius, 0.05f, 0.05f, 20.f);
-        ImGui::DragFloat("Swing speed", &demoSpeed, 0.05f, 0.05f, 20.f);
-        ImGui::DragFloat3("Swing centre", &demoCenter.x, 0.05f);
+    ImGui::TextUnformatted("Preview Orbit (edit-mode motion)");
+    bool wasOrbit = previewOrbit;
+    ImGui::Checkbox("Enable orbit preview##trail", &previewOrbit);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Moves this object in a circle so the trail ribbon is visible\nwithout pressing Play. Disable before entering Play mode.");
+    if (wasOrbit && !previewOrbit) {
+        // User turned off orbit — re-latch next time they enable it.
+        m_orbitInitialized = false;
+    }
+    if (previewOrbit) {
+        ImGui::DragFloat("Orbit radius##trail", &orbitRadius, 0.05f, 0.1f, 20.f);
+        ImGui::DragFloat("Orbit speed (rad/s)##trail", &orbitSpeed, 0.05f, 0.1f, 20.f);
     }
 
     ImGui::Separator();
@@ -246,6 +282,7 @@ void ComponentTrail::onSave(std::string& outJson) const{
     outJson += "\"duration\":" + std::to_string(duration) + ",";
     outJson += "\"minPointDistance\":" + std::to_string(minPointDistance) + ",";
     outJson += "\"width\":" + std::to_string(width) + ",";
+    outJson += "\"maxSegmentAngle\":" + std::to_string(maxSegmentAngle) + ",";
     outJson += "\"useCatmullRom\":" + std::string(useCatmullRom ? "true" : "false") + ",";
     outJson += "\"catmullRomAlpha\":" + std::to_string(catmullRomAlpha) + ",";
     outJson += "\"subdivisions\":" + std::to_string(subdivisions) + ",";
@@ -259,11 +296,9 @@ void ComponentTrail::onSave(std::string& outJson) const{
     outJson += "\"blendMode\":" + std::to_string((int)blendMode) + ",";
     outJson += "\"textureMode\":" + std::to_string((int)textureMode) + ",";
     outJson += "\"layer\":" + std::to_string(layer) + ",";
-    outJson += "\"demoMotion\":" + std::string(demoMotion ? "true" : "false") + ",";
-    outJson += "\"demoRadius\":" + std::to_string(demoRadius) + ",";
-    outJson += "\"demoSpeed\":" + std::to_string(demoSpeed) + ",";
-    outJson += "\"demoCenter\":[" + std::to_string(demoCenter.x) + "," + std::to_string(demoCenter.y) + "," +
-                                     std::to_string(demoCenter.z) + "]";
+    outJson += "\"previewOrbit\":" + std::string(previewOrbit ? "true" : "false") + ",";
+    outJson += "\"orbitRadius\":" + std::to_string(orbitRadius) + ",";
+    outJson += "\"orbitSpeed\":" + std::to_string(orbitSpeed);
 }
 
 void ComponentTrail::onLoad(const std::string& json){
@@ -307,7 +342,8 @@ void ComponentTrail::onLoad(const std::string& json){
     emitting = getBool("emitting", true);
     duration = getFloat("duration", duration);
     minPointDistance = getFloat("minPointDistance", minPointDistance);
-    width = getFloat("width", width);
+    width            = getFloat("width", width);
+    maxSegmentAngle  = getFloat("maxSegmentAngle", maxSegmentAngle);
     useCatmullRom = getBool("useCatmullRom", useCatmullRom);
     catmullRomAlpha = getFloat("catmullRomAlpha", catmullRomAlpha);
     subdivisions = getInt("subdivisions", subdivisions);
@@ -320,10 +356,8 @@ void ComponentTrail::onLoad(const std::string& json){
     texturePath = extract("texturePath");
     blendMode = (BlendMode)getInt("blendMode", (int)blendMode);
     textureMode = (TextureMode)getInt("textureMode", (int)textureMode);
-    layer = getInt("layer", layer);
-
-    demoMotion = getBool("demoMotion", demoMotion);
-    demoRadius = getFloat("demoRadius", demoRadius);
-    demoSpeed = getFloat("demoSpeed", demoSpeed);
-    if (auto v = extract("demoCenter"); !v.empty()) extractArray(v, &demoCenter.x, 3);
+    layer        = getInt("layer", layer);
+    previewOrbit = getBool("previewOrbit", previewOrbit);
+    orbitRadius  = getFloat("orbitRadius", orbitRadius);
+    orbitSpeed   = getFloat("orbitSpeed", orbitSpeed);
 }

@@ -165,7 +165,7 @@ void TrailPass::render(ID3D12GraphicsCommandList* cmd,
         // but kept per-CB (matches the billboard pass layout and leaves room for
         // future per-trail transforms / tints).
         TrailInstanceCB cb{};
-        cb.viewProj = viewProj;
+        cb.viewProj = viewProj.Transpose();
         cb.tint = tr.tint;
         void* dstCb = reinterpret_cast<uint8_t*>(m_cbMapped) + i * cbStride;
         memcpy(dstCb, &cb, sizeof(TrailInstanceCB));

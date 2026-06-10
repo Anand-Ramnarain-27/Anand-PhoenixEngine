@@ -126,19 +126,35 @@ ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromMemory(const void* d
 }
 
 ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromFile(const std::filesystem::path& path, bool defaultSRGB){
-    const wchar_t* fileName = path.c_str();
+    // Resolve relative paths (e.g. "Library/Textures/x.dds") against the exe's
+    // own directory rather than the process CWD -- when launched from the
+    // debugger the CWD is the Source/ folder, not build/.../x64/, so
+    // std::filesystem::absolute() would point at a non-existent location.
+    std::filesystem::path absPath = path;
+    if (!absPath.is_absolute()) {
+        char exePath[MAX_PATH];
+        GetModuleFileNameA(nullptr, exePath, MAX_PATH);
+        absPath = std::filesystem::path(exePath).parent_path() / path;
+    }
+    const wchar_t* fileName = absPath.c_str();
     ScratchImage image;
-    bool ok = SUCCEEDED(LoadFromDDSFile(fileName, DDS_FLAGS_NONE, nullptr, image));
-    ok = ok || SUCCEEDED(LoadFromHDRFile(fileName, nullptr, image));
+    HRESULT hrDDS = LoadFromDDSFile(fileName, DDS_FLAGS_NONE, nullptr, image);
+    bool ok = SUCCEEDED(hrDDS);
+    HRESULT hrFirst = hrDDS; // for diagnostics
+    if (!ok) ok = SUCCEEDED(LoadFromHDRFile(fileName, nullptr, image));
     // TGA: use TGA_FLAGS_NONE — TGA_FLAGS_DEFAULT_SRGB requires sRGB metadata to be
     // embedded inside the TGA file itself (a rare authoring-tool extension). Game-asset
     // TGAs (e.g. TXT_Fire_01.tga, TXT_Sparks_01.tga) don't carry that metadata, so the
     // flag causes LoadFromTGAFile to return E_FAIL. TextureImporter uses the same
     // no-flags call and successfully imports these files.  The sRGB interpretation is
     // handled downstream by the DXGI_FORMAT of the SRV, not the TGA loader.
-    ok = ok || SUCCEEDED(LoadFromTGAFile(fileName, TGA_FLAGS_NONE, nullptr, image));
-    ok = ok || SUCCEEDED(LoadFromWICFile(fileName, defaultSRGB ? WIC_FLAGS_DEFAULT_SRGB : WIC_FLAGS_NONE, nullptr, image));
-    return ok ? createTextureFromImage(image, path.string().c_str()) : nullptr;
+    if (!ok) ok = SUCCEEDED(LoadFromTGAFile(fileName, TGA_FLAGS_NONE, nullptr, image));
+    if (!ok) ok = SUCCEEDED(LoadFromWICFile(fileName, defaultSRGB ? WIC_FLAGS_DEFAULT_SRGB : WIC_FLAGS_NONE, nullptr, image));
+    if (!ok) {
+        LOG("ModuleGPUResources::createTextureFromFile: all loaders failed for '%s' (DDS hr=0x%08X)", absPath.string().c_str(), (unsigned)hrFirst);
+        return nullptr;
+    }
+    return createTextureFromImage(image, path.string().c_str());
 }
 
 ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromImage(const ScratchImage& image, const char* name){
@@ -150,13 +166,16 @@ ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromImage(const ScratchI
     ComPtr<ID3D12Resource> texture;
     D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(meta.format, UINT64(meta.width), UINT(meta.height), UINT16(meta.arraySize), UINT16(meta.mipLevels));
     CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
-    bool ok = SUCCEEDED(device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&texture)));
+    HRESULT hrCreate = device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&texture));
+    bool ok = SUCCEEDED(hrCreate);
+    if (!ok) { LOG("ModuleGPUResources::createTextureFromImage: CreateCommittedResource failed 0x%08X for '%s'", (unsigned)hrCreate, name); return {}; }
 
     ComPtr<ID3D12Resource> upload;
     if (ok){
         _ASSERTE(meta.mipLevels * meta.arraySize == image.GetImageCount());
         upload = getUploadHeap(GetRequiredIntermediateSize(texture.Get(), 0, UINT(image.GetImageCount())));
         ok = upload != nullptr;
+        if (!ok) LOG("ModuleGPUResources::createTextureFromImage: getUploadHeap failed for '%s'", name);
     }
 
     if (ok){
@@ -168,7 +187,9 @@ ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromImage(const ScratchI
                 const Image* subImg = image.GetImage(level, item, 0);
                 subData.push_back({ subImg->pixels, (LONG_PTR)subImg->rowPitch, (LONG_PTR)subImg->slicePitch });
             }
-        ok = UpdateSubresources(commandList.Get(), texture.Get(), upload.Get(), 0, 0, UINT(image.GetImageCount()), subData.data()) != 0;
+        UINT64 uploaded = UpdateSubresources(commandList.Get(), texture.Get(), upload.Get(), 0, 0, UINT(image.GetImageCount()), subData.data());
+        ok = uploaded != 0;
+        if (!ok) LOG("ModuleGPUResources::createTextureFromImage: UpdateSubresources returned 0 for '%s'", name);
     }
 
     if (ok){

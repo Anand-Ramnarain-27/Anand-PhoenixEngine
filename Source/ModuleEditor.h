@@ -15,6 +15,7 @@
 #include "DecalPass.h"
 #include "BillboardPass.h"
 #include "TrailPass.h"
+#include "ParticlePass.h"
 #include "SkinningPass.h"
 
 #include <memory>
@@ -103,10 +104,20 @@ public:
     // (flames / brighter inner light / glow / sparks) as a parented GameObject group.
     GameObject* spawnFireParticleSystem(const Vector3& position = Vector3::Zero);
     GameObject* spawnSwordTrail(const Vector3& position = Vector3::Zero);
+    // Trail + particles combined prefab — fire orb that leaves a comet trail when moved.
+    GameObject* spawnFireComet(const Vector3& position = Vector3::Zero);
 
     // Stop playback, clear editor selection and undo stack so no stale pointers
     // remain after the scene is restored.
     void stopPlay();
+
+    // Effects transport — preview particles + trails in edit mode without scene Play.
+    // Called from ComponentTrail / ComponentParticleSystem onEditor() buttons.
+    bool isEffectsPlaying() const { return m_effectsPlaying; }
+    void effectsPlay()        { m_effectsPlaying = true;  m_effectsTime = 0.f; }
+    void effectsStop();
+    void effectsRestartAll();
+    void effectsRestartSelected();
 
     static bool isChildOf(const GameObject* root, const GameObject* needle);
 
@@ -138,7 +149,8 @@ private:
     std::unique_ptr<DeferredLightingPass> m_deferredLightingPass;
     std::unique_ptr<DecalPass> m_decalPass;
     std::unique_ptr<BillboardPass> m_billboardPass;
-    std::unique_ptr<TrailPass> m_trailPass;
+    std::unique_ptr<TrailPass>     m_trailPass;
+    std::unique_ptr<ParticlePass>  m_particlePass;
     std::unique_ptr<EnvironmentSystem> m_envSystem;
     std::unique_ptr<HotReloadManager> m_hotReload;
     std::unique_ptr<SkinningPass> m_skinningPass;
@@ -182,6 +194,11 @@ private:
     int m_samplerType = 0;
     bool m_firstFrame = true;
 
+    // Effects transport — controls particles/trails in editor (edit-mode preview).
+    // Independent of scene Play state: lets you preview fx without pressing Play.
+    bool  m_effectsPlaying = false;
+    float m_effectsTime    = 0.f;
+
     static constexpr int kMaxUndoSteps = 200;
     std::deque<EditorCommand> m_undoStack;
     std::deque<EditorCommand> m_redoStack;
@@ -214,8 +231,12 @@ private:
                                const Vector3& camPos, const Vector3& camRight, const Vector3& camUp) const;
     void gatherTrails(GameObject* node, std::vector<TrailInstance>& out,
                       const Matrix& viewProj, const Vector3& camPos) const;
+    void gatherGPUParticles(GameObject* node, std::vector<ParticleDrawRequest>& out,
+                            const Vector3& camPos, const Vector3& camRight, const Vector3& camUp,
+                            float elapsedTime) const;
     void debugDrawLights(ModuleScene* scene, float lightSize);
     void updateMemory();
+    void updateEffectsInEditMode(float dt); // tick trails + particles when not in play mode
     void handleNewScenePopup(ID3D12GraphicsCommandList* cmd);
     void drawDockspace();
     void drawMenuBar();

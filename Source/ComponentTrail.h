@@ -47,6 +47,10 @@ public:
     float duration = 1.0f; // seconds of life for each generated point
     float minPointDistance = 0.05f; // new point spawned once moved at least this far
     float width = 0.25f; // distance between the two ribbon edges
+    // Maximum angle (degrees) between consecutive segments before a new point is
+    // forced regardless of minPointDistance — matches the reference field.
+    // Currently declared for parity; culling/splitting logic is a future extension.
+    float maxSegmentAngle = 15.f;
 
     // ---- Smoothing/ "Centripetal Catmull-Rom") ----
     bool useCatmullRom = true;
@@ -65,15 +69,16 @@ public:
     TextureMode textureMode = TextureMode::Stretch;
     int layer = 0;
 
-    // ---- Built-in demo motion (test helper) ----
-    // Drives the owner transform along a swinging arc so the trail can be exercised
-    // without requiring an external asset or a scripting setup.
-    bool demoMotion = false;
-    float demoRadius = 1.5f;
-    float demoSpeed = 3.0f; // swing speed (rad/s)
-    Vector3 demoCenter = Vector3(0.f, 1.f, 0.f); // local-space orbit centre offset
+    // ---- Preview orbit (edit-mode effects transport) ----
+    // When true and Effects Transport is playing, this component moves the owner
+    // in a circle (XZ plane) so the trail ribbon is visible without needing Play
+    // mode or a physics-driven object.  Disable at runtime / before Play.
+    bool  previewOrbit      = false;
+    float orbitRadius       = 1.5f;  // metres
+    float orbitSpeed        = 2.5f;  // radians / second
+    Vector3 orbitCenter;             // set to owner's world position when orbit starts
 
-    void clear() { m_points.clear(); }
+    void clear() { m_points.clear(); m_orbitInitialized = false; }
 
     // Builds the ribbon mesh for the current frame. `camPos` is used to derive
     // a camera-facing perpendicular at each path point.
@@ -93,5 +98,6 @@ private:
                               float alpha, float t);
 
     std::deque<TrailPoint> m_points;
-    float m_demoTime = 0.f;
+    float m_orbitAngle = 0.f;      // current orbit angle in radians
+    bool  m_orbitInitialized = false; // has orbitCenter been latched yet?
 };

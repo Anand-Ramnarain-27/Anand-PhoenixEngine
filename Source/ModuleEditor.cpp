@@ -65,7 +65,6 @@
 #include <filesystem>
 #include <algorithm>
 #include <functional>
-#include <cstdio>
 
 namespace fs = std::filesystem;
 static constexpr float kDeg2Rad = 0.0174532925f;
@@ -157,6 +156,13 @@ bool ModuleEditor::init(){
         // Non-fatal: engine runs without trails
         LOG("ModuleEditor: TrailPass init failed (non-fatal)");
         m_trailPass.reset();
+    }
+
+    m_particlePass = std::make_unique<ParticlePass>();
+    if (!m_particlePass->init(device)) {
+        // Non-fatal: falls back to BillboardPass per-particle path
+        LOG("ModuleEditor: ParticlePass init failed (non-fatal)");
+        m_particlePass.reset();
     }
 
     m_envSystem = std::make_unique<EnvironmentSystem>();
@@ -262,6 +268,14 @@ void ModuleEditor::preRender(){
     if (m_sceneManager) {
         m_sceneManager->update(dt);
         m_sceneManager->updateAnimations(dt);
+    }
+
+    // Effects transport: tick trails + particles in edit mode independently of Play.
+    // During scene Play the normal update() path already handles these; we only need
+    // to step them here when the scene is NOT playing.
+    if (m_effectsPlaying && m_sceneManager &&
+        m_sceneManager->getState() != SceneManager::PlayState::Playing) {
+        updateEffectsInEditMode(dt);
     }
 
     // Run the three-stage collision pipeline every frame (feeds the debug panel).
@@ -565,6 +579,16 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
         gatherTrails(moduleScene->getRoot(), trails, viewProj, camera->getPos());
     }
 
+    // GPU particle requests — collected here so we have camera vectors available.
+    // Only ComponentParticleSystems with useGPU=true are gathered; the rest go
+    // through gatherParticleSystems → BillboardPass above.
+    std::vector<ParticleDrawRequest> gpuParticleRequests;
+    if (m_particlePass && moduleScene) {
+        gatherGPUParticles(moduleScene->getRoot(), gpuParticleRequests,
+                           camera->getPos(), camera->getRight(), camera->getUp(),
+                           (float)app->getElapsedMilis() / 1000.f);
+    }
+
     // GBuffer geometry pass — fills albedo / normalMetalRough / emissiveAO / depth MRTs.
     // Always run even for translucent-only or billboard-only frames so depth is cleared
     // and in DEPTH_READ state.
@@ -683,6 +707,39 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
             cmd->RSSetScissorRects(1, &sc);
 
             m_trailPass->render(cmd, trails, viewProj, w, h);
+        }
+
+        // GPU Particle Pass — batched instanced draws (one per emitter),
+        // optional GPU turbulence via ParticleUpdateCS compute dispatch.
+        // Renders after trails, sharing the same scene RT + read-only GBuffer depth.
+        if (m_particlePass && moduleScene && outputRT && outputRT->isValid()
+                           && !gpuParticleRequests.empty()) {
+            // Sort: alpha before additive, then back-to-front within each group.
+            const Vector3 camPos = camera->getPos();
+            std::sort(gpuParticleRequests.begin(), gpuParticleRequests.end(),
+                      [&camPos](const ParticleDrawRequest& a, const ParticleDrawRequest& b) {
+                          if (a.additive != b.additive) return !a.additive && b.additive;
+                          if (a.particles.empty() || b.particles.empty()) return false;
+                          const auto& pa = a.particles.front();
+                          const auto& pb = b.particles.front();
+                          Vector3 pa3(pa.position[0], pa.position[1], pa.position[2]);
+                          Vector3 pb3(pb.position[0], pb.position[1], pb.position[2]);
+                          return Vector3::DistanceSquared(pa3, camPos)
+                               > Vector3::DistanceSquared(pb3, camPos);
+                      });
+
+            auto rtv   = outputRT->getRtvHandle();
+            auto roDsv = m_gbufferPass->getGBuffer().getReadOnlyDsvHandle();
+            cmd->OMSetRenderTargets(1, &rtv, FALSE, &roDsv);
+            D3D12_VIEWPORT vp = { 0.f, 0.f, float(w), float(h), 0.f, 1.f };
+            D3D12_RECT sc     = { 0, 0, LONG(w), LONG(h) };
+            cmd->RSSetViewports(1, &vp);
+            cmd->RSSetScissorRects(1, &sc);
+
+            m_particlePass->render(cmd, gpuParticleRequests, viewProj,
+                                   camera->getRight(), camera->getUp(),
+                                   (float)app->getElapsedMilis() / 1000.f,
+                                   w, h);
         }
 
         // Restore descriptor heaps for subsequent passes
@@ -970,7 +1027,8 @@ void ModuleEditor::gatherParticleSystems(GameObject* node, std::vector<Billboard
                                           const Vector3& camPos, const Vector3& camRight, const Vector3& camUp) const{
     if (!node || !node->isActive()) return;
 
-    if (auto* ps = node->getComponent<ComponentParticleSystem>(); ps && ps->enabled) {
+    if (auto* ps = node->getComponent<ComponentParticleSystem>();
+        ps && ps->enabled && !ps->useGPU) {  // skip: GPU path handled by gatherGPUParticles
         const int cols = std::max(1, ps->sheetColumns);
         const int rows = std::max(1, ps->sheetRows);
         const int totalTiles = cols * rows;
@@ -1027,7 +1085,8 @@ void ModuleEditor::gatherTrails(GameObject* node, std::vector<TrailInstance>& ou
     if (auto* tr = node->getComponent<ComponentTrail>(); tr && tr->enabled) {
         if (out.size() < TrailPass::MAX_TRAILS) {
             TrailInstance inst;
-            if (tr->buildMesh(camPos, inst.vertices) && !inst.vertices.empty()) {
+            bool built = tr->buildMesh(camPos, inst.vertices);
+            if (built && !inst.vertices.empty()) {
                 inst.tint = Vector4(1.f, 1.f, 1.f, 1.f);
                 inst.texturePath = tr->texturePath;
                 inst.additive = (tr->blendMode == ComponentTrail::BlendMode::Additive);
@@ -1039,6 +1098,82 @@ void ModuleEditor::gatherTrails(GameObject* node, std::vector<TrailInstance>& ou
     }
 
     for (auto* c : node->getChildren()) gatherTrails(c, out, viewProj, camPos);
+}
+
+// Collects ComponentParticleSystems with useGPU=true and converts their live
+// particles into GPU-ready ParticleDrawRequests for ParticlePass.
+// Systems with useGPU=false are handled by gatherParticleSystems (BillboardPass).
+void ModuleEditor::gatherGPUParticles(GameObject* node,
+                                       std::vector<ParticleDrawRequest>& out,
+                                       const Vector3& /*camPos*/,
+                                       const Vector3& /*camRight*/, const Vector3& /*camUp*/,
+                                       float elapsedTime) const
+{
+    if (!node || !node->isActive()) return;
+
+    if (auto* ps = node->getComponent<ComponentParticleSystem>();
+        ps && ps->enabled && ps->useGPU)
+    {
+        const int cols      = std::max(1, ps->sheetColumns);
+        const int rows      = std::max(1, ps->sheetRows);
+        const int totalTiles = cols * rows;
+
+        auto tileUV = [cols, rows](int tileIdx) -> std::pair<Vector2, Vector2> {
+            int tx = tileIdx % cols;
+            int ty = tileIdx / cols;
+            ty = (rows - 1) - ty; // flip V
+            float u0 = (float)tx / cols,  u1 = u0 + 1.f / cols;
+            float v0 = (float)ty / rows,  v1 = v0 + 1.f / rows;
+            return { Vector2(u0, v0), Vector2(u1, v1) };
+        };
+
+        ParticleDrawRequest req;
+        req.emitterKey        = reinterpret_cast<size_t>(ps);
+        req.maxParticles      = ps->maxParticles;
+        req.texturePath       = ps->texturePath;
+        req.additive          = (ps->blendMode == ComponentParticleSystem::BlendMode::Additive);
+        // GPU turbulence: dispatch ParticleUpdateCS instead of CPU Noise::fbm3D
+        req.gpuTurbulence     = ps->useTurbulence;
+        req.turbFrequency     = ps->turbulenceFrequency;
+        req.turbStrength      = ps->turbulenceStrength;
+        req.turbScrollSpeed   = ps->turbulenceScroll;
+        req.time              = elapsedTime;
+        // Approximate dt from frame time (could be made more accurate if needed)
+        req.deltaTime         = std::clamp((float)app->getElapsedMilis() * 0.001f, 0.f, 0.1f);
+
+        for (const auto& p : ps->getParticles()) {
+            if (!p.alive) continue;
+            if ((int)req.particles.size() >= ps->maxParticles) break;
+
+            const float t     = std::clamp(p.age / std::max(0.0001f, p.lifetime), 0.f, 1.f);
+            const float size  = p.baseSize * ps->sizeMultiplierAt(t);
+            const Vector4 col = ps->colorAt(t);
+
+            auto [uvMin, uvMax] = tileUV(p.frameIndex % totalTiles);
+
+            GpuParticle gp;
+            gp.position[0] = p.position.x;
+            gp.position[1] = p.position.y;
+            gp.position[2] = p.position.z;
+            gp.size        = size;
+            gp.color[0]    = col.x;
+            gp.color[1]    = col.y;
+            gp.color[2]    = col.z;
+            gp.color[3]    = col.w;
+            gp.rotation    = p.rotationDeg;
+            gp.uvMin[0]    = uvMin.x;
+            gp.uvMin[1]    = uvMin.y;
+            gp.uvMax[0]    = uvMax.x;
+            gp.uvMax[1]    = uvMax.y;
+            req.particles.push_back(gp);
+        }
+
+        if (!req.particles.empty())
+            out.push_back(std::move(req));
+    }
+
+    for (auto* c : node->getChildren())
+        gatherGPUParticles(c, out, {}, {}, {}, elapsedTime);
 }
 
 void ModuleEditor::drawDockspace(){
@@ -1189,6 +1324,9 @@ void ModuleEditor::drawMenuBar(){
                 spawnFireParticleSystem(Vector3(0.f, 0.f, 0.f));
             if (ImGui::MenuItem("Sword Trail (Lecture 12 Exercise)"))
                 spawnSwordTrail(Vector3(0.f, 0.f, 0.f));
+            ImGui::Separator();
+            if (ImGui::MenuItem("Fire Comet (Trail + Particles Prefab)"))
+                spawnFireComet(Vector3(0.f, 1.5f, 0.f));
             ImGui::EndMenu();
         }
         ImGui::Separator();
@@ -1852,9 +1990,9 @@ GameObject* ModuleEditor::spawnFireParticleSystem(const Vector3& position){
     ModuleScene* scene = getActiveModuleScene();
     if (!scene) return nullptr;
 
-    // Actual lecture assets — found under Assets/Models/Fire/Textures/
-    const std::string fireTex   = "Assets/Models/Fire/Textures/TXT_Fire_01.tga";
-    const std::string sparksTex = "Assets/Models/Fire/Textures/TXT_Sparks_01.tga";
+    // Use the pre-imported DDS assets directly for reliable texture loading.
+    const std::string fireTex   = "Library/Textures/TXT_Fire_01.dds";
+    const std::string sparksTex = "Library/Textures/TXT_Sparks_01.dds";
 
     GameObject* root = scene->createGameObject("Fire (Exercise 1)");
     root->getTransform()->position = position;
@@ -1982,16 +2120,15 @@ GameObject* ModuleEditor::spawnFireParticleSystem(const Vector3& position){
 // spawnSwordTrail — Lecture 12 "Trails" Exercise: "Sword trail"
 //
 // Hierarchy:
-//   Sword Trail (root — ComponentTrail here, demoMotion drives the swing)
+//   Sword Trail (root — ComponentTrail here)
 //   └── Sword        (ComponentMesh → Assets/Models/Sword/sword.gltf)
 //
 // Uses the project's actual lecture assets:
 //   Assets/Models/Sword/sword.gltf   (the real sword mesh)
 //   Assets/Models/Sword/swoosh.png   (dedicated trail/swoosh texture)
 //
-// demoMotion on ComponentTrail automatically swings the rig so the trail is
-// visible immediately.  Disable it in the Inspector once you drive the
-// transform from your own animation/controller.
+// Use the Effects transport (▶ in the menu bar) to preview the trail in edit
+// mode, or press Play to drive it from your animation/controller.
 // ---------------------------------------------------------------------------
 GameObject* ModuleEditor::spawnSwordTrail(const Vector3& position){
     ModuleScene* scene = getActiveModuleScene();
@@ -2044,16 +2181,246 @@ GameObject* ModuleEditor::spawnSwordTrail(const Vector3& position){
         tr->blendMode        = ComponentTrail::BlendMode::Additive;
         tr->textureMode      = ComponentTrail::TextureMode::Stretch;
         tr->layer            = 0;
-
-        tr->demoMotion  = true;
-        tr->demoRadius  = 1.4f;
-        tr->demoSpeed   = 2.8f;
-        tr->demoCenter  = Vector3(0.f, 1.2f, 0.f);
     }
 
     m_selection.object = root;
     log("Spawned Sword Trail: sword.gltf + swoosh.png (real lecture assets)", EditorColors::Success);
     return root;
+}
+
+// ---------------------------------------------------------------------------
+// spawnFireComet — combined Trail + Particle prefab
+//
+// Hierarchy:
+//   Fire Comet  (root — ComponentTrail traces world position as object moves)
+//   ├── Core Flames  — dense fire burst, alpha blend, 2×2 sprite sheet
+//   └── Embers       — scattered gold sparks, additive + turbulence noise
+//
+// Textures (imported Library DDS used by BillboardPass):
+//   Assets/Models/Fire/Textures/TXT_Fire_01.tga   → Library/Textures/TXT_Fire_01.dds
+//   Assets/Models/Fire/Textures/TXT_Sparks_01.tga → Library/Textures/TXT_Sparks_01.dds
+//
+// The trail ribbon appears as soon as the object is moved (in Play mode or by
+// dragging its transform gizmo). The particles are visible immediately in the
+// editor — press the Effects Transport "Play" button in the Inspector to preview.
+//
+// After spawning, the object is saved as "FireComet" prefab so it can be
+// re-instantiated any time from the Asset Browser.
+// ---------------------------------------------------------------------------
+GameObject* ModuleEditor::spawnFireComet(const Vector3& position){
+    ModuleScene* scene = getActiveModuleScene();
+    if (!scene) return nullptr;
+
+    // Use the pre-imported DDS assets directly — avoids the TGA→DDS fallback path
+    // in BillboardPass which relies on a CWD-relative fs::exists check.
+    const std::string fireTex   = "Library/Textures/TXT_Fire_01.dds";
+    const std::string sparksTex = "Library/Textures/TXT_Sparks_01.dds";
+
+    // ---- Root pivot — trail lives here, tracks world movement ----
+    GameObject* root = scene->createGameObject("Fire Comet");
+    {
+        auto* t = root->getTransform();
+        t->position = position;
+        t->markDirty();
+    }
+
+    // ---- Trail: comet tail ----
+    {
+        auto* tr = root->createComponent<ComponentTrail>();
+        tr->enabled          = true;
+        tr->emitting         = true;
+        tr->duration         = 1.2f;
+        tr->minPointDistance = 0.015f;
+        tr->width            = 0.8f;
+        tr->maxSegmentAngle  = 15.f;
+
+        tr->useCatmullRom    = true;
+        tr->catmullRomAlpha  = 0.5f;
+        tr->subdivisions     = 10;
+
+        // Electric-blue → cyan, distinct from the orange/gold particle fire so the
+        // ribbon reads as its own "energy trail" effect rather than blending into
+        // the flames. No texturePath is set, so TrailPass falls back to a plain
+        // white texture — the tint colours below show through unmodified
+        // (a coloured texture like the fire flame would multiply these out).
+        tr->startColor       = Vector4(0.30f, 0.70f, 1.0f, 1.0f);
+        tr->endColor         = Vector4(0.10f, 1.0f, 0.60f, 0.0f);
+        tr->startWidthMul    = 2.0f;
+        tr->endWidthMul      = 0.0f;
+
+        tr->texturePath      = "";
+        tr->blendMode        = ComponentTrail::BlendMode::Additive;
+        tr->textureMode      = ComponentTrail::TextureMode::Stretch;
+        tr->layer            = 0;
+
+        // Orbit preview: moves the root in a circle so the ribbon is visible
+        // in edit mode as soon as effects transport starts playing.
+        tr->previewOrbit  = true;
+        tr->orbitRadius   = 1.5f;
+        tr->orbitSpeed    = 2.5f;   // ~2.5 rad/s ≈ full circle in 2.5 sec
+    }
+
+    // ---- Core Flames child ----
+    {
+        GameObject* flameGO = scene->createGameObject("Core Flames", root);
+        flameGO->getTransform()->markDirty();
+
+        auto* ps             = flameGO->createComponent<ComponentParticleSystem>();
+        ps->enabled          = true;
+        ps->playing          = true;
+        ps->looping          = true;
+        ps->emissionRate     = 75.f;
+        ps->maxParticles     = 160;
+
+        // Tight upward cone — fire bursts straight up from the orb centre
+        ps->shape            = ComponentParticleSystem::EmitterShape::Cone;
+        ps->shapeRadius      = 0.06f;
+        ps->coneAngleDeg     = 18.f;
+        ps->worldSpace       = true;
+
+        ps->lifeRange        = Vector2(0.20f, 0.45f);
+        ps->speedRange       = Vector2(0.5f,  1.4f);
+        ps->sizeRange        = Vector2(0.13f, 0.22f);
+        ps->rotationRange    = Vector2(-30.f, 30.f);
+
+        ps->startColor       = Vector4(1.00f, 0.85f, 0.30f, 1.00f); // bright yellow
+        ps->endColor         = Vector4(0.90f, 0.12f, 0.00f, 0.00f); // deep red, gone
+        ps->startSizeMul     = 1.0f;
+        ps->endSizeMul       = 0.05f;
+
+        ps->gravity          = Vector3(0.f, 0.35f, 0.f); // gentle lift
+        ps->useTurbulence    = false;
+
+        ps->texturePath      = fireTex;
+        ps->sheetColumns     = 2;
+        ps->sheetRows        = 2;
+        ps->randomFrame      = true;
+        ps->blendMode        = ComponentParticleSystem::BlendMode::Alpha;
+    }
+
+    // ---- Embers child ----
+    {
+        GameObject* emberGO = scene->createGameObject("Embers", root);
+        emberGO->getTransform()->markDirty();
+
+        auto* ps             = emberGO->createComponent<ComponentParticleSystem>();
+        ps->enabled          = true;
+        ps->playing          = true;
+        ps->looping          = true;
+        ps->emissionRate     = 32.f;
+        ps->maxParticles     = 80;
+
+        // Sphere — embers scatter in all directions from the core
+        ps->shape            = ComponentParticleSystem::EmitterShape::Sphere;
+        ps->shapeRadius      = 0.10f;
+        ps->worldSpace       = true;
+
+        ps->lifeRange        = Vector2(0.55f, 1.20f);
+        ps->speedRange       = Vector2(0.25f, 0.75f);
+        ps->sizeRange        = Vector2(0.035f, 0.065f);
+        ps->rotationRange    = Vector2(-180.f, 180.f);
+
+        ps->startColor       = Vector4(1.00f, 0.72f, 0.10f, 1.00f); // gold
+        ps->endColor         = Vector4(0.85f, 0.10f, 0.00f, 0.00f); // dim red, gone
+        ps->startSizeMul     = 1.0f;
+        ps->endSizeMul       = 0.0f;
+
+        ps->gravity          = Vector3(0.f, -0.40f, 0.f); // fall slightly
+        ps->useTurbulence    = true;
+        ps->turbulenceFrequency = 1.5f;
+        ps->turbulenceStrength  = 1.2f;
+        ps->turbulenceOctaves   = 3;
+        ps->turbulenceScroll    = 0.5f;
+
+        ps->texturePath      = sparksTex;
+        ps->sheetColumns     = 1;
+        ps->sheetRows        = 1;
+        ps->randomFrame      = false;
+        ps->blendMode        = ComponentParticleSystem::BlendMode::Additive;
+    }
+
+    // Save as a reusable prefab so it shows up in the Asset Browser
+    if (PrefabManager::createPrefab(root, "FireComet"))
+        log("FireComet prefab saved — instantiate any time from Asset Browser", EditorColors::Success);
+
+    // Start effects transport so fire is visible immediately in edit mode
+    m_effectsPlaying = true;
+    m_effectsTime    = 0.f;
+
+    m_selection.object = root;
+    log("Spawned Fire Comet: orbiting in edit mode — trail + flames + embers live (disable Preview Orbit in Inspector before Play)", EditorColors::Success);
+    return root;
+}
+
+// ---------------------------------------------------------------------------
+// Effects transport helpers
+// ---------------------------------------------------------------------------
+
+// Walk the scene tree and call fn on every ComponentTrail / ComponentParticleSystem.
+template<typename TrailFn, typename PsFn>
+static void forEachEffect(GameObject* root, TrailFn trailFn, PsFn psFn) {
+    if (!root) return;
+    std::function<void(GameObject*)> visit = [&](GameObject* go) {
+        if (!go || !go->isActive()) return;
+        if (auto* tr = go->getComponent<ComponentTrail>())          trailFn(tr);
+        if (auto* ps = go->getComponent<ComponentParticleSystem>()) psFn(ps);
+        for (auto* c : go->getChildren()) visit(c);
+    };
+    visit(root);
+}
+
+void ModuleEditor::effectsStop() {
+    m_effectsPlaying = false;
+    m_effectsTime    = 0.f;
+    ModuleScene* ms = getActiveModuleScene();
+    if (!ms) return;
+    forEachEffect(ms->getRoot(),
+        [](ComponentTrail* tr)          { tr->clear(); },
+        [](ComponentParticleSystem* ps)  { ps->clear(); });
+}
+
+void ModuleEditor::effectsRestartAll() {
+    ModuleScene* ms = getActiveModuleScene();
+    if (!ms) return;
+    forEachEffect(ms->getRoot(),
+        [](ComponentTrail* tr)          { tr->clear(); },
+        [](ComponentParticleSystem* ps)  { ps->clear(); });
+    m_effectsPlaying = true;
+    m_effectsTime    = 0.f;
+    log("Effects restarted (all)", EditorColors::Info);
+}
+
+void ModuleEditor::effectsRestartSelected() {
+    // If something is selected that has trail/particle components, restart only those.
+    // Otherwise fall back to restart-all.
+    if (m_selection.has()) {
+        bool did = false;
+        if (auto* tr = m_selection.object->getComponent<ComponentTrail>())
+            { tr->clear(); did = true; }
+        if (auto* ps = m_selection.object->getComponent<ComponentParticleSystem>())
+            { ps->clear(); did = true; }
+        if (did) {
+            m_effectsPlaying = true;
+            m_effectsTime    = 0.f;
+            log("Effects restarted (selected)", EditorColors::Info);
+            return;
+        }
+    }
+    // Nothing selected or no effects on selection — restart all
+    effectsRestartAll();
+}
+
+void ModuleEditor::updateEffectsInEditMode(float dt) {
+    ModuleScene* ms = getActiveModuleScene();
+    if (!ms) return;
+    m_effectsTime += dt;
+    std::function<void(GameObject*)> visit = [&](GameObject* go) {
+        if (!go || !go->isActive()) return;
+        if (auto* tr = go->getComponent<ComponentTrail>())          tr->update(dt);
+        if (auto* ps = go->getComponent<ComponentParticleSystem>()) ps->update(dt);
+        for (auto* c : go->getChildren()) visit(c);
+    };
+    visit(ms->getRoot());
 }
 
 // ---------------------------------------------------------------------------

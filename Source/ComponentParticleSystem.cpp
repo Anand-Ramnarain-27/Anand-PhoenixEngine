@@ -4,6 +4,8 @@
 #include "ComponentTransform.h"
 #include "AssetBrowserPanel.h"
 #include "AssetPickerWidget.h"
+#include "Application.h"
+#include "ModuleEditor.h"
 #include "Noise.h"
 #include <imgui.h>
 #include <algorithm>
@@ -164,6 +166,24 @@ void ComponentParticleSystem::update(float dt){
 }
 
 void ComponentParticleSystem::onEditor(){
+    // ---- Effects transport ----
+    if (auto* ed = app->getEditor()) {
+        bool fxPlaying = ed->isEffectsPlaying();
+        ImGui::SeparatorText("Effects Transport");
+        if (ImGui::Button(fxPlaying ? "Stop##fxps" : "Play##fxps")) {
+            if (fxPlaying) ed->effectsStop(); else ed->effectsPlay();
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(fxPlaying ? "Stop effects preview" : "Play: updates particles + trails in edit mode");
+        ImGui::SameLine();
+        if (ImGui::Button("Restart##fxps"))     ed->effectsRestartSelected();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Clear + replay this particle system");
+        ImGui::SameLine();
+        if (ImGui::Button("Restart All##fxps")) ed->effectsRestartAll();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Clear + replay ALL particles and trails in scene");
+    }
+    ImGui::Separator();
+
     ImGui::Checkbox("Enabled##ps", &enabled);
     ImGui::SameLine();
     if (ImGui::Checkbox("Playing##ps", &playing)) {}
@@ -237,6 +257,17 @@ void ComponentParticleSystem::onEditor(){
     ImGui::DragInt("Layer", &layer, 1.f, -100, 100);
 
     ImGui::Separator();
+    ImGui::TextUnformatted("GPU Rendering (Lecture 12 — Particle GPU batch)");
+    ImGui::Checkbox("Use GPU batch rendering (ParticlePass)", &useGPU);
+    if (useGPU) {
+        ImGui::TextWrapped("Particles are batched into one draw call per emitter via a "
+                           "StructuredBuffer<GpuParticle>.  When turbulence is also enabled "
+                           "the ParticleUpdateCS compute shader applies the noise flow field "
+                           "on the GPU, matching the cross-system noise→particle connection "
+                           "from the CPU path.");
+    }
+
+    ImGui::Separator();
     int alive = (int)std::count_if(m_particles.begin(), m_particles.end(), [](const Particle& p) { return p.alive; });
     ImGui::Text("Live particles: %d / %d", alive, maxParticles);
 }
@@ -273,7 +304,8 @@ void ComponentParticleSystem::onSave(std::string& outJson) const{
     outJson += "\"sheetRows\":" + std::to_string(sheetRows) + ",";
     outJson += "\"randomFrame\":" + std::string(randomFrame ? "true" : "false") + ",";
     outJson += "\"blendMode\":" + std::to_string((int)blendMode) + ",";
-    outJson += "\"layer\":" + std::to_string(layer);
+    outJson += "\"layer\":" + std::to_string(layer) + ",";
+    outJson += "\"useGPU\":" + std::string(useGPU ? "true" : "false");
 }
 
 void ComponentParticleSystem::onLoad(const std::string& json){
@@ -345,5 +377,6 @@ void ComponentParticleSystem::onLoad(const std::string& json){
     sheetRows = getInt("sheetRows", sheetRows);
     randomFrame = getBool("randomFrame", randomFrame);
     blendMode = (BlendMode)getInt("blendMode", (int)blendMode);
-    layer = getInt("layer", layer);
+    layer     = getInt("layer", layer);
+    useGPU    = getBool("useGPU", useGPU);
 }

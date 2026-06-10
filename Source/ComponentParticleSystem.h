@@ -76,6 +76,12 @@ public:
     int turbulenceOctaves = 3; // fbm octave count
     float turbulenceScroll = 0.3f; // animates the noise field over time (m/s along +Y)
 
+    // ---- GPU rendering / simulation path ----
+    // When true the particle pass is handled by ParticlePass (one draw call per
+    // emitter, optional GPU turbulence via ParticleUpdateCS) instead of the
+    // per-billboard BillboardPass path.  Default false keeps existing behaviour.
+    bool useGPU = false;
+
     // ---- Render ----
     std::string texturePath;
     int sheetColumns = 1;

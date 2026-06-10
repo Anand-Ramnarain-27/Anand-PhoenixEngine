@@ -146,6 +146,12 @@
     <ClCompile Include="TrailPass.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
+    <ClCompile Include="ParticlePipeline.cpp">
+      <Filter>Engine\Rendering\Pipelines</Filter>
+    </ClCompile>
+    <ClCompile Include="ParticlePass.cpp">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClCompile>
     <!-- Engine\Scene\Prefabs -->
     <ClCompile Include="PrefabManager.cpp">
       <Filter>Engine\Scene\Prefabs</Filter>
@@ -604,6 +610,12 @@
     <ClInclude Include="TrailPass.h">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
+    <ClInclude Include="ParticlePipeline.h">
+      <Filter>Engine\Rendering\Pipelines</Filter>
+    </ClInclude>
+    <ClInclude Include="ParticlePass.h">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClInclude>
     <!-- Engine\Scene\Prefabs -->
     <ClInclude Include="PrefabManager.h">
       <Filter>Engine\Scene\Prefabs</Filter>
@@ -1058,6 +1070,21 @@
       <Filter>Shaders\Forward</Filter>
     </FxCompile>
     <FxCompile Include="shaders\TrailPS.hlsl">
+      <Filter>Shaders\Forward</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ParticleRenderVS.hlsl">
+      <Filter>Shaders\Forward</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ParticleRenderPS.hlsl">
+      <Filter>Shaders\Forward</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ParticleUpdateCS.hlsl">
+      <Filter>Shaders\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\noise3dVS.hlsl">
+      <Filter>Shaders\Forward</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\noise3dPS.hlsl">
       <Filter>Shaders\Forward</Filter>
     </FxCompile>
     <!-- Shaders\Environment -->
