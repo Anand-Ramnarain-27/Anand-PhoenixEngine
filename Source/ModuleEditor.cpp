@@ -930,6 +930,8 @@ void ModuleEditor::gatherDecals(GameObject* node, std::vector<DecalInstance>& ou
             viewProj.Invert(invVP);
             inst.invViewProj = invVP.Transpose();
 
+            inst.colourOpacity = Vector4(dc->colour.x, dc->colour.y, dc->colour.z, dc->opacity);
+
             out.push_back(inst);
         }
     }

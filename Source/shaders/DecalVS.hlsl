@@ -7,6 +7,7 @@ cbuffer CbDecal : register(b0)
     float4x4 MVP;
     float4x4 InvModel;
     float4x4 InvViewProj;
+    float4   ColourOpacity; // rgb = tint colour, a = opacity (unused in VS)
 };
 
 struct VS_OUTPUT

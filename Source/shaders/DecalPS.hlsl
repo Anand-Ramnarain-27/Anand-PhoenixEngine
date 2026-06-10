@@ -10,6 +10,7 @@ cbuffer CbDecal : register(b0)
     float4x4 MVP;        // unused in PS but kept for CB alignment
     float4x4 InvModel;   // world → decal local space
     float4x4 InvViewProj;// clip  → world space
+    float4   ColourOpacity; // rgb = tint colour, a = opacity
 };
 
 Texture2D DepthMap    : register(t0);  // G-Buffer depth (R32_FLOAT)
@@ -60,6 +61,8 @@ PSOutput main(float3 ndcPos : POSITION)
     decalUV.y = -objPos.y + 0.5f;  // flip Y so texture origin is top-left
 
     float4 colour = DecalAlbedo.Sample(BilinearWrap, decalUV);
+    colour.rgb *= ColourOpacity.rgb;
+    colour.a   *= ColourOpacity.a;
 
     // Discard transparent parts of the decal texture
     if (colour.a < 0.05f)

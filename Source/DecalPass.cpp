@@ -69,7 +69,6 @@ bool DecalPass::init(ID3D12Device* device){
         return false;
     }
     if (!createUploadBuffers(device)) return false;
-    if (!createFallbackTexture(device)) return false;
 
     // Create geometry using a one-shot command list
     auto* d3d = app->getD3D12();
@@ -84,6 +83,9 @@ bool DecalPass::init(ID3D12Device* device){
                          L"Decal_VB", D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, vbUpload);
     m_ib = uploadBuffer(device, cmd.Get(), kBoxIndices, sizeof(kBoxIndices),
                          L"Decal_IB", D3D12_RESOURCE_STATE_INDEX_BUFFER, ibUpload);
+
+    ComPtr<ID3D12Resource> texUpload;
+    if (!createFallbackTexture(device, cmd.Get(), texUpload)) return false;
 
     m_vbv.BufferLocation = m_vb->GetGPUVirtualAddress();
     m_vbv.SizeInBytes = sizeof(kBoxVerts);
@@ -125,7 +127,8 @@ bool DecalPass::createUploadBuffers(ID3D12Device* device){
     return true;
 }
 
-bool DecalPass::createFallbackTexture(ID3D12Device* device){
+bool DecalPass::createFallbackTexture(ID3D12Device* device, ID3D12GraphicsCommandList* cmd,
+                                       ComPtr<ID3D12Resource>& texUpload){
     D3D12_RESOURCE_DESC td = {};
     td.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
     td.Width = td.Height = 1;
@@ -135,9 +138,33 @@ bool DecalPass::createFallbackTexture(ID3D12Device* device){
     td.SampleDesc = { 1, 0 };
     auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &td,
-                                     D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                                     D3D12_RESOURCE_STATE_COPY_DEST,
                                      nullptr, IID_PPV_ARGS(&m_fallbackTex));
     m_fallbackTex->SetName(L"Decal_FallbackTex");
+
+    // Upload a single opaque white texel so untextured decals render as a flat
+    // colour tint instead of being discarded (alpha would otherwise be 0).
+    UINT64 uploadSize = 0;
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
+    device->GetCopyableFootprints(&td, 0, 1, 0, &footprint, nullptr, nullptr, &uploadSize);
+
+    auto uhp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+    auto ubd = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
+    device->CreateCommittedResource(&uhp, D3D12_HEAP_FLAG_NONE, &ubd,
+                                     D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&texUpload));
+    void* mapped = nullptr;
+    texUpload->Map(0, nullptr, &mapped);
+    const uint32_t whitePixel = 0xFFFFFFFFu;
+    memcpy(static_cast<uint8_t*>(mapped) + footprint.Offset, &whitePixel, sizeof(whitePixel));
+    texUpload->Unmap(0, nullptr);
+
+    CD3DX12_TEXTURE_COPY_LOCATION dst(m_fallbackTex.Get(), 0);
+    CD3DX12_TEXTURE_COPY_LOCATION src(texUpload.Get(), footprint);
+    cmd->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+
+    auto toSRV = CD3DX12_RESOURCE_BARRIER::Transition(m_fallbackTex.Get(),
+                     D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    cmd->ResourceBarrier(1, &toSRV);
 
     auto* sd = app->getShaderDescriptors();
     m_fallbackSRV = sd->allocTable("Decal_FallbackSRV");

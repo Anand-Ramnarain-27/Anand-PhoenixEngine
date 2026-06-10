@@ -14,6 +14,7 @@ struct DecalInstance {
     Matrix mvp;
     Matrix invModel;
     Matrix invViewProj;
+    Vector4 colourOpacity; // rgb = tint colour, a = opacity
 };
 
 // Deferred decal rendering pass.
@@ -37,7 +38,8 @@ public:
 private:
     bool createUnitBox(ID3D12Device* device);
     bool createUploadBuffers(ID3D12Device* device);
-    bool createFallbackTexture(ID3D12Device* device);
+    bool createFallbackTexture(ID3D12Device* device, ID3D12GraphicsCommandList* cmd,
+                                ComPtr<ID3D12Resource>& texUpload);
 
     DecalPipeline m_pipeline;
 
