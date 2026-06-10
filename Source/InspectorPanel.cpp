@@ -35,6 +35,8 @@
 #include "ComponentSimpleCharacterController.h"
 #include "ComponentRigidbody.h"
 #include "ComponentBounds.h"
+#include "ComponentParticleSystem.h"
+#include "ComponentTrail.h"
 #include <filesystem>
 #include <algorithm>
 
@@ -166,6 +168,8 @@ void InspectorPanel::drawContent(){
         case Component::Type::Rigidbody: return ImGui::ColorConvertFloat4ToU32(EditorColors::Hot);
         case Component::Type::Bounds: return ImGui::ColorConvertFloat4ToU32(EditorColors::Crit);
         case Component::Type::Script: return ImGui::ColorConvertFloat4ToU32(EditorColors::Tx1);
+        case Component::Type::ParticleSystem:
+        case Component::Type::Trail: return ImGui::ColorConvertFloat4ToU32(EditorColors::Acc);
         default: return ImGui::ColorConvertFloat4ToU32(EditorColors::Tx2);
         }
     };
@@ -186,6 +190,8 @@ void InspectorPanel::drawContent(){
             comp->getType() == Component::Type::Bounds ? "Bounds" :
             comp->getType() == Component::Type::Decal ? "Decal" :
             comp->getType() == Component::Type::Billboard ? "Billboard" :
+            comp->getType() == Component::Type::ParticleSystem ? "Particle System" :
+            comp->getType() == Component::Type::Trail ? "Trail" :
             "Component";
 
         ImGui::PushID((int)comp->getType());
@@ -384,7 +390,13 @@ void InspectorPanel::drawAddComponentMenu(){
     ImGui::Separator();
     // ---- Visual effects ----
     addComp("Decal", Component::Type::Decal, go->getComponent<ComponentDecal>() != nullptr);
-    addComp("Billboard", Component::Type::Billboard, go->getComponent<ComponentBillboard>() != nullptr);
+    // ---- Particles submenu ----
+    if (ImGui::BeginMenu("Particles")) {
+        addComp("Billboard", Component::Type::Billboard, go->getComponent<ComponentBillboard>() != nullptr);
+        addComp("Particle System", Component::Type::ParticleSystem, go->getComponent<ComponentParticleSystem>() != nullptr);
+        addComp("Trail", Component::Type::Trail, go->getComponent<ComponentTrail>() != nullptr);
+        ImGui::EndMenu();
+    }
     ImGui::EndPopup();
 }
 

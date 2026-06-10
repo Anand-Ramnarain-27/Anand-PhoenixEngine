@@ -13,6 +13,8 @@
 #include "ComponentRigidbody.h"
 #include "ComponentDecal.h"
 #include "ComponentBillboard.h"
+#include "ComponentParticleSystem.h"
+#include "ComponentTrail.h"
 #include <algorithm>
 #include "ComponentFactory.h"
 #include "EditorSelection.h"
@@ -280,11 +282,22 @@ void HierarchyPanel::itemContextMenu(GameObject* go){
             };
         addIf("Camera", Component::Type::Camera, go->getComponent<ComponentCamera>() != nullptr);
         addIf("Mesh", Component::Type::Mesh, go->getComponent<ComponentMesh>() != nullptr);
-        addIf("Directional Light", Component::Type::DirectionalLight, go->getComponent<ComponentDirectionalLight>() != nullptr);
-        addIf("Point Light", Component::Type::PointLight, go->getComponent<ComponentPointLight>() != nullptr);
-        addIf("Spot Light", Component::Type::SpotLight, go->getComponent<ComponentSpotLight>() != nullptr);
+
+        if (ImGui::BeginMenu("Lights")) {
+            addIf("Directional Light", Component::Type::DirectionalLight, go->getComponent<ComponentDirectionalLight>() != nullptr);
+            addIf("Point Light", Component::Type::PointLight, go->getComponent<ComponentPointLight>() != nullptr);
+            addIf("Spot Light", Component::Type::SpotLight, go->getComponent<ComponentSpotLight>() != nullptr);
+            ImGui::EndMenu();
+        }
+
         addIf("Decal", Component::Type::Decal, go->getComponent<ComponentDecal>() != nullptr);
-        addIf("Billboard", Component::Type::Billboard, go->getComponent<ComponentBillboard>() != nullptr);
+
+        if (ImGui::BeginMenu("Particles")) {
+            addIf("Billboard", Component::Type::Billboard, go->getComponent<ComponentBillboard>() != nullptr);
+            addIf("Particle System", Component::Type::ParticleSystem, go->getComponent<ComponentParticleSystem>() != nullptr);
+            addIf("Trail", Component::Type::Trail, go->getComponent<ComponentTrail>() != nullptr);
+            ImGui::EndMenu();
+        }
 
         if (ImGui::BeginMenu("Add Script")) {
             auto* hr = m_editor->getHotReloadManager();

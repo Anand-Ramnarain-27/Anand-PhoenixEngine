@@ -10,6 +10,18 @@
 #include <algorithm>
 #include <cmath>
 
+namespace {
+    // Collapsible section header tinted red instead of the default purple accent.
+    bool RedCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags = 0){
+        ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.910f, 0.376f, 0.431f, 0.16f));
+        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.910f, 0.376f, 0.431f, 0.28f));
+        ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.910f, 0.376f, 0.431f, 0.45f));
+        bool open = ImGui::CollapsingHeader(label, flags);
+        ImGui::PopStyleColor(3);
+        return open;
+    }
+}
+
 ComponentTrail::ComponentTrail(GameObject* owner) : Component(owner) {}
 
 // Centripetal Catmull-Rom — reformulation via knot intervals:
@@ -149,7 +161,7 @@ bool ComponentTrail::buildMesh(const Vector3& camPos, std::vector<TrailVertex>& 
             if (perp.LengthSquared() < 1e-10f) perp = Vector3(1.f, 0.f, 0.f);
             perp.Normalize();
 
-            float wMul = startWidthMul + (endWidthMul - startWidthMul) * path[idx].t;
+            float wMul = startWidthMul + (endWidthMul - startWidthMul) * widthCurve.Eval(path[idx].t);
             float halfW = 0.5f * width * std::max(0.f, wMul);
             return { path[idx].pos - perp * halfW, path[idx].pos + perp * halfW };
         };
@@ -214,62 +226,63 @@ void ComponentTrail::onEditor(){
     ImGui::SameLine();
     if (ImGui::Button("Clear##trail")) clear();
 
-    ImGui::Separator();
-    ImGui::TextUnformatted("Generation");
-    ImGui::DragFloat("Duration", &duration, 0.02f, 0.05f, 30.f);
-    ImGui::DragFloat("Min point distance", &minPointDistance, 0.005f, 0.001f, 10.f);
-    ImGui::DragFloat("Width", &width, 0.01f, 0.001f, 50.f);
-    ImGui::DragFloat("Max segment angle (deg)", &maxSegmentAngle, 0.5f, 0.f, 180.f);
+    ImGui::Spacing();
 
-    ImGui::Separator();
-    ImGui::TextUnformatted("Smoothing (Centripetal Catmull-Rom)");
-    ImGui::Checkbox("Use Catmull-Rom spline", &useCatmullRom);
-    if (useCatmullRom) {
-        ImGui::SliderFloat("Alpha (0=uniform .5=centripetal 1=chordal)", &catmullRomAlpha, 0.f, 1.f);
-        ImGui::DragInt("Subdivisions", &subdivisions, 1.f, 0, 32);
+    if (RedCollapsingHeader("Generation", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::DragFloat("Duration", &duration, 0.02f, 0.05f, 30.f);
+        ImGui::DragFloat("Min point distance", &minPointDistance, 0.005f, 0.001f, 10.f);
+        ImGui::DragFloat("Width", &width, 0.01f, 0.001f, 50.f);
+        ImGui::DragFloat("Max segment angle (deg)", &maxSegmentAngle, 0.5f, 0.f, 180.f);
     }
 
-    ImGui::Separator();
-    ImGui::TextUnformatted("Over lifetime");
-    ImGui::ColorEdit4("Start colour (newest)", &startColor.x);
-    ImGui::ColorEdit4("End colour (oldest)", &endColor.x);
-    ImGui::DragFloat("Start width mult.", &startWidthMul, 0.01f, 0.f, 10.f);
-    ImGui::DragFloat("End width mult.", &endWidthMul, 0.01f, 0.f, 10.f);
+    if (RedCollapsingHeader("Smoothing (Centripetal Catmull-Rom)")) {
+        ImGui::Checkbox("Use Catmull-Rom spline", &useCatmullRom);
+        if (useCatmullRom) {
+            ImGui::SliderFloat("Alpha (0=uniform .5=centripetal 1=chordal)", &catmullRomAlpha, 0.f, 1.f);
+            ImGui::DragInt("Subdivisions", &subdivisions, 1.f, 0, 32);
+        }
+    }
 
-    ImGui::Separator();
-    ImGui::TextUnformatted("Render");
-    {
+    if (RedCollapsingHeader("Over Lifetime", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::ColorEdit4("Start colour (newest)", &startColor.x);
+        ImGui::ColorEdit4("End colour (oldest)", &endColor.x);
+        ImGui::TextUnformatted("Width over lifetime");
+        CurveWidget::Edit("##widthCurve", widthCurve, &startWidthMul, &endWidthMul, 0.01f, 0.f, 10.f);
+    }
+
+    if (RedCollapsingHeader("Render", ImGuiTreeNodeFlags_DefaultOpen)) {
         // Unity-style asset picker: click to open a searchable list, or drag from
         // the Asset Browser. Shows the filename with a type tag; full path in tooltip.
         ImGui::TextUnformatted("Texture");
         ImGui::SameLine(90.f);
         AssetPicker::Draw("##trailTexture", texturePath, AssetPicker::kTextures);
+
+        static const char* kBlend[] = { "Alpha", "Additive" };
+        int blendIdx = (int)blendMode;
+        if (ImGui::Combo("Blend mode", &blendIdx, kBlend, IM_ARRAYSIZE(kBlend)))
+            blendMode = (BlendMode)blendIdx;
+
+        static const char* kTexMode[] = { "Stretch", "Repeat" };
+        int texModeIdx = (int)textureMode;
+        if (ImGui::Combo("Texture mode", &texModeIdx, kTexMode, IM_ARRAYSIZE(kTexMode)))
+            textureMode = (TextureMode)texModeIdx;
+
+        ImGui::DragInt("Layer", &layer, 1.f, -100, 100);
     }
-    static const char* kBlend[] = { "Alpha", "Additive" };
-    int blendIdx = (int)blendMode;
-    if (ImGui::Combo("Blend mode", &blendIdx, kBlend, IM_ARRAYSIZE(kBlend)))
-        blendMode = (BlendMode)blendIdx;
 
-    static const char* kTexMode[] = { "Stretch", "Repeat" };
-    int texModeIdx = (int)textureMode;
-    if (ImGui::Combo("Texture mode", &texModeIdx, kTexMode, IM_ARRAYSIZE(kTexMode)))
-        textureMode = (TextureMode)texModeIdx;
-
-    ImGui::DragInt("Layer", &layer, 1.f, -100, 100);
-
-    ImGui::Separator();
-    ImGui::TextUnformatted("Preview Orbit (edit-mode motion)");
-    bool wasOrbit = previewOrbit;
-    ImGui::Checkbox("Enable orbit preview##trail", &previewOrbit);
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Moves this object in a circle so the trail ribbon is visible\nwithout pressing Play. Disable before entering Play mode.");
-    if (wasOrbit && !previewOrbit) {
-        // User turned off orbit — re-latch next time they enable it.
-        m_orbitInitialized = false;
-    }
-    if (previewOrbit) {
-        ImGui::DragFloat("Orbit radius##trail", &orbitRadius, 0.05f, 0.1f, 20.f);
-        ImGui::DragFloat("Orbit speed (rad/s)##trail", &orbitSpeed, 0.05f, 0.1f, 20.f);
+    if (RedCollapsingHeader("Preview Orbit (edit-mode motion)")) {
+        bool wasOrbit = previewOrbit;
+        ImGui::Checkbox("Enable orbit preview##trail", &previewOrbit);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Moves this object in a circle so the trail ribbon is visible\nwithout pressing Play. Disable before entering Play mode.");
+        if (wasOrbit && !previewOrbit) {
+            // User turned off orbit — re-latch next time they enable it.
+            m_orbitInitialized = false;
+        }
+        if (previewOrbit) {
+            ImGui::DragFloat("Orbit radius##trail", &orbitRadius, 0.05f, 0.1f, 20.f);
+            ImGui::DragFloat("Orbit speed (rad/s)##trail", &orbitSpeed, 0.05f, 0.1f, 20.f);
+        }
     }
 
     ImGui::Separator();
@@ -292,6 +305,8 @@ void ComponentTrail::onSave(std::string& outJson) const{
                                    std::to_string(endColor.z) + "," + std::to_string(endColor.w) + "],";
     outJson += "\"startWidthMul\":" + std::to_string(startWidthMul) + ",";
     outJson += "\"endWidthMul\":" + std::to_string(endWidthMul) + ",";
+    outJson += "\"widthCurve\":[" + std::to_string(widthCurve.p1x) + "," + std::to_string(widthCurve.p1y) + "," +
+                                     std::to_string(widthCurve.p2x) + "," + std::to_string(widthCurve.p2y) + "],";
     outJson += "\"texturePath\":\"" + texturePath + "\",";
     outJson += "\"blendMode\":" + std::to_string((int)blendMode) + ",";
     outJson += "\"textureMode\":" + std::to_string((int)textureMode) + ",";
@@ -353,6 +368,7 @@ void ComponentTrail::onLoad(const std::string& json){
 
     startWidthMul = getFloat("startWidthMul", startWidthMul);
     endWidthMul = getFloat("endWidthMul", endWidthMul);
+    if (auto v = extract("widthCurve"); !v.empty()) extractArray(v, &widthCurve.p1x, 4);
     texturePath = extract("texturePath");
     blendMode = (BlendMode)getInt("blendMode", (int)blendMode);
     textureMode = (TextureMode)getInt("textureMode", (int)textureMode);

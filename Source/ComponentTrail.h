@@ -1,6 +1,7 @@
 #pragma once
 #include "Component.h"
 #include "Globals.h"
+#include "CurveWidget.h"
 #include <vector>
 #include <string>
 #include <deque>
@@ -62,6 +63,7 @@ public:
     Vector4 endColor = Vector4(1.f, 1.f, 1.f, 0.f); // oldest point (about to vanish)
     float startWidthMul = 1.f;
     float endWidthMul = 0.f;
+    EaseCurve widthCurve;
 
     // ---- Render ----
     std::string texturePath;

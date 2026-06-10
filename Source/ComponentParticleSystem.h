@@ -1,8 +1,12 @@
 #pragma once
 #include "Component.h"
 #include "Globals.h"
+#include "ShaderTableDesc.h"
+#include "CurveWidget.h"
 #include <vector>
 #include <random>
+#include <d3d12.h>
+#include <wrl/client.h>
 
 // CPU particle system component.
 // An emitter spawns particles at a configurable rate from a shape (cone, box or
@@ -57,9 +61,10 @@ public:
     Vector4 startColor = Vector4(1.f, 1.f, 1.f, 1.f);
     Vector4 endColor = Vector4(1.f, 1.f, 1.f, 0.f);
 
-    // Size multiplier applied over lifetime: lerp(startSizeMul, endSizeMul, t)
+    // Size multiplier applied over lifetime: lerp(startSizeMul, endSizeMul, sizeCurve.Eval(t))
     float startSizeMul = 1.f;
     float endSizeMul = 1.f;
+    EaseCurve sizeCurve;
 
     Vector3 gravity = Vector3(0.f, 0.f, 0.f);
 
@@ -111,7 +116,7 @@ public:
                        startColor.z + (endColor.z - startColor.z) * t,
                        startColor.w + (endColor.w - startColor.w) * t);
     }
-    float sizeMultiplierAt(float t) const { return startSizeMul + (endSizeMul - startSizeMul) * t; }
+    float sizeMultiplierAt(float t) const { return startSizeMul + (endSizeMul - startSizeMul) * sizeCurve.Eval(t); }
 
     void play() { playing = true; }
     void stop() { playing = false; }
@@ -122,8 +127,16 @@ private:
     Vector3 randomEmitDirection(std::mt19937& rng) const;
     Vector3 randomEmitPosition(std::mt19937& rng) const;
 
+    // Regenerates the small grayscale preview texture shown in the Turbulence
+    // section, sampling the same fbm noise used by the flow field.
+    void updateNoisePreview();
+
     std::vector<Particle> m_particles;
     float m_spawnAccumulator = 0.f;
     float m_age = 0.f;
     mutable std::mt19937 m_rng{ std::random_device{}() };
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> m_noisePreviewTex;
+    ShaderTableDesc m_noisePreviewSRV;
+    bool m_noisePreviewDirty = true;
 };

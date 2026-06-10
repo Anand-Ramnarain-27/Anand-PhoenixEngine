@@ -6,6 +6,8 @@
 #include "AssetPickerWidget.h"
 #include "Application.h"
 #include "ModuleEditor.h"
+#include "ModuleGPUResources.h"
+#include "ModuleShaderDescriptors.h"
 #include "Noise.h"
 #include <imgui.h>
 #include <algorithm>
@@ -19,6 +21,16 @@ namespace {
         if (hi < lo) std::swap(lo, hi);
         std::uniform_real_distribution<float> dist(lo, hi);
         return dist(rng);
+    }
+
+    // Collapsible section header tinted red instead of the default purple accent.
+    bool RedCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags = 0){
+        ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.910f, 0.376f, 0.431f, 0.16f));
+        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.910f, 0.376f, 0.431f, 0.28f));
+        ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.910f, 0.376f, 0.431f, 0.45f));
+        bool open = ImGui::CollapsingHeader(label, flags);
+        ImGui::PopStyleColor(3);
+        return open;
     }
 }
 
@@ -190,86 +202,128 @@ void ComponentParticleSystem::onEditor(){
     ImGui::SameLine();
     if (ImGui::Button("Clear##ps")) clear();
 
-    ImGui::Separator();
-    ImGui::TextUnformatted("Emitter");
-    ImGui::Checkbox("Looping", &looping);
-    if (!looping) ImGui::DragFloat("Duration", &duration, 0.1f, 0.01f, 120.f);
-    ImGui::DragFloat("Emission rate (per sec)", &emissionRate, 0.5f, 0.f, 10000.f);
-    ImGui::DragInt("Max particles", &maxParticles, 1.f, 1, 100000);
-    ImGui::Checkbox("World space", &worldSpace);
+    ImGui::Spacing();
 
-    static const char* kShapes[] = { "Point", "Box", "Sphere", "Cone" };
-    int shapeIdx = (int)shape;
-    if (ImGui::Combo("Shape", &shapeIdx, kShapes, IM_ARRAYSIZE(kShapes)))
-        shape = (EmitterShape)shapeIdx;
+    if (RedCollapsingHeader("Emitter", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Checkbox("Looping", &looping);
+        if (!looping) ImGui::DragFloat("Duration", &duration, 0.1f, 0.01f, 120.f);
+        ImGui::DragFloat("Emission rate (per sec)", &emissionRate, 0.5f, 0.f, 10000.f);
+        ImGui::DragInt("Max particles", &maxParticles, 1.f, 1, 100000);
+        ImGui::Checkbox("World space", &worldSpace);
 
-    if (shape == EmitterShape::Box || shape == EmitterShape::Sphere || shape == EmitterShape::Cone)
-        ImGui::DragFloat("Shape radius", &shapeRadius, 0.01f, 0.f, 1000.f);
-    if (shape == EmitterShape::Cone)
-        ImGui::DragFloat("Cone angle (deg)", &coneAngleDeg, 0.5f, 0.f, 89.f);
+        static const char* kShapes[] = { "Point", "Box", "Sphere", "Cone" };
+        int shapeIdx = (int)shape;
+        if (ImGui::Combo("Shape", &shapeIdx, kShapes, IM_ARRAYSIZE(kShapes)))
+            shape = (EmitterShape)shapeIdx;
 
-    ImGui::Separator();
-    ImGui::TextUnformatted("Initial values (random range)");
-    ImGui::DragFloat2("Lifetime", &lifeRange.x, 0.05f, 0.01f, 120.f);
-    ImGui::DragFloat2("Speed", &speedRange.x, 0.05f, 0.f, 1000.f);
-    ImGui::DragFloat2("Size", &sizeRange.x, 0.01f, 0.001f, 1000.f);
-    ImGui::DragFloat2("Rotation (deg)", &rotationRange.x, 0.5f, -360.f, 360.f);
-    ImGui::DragFloat3("Gravity", &gravity.x, 0.05f, -100.f, 100.f);
-
-    ImGui::Separator();
-    ImGui::TextUnformatted("Turbulence (lecture 12 \"Noise\" - flow field)");
-    ImGui::Checkbox("Use turbulence##ps", &useTurbulence);
-    if (useTurbulence) {
-        ImGui::DragFloat("Frequency##turb", &turbulenceFrequency, 0.01f, 0.001f, 10.f);
-        ImGui::DragFloat("Strength##turb", &turbulenceStrength, 0.05f, 0.f, 100.f);
-        ImGui::DragInt("Octaves##turb", &turbulenceOctaves, 1.f, 1, 8);
-        ImGui::DragFloat("Scroll speed##turb", &turbulenceScroll, 0.05f, -10.f, 10.f);
-        ImGui::TextWrapped("Samples a 3D fractal gradient noise field at each particle's "
-                           "world position; the result is used as a polar angle to build "
-                           "a flow vector (cos,0,sin) that perturbs velocity over time.");
+        if (shape == EmitterShape::Box || shape == EmitterShape::Sphere || shape == EmitterShape::Cone)
+            ImGui::DragFloat("Shape radius", &shapeRadius, 0.01f, 0.f, 1000.f);
+        if (shape == EmitterShape::Cone)
+            ImGui::DragFloat("Cone angle (deg)", &coneAngleDeg, 0.5f, 0.f, 89.f);
     }
 
-    ImGui::Separator();
-    ImGui::TextUnformatted("Over lifetime");
-    ImGui::ColorEdit4("Start colour", &startColor.x);
-    ImGui::ColorEdit4("End colour", &endColor.x);
-    ImGui::DragFloat("Start size mult.", &startSizeMul, 0.01f, 0.f, 100.f);
-    ImGui::DragFloat("End size mult.", &endSizeMul, 0.01f, 0.f, 100.f);
+    if (RedCollapsingHeader("Initial Values", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::TextDisabled("Random range applied when each particle spawns");
+        ImGui::DragFloat2("Lifetime", &lifeRange.x, 0.05f, 0.01f, 120.f);
+        ImGui::DragFloat2("Speed", &speedRange.x, 0.05f, 0.f, 1000.f);
+        ImGui::DragFloat2("Size", &sizeRange.x, 0.01f, 0.001f, 1000.f);
+        ImGui::DragFloat2("Rotation (deg)", &rotationRange.x, 0.5f, -360.f, 360.f);
+        ImGui::DragFloat3("Gravity", &gravity.x, 0.05f, -100.f, 100.f);
+    }
 
-    ImGui::Separator();
-    ImGui::TextUnformatted("Render");
-    {
+    if (RedCollapsingHeader("Turbulence (Perlin Noise)")) {
+        if (ImGui::Checkbox("Use turbulence##ps", &useTurbulence)) m_noisePreviewDirty = true;
+        if (useTurbulence) {
+            bool dirty = false;
+            dirty |= ImGui::DragFloat("Frequency##turb", &turbulenceFrequency, 0.01f, 0.001f, 10.f);
+            ImGui::DragFloat("Strength##turb", &turbulenceStrength, 0.05f, 0.f, 100.f);
+            dirty |= ImGui::DragInt("Octaves##turb", &turbulenceOctaves, 1.f, 1, 8);
+            ImGui::DragFloat("Scroll speed##turb", &turbulenceScroll, 0.05f, -10.f, 10.f);
+            if (dirty) m_noisePreviewDirty = true;
+
+            ImGui::TextWrapped("Samples a 3D fractal gradient noise field at each particle's "
+                               "world position; the result is used as a polar angle to build "
+                               "a flow vector (cos,0,sin) that perturbs velocity over time.");
+
+            ImGui::Spacing();
+            ImGui::TextUnformatted("Preview");
+            if (m_noisePreviewDirty) updateNoisePreview();
+            if (m_noisePreviewSRV.isValid()) {
+                D3D12_GPU_DESCRIPTOR_HANDLE h = m_noisePreviewSRV.getGPUHandle();
+                ImGui::Image((ImTextureID)h.ptr, ImVec2(128.f, 128.f));
+            }
+        }
+    }
+
+    if (RedCollapsingHeader("Over Lifetime", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::ColorEdit4("Start colour", &startColor.x);
+        ImGui::ColorEdit4("End colour", &endColor.x);
+        ImGui::TextUnformatted("Size over lifetime");
+        CurveWidget::Edit("##sizeCurve", sizeCurve, &startSizeMul, &endSizeMul, 0.01f, 0.f, 100.f);
+    }
+
+    if (RedCollapsingHeader("Render", ImGuiTreeNodeFlags_DefaultOpen)) {
         // Unity-style asset picker: click to open a searchable list, or drag from
         // the Asset Browser. Shows the filename with a type tag; full path in tooltip.
         ImGui::TextUnformatted("Texture");
         ImGui::SameLine(90.f);
         AssetPicker::Draw("##psTexture", texturePath, AssetPicker::kTextures);
+
+        ImGui::DragInt("Sheet columns", &sheetColumns, 1.f, 1, 64);
+        ImGui::DragInt("Sheet rows", &sheetRows, 1.f, 1, 64);
+        ImGui::Checkbox("Random sub-image per particle", &randomFrame);
+
+        static const char* kBlend[] = { "Alpha", "Additive" };
+        int blendIdx = (int)blendMode;
+        if (ImGui::Combo("Blend mode", &blendIdx, kBlend, IM_ARRAYSIZE(kBlend)))
+            blendMode = (BlendMode)blendIdx;
+
+        ImGui::DragInt("Layer", &layer, 1.f, -100, 100);
     }
-    ImGui::DragInt("Sheet columns", &sheetColumns, 1.f, 1, 64);
-    ImGui::DragInt("Sheet rows", &sheetRows, 1.f, 1, 64);
-    ImGui::Checkbox("Random sub-image per particle", &randomFrame);
 
-    static const char* kBlend[] = { "Alpha", "Additive" };
-    int blendIdx = (int)blendMode;
-    if (ImGui::Combo("Blend mode", &blendIdx, kBlend, IM_ARRAYSIZE(kBlend)))
-        blendMode = (BlendMode)blendIdx;
-
-    ImGui::DragInt("Layer", &layer, 1.f, -100, 100);
-
-    ImGui::Separator();
-    ImGui::TextUnformatted("GPU Rendering (Lecture 12 — Particle GPU batch)");
-    ImGui::Checkbox("Use GPU batch rendering (ParticlePass)", &useGPU);
-    if (useGPU) {
-        ImGui::TextWrapped("Particles are batched into one draw call per emitter via a "
-                           "StructuredBuffer<GpuParticle>.  When turbulence is also enabled "
-                           "the ParticleUpdateCS compute shader applies the noise flow field "
-                           "on the GPU, matching the cross-system noise→particle connection "
-                           "from the CPU path.");
+    if (RedCollapsingHeader("GPU Rendering")) {
+        ImGui::Checkbox("Use GPU batch rendering (ParticlePass)", &useGPU);
+        if (useGPU) {
+            ImGui::TextWrapped("Particles are batched into one draw call per emitter via a "
+                               "StructuredBuffer<GpuParticle>. When turbulence is also enabled "
+                               "the ParticleUpdateCS compute shader applies the noise flow field "
+                               "on the GPU.");
+        }
     }
 
     ImGui::Separator();
     int alive = (int)std::count_if(m_particles.begin(), m_particles.end(), [](const Particle& p) { return p.alive; });
     ImGui::Text("Live particles: %d / %d", alive, maxParticles);
+}
+
+void ComponentParticleSystem::updateNoisePreview(){
+    constexpr int kSize = 64;
+    std::vector<uint8_t> pixels((size_t)kSize * kSize * 4);
+    const int octaves = std::clamp(turbulenceOctaves, 1, 8);
+    for (int y = 0; y < kSize; ++y) {
+        for (int x = 0; x < kSize; ++x) {
+            Vector3 p((float)x, (float)y, 0.f);
+            float n = Noise::fbm3D(p, octaves, turbulenceFrequency, 0.5f);
+            uint8_t v = (uint8_t)std::clamp((n * 0.5f + 0.5f) * 255.f, 0.f, 255.f);
+            size_t idx = ((size_t)y * kSize + (size_t)x) * 4;
+            pixels[idx + 0] = v;
+            pixels[idx + 1] = v;
+            pixels[idx + 2] = v;
+            pixels[idx + 3] = 255;
+        }
+    }
+
+    auto* gpu = app->getGPUResources();
+    if (!gpu) return;
+    m_noisePreviewTex = gpu->createRawTexture2D(pixels.data(), (size_t)kSize * 4, kSize, kSize, DXGI_FORMAT_R8G8B8A8_UNORM);
+    if (!m_noisePreviewTex) return;
+
+    if (!m_noisePreviewSRV.isValid())
+        m_noisePreviewSRV = app->getShaderDescriptors()->allocTable("ParticleNoisePreviewSRV");
+    if (m_noisePreviewSRV.isValid())
+        m_noisePreviewSRV.createTexture2DSRV(m_noisePreviewTex.Get(), 0, DXGI_FORMAT_R8G8B8A8_UNORM);
+
+    m_noisePreviewDirty = false;
 }
 
 void ComponentParticleSystem::onSave(std::string& outJson) const{
@@ -293,6 +347,8 @@ void ComponentParticleSystem::onSave(std::string& outJson) const{
                                    std::to_string(endColor.z) + "," + std::to_string(endColor.w) + "],";
     outJson += "\"startSizeMul\":" + std::to_string(startSizeMul) + ",";
     outJson += "\"endSizeMul\":" + std::to_string(endSizeMul) + ",";
+    outJson += "\"sizeCurve\":[" + std::to_string(sizeCurve.p1x) + "," + std::to_string(sizeCurve.p1y) + "," +
+                                    std::to_string(sizeCurve.p2x) + "," + std::to_string(sizeCurve.p2y) + "],";
     outJson += "\"gravity\":[" + std::to_string(gravity.x) + "," + std::to_string(gravity.y) + "," + std::to_string(gravity.z) + "],";
     outJson += "\"useTurbulence\":" + std::string(useTurbulence ? "true" : "false") + ",";
     outJson += "\"turbulenceFrequency\":" + std::to_string(turbulenceFrequency) + ",";
@@ -363,6 +419,7 @@ void ComponentParticleSystem::onLoad(const std::string& json){
     if (auto v = extract("startColor"); !v.empty()) extractArray(v, &startColor.x, 4);
     if (auto v = extract("endColor"); !v.empty()) extractArray(v, &endColor.x, 4);
     if (auto v = extract("gravity"); !v.empty()) extractArray(v, &gravity.x, 3);
+    if (auto v = extract("sizeCurve"); !v.empty()) extractArray(v, &sizeCurve.p1x, 4);
 
     useTurbulence = getBool("useTurbulence", useTurbulence);
     turbulenceFrequency = getFloat("turbulenceFrequency", turbulenceFrequency);

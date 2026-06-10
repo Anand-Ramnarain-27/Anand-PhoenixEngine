@@ -1322,7 +1322,7 @@ void ModuleEditor::drawMenuBar(){
         if (ImGui::BeginMenu("Particle Effects")) {
             if (ImGui::MenuItem("Fire (Exercise 1)"))
                 spawnFireParticleSystem(Vector3(0.f, 0.f, 0.f));
-            if (ImGui::MenuItem("Sword Trail (Lecture 12 Exercise)"))
+            if (ImGui::MenuItem("Sword Trail"))
                 spawnSwordTrail(Vector3(0.f, 0.f, 0.f));
             ImGui::Separator();
             if (ImGui::MenuItem("Fire Comet (Trail + Particles Prefab)"))
@@ -2138,7 +2138,7 @@ GameObject* ModuleEditor::spawnSwordTrail(const Vector3& position){
     const std::string swooshTex  = "Assets/Models/Sword/swoosh.png";
 
     // Root pivot — this is what demoMotion swings, so the mesh + trail move together.
-    GameObject* root = scene->createGameObject("Sword Trail (Lecture 12 Exercise)");
+    GameObject* root = scene->createGameObject("Sword Trail");
     {
         auto* t = root->getTransform();
         t->position = position;
@@ -2184,7 +2184,7 @@ GameObject* ModuleEditor::spawnSwordTrail(const Vector3& position){
     }
 
     m_selection.object = root;
-    log("Spawned Sword Trail: sword.gltf + swoosh.png (real lecture assets)", EditorColors::Success);
+    log("Spawned Sword Trail: sword.gltf + swoosh.png", EditorColors::Success);
     return root;
 }
 
