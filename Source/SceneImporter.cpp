@@ -10,7 +10,6 @@
 #include <filesystem>
 #include <cstring>
 #include <unordered_map>
-#include <unordered_set>
 
 namespace {
     struct NodeFileHeader {
@@ -306,77 +305,13 @@ bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinyglt
                 memcpy(&ibms[j], data + j * stride, 64);
         }
 
-        // Coordinate-frame correction.
-        // Some exporters (including Blender without "Apply Transform") place the Z-up→Y-up
-        // axis-conversion rotation on the armature OBJECT node (the non-joint parent of the
-        // skeleton root).  The IBP matrices in the file are in that Y-up world space, but the
-        // mesh vertices are in the armature's LOCAL (Z-up) space.  Unless we pre-multiply every
-        // IBP by the armature's ROTATION the skinning formula IBP*jointWorld gives wrong results.
-        // We use ONLY the rotation/scale component of the armature's world transform — NOT the
-        // translation — so that moving the character in the editor never corrupts the palette.
-        {
-            std::unordered_set<int> jointSet(skin.joints.begin(), skin.joints.end());
-
-            int skelRoot = (skin.skeleton >= 0) ? skin.skeleton
-                         : (skin.joints.empty() ? -1 : skin.joints[0]);
-
-            if (skelRoot >= 0) {
-                int armParent = -1;
-                for (int ni = 0; ni < (int)gltfModel.nodes.size() && armParent < 0; ++ni)
-                    for (int ch : gltfModel.nodes[ni].children)
-                        if (ch == skelRoot) { armParent = ni; break; }
-
-                if (armParent >= 0 && jointSet.find(armParent) == jointSet.end()) {
-                    // Build the armature's world transform (rotation+scale only; strip translation).
-                    Matrix armWorld = Matrix::Identity;
-                    for (int cur = armParent; cur >= 0; ) {
-                        const auto& an = gltfModel.nodes[cur];
-                        Matrix local = Matrix::Identity;
-                        if (an.matrix.size() == 16) {
-                            float fm[16];
-                            for (int k = 0; k < 16; ++k) fm[k] = (float)an.matrix[k];
-                            memcpy(&local, fm, 64);
-                        } else {
-                            Vector3 t(0,0,0), s(1,1,1); Quaternion r(0,0,0,1);
-                            if (an.translation.size() >= 3) { t.x=(float)an.translation[0]; t.y=(float)an.translation[1]; t.z=(float)an.translation[2]; }
-                            if (an.rotation.size() >= 4) { r.x=(float)an.rotation[0]; r.y=(float)an.rotation[1]; r.z=(float)an.rotation[2]; r.w=(float)an.rotation[3]; }
-                            if (an.scale.size() >= 3) { s.x=(float)an.scale[0]; s.y=(float)an.scale[1]; s.z=(float)an.scale[2]; }
-                            local = Matrix::CreateScale(s) * Matrix::CreateFromQuaternion(r) * Matrix::CreateTranslation(t);
-                        }
-                        armWorld = armWorld * local;
-
-                        int parent = -1;
-                        for (int ni = 0; ni < (int)gltfModel.nodes.size() && parent < 0; ++ni)
-                            for (int ch : gltfModel.nodes[ni].children)
-                                if (ch == cur) { parent = ni; break; }
-                        if (parent < 0 || jointSet.find(parent) != jointSet.end()) break;
-                        cur = parent;
-                    }
-
-                    // Strip translation — only rotation+scale matter for the coordinate frame.
-                    Vector3 armT, armS; Quaternion armR;
-                    if (armWorld.Decompose(armS, armR, armT)) {
-                        Matrix rotScale = Matrix::CreateScale(armS) * Matrix::CreateFromQuaternion(armR);
-
-                        // Check if rotScale is non-trivial.
-                        const bool isIdentity =
-                            std::abs(rotScale._11-1)<1e-4f && std::abs(rotScale._12)<1e-4f && std::abs(rotScale._13)<1e-4f && std::abs(rotScale._14)<1e-4f &&
-                            std::abs(rotScale._21)<1e-4f && std::abs(rotScale._22-1)<1e-4f && std::abs(rotScale._23)<1e-4f && std::abs(rotScale._24)<1e-4f &&
-                            std::abs(rotScale._31)<1e-4f && std::abs(rotScale._32)<1e-4f && std::abs(rotScale._33-1)<1e-4f && std::abs(rotScale._34)<1e-4f &&
-                            std::abs(rotScale._41)<1e-4f && std::abs(rotScale._42)<1e-4f && std::abs(rotScale._43)<1e-4f && std::abs(rotScale._44-1)<1e-4f;
-
-                        if (!isIdentity) {
-                            LOG("SceneImporter: skin '%s' — baking armature rotation/scale into IBP "
-                                "(armature world has non-identity rot/scale; translation stripped).",
-                                skin.name.c_str());
-                            for (auto& ibm : ibms)
-                                ibm = rotScale * ibm;
-                        }
-                    }
-                }
-            }
-        }
-
+        // No coordinate-frame correction is applied here: every glTF node (including any
+        // armature/object node ancestor of the skeleton root) is spawned as a GameObject and
+        // parented normally (see ResourceModel::spawnIntoScene), so jointWorldMatrices already
+        // include that ancestor's transform via ComponentTransform::getGlobalMatrix().
+        // IBP * jointWorld therefore cancels to Identity at T-pose without any extra baking
+        // (see ModuleEditor.cpp SkinJob construction). Baking an additional correction into the
+        // IBP here would double-apply the armature transform and distort the rest pose.
         append(ibms.data(), jointCount * sizeof(Matrix));
     }
 
