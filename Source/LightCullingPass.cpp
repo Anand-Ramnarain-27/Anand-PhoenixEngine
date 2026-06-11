@@ -60,28 +60,31 @@ bool LightCullingPass::init(ID3D12Device* device){
 
 bool LightCullingPass::createUploadBuffers(ID3D12Device* device){
     const UINT cbSz = cbAlign(sizeof(CbCulling));
-    m_cb = makeUploadBuf(device, cbSz, &m_cbMapped, L"LightCulling_CB");
-    if (!m_cb) return false;
-
-    m_pointLightBuf = makeUploadBuf(device,
-        sizeof(MeshPipeline::GPUPointLight) * MeshPipeline::MAX_POINT_LIGHTS,
-        &m_pointLightMapped, L"LightCulling_PointLights");
-    m_spotLightBuf = makeUploadBuf(device,
-        sizeof(MeshPipeline::GPUSpotLight) * MeshPipeline::MAX_SPOT_LIGHTS,
-        &m_spotLightMapped, L"LightCulling_SpotLights");
-    if (!m_pointLightBuf || !m_spotLightBuf) return false;
-
     auto* sd = app->getShaderDescriptors();
-    m_pointLightSRV = sd->allocTable("LightCulling_PointLightSRV");
-    m_spotLightSRV = sd->allocTable("LightCulling_SpotLightSRV");
-    if (!m_pointLightSRV.isValid() || !m_spotLightSRV.isValid()) {
-        LOG("LightCullingPass: light SRV alloc failed");
-        return false;
+
+    for (int i = 0; i < NUM_VIEWPORTS; ++i) {
+        m_cb[i] = makeUploadBuf(device, cbSz, &m_cbMapped[i], L"LightCulling_CB");
+        if (!m_cb[i]) return false;
+
+        m_pointLightBuf[i] = makeUploadBuf(device,
+            sizeof(MeshPipeline::GPUPointLight) * MeshPipeline::MAX_POINT_LIGHTS,
+            &m_pointLightMapped[i], L"LightCulling_PointLights");
+        m_spotLightBuf[i] = makeUploadBuf(device,
+            sizeof(MeshPipeline::GPUSpotLight) * MeshPipeline::MAX_SPOT_LIGHTS,
+            &m_spotLightMapped[i], L"LightCulling_SpotLights");
+        if (!m_pointLightBuf[i] || !m_spotLightBuf[i]) return false;
+
+        m_pointLightSRV[i] = sd->allocTable("LightCulling_PointLightSRV");
+        m_spotLightSRV[i] = sd->allocTable("LightCulling_SpotLightSRV");
+        if (!m_pointLightSRV[i].isValid() || !m_spotLightSRV[i].isValid()) {
+            LOG("LightCullingPass: light SRV alloc failed");
+            return false;
+        }
+        makeStructuredSRV(m_pointLightSRV[i], 0, m_pointLightBuf[i].Get(),
+                          MeshPipeline::MAX_POINT_LIGHTS, sizeof(MeshPipeline::GPUPointLight));
+        makeStructuredSRV(m_spotLightSRV[i], 0, m_spotLightBuf[i].Get(),
+                          MeshPipeline::MAX_SPOT_LIGHTS, sizeof(MeshPipeline::GPUSpotLight));
     }
-    makeStructuredSRV(m_pointLightSRV, 0, m_pointLightBuf.Get(),
-                      MeshPipeline::MAX_POINT_LIGHTS, sizeof(MeshPipeline::GPUPointLight));
-    makeStructuredSRV(m_spotLightSRV, 0, m_spotLightBuf.Get(),
-                      MeshPipeline::MAX_SPOT_LIGHTS, sizeof(MeshPipeline::GPUSpotLight));
     return true;
 }
 
@@ -108,8 +111,10 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
                              const FrameLightData& lights,
                              const Matrix& view,
                              const Matrix& projection,
-                             uint32_t width, uint32_t height){
+                             uint32_t width, uint32_t height,
+                             int viewportIndex){
     if (width == 0 || height == 0) return;
+    viewportIndex = (viewportIndex >= 0 && viewportIndex < NUM_VIEWPORTS) ? viewportIndex : 0;
 
     const uint32_t tilesX = getNumTilesX(width);
     const uint32_t tilesY = getNumTilesY(height);
@@ -125,7 +130,7 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
     // the largest viewport seen, the buffer is reused (and just under-filled) for
     // smaller viewports — dispatch only writes/reads the first tilesX*tilesY tiles.
     bool freshlyAllocated = false;
-    if (numTiles > m_allocatedTiles || !m_pointListBuf) {
+    if (numTiles > m_allocatedTiles[viewportIndex] || !m_pointListBuf[viewportIndex]) {
         freshlyAllocated = true;
         // SAFETY: GPU flush required before freeing this resource — defer the release
         // of the old tile buffers via the engine's existing deferred-release queue
@@ -133,30 +138,30 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
         // recorded — which may already reference the old buffers from the other
         // viewport's cull() call this frame — keeps them alive until the GPU is done.
         auto* gpuRes = app->getGPUResources();
-        if (m_pointListBuf) gpuRes->deferRelease(m_pointListBuf);
-        if (m_spotListBuf) gpuRes->deferRelease(m_spotListBuf);
+        if (m_pointListBuf[viewportIndex]) gpuRes->deferRelease(m_pointListBuf[viewportIndex]);
+        if (m_spotListBuf[viewportIndex]) gpuRes->deferRelease(m_spotListBuf[viewportIndex]);
 
         auto* device = app->getD3D12()->getDevice();
         if (!allocTileBuffers(device, numTiles, MAX_LIGHTS_PER_TILE,
-                              m_pointListBuf, L"LightCulling_PointList")) return;
+                              m_pointListBuf[viewportIndex], L"LightCulling_PointList")) return;
         if (!allocTileBuffers(device, numTiles, MAX_LIGHTS_PER_TILE,
-                              m_spotListBuf, L"LightCulling_SpotList")) return;
-        m_allocatedTiles = numTiles;
+                              m_spotListBuf[viewportIndex], L"LightCulling_SpotList")) return;
+        m_allocatedTiles[viewportIndex] = numTiles;
 
         // Recreate descriptors for the new buffers
         auto* sd = app->getShaderDescriptors();
-        m_pointListUAV = sd->allocTable("LightCulling_PointUAV");
-        m_spotListUAV = sd->allocTable("LightCulling_SpotUAV");
-        m_pointListSRV = sd->allocTable("LightCulling_PointSRV");
-        m_spotListSRV = sd->allocTable("LightCulling_SpotSRV");
+        m_pointListUAV[viewportIndex] = sd->allocTable("LightCulling_PointUAV");
+        m_spotListUAV[viewportIndex] = sd->allocTable("LightCulling_SpotUAV");
+        m_pointListSRV[viewportIndex] = sd->allocTable("LightCulling_PointSRV");
+        m_spotListSRV[viewportIndex] = sd->allocTable("LightCulling_SpotSRV");
 
-        makeStructuredUAV(m_pointListUAV, 0, m_pointListBuf.Get(),
+        makeStructuredUAV(m_pointListUAV[viewportIndex], 0, m_pointListBuf[viewportIndex].Get(),
                           numTiles * MAX_LIGHTS_PER_TILE, sizeof(int));
-        makeStructuredUAV(m_spotListUAV, 0, m_spotListBuf.Get(),
+        makeStructuredUAV(m_spotListUAV[viewportIndex], 0, m_spotListBuf[viewportIndex].Get(),
                           numTiles * MAX_LIGHTS_PER_TILE, sizeof(int));
-        makeStructuredSRV(m_pointListSRV, 0, m_pointListBuf.Get(),
+        makeStructuredSRV(m_pointListSRV[viewportIndex], 0, m_pointListBuf[viewportIndex].Get(),
                           numTiles * MAX_LIGHTS_PER_TILE, sizeof(int));
-        makeStructuredSRV(m_spotListSRV, 0, m_spotListBuf.Get(),
+        makeStructuredSRV(m_spotListSRV[viewportIndex], 0, m_spotListBuf[viewportIndex].Get(),
                           numTiles * MAX_LIGHTS_PER_TILE, sizeof(int));
     }
 
@@ -164,8 +169,8 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
     {
         UINT nP = (UINT)std::min(lights.pointLights.size(), (size_t)MeshPipeline::MAX_POINT_LIGHTS);
         UINT nS = (UINT)std::min(lights.spotLights.size(), (size_t)MeshPipeline::MAX_SPOT_LIGHTS);
-        if (nP) memcpy(m_pointLightMapped, lights.pointLights.data(), nP * sizeof(MeshPipeline::GPUPointLight));
-        if (nS) memcpy(m_spotLightMapped, lights.spotLights.data(), nS * sizeof(MeshPipeline::GPUSpotLight));
+        if (nP) memcpy(m_pointLightMapped[viewportIndex], lights.pointLights.data(), nP * sizeof(MeshPipeline::GPUPointLight));
+        if (nS) memcpy(m_spotLightMapped[viewportIndex], lights.spotLights.data(), nS * sizeof(MeshPipeline::GPUSpotLight));
     }
 
     // Upload CB
@@ -177,7 +182,7 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
         cb.viewportHeight = height;
         cb.projection = projection.Transpose();
         cb.view = view.Transpose();
-        memcpy(m_cbMapped, &cb, sizeof(cb));
+        memcpy(m_cbMapped[viewportIndex], &cb, sizeof(cb));
     }
 
     BEGIN_EVENT(cmd, L"Light Culling Pass");
@@ -196,17 +201,17 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
     // (On first dispatch after alloc they are already in UAV state, but the transition is a no-op.)
     {
         CD3DX12_RESOURCE_BARRIER barriers[2] = {
-            CD3DX12_RESOURCE_BARRIER::Transition(m_pointListBuf.Get(),
+            CD3DX12_RESOURCE_BARRIER::Transition(m_pointListBuf[viewportIndex].Get(),
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
-            CD3DX12_RESOURCE_BARRIER::Transition(m_spotListBuf.Get(),
+            CD3DX12_RESOURCE_BARRIER::Transition(m_spotListBuf[viewportIndex].Get(),
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
         };
         // Skip if this is the first allocation ever, OR the buffers were just (re)grown
         // this call — freshly allocated tile buffers start in UAV state, so a
         // PSR->UAV transition on them would be an invalid state transition.
-        if (m_lastWidth != 0 && !freshlyAllocated)
+        if (m_lastWidth[viewportIndex] != 0 && !freshlyAllocated)
             cmd->ResourceBarrier(2, barriers);
     }
 
@@ -216,19 +221,19 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
     ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap() };
     cmd->SetDescriptorHeaps(1, heaps);
 
-    cmd->SetComputeRootConstantBufferView(LightCullingPipeline::SLOT_CB, m_cb->GetGPUVirtualAddress());
+    cmd->SetComputeRootConstantBufferView(LightCullingPipeline::SLOT_CB, m_cb[viewportIndex]->GetGPUVirtualAddress());
 
     // Depth SRV (already in PIXEL_SHADER_RESOURCE after endGeomPass)
     cmd->SetComputeRootDescriptorTable(LightCullingPipeline::SLOT_DEPTH,
                                         gbufferPass.getGBuffer().getDepthSrvHandle());
     cmd->SetComputeRootDescriptorTable(LightCullingPipeline::SLOT_POINT_LIGHTS,
-                                        m_pointLightSRV.getGPUHandle(0));
+                                        m_pointLightSRV[viewportIndex].getGPUHandle(0));
     cmd->SetComputeRootDescriptorTable(LightCullingPipeline::SLOT_SPOT_LIGHTS,
-                                        m_spotLightSRV.getGPUHandle(0));
+                                        m_spotLightSRV[viewportIndex].getGPUHandle(0));
     cmd->SetComputeRootDescriptorTable(LightCullingPipeline::SLOT_POINT_UAV,
-                                        m_pointListUAV.getGPUHandle(0));
+                                        m_pointListUAV[viewportIndex].getGPUHandle(0));
     cmd->SetComputeRootDescriptorTable(LightCullingPipeline::SLOT_SPOT_UAV,
-                                        m_spotListUAV.getGPUHandle(0));
+                                        m_spotListUAV[viewportIndex].getGPUHandle(0));
 
     cmd->Dispatch(tilesX, tilesY, 1);
 
@@ -236,10 +241,10 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
     // Also restore depth to DEPTH_READ|PSR (remove NON_PSR)
     {
         CD3DX12_RESOURCE_BARRIER barriers[3] = {
-            CD3DX12_RESOURCE_BARRIER::Transition(m_pointListBuf.Get(),
+            CD3DX12_RESOURCE_BARRIER::Transition(m_pointListBuf[viewportIndex].Get(),
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-            CD3DX12_RESOURCE_BARRIER::Transition(m_spotListBuf.Get(),
+            CD3DX12_RESOURCE_BARRIER::Transition(m_spotListBuf[viewportIndex].Get(),
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
             CD3DX12_RESOURCE_BARRIER::Transition(
@@ -253,6 +258,6 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
 
     END_EVENT(cmd);
 
-    m_lastWidth = width;
-    m_lastHeight = height;
+    m_lastWidth[viewportIndex] = width;
+    m_lastHeight[viewportIndex] = height;
 }

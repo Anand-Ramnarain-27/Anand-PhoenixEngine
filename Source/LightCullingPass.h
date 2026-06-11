@@ -27,6 +27,12 @@ public:
         Matrix view;
     };
 
+    // cull() and the SRV getters run once per viewport per frame (Scene=0, Game=1) —
+    // all per-frame mutable state below is duplicated per viewport so the second
+    // viewport's upload doesn't clobber the first's data before the GPU executes
+    // either pass (see DeferredLightingPass for the matching fix).
+    static constexpr int NUM_VIEWPORTS = 2;
+
     bool init(ID3D12Device* device);
 
     // Dispatches the culling compute shader.
@@ -36,11 +42,12 @@ public:
               const FrameLightData& lights,
               const Matrix& view,
               const Matrix& projection,
-              uint32_t width, uint32_t height);
+              uint32_t width, uint32_t height,
+              int viewportIndex);
 
     // SRV handles for the resulting per-tile light lists (bind into the lighting PS).
-    D3D12_GPU_DESCRIPTOR_HANDLE getPointListSRV() const { return m_pointListSRV.getGPUHandle(0); }
-    D3D12_GPU_DESCRIPTOR_HANDLE getSpotListSRV() const { return m_spotListSRV .getGPUHandle(0); }
+    D3D12_GPU_DESCRIPTOR_HANDLE getPointListSRV(int viewportIndex) const { return m_pointListSRV[viewportIndex].getGPUHandle(0); }
+    D3D12_GPU_DESCRIPTOR_HANDLE getSpotListSRV(int viewportIndex) const { return m_spotListSRV[viewportIndex] .getGPUHandle(0); }
 
     uint32_t getNumTilesX(uint32_t w) const { return (w + TILE_SIZE - 1) / TILE_SIZE; }
     uint32_t getNumTilesY(uint32_t h) const { return (h + TILE_SIZE - 1) / TILE_SIZE; }
@@ -55,27 +62,27 @@ private:
     LightCullingPipeline m_pipeline;
 
     // GPU-side UAV/SRV list buffers (DEFAULT heap, 1 buffer = all tiles × MAX_LIGHTS_PER_TILE)
-    ComPtr<ID3D12Resource> m_pointListBuf;
-    ComPtr<ID3D12Resource> m_spotListBuf;
-    UINT m_allocatedTiles = 0;
+    ComPtr<ID3D12Resource> m_pointListBuf[NUM_VIEWPORTS];
+    ComPtr<ID3D12Resource> m_spotListBuf[NUM_VIEWPORTS];
+    UINT m_allocatedTiles[NUM_VIEWPORTS] = {};
 
-    ShaderTableDesc m_pointListUAV; // UAV for compute write
-    ShaderTableDesc m_spotListUAV;
-    ShaderTableDesc m_pointListSRV; // SRV for lighting PS read
-    ShaderTableDesc m_spotListSRV;
+    ShaderTableDesc m_pointListUAV[NUM_VIEWPORTS]; // UAV for compute write
+    ShaderTableDesc m_spotListUAV[NUM_VIEWPORTS];
+    ShaderTableDesc m_pointListSRV[NUM_VIEWPORTS]; // SRV for lighting PS read
+    ShaderTableDesc m_spotListSRV[NUM_VIEWPORTS];
 
     // Upload-heap light data used by the culling CB
-    ComPtr<ID3D12Resource> m_pointLightBuf;
-    ComPtr<ID3D12Resource> m_spotLightBuf;
-    void* m_pointLightMapped = nullptr;
-    void* m_spotLightMapped = nullptr;
+    ComPtr<ID3D12Resource> m_pointLightBuf[NUM_VIEWPORTS];
+    ComPtr<ID3D12Resource> m_spotLightBuf[NUM_VIEWPORTS];
+    void* m_pointLightMapped[NUM_VIEWPORTS] = {};
+    void* m_spotLightMapped[NUM_VIEWPORTS] = {};
 
-    ShaderTableDesc m_pointLightSRV; // SRV for light array in compute shader
-    ShaderTableDesc m_spotLightSRV;
+    ShaderTableDesc m_pointLightSRV[NUM_VIEWPORTS]; // SRV for light array in compute shader
+    ShaderTableDesc m_spotLightSRV[NUM_VIEWPORTS];
 
-    ComPtr<ID3D12Resource> m_cb;
-    void* m_cbMapped = nullptr;
+    ComPtr<ID3D12Resource> m_cb[NUM_VIEWPORTS];
+    void* m_cbMapped[NUM_VIEWPORTS] = {};
 
-    uint32_t m_lastWidth = 0;
-    uint32_t m_lastHeight = 0;
+    uint32_t m_lastWidth[NUM_VIEWPORTS] = {};
+    uint32_t m_lastHeight[NUM_VIEWPORTS] = {};
 };

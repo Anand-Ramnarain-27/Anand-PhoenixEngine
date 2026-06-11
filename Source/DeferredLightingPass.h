@@ -27,6 +27,14 @@ public:
         uint32_t pad0, pad1;
     };
 
+    // render() runs once per viewport per frame (Scene=0, Game=1) — all per-frame
+    // mutable upload buffers below are duplicated per viewport so the second
+    // viewport's memcpy() upload doesn't clobber the first's data before the GPU
+    // executes either pass (both renders are recorded into the same command list
+    // before either is submitted, so a single shared buffer would only ever be
+    // seen by the GPU with the second viewport's contents).
+    static constexpr int NUM_VIEWPORTS = 2;
+
     bool init(ID3D12Device* device);
 
     void render(ID3D12GraphicsCommandList* cmd,
@@ -37,34 +45,35 @@ public:
                 const Matrix& projection,
                 const Matrix& invViewProj,
                 const EnvironmentSystem* env,
-                uint32_t width, uint32_t height);
+                uint32_t width, uint32_t height,
+                int viewportIndex);
 
 private:
     bool createUploadBuffers(ID3D12Device* device);
     bool createLightSRVs();
     bool createFallbackIBL(ID3D12Device* device);
 
-    void uploadLights(const FrameLightData& lights);
+    void uploadLights(const FrameLightData& lights, int viewportIndex);
     void uploadPerFrameCB(const FrameLightData& lights, const Vector3& cameraPos,
                           const Matrix& invViewProj, uint32_t envRoughLevels,
-                          uint32_t width, uint32_t height);
+                          uint32_t width, uint32_t height, int viewportIndex);
 
     DeferredLightingPipeline m_pipeline;
     LightCullingPass m_lightCulling;
 
-    ComPtr<ID3D12Resource> m_perFrameCB;
-    void* m_perFrameMapped = nullptr;
+    ComPtr<ID3D12Resource> m_perFrameCB[NUM_VIEWPORTS];
+    void* m_perFrameMapped[NUM_VIEWPORTS] = {};
 
-    ComPtr<ID3D12Resource> m_dirLightBuf;
-    ComPtr<ID3D12Resource> m_pointLightBuf;
-    ComPtr<ID3D12Resource> m_spotLightBuf;
-    void* m_dirLightMapped = nullptr;
-    void* m_pointLightMapped = nullptr;
-    void* m_spotLightMapped = nullptr;
+    ComPtr<ID3D12Resource> m_dirLightBuf[NUM_VIEWPORTS];
+    ComPtr<ID3D12Resource> m_pointLightBuf[NUM_VIEWPORTS];
+    ComPtr<ID3D12Resource> m_spotLightBuf[NUM_VIEWPORTS];
+    void* m_dirLightMapped[NUM_VIEWPORTS] = {};
+    void* m_pointLightMapped[NUM_VIEWPORTS] = {};
+    void* m_spotLightMapped[NUM_VIEWPORTS] = {};
 
-    ShaderTableDesc m_dirLightSRV;
-    ShaderTableDesc m_pointLightSRV;
-    ShaderTableDesc m_spotLightSRV;
+    ShaderTableDesc m_dirLightSRV[NUM_VIEWPORTS];
+    ShaderTableDesc m_pointLightSRV[NUM_VIEWPORTS];
+    ShaderTableDesc m_spotLightSRV[NUM_VIEWPORTS];
 
     ComPtr<ID3D12Resource> m_fallbackCube;
     ComPtr<ID3D12Resource> m_fallbackTex2D;

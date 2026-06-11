@@ -43,6 +43,7 @@ private:
     bool createMatTableRing();
 
     void writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj, UINT slot,
+                         int viewportIndex,
                          D3D12_GPU_VIRTUAL_ADDRESS& outMvpVA,
                          D3D12_GPU_VIRTUAL_ADDRESS& outInstVA);
 
@@ -52,12 +53,18 @@ private:
 
     static constexpr UINT MAX_INSTANCES = 512;
 
-    ComPtr<ID3D12Resource> m_mvpRing;
-    void* m_mvpMapped = nullptr;
+    // render() runs once per viewport per frame (Scene=0, Game=1) — these per-draw
+    // upload rings and material tables are duplicated per viewport so the second
+    // viewport's memcpy() upload doesn't clobber the first's data before the GPU
+    // executes either pass (same shared-buffer hazard as LightCullingPass /
+    // DeferredLightingPass — previously this caused Scene's meshes to be drawn with
+    // Game's MVP matrices once a game camera became active).
+    ComPtr<ID3D12Resource> m_mvpRing[NUM_VIEWPORTS];
+    void* m_mvpMapped[NUM_VIEWPORTS] = {};
 
-    ComPtr<ID3D12Resource> m_instanceRing;
-    void* m_instanceMapped = nullptr;
+    ComPtr<ID3D12Resource> m_instanceRing[NUM_VIEWPORTS];
+    void* m_instanceMapped[NUM_VIEWPORTS] = {};
 
     ComPtr<ID3D12Resource> m_fallbackTex;
-    std::vector<ShaderTableDesc> m_matRing;
+    std::vector<ShaderTableDesc> m_matRing[NUM_VIEWPORTS];
 };

@@ -82,13 +82,15 @@ bool GBufferPass::createUploadBuffers(ID3D12Device* device){
     const UINT mvpSz = cbAlign(sizeof(MeshPipeline::CbMVP));
     const UINT instSz = cbAlign(sizeof(MeshPipeline::CbPerInstance));
 
-    m_mvpRing = makeUploadBuf(device, (UINT64)mvpSz * MAX_INSTANCES,
-                               &m_mvpMapped, L"GBufferPass_MVPRing");
-    if (!m_mvpRing) return false;
+    for (int i = 0; i < NUM_VIEWPORTS; ++i) {
+        m_mvpRing[i] = makeUploadBuf(device, (UINT64)mvpSz * MAX_INSTANCES,
+                                      &m_mvpMapped[i], L"GBufferPass_MVPRing");
+        if (!m_mvpRing[i]) return false;
 
-    m_instanceRing = makeUploadBuf(device, (UINT64)instSz * MAX_INSTANCES,
-                                    &m_instanceMapped, L"GBufferPass_InstanceRing");
-    if (!m_instanceRing) return false;
+        m_instanceRing[i] = makeUploadBuf(device, (UINT64)instSz * MAX_INSTANCES,
+                                           &m_instanceMapped[i], L"GBufferPass_InstanceRing");
+        if (!m_instanceRing[i]) return false;
+    }
 
     return true;
 }
@@ -115,25 +117,27 @@ bool GBufferPass::createFallbackTexture(ID3D12Device* device){
 
 bool GBufferPass::createMatTableRing(){
     auto* sd = app->getShaderDescriptors();
-    m_matRing.reserve(MAX_INSTANCES);
-    for (UINT i = 0; i < MAX_INSTANCES; ++i) {
-        ShaderTableDesc t = sd->allocTable("GBufferPass_MatTex");
-        if (!t.isValid()) {
-            LOG("GBufferPass: mat ring alloc failed at %u", i);
-            return false;
+    for (int v = 0; v < NUM_VIEWPORTS; ++v) {
+        m_matRing[v].reserve(MAX_INSTANCES);
+        for (UINT i = 0; i < MAX_INSTANCES; ++i) {
+            ShaderTableDesc t = sd->allocTable("GBufferPass_MatTex");
+            if (!t.isValid()) {
+                LOG("GBufferPass: mat ring alloc failed at %u", i);
+                return false;
+            }
+            writeFallbackSRV(t, 0, m_fallbackTex.Get());
+            writeFallbackSRV(t, 1, m_fallbackTex.Get());
+            writeFallbackSRV(t, 2, m_fallbackTex.Get());
+            writeFallbackSRV(t, 3, m_fallbackTex.Get());
+            writeFallbackSRV(t, 4, m_fallbackTex.Get());
+            m_matRing[v].push_back(std::move(t));
         }
-        writeFallbackSRV(t, 0, m_fallbackTex.Get());
-        writeFallbackSRV(t, 1, m_fallbackTex.Get());
-        writeFallbackSRV(t, 2, m_fallbackTex.Get());
-        writeFallbackSRV(t, 3, m_fallbackTex.Get());
-        writeFallbackSRV(t, 4, m_fallbackTex.Get());
-        m_matRing.push_back(std::move(t));
     }
     return true;
 }
 
 void GBufferPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj,
-                                   UINT slot,
+                                   UINT slot, int viewportIndex,
                                    D3D12_GPU_VIRTUAL_ADDRESS& outMvpVA,
                                    D3D12_GPU_VIRTUAL_ADDRESS& outInstVA){
     const UINT mvpSz = cbAlign(sizeof(MeshPipeline::CbMVP));
@@ -145,7 +149,7 @@ void GBufferPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj
     {
         MeshPipeline::CbMVP mvp;
         mvp.mvp = (world * viewProj).Transpose();
-        memcpy(static_cast<char*>(m_mvpMapped) + (UINT64)slot * mvpSz, &mvp, sizeof(mvp));
+        memcpy(static_cast<char*>(m_mvpMapped[viewportIndex]) + (UINT64)slot * mvpSz, &mvp, sizeof(mvp));
     }
 
     {
@@ -160,11 +164,11 @@ void GBufferPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj
         if (!mat && entry.materialRes) mat = entry.materialRes->getMaterial();
         inst.material = toGpuMaterial(mat);
 
-        memcpy(static_cast<char*>(m_instanceMapped) + (UINT64)slot * instSz, &inst, sizeof(inst));
+        memcpy(static_cast<char*>(m_instanceMapped[viewportIndex]) + (UINT64)slot * instSz, &inst, sizeof(inst));
     }
 
-    outMvpVA = m_mvpRing->GetGPUVirtualAddress() + (UINT64)slot * mvpSz;
-    outInstVA = m_instanceRing->GetGPUVirtualAddress() + (UINT64)slot * instSz;
+    outMvpVA = m_mvpRing[viewportIndex]->GetGPUVirtualAddress() + (UINT64)slot * mvpSz;
+    outInstVA = m_instanceRing[viewportIndex]->GetGPUVirtualAddress() + (UINT64)slot * instSz;
 }
 
 void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
@@ -209,12 +213,12 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
             }
 
             D3D12_GPU_VIRTUAL_ADDRESS mvpVA, instVA;
-            writePerDrawCBs(*entry, viewProj, slot, mvpVA, instVA);
+            writePerDrawCBs(*entry, viewProj, slot, viewportIndex, mvpVA, instVA);
 
             cmd->SetGraphicsRootConstantBufferView(GBufferPipeline::SLOT_MVP_CB, mvpVA);
             cmd->SetGraphicsRootConstantBufferView(GBufferPipeline::SLOT_INSTANCE_CB, instVA);
 
-            ShaderTableDesc& matTable = m_matRing[slot];
+            ShaderTableDesc& matTable = m_matRing[viewportIndex][slot];
             const Material* mat = entry->instanceMaterial.get();
             if (!mat) mat = entry->material;
             if (!mat && entry->materialRes) mat = entry->materialRes->getMaterial();

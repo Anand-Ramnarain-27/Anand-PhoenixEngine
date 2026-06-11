@@ -784,11 +784,13 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                 }
                 m_deferredLightingPass->render(cmd, *m_gbufferPass, culledLights,
                                                 viewCamPos, view, proj,
-                                                invViewProj, envForIBL, w, h);
+                                                invViewProj, envForIBL, w, h,
+                                                gbufferViewportIndex);
             } else {
                 m_deferredLightingPass->render(cmd, *m_gbufferPass, m_frameLights,
                                                 viewCamPos, view, proj,
-                                                invViewProj, envForIBL, w, h);
+                                                invViewProj, envForIBL, w, h,
+                                                gbufferViewportIndex);
             }
         }
 

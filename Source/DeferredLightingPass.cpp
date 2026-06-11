@@ -79,38 +79,42 @@ bool DeferredLightingPass::init(ID3D12Device* device){
 
 bool DeferredLightingPass::createUploadBuffers(ID3D12Device* device){
     const UINT cbSz = cbAlign(sizeof(CbPerFrame));
-    m_perFrameCB = makeUploadBuf(device, cbSz, &m_perFrameMapped, L"DeferredLight_PerFrameCB");
-    if (!m_perFrameCB) return false;
+    for (int i = 0; i < NUM_VIEWPORTS; ++i) {
+        m_perFrameCB[i] = makeUploadBuf(device, cbSz, &m_perFrameMapped[i], L"DeferredLight_PerFrameCB");
+        if (!m_perFrameCB[i]) return false;
 
-    m_dirLightBuf = makeUploadBuf(device,
-        sizeof(MeshPipeline::GPUDirectionalLight) * MeshPipeline::MAX_DIR_LIGHTS,
-        &m_dirLightMapped, L"DeferredLight_DirLights");
-    m_pointLightBuf = makeUploadBuf(device,
-        sizeof(MeshPipeline::GPUPointLight) * MeshPipeline::MAX_POINT_LIGHTS,
-        &m_pointLightMapped, L"DeferredLight_PointLights");
-    m_spotLightBuf = makeUploadBuf(device,
-        sizeof(MeshPipeline::GPUSpotLight) * MeshPipeline::MAX_SPOT_LIGHTS,
-        &m_spotLightMapped, L"DeferredLight_SpotLights");
+        m_dirLightBuf[i] = makeUploadBuf(device,
+            sizeof(MeshPipeline::GPUDirectionalLight) * MeshPipeline::MAX_DIR_LIGHTS,
+            &m_dirLightMapped[i], L"DeferredLight_DirLights");
+        m_pointLightBuf[i] = makeUploadBuf(device,
+            sizeof(MeshPipeline::GPUPointLight) * MeshPipeline::MAX_POINT_LIGHTS,
+            &m_pointLightMapped[i], L"DeferredLight_PointLights");
+        m_spotLightBuf[i] = makeUploadBuf(device,
+            sizeof(MeshPipeline::GPUSpotLight) * MeshPipeline::MAX_SPOT_LIGHTS,
+            &m_spotLightMapped[i], L"DeferredLight_SpotLights");
 
-    if (!m_dirLightBuf || !m_pointLightBuf || !m_spotLightBuf) return false;
+        if (!m_dirLightBuf[i] || !m_pointLightBuf[i] || !m_spotLightBuf[i]) return false;
+    }
     return true;
 }
 
 bool DeferredLightingPass::createLightSRVs(){
     auto* sd = app->getShaderDescriptors();
-    m_dirLightSRV = sd->allocTable("DeferredLight_DirSRV");
-    m_pointLightSRV = sd->allocTable("DeferredLight_PointSRV");
-    m_spotLightSRV = sd->allocTable("DeferredLight_SpotSRV");
-    if (!m_dirLightSRV.isValid() || !m_pointLightSRV.isValid() || !m_spotLightSRV.isValid()) {
-        LOG("DeferredLightingPass: light SRV alloc failed");
-        return false;
+    for (int i = 0; i < NUM_VIEWPORTS; ++i) {
+        m_dirLightSRV[i] = sd->allocTable("DeferredLight_DirSRV");
+        m_pointLightSRV[i] = sd->allocTable("DeferredLight_PointSRV");
+        m_spotLightSRV[i] = sd->allocTable("DeferredLight_SpotSRV");
+        if (!m_dirLightSRV[i].isValid() || !m_pointLightSRV[i].isValid() || !m_spotLightSRV[i].isValid()) {
+            LOG("DeferredLightingPass: light SRV alloc failed");
+            return false;
+        }
+        makeStructuredSRV(m_dirLightSRV[i], 0, m_dirLightBuf[i].Get(),
+                           MeshPipeline::MAX_DIR_LIGHTS, sizeof(MeshPipeline::GPUDirectionalLight));
+        makeStructuredSRV(m_pointLightSRV[i], 0, m_pointLightBuf[i].Get(),
+                           MeshPipeline::MAX_POINT_LIGHTS, sizeof(MeshPipeline::GPUPointLight));
+        makeStructuredSRV(m_spotLightSRV[i], 0, m_spotLightBuf[i].Get(),
+                           MeshPipeline::MAX_SPOT_LIGHTS, sizeof(MeshPipeline::GPUSpotLight));
     }
-    makeStructuredSRV(m_dirLightSRV, 0, m_dirLightBuf.Get(),
-                       MeshPipeline::MAX_DIR_LIGHTS, sizeof(MeshPipeline::GPUDirectionalLight));
-    makeStructuredSRV(m_pointLightSRV, 0, m_pointLightBuf.Get(),
-                       MeshPipeline::MAX_POINT_LIGHTS, sizeof(MeshPipeline::GPUPointLight));
-    makeStructuredSRV(m_spotLightSRV, 0, m_spotLightBuf.Get(),
-                       MeshPipeline::MAX_SPOT_LIGHTS, sizeof(MeshPipeline::GPUSpotLight));
     return true;
 }
 
@@ -167,16 +171,16 @@ bool DeferredLightingPass::createFallbackIBL(ID3D12Device* device){
     return true;
 }
 
-void DeferredLightingPass::uploadLights(const FrameLightData& lights){
+void DeferredLightingPass::uploadLights(const FrameLightData& lights, int viewportIndex){
     auto copy = [](void* dst, const void* src, size_t count, size_t stride, size_t maxCount) {
         UINT n = static_cast<UINT>(std::min(count, maxCount));
         if (n > 0) memcpy(dst, src, n * stride);
     };
-    copy(m_dirLightMapped, lights.dirLights.data(), lights.dirLights.size(),
+    copy(m_dirLightMapped[viewportIndex], lights.dirLights.data(), lights.dirLights.size(),
          sizeof(MeshPipeline::GPUDirectionalLight), MeshPipeline::MAX_DIR_LIGHTS);
-    copy(m_pointLightMapped, lights.pointLights.data(), lights.pointLights.size(),
+    copy(m_pointLightMapped[viewportIndex], lights.pointLights.data(), lights.pointLights.size(),
          sizeof(MeshPipeline::GPUPointLight), MeshPipeline::MAX_POINT_LIGHTS);
-    copy(m_spotLightMapped, lights.spotLights.data(), lights.spotLights.size(),
+    copy(m_spotLightMapped[viewportIndex], lights.spotLights.data(), lights.spotLights.size(),
          sizeof(MeshPipeline::GPUSpotLight), MeshPipeline::MAX_SPOT_LIGHTS);
 }
 
@@ -184,7 +188,8 @@ void DeferredLightingPass::uploadPerFrameCB(const FrameLightData& lights,
                                              const Vector3& cameraPos,
                                              const Matrix& invViewProj,
                                              uint32_t envRoughLevels,
-                                             uint32_t width, uint32_t height){
+                                             uint32_t width, uint32_t height,
+                                             int viewportIndex){
     CbPerFrame cb = {};
     cb.dirLightCount = static_cast<uint32_t>(std::min(lights.dirLights.size(), (size_t)MeshPipeline::MAX_DIR_LIGHTS));
     cb.pointLightCount = static_cast<uint32_t>(std::min(lights.pointLights.size(), (size_t)MeshPipeline::MAX_POINT_LIGHTS));
@@ -196,7 +201,7 @@ void DeferredLightingPass::uploadPerFrameCB(const FrameLightData& lights,
     cb.viewportWidth = width;
     cb.viewportHeight = height;
     cb.pad0 = cb.pad1 = 0;
-    memcpy(m_perFrameMapped, &cb, sizeof(cb));
+    memcpy(m_perFrameMapped[viewportIndex], &cb, sizeof(cb));
 }
 
 void DeferredLightingPass::render(ID3D12GraphicsCommandList* cmd,
@@ -207,18 +212,21 @@ void DeferredLightingPass::render(ID3D12GraphicsCommandList* cmd,
                                    const Matrix& projection,
                                    const Matrix& invViewProj,
                                    const EnvironmentSystem* env,
-                                   uint32_t width, uint32_t height){
+                                   uint32_t width, uint32_t height,
+                                   int viewportIndex){
     if (width == 0 || height == 0) return;
     if (!gbufferPass.getGBuffer().isValid()) return;
+
+    viewportIndex = (viewportIndex >= 0 && viewportIndex < NUM_VIEWPORTS) ? viewportIndex : 0;
 
     uint32_t roughLevels = 0;
     if (env && env->hasIBL()) roughLevels = EnvironmentMap::NUM_ROUGHNESS_LEVELS;
 
     // Run tiled light culling (reads depth buffer, outputs per-tile index lists)
-    m_lightCulling.cull(cmd, gbufferPass, lights, view, projection, width, height);
+    m_lightCulling.cull(cmd, gbufferPass, lights, view, projection, width, height, viewportIndex);
 
-    uploadLights(lights);
-    uploadPerFrameCB(lights, cameraPos, invViewProj, roughLevels, width, height);
+    uploadLights(lights, viewportIndex);
+    uploadPerFrameCB(lights, cameraPos, invViewProj, roughLevels, width, height, viewportIndex);
 
     BEGIN_EVENT(cmd, L"Deferred Lighting Pass");
 
@@ -233,14 +241,14 @@ void DeferredLightingPass::render(ID3D12GraphicsCommandList* cmd,
     cmd->SetDescriptorHeaps(2, heaps);
 
     cmd->SetGraphicsRootConstantBufferView(DeferredLightingPipeline::SLOT_PERFRAME_CB,
-                                            m_perFrameCB->GetGPUVirtualAddress());
+                                            m_perFrameCB[viewportIndex]->GetGPUVirtualAddress());
 
     cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_DIR_LIGHTS,
-                                         m_dirLightSRV.getGPUHandle(0));
+                                         m_dirLightSRV[viewportIndex].getGPUHandle(0));
     cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_POINT_LIGHTS,
-                                         m_pointLightSRV.getGPUHandle(0));
+                                         m_pointLightSRV[viewportIndex].getGPUHandle(0));
     cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_SPOT_LIGHTS,
-                                         m_spotLightSRV.getGPUHandle(0));
+                                         m_spotLightSRV[viewportIndex].getGPUHandle(0));
 
     if (env && env->hasIBL()) {
         const EnvironmentMap* map = env->getEnvironmentMap();
@@ -271,9 +279,9 @@ void DeferredLightingPass::render(ID3D12GraphicsCommandList* cmd,
 
     // Per-tile light index lists (from light culling pass)
     cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_POINT_INDICES,
-                                         m_lightCulling.getPointListSRV());
+                                         m_lightCulling.getPointListSRV(viewportIndex));
     cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_SPOT_INDICES,
-                                         m_lightCulling.getSpotListSRV());
+                                         m_lightCulling.getSpotListSRV(viewportIndex));
 
     cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_SAMPLER,
                                          samplerHeap->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));
