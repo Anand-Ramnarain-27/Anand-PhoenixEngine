@@ -170,15 +170,20 @@ void GBufferPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj
 void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
                           const std::vector<MeshEntry*>& meshes,
                           const Matrix& viewProj,
-                          uint32_t width, uint32_t height){
+                          uint32_t width, uint32_t height,
+                          int viewportIndex){
     if (width == 0 || height == 0) return;
 
-    m_gbuffer.resize(width, height);
+    viewportIndex = (viewportIndex >= 0 && viewportIndex < NUM_VIEWPORTS) ? viewportIndex : 0;
+    m_activeIndex = viewportIndex;
+    GBuffer& gbuffer = m_gbuffer[viewportIndex];
+
+    gbuffer.resize(width, height);
 
     BEGIN_EVENT(cmd, L"GBuffer Geometry Pass");
 
     // Always clear GBuffer and transition depth — transparent pass depends on cleared depth
-    m_gbuffer.beginGeomPass(cmd);
+    gbuffer.beginGeomPass(cmd);
 
     if (!meshes.empty()) {
         cmd->SetPipelineState(m_pipeline.getPSO());
@@ -238,7 +243,7 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
         }
     }
 
-    m_gbuffer.endGeomPass(cmd);
+    gbuffer.endGeomPass(cmd);
 
     END_EVENT(cmd);
 }

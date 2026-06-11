@@ -111,4 +111,7 @@ private:
     bool m_drawBones = false;
     bool m_drawAxisTriads = false;
     float m_logTimer = 0.f;
+
+    // PERF: skip skinning for off-screen meshes; re-enable on first visible frame to prevent pop.
+    bool isOwnerMeshVisible() const;
 };

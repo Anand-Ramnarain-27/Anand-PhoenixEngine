@@ -97,6 +97,8 @@ static bool allocTileBuffers(ID3D12Device* device, UINT numTiles, UINT maxPerTil
                                                   nullptr, IID_PPV_ARGS(&newBuf));
     if (FAILED(hr)) { LOG("LightCullingPass: tile buf alloc failed 0x%08X", hr); return false; }
     newBuf->SetName(name);
+    // SAFETY: GPU flush required before freeing this resource — caller (cull()) has
+    // already deferred-released the old buffer, so overwriting the ComPtr here is safe.
     buf = std::move(newBuf);
     return true;
 }
@@ -113,11 +115,26 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
     const uint32_t tilesY = getNumTilesY(height);
     const UINT numTiles = tilesX * tilesY;
 
-    // Reallocate tile buffers if viewport changed
-    if (numTiles != m_allocatedTiles || !m_pointListBuf) {
-        // The old buffers may still be referenced by an in-flight command list from a
-        // previous frame; wait for the GPU to finish before destroying/replacing them.
-        if (m_pointListBuf) app->getD3D12()->flush();
+    // Reallocate tile buffers only when the viewport needs MORE tiles than currently
+    // allocated (grow-only policy). cull() is called once per viewport (Scene + Game)
+    // every frame with potentially different resolutions; reallocating on every size
+    // difference would thrash these buffers every frame and risk freeing a buffer that
+    // the current frame's command list already referenced earlier (e.g. for the other
+    // viewport's cull() call), which is what produced the
+    // OBJECT_DELETED_WHILE_STILL_IN_USE crash on LightCulling_PointList. Once grown to
+    // the largest viewport seen, the buffer is reused (and just under-filled) for
+    // smaller viewports — dispatch only writes/reads the first tilesX*tilesY tiles.
+    bool freshlyAllocated = false;
+    if (numTiles > m_allocatedTiles || !m_pointListBuf) {
+        freshlyAllocated = true;
+        // SAFETY: GPU flush required before freeing this resource — defer the release
+        // of the old tile buffers via the engine's existing deferred-release queue
+        // (same mechanism GBuffer::release() uses) so the command list currently being
+        // recorded — which may already reference the old buffers from the other
+        // viewport's cull() call this frame — keeps them alive until the GPU is done.
+        auto* gpuRes = app->getGPUResources();
+        if (m_pointListBuf) gpuRes->deferRelease(m_pointListBuf);
+        if (m_spotListBuf) gpuRes->deferRelease(m_spotListBuf);
 
         auto* device = app->getD3D12()->getDevice();
         if (!allocTileBuffers(device, numTiles, MAX_LIGHTS_PER_TILE,
@@ -186,8 +203,10 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
         };
-        // Only issue these if not first frame (buffers start in UAV after alloc)
-        if (m_lastWidth != 0)
+        // Skip if this is the first allocation ever, OR the buffers were just (re)grown
+        // this call — freshly allocated tile buffers start in UAV state, so a
+        // PSR->UAV transition on them would be an invalid state transition.
+        if (m_lastWidth != 0 && !freshlyAllocated)
             cmd->ResourceBarrier(2, barriers);
     }
 

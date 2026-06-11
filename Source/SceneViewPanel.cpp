@@ -59,6 +59,9 @@ void SceneViewPanel::draw(){
 bool SceneViewPanel::buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView, Matrix& outProj){
     ModuleCamera* camera = app->getCamera();
     if (!camera) return false;
+    // SCENE VIEW SKYBOX — uses editor fly-cam rotation, never game camera.
+    // outView is forwarded to renderSceneWithCamera(), which draws the skybox
+    // with this exact view matrix immediately, independent of the Game View.
     outView = camera->getView();
     outProj = ModuleCamera::getPerspectiveProj(float(w) / float(h));
     camera->clearGameCameraFrustum();

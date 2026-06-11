@@ -410,6 +410,9 @@
     <ClCompile Include="OctreeBroadPhase.cpp">
       <Filter>Engine\Physics\Collision\BroadPhase</Filter>
     </ClCompile>
+    <ClCompile Include="RenderOctree.cpp">
+      <Filter>Engine\Camera</Filter>
+    </ClCompile>
     <!-- Engine\Physics\Collision\NarrowPhase -->
     <ClCompile Include="NarrowPhase.cpp">
       <Filter>Engine\Physics\Collision\NarrowPhase</Filter>
@@ -955,6 +958,9 @@
     </ClInclude>
     <ClInclude Include="OctreeBroadPhase.h">
       <Filter>Engine\Physics\Collision\BroadPhase</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderOctree.h">
+      <Filter>Engine\Camera</Filter>
     </ClInclude>
     <!-- Engine\Physics\Collision\MidPhase -->
     <ClInclude Include="IMidPhase.h">

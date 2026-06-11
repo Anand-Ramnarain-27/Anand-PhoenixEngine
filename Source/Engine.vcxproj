@@ -176,6 +176,7 @@
     <ClInclude Include="BoundingVolume.h" />
     <ClInclude Include="UniformGridBroadPhase.h" />
     <ClInclude Include="OctreeBroadPhase.h" />
+    <ClInclude Include="RenderOctree.h" />
     <ClInclude Include="ComponentBounds.h" />
     <ClInclude Include="CollisionResponse.h" />
     <ClInclude Include="ComponentRigidbody.h" />
@@ -399,6 +400,7 @@
     <ClCompile Include="BruteForceBroadPhase.cpp" />
     <ClCompile Include="UniformGridBroadPhase.cpp" />
     <ClCompile Include="OctreeBroadPhase.cpp" />
+    <ClCompile Include="RenderOctree.cpp" />
     <ClCompile Include="ComponentBounds.cpp" />
     <ClCompile Include="CollisionResponse.cpp" />
     <ClCompile Include="CollisionSystem.cpp" />

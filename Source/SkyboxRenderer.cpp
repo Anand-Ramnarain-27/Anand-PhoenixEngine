@@ -4,13 +4,14 @@
 #include "ModuleShaderDescriptors.h"
 #include "ModuleSamplerHeap.h"
 #include "ModuleGPUResources.h"
+#include "ModuleRingBuffer.h"
 #include "CubeGeometry.h"
 #include "ReadData.h"
 
 using namespace DirectX;
 
 bool SkyboxRenderer::init(ID3D12Device* device, bool useMSAA){
-	return createGeometry(device) && createConstantBuffer(device) && createRootSignature(device) && createPipeline(device, useMSAA);
+	return createGeometry(device) && createRootSignature(device) && createPipeline(device, useMSAA);
 }
 
 bool SkyboxRenderer::createGeometry(ID3D12Device* device){
@@ -24,18 +25,6 @@ bool SkyboxRenderer::createGeometry(ID3D12Device* device){
 	vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
 	vbView.StrideInBytes = CubeGeometry::kCubeVertexStride;
 	vbView.SizeInBytes = CubeGeometry::kCubeVertexSize;
-	return true;
-}
-
-bool SkyboxRenderer::createConstantBuffer(ID3D12Device* device){
-	auto* resources = app->getGPUResources();
-
-	SkyboxCB zeroCB = {};
-	constantBuffer = resources->createUploadBuffer(&zeroCB, (sizeof(SkyboxCB) + 255) & ~255, "SkyboxCB");
-
-	if (!constantBuffer) return false;
-
-	constantBuffer->Map(0, nullptr, reinterpret_cast<void**>(&cbData));
 	return true;
 }
 
@@ -105,7 +94,13 @@ void SkyboxRenderer::render(ID3D12GraphicsCommandList* cmd, const EnvironmentMap
 	viewNoTranslation._42 = 0.0f;
 	viewNoTranslation._43 = 0.0f;
 
-	cbData->vp = (viewNoTranslation * projection).Transpose();
+	// Allocate a fresh constant buffer slot from the per-frame ring buffer for THIS
+	// draw call. A single shared/persistent CB would be overwritten by whichever
+	// viewport renders second before the GPU executes the first viewport's draw,
+	// and would also flicker for a frame when the active camera changes.
+	SkyboxCB cbDataLocal = {};
+	cbDataLocal.vp = (viewNoTranslation * projection).Transpose();
+	D3D12_GPU_VIRTUAL_ADDRESS cbAddress = app->getRingBuffer()->allocateConstantBuffer(&cbDataLocal, sizeof(SkyboxCB));
 
 	auto* samplers = app->getSamplerHeap();
 
@@ -114,7 +109,7 @@ void SkyboxRenderer::render(ID3D12GraphicsCommandList* cmd, const EnvironmentMap
 
 	cmd->SetGraphicsRootSignature(rootSignature.Get());
 	cmd->SetPipelineState(pso.Get());
-	cmd->SetGraphicsRootConstantBufferView(0, constantBuffer->GetGPUVirtualAddress());
+	cmd->SetGraphicsRootConstantBufferView(0, cbAddress);
 	cmd->SetGraphicsRootDescriptorTable(1, env.getGPUHandle());
 	cmd->SetGraphicsRootDescriptorTable(2, samplers->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));
 
