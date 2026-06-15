@@ -4,6 +4,7 @@
 #include "GameObject.h"
 #include "Component.h"
 #include "ComponentTransform.h"
+#include "ComponentMesh.h"
 #include "ComponentFactory.h"
 #include "PrefabManager.h"
 #include "Application.h"
@@ -154,6 +155,16 @@ bool SceneSerializer::LoadScene(const std::string& filePath, ModuleScene* scene)
             else LOG("SceneSerializer: Failed to create component type %d", (int)type);
         }
     }
+
+    // Now that the entire hierarchy is parented, bind skinned meshes' joint GameObjects.
+    // ComponentMesh::onLoad defers this because bone nodes may not be parented yet when its
+    // component is loaded (see ComponentMesh::resolveDeferredSkin).
+    std::function<void(GameObject*)> resolveSkins = [&](GameObject* go){
+        if (auto* cm = go->getComponent<ComponentMesh>()) cm->resolveDeferredSkin();
+        for (auto* child : go->getChildren()) resolveSkins(child);
+    };
+    resolveSkins(scene->getRoot());
+
     return true;
 }
 

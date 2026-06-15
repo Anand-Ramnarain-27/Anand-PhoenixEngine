@@ -63,6 +63,13 @@ public:
     // Skinning data — call once when spawning a skinned GLTF model.
     // skin is copied into this component so ResourceModel can be released.
     void setSkinData(const ResourceModel::Skin& skin, std::vector<GameObject*> joints);
+
+    // Deserialization stores the skin's IBP matrices + joint names but defers binding the
+    // joint GameObjects: onLoad runs while the scene hierarchy is still being assembled, so
+    // the bone nodes may not be parented (findable) yet. SceneSerializer calls this once the
+    // whole hierarchy is built. No-op when there is no pending skin (e.g. live model spawn).
+    void resolveDeferredSkin();
+
     bool hasSkinData() const { return m_hasSkin; }
     const ResourceModel::Skin& getLocalSkin() const { return m_localSkin; }
     const std::vector<GameObject*>& getSkinJoints() const { return m_skinJoints; }
@@ -129,6 +136,11 @@ private:
     bool m_hasSkin = false;
     ResourceModel::Skin m_localSkin; // owned copy of the skin definition
     std::vector<GameObject*> m_skinJoints; // joint GameObjects in joint-index order (not owned)
+
+    // Pending skin parsed in onLoad, bound later by resolveDeferredSkin() (see header note).
+    bool m_hasPendingSkin = false;
+    ResourceModel::Skin m_pendingSkin;
+    std::vector<std::string> m_pendingJointNames;
 
     float m_morphWeights[MAX_MORPH_WEIGHTS] = {};
     bool m_morphWeightsDirty = false;

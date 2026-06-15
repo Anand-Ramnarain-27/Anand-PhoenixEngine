@@ -385,28 +385,48 @@ void ComponentMesh::onLoad(const std::string& jsonStr){
         const auto& names = doc["SkinJointNames"].GetArray();
         const auto& ibmsArr = doc["SkinIBMs"].GetArray();
         if (names.Size() == ibmsArr.Size() && names.Size() > 0) {
-            ResourceModel::Skin skin;
-            std::vector<GameObject*> joints;
-            skin.jointNodeIndices.resize(names.Size());
-            skin.inverseBindMatrices.resize(names.Size());
+            // Parse the skin now, but defer binding joint GameObjects until the full scene
+            // hierarchy exists (resolveDeferredSkin). During deserialization the bone nodes may
+            // not be parented yet, so resolving by name here would silently fail.
+            m_pendingSkin = ResourceModel::Skin{};
+            m_pendingSkin.jointNodeIndices.resize(names.Size());
+            m_pendingSkin.inverseBindMatrices.resize(names.Size());
+            m_pendingJointNames.clear();
+            m_pendingJointNames.reserve(names.Size());
 
-            GameObject* root = hierarchyRoot(owner);
-            bool ok = true;
             for (SizeType k = 0; k < names.Size(); ++k) {
-                skin.jointNodeIndices[k] = static_cast<int>(k);
+                m_pendingSkin.jointNodeIndices[k] = static_cast<int>(k);
                 const auto& mArr = ibmsArr[k].GetArray();
-                float* f = reinterpret_cast<float*>(&skin.inverseBindMatrices[k]);
+                float* f = reinterpret_cast<float*>(&m_pendingSkin.inverseBindMatrices[k]);
                 for (int fi = 0; fi < 16; ++fi) f[fi] = mArr[fi].GetFloat();
-                GameObject* jgo = findInSubtree(root, names[k].GetString());
-                if (!jgo) { LOG("ComponentMesh: skin joint '%s' not found", names[k].GetString()); ok = false; break; }
-                joints.push_back(jgo);
+                m_pendingJointNames.emplace_back(names[k].GetString());
             }
-            if (ok) setSkinData(skin, std::move(joints));
+            m_hasPendingSkin = true;
         }
     } else if (doc.HasMember("SkinJointNames") && !doc.HasMember("SkinIBMs")) {
         LOG("ComponentMesh: scene JSON has SkinJointNames but no SkinIBMs — "
             "IBP was not saved. Re-import the model and re-save the scene.");
     }
+}
+
+void ComponentMesh::resolveDeferredSkin(){
+    if (!m_hasPendingSkin) return;
+    m_hasPendingSkin = false;
+
+    GameObject* root = hierarchyRoot(owner);
+    std::vector<GameObject*> joints;
+    joints.reserve(m_pendingJointNames.size());
+    bool ok = true;
+    for (const auto& name : m_pendingJointNames) {
+        GameObject* jgo = findInSubtree(root, name);
+        if (!jgo) { LOG("ComponentMesh: skin joint '%s' not found", name.c_str()); ok = false; break; }
+        joints.push_back(jgo);
+    }
+    if (ok) setSkinData(m_pendingSkin, std::move(joints));
+
+    m_pendingJointNames.clear();
+    m_pendingJointNames.shrink_to_fit();
+    m_pendingSkin = ResourceModel::Skin{};
 }
 
 void ComponentMesh::computeLocalAABB(){
