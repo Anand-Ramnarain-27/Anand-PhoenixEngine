@@ -6,19 +6,6 @@
 
 class GameObject;
 
-// Sparse octree used for hierarchical render (frustum) culling — separate from
-// OctreeBroadPhase (which is rebuilt every physics step for collision pairs).
-//
-// Usage (once per frame, in ModuleEditor::preRender):
-//   octree.clear();
-//   for each renderable GameObject: octree.add(go, worldAABB);
-//   octree.build();                       // no-op unless something moved
-//   octree.query(gameFrustum, visible);   // visible = candidate GameObjects
-//
-// Lazy rebuild: ComponentTransform::markDirty() calls notifyTransformChanged()
-// whenever any GameObject's world transform changes. build() only reconstructs
-// the tree if a transform changed (or the entry count changed) since the last
-// build — a static scene reuses the previous frame's tree.
 class RenderOctree {
 public:
     struct Entry {
@@ -26,19 +13,13 @@ public:
         AABB worldAABB;
     };
 
-    // Called by ComponentTransform::markDirty() — flags the tree as stale so
-    // the next build() reconstructs it.
-    static void notifyTransformChanged() { s_dirty = true; }
+    static void notifyTransformChanged(){ s_dirty = true; }
 
     void clear();
     void add(GameObject* go, const AABB& worldAABB);
 
-    // Rebuild the tree from entries collected via add() since the last clear().
-    // Skipped if neither the entry count nor a transform changed since the
-    // last successful build (lazy rebuild).
     void build();
 
-    // Append GameObjects whose world AABB overlaps the frustum.
     void query(const Frustum& frustum, std::vector<GameObject*>& outVisible) const;
 
     int getNodeCount() const { return m_nodeCount; }

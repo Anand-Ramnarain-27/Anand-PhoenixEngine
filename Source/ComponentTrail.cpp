@@ -11,7 +11,6 @@
 #include <cmath>
 
 namespace {
-    // Collapsible section header tinted red instead of the default purple accent.
     bool RedCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags = 0){
         ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.910f, 0.376f, 0.431f, 0.16f));
         ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.910f, 0.376f, 0.431f, 0.28f));
@@ -22,19 +21,12 @@ namespace {
     }
 }
 
-ComponentTrail::ComponentTrail(GameObject* owner) : Component(owner) {}
+ComponentTrail::ComponentTrail(GameObject* owner) : Component(owner){}
 
-// Centripetal Catmull-Rom — reformulation via knot intervals:
-//   t0=0, t1=t0+|p0p1|^a, t2=t1+|p1p2|^a, t3=t2+|p2p3|^a
-//   m1 = (t2-t1) * ((p1-p0)/(t1-t0) - (p2-p0)/(t2-t0) + (p2-p1)/(t2-t1))
-//   m2 = (t2-t1) * ((p2-p1)/(t2-t1) - (p3-p1)/(t3-t1) + (p3-p2)/(t3-t2))
-//   curve.a = 2*(p1-p2)+m1+m2 ; curve.b = -3*(p1-p2)-m1-m1-m2
-//   curve.c = m1 ; curve.d = p1
-//   point(t) = a*t^3 + b*t^2 + c*t + d ,  t in [0,1]
 Vector3 ComponentTrail::catmullRom(const Vector3& p0, const Vector3& p1,
                                    const Vector3& p2, const Vector3& p3,
                                    float alpha, float t){
-    auto safeDist = [](const Vector3& a, const Vector3& b) {
+    auto safeDist = [](const Vector3& a, const Vector3& b){
         return std::max(1e-4f, Vector3::Distance(a, b));
     };
 
@@ -63,19 +55,14 @@ Vector3 ComponentTrail::catmullRom(const Vector3& p0, const Vector3& p1,
 void ComponentTrail::update(float dt){
     if (!enabled) return;
 
-    // Preview orbit: move the owner in a circle (XZ) so the trail ribbon is visible
-    // in edit mode without requiring Play or a physics-driven object.
-    // Only active when previewOrbit == true; automatically disabled when effects stop.
-    if (previewOrbit && owner) {
+    if (previewOrbit && owner){
         auto* xform = owner->getTransform();
-        if (!m_orbitInitialized) {
-            // Latch the owner's current position as the orbit centre.
+        if (!m_orbitInitialized){
             orbitCenter = xform->getGlobalMatrix().Translation();
             m_orbitAngle = 0.f;
             m_orbitInitialized = true;
         }
         m_orbitAngle += orbitSpeed * dt;
-        // Move in XZ, keep the original Y so the object stays at its spawn height.
         xform->position = Vector3(
             orbitCenter.x + std::cos(m_orbitAngle) * orbitRadius,
             orbitCenter.y,
@@ -83,14 +70,13 @@ void ComponentTrail::update(float dt){
         xform->markDirty();
     }
 
-    // Age existing points and drop ones past their lifetime (duration).
     for (auto& p : m_points) p.age += dt;
     while (!m_points.empty() && m_points.front().age >= duration)
         m_points.pop_front();
 
-    if (emitting && owner) {
+    if (emitting && owner){
         Vector3 worldPos = owner->getTransform()->getGlobalMatrix().Translation();
-        if (m_points.empty() || Vector3::Distance(worldPos, m_points.back().position) >= minPointDistance) {
+        if (m_points.empty() || Vector3::Distance(worldPos, m_points.back().position) >= minPointDistance){
             m_points.push_back({ worldPos, 0.f });
         }
     }
@@ -100,26 +86,22 @@ bool ComponentTrail::buildMesh(const Vector3& camPos, std::vector<TrailVertex>& 
     outVertices.clear();
     if (m_points.size() < 2) return false;
 
-    // 1. Resolve the path: either the raw recorded points, or a Centripetal
-    //    Catmull-Rom-smoothed sequence with `subdivisions` extra points
-    //    inserted between each pair.
-    struct PathPoint { Vector3 pos; float t; }; // t = normalised age in [0,1]
+    struct PathPoint { Vector3 pos; float t; };
     std::vector<PathPoint> path;
 
     const int n = (int)m_points.size();
-    auto ageT = [&](int i) { return std::clamp(m_points[i].age / std::max(0.0001f, duration), 0.f, 1.f); };
+    auto ageT = [&](int i){ return std::clamp(m_points[i].age / std::max(0.0001f, duration), 0.f, 1.f); };
 
-    if (useCatmullRom && n >= 3 && subdivisions > 0) {
+    if (useCatmullRom && n >= 3 && subdivisions > 0){
         path.reserve((n - 1) * (subdivisions + 1) + 1);
-        for (int i = 0; i < n - 1; ++i) {
-            // Extend by reflecting the boundary segment for the missing control point.
+        for (int i = 0; i < n - 1; ++i){
             const Vector3& p1 = m_points[i].position;
             const Vector3& p2 = m_points[i + 1].position;
             Vector3 p0 = (i == 0) ? (2.0f * p1 - p2) : m_points[i - 1].position;
             Vector3 p3 = (i + 2 >= n) ? (2.0f * p2 - p1) : m_points[i + 2].position;
 
             const int steps = subdivisions + 1;
-            for (int s = 0; s < steps; ++s) {
+            for (int s = 0; s < steps; ++s){
                 float t = (float)s / (float)steps;
                 Vector3 pos = catmullRom(p0, p1, p2, p3, catmullRomAlpha, t);
                 float age = ageT(i) + (ageT(i + 1) - ageT(i)) * t;
@@ -135,19 +117,15 @@ bool ComponentTrail::buildMesh(const Vector3& camPos, std::vector<TrailVertex>& 
 
     if (path.size() < 2) return false;
 
-    // 2. Compute total arclength up-front for both texture modes:
-    //    "Repeat" uses arclength / width; "Stretch" maps [0,totalLen] → [0,1].
     std::vector<float> arclen(path.size(), 0.f);
     for (size_t i = 1; i < path.size(); ++i)
         arclen[i] = arclen[i - 1] + Vector3::Distance(path[i].pos, path[i - 1].pos);
     const float totalLen = std::max(1e-4f, arclen.back());
 
-    // 3. Build the camera-facing ribbon: cross the local tangent with the view
-    //    direction to get a perpendicular, same trick billboards use.
     outVertices.reserve(path.size() * 6);
     const size_t count = path.size();
 
-    for (size_t i = 0; i + 1 < count; ++i) {
+    for (size_t i = 0; i + 1 < count; ++i){
         auto buildSide = [&](size_t idx) -> std::pair<Vector3, Vector3> {
             Vector3 tangent;
             if (idx == 0) tangent = path[1].pos - path[0].pos;
@@ -173,16 +151,14 @@ bool ComponentTrail::buildMesh(const Vector3& camPos, std::vector<TrailVertex>& 
         Vector4 colorB = Vector4::Lerp(startColor, endColor, path[i + 1].t);
 
         float uA, uB;
-        if (textureMode == TextureMode::Repeat) {
+        if (textureMode == TextureMode::Repeat){
             uA = arclen[i] / std::max(0.0001f, width);
             uB = arclen[i + 1] / std::max(0.0001f, width);
-        } else { // Stretch — head (newest, t=0) to tail (oldest, t=1)
+        } else {
             uA = arclen[i] / totalLen;
             uB = arclen[i + 1] / totalLen;
         }
 
-        // Two triangles per quad segment, wound CCW when viewed from `camPos`
-        // (NONE-cull pipeline makes winding mostly irrelevant, but keep it tidy).
         TrailVertex v0{ leftA, Vector2(uA, 0.f), colorA };
         TrailVertex v1{ rightA, Vector2(uA, 1.f), colorA };
         TrailVertex v2{ leftB, Vector2(uB, 0.f), colorB };
@@ -201,18 +177,16 @@ bool ComponentTrail::buildMesh(const Vector3& camPos, std::vector<TrailVertex>& 
 }
 
 void ComponentTrail::onEditor(){
-    // ---- Effects transport ----
-    // Lets you preview / stop / restart the trail in edit mode without pressing scene Play.
-    if (auto* ed = app->getEditor()) {
+    if (auto* ed = app->getEditor()){
         bool playing = ed->isEffectsPlaying();
         ImGui::SeparatorText("Effects Transport");
-        if (ImGui::Button(playing ? "Stop##fxtr" : "Play##fxtr")) {
+        if (ImGui::Button(playing ? "Stop##fxtr" : "Play##fxtr")){
             if (playing) ed->effectsStop(); else ed->effectsPlay();
         }
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip(playing ? "Stop effects preview" : "Play: updates trail + particles in edit mode");
         ImGui::SameLine();
-        if (ImGui::Button("Restart##fxtr"))     ed->effectsRestartSelected();
+        if (ImGui::Button("Restart##fxtr")) ed->effectsRestartSelected();
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Clear + replay this trail");
         ImGui::SameLine();
         if (ImGui::Button("Restart All##fxtr")) ed->effectsRestartAll();
@@ -228,31 +202,29 @@ void ComponentTrail::onEditor(){
 
     ImGui::Spacing();
 
-    if (RedCollapsingHeader("Generation", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (RedCollapsingHeader("Generation", ImGuiTreeNodeFlags_DefaultOpen)){
         ImGui::DragFloat("Duration", &duration, 0.02f, 0.05f, 30.f);
         ImGui::DragFloat("Min point distance", &minPointDistance, 0.005f, 0.001f, 10.f);
         ImGui::DragFloat("Width", &width, 0.01f, 0.001f, 50.f);
         ImGui::DragFloat("Max segment angle (deg)", &maxSegmentAngle, 0.5f, 0.f, 180.f);
     }
 
-    if (RedCollapsingHeader("Smoothing (Centripetal Catmull-Rom)")) {
+    if (RedCollapsingHeader("Smoothing (Centripetal Catmull-Rom)")){
         ImGui::Checkbox("Use Catmull-Rom spline", &useCatmullRom);
-        if (useCatmullRom) {
+        if (useCatmullRom){
             ImGui::SliderFloat("Alpha (0=uniform .5=centripetal 1=chordal)", &catmullRomAlpha, 0.f, 1.f);
             ImGui::DragInt("Subdivisions", &subdivisions, 1.f, 0, 32);
         }
     }
 
-    if (RedCollapsingHeader("Over Lifetime", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (RedCollapsingHeader("Over Lifetime", ImGuiTreeNodeFlags_DefaultOpen)){
         ImGui::ColorEdit4("Start colour (newest)", &startColor.x);
         ImGui::ColorEdit4("End colour (oldest)", &endColor.x);
         ImGui::TextUnformatted("Width over lifetime");
         CurveWidget::Edit("##widthCurve", widthCurve, &startWidthMul, &endWidthMul, 0.01f, 0.f, 10.f);
     }
 
-    if (RedCollapsingHeader("Render", ImGuiTreeNodeFlags_DefaultOpen)) {
-        // Unity-style asset picker: click to open a searchable list, or drag from
-        // the Asset Browser. Shows the filename with a type tag; full path in tooltip.
+    if (RedCollapsingHeader("Render", ImGuiTreeNodeFlags_DefaultOpen)){
         ImGui::TextUnformatted("Texture");
         ImGui::SameLine(90.f);
         AssetPicker::Draw("##trailTexture", texturePath, AssetPicker::kTextures);
@@ -270,16 +242,15 @@ void ComponentTrail::onEditor(){
         ImGui::DragInt("Layer", &layer, 1.f, -100, 100);
     }
 
-    if (RedCollapsingHeader("Preview Orbit (edit-mode motion)")) {
+    if (RedCollapsingHeader("Preview Orbit (edit-mode motion)")){
         bool wasOrbit = previewOrbit;
         ImGui::Checkbox("Enable orbit preview##trail", &previewOrbit);
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Moves this object in a circle so the trail ribbon is visible\nwithout pressing Play. Disable before entering Play mode.");
-        if (wasOrbit && !previewOrbit) {
-            // User turned off orbit — re-latch next time they enable it.
+        if (wasOrbit && !previewOrbit){
             m_orbitInitialized = false;
         }
-        if (previewOrbit) {
+        if (previewOrbit){
             ImGui::DragFloat("Orbit radius##trail", &orbitRadius, 0.05f, 0.1f, 20.f);
             ImGui::DragFloat("Orbit speed (rad/s)##trail", &orbitSpeed, 0.05f, 0.1f, 20.f);
         }
@@ -322,12 +293,12 @@ void ComponentTrail::onLoad(const std::string& json){
         auto pos = json.find(k);
         if (pos == std::string::npos) return {};
         pos += k.size();
-        if (json[pos] == '"') {
+        if (json[pos] == '"'){
             ++pos;
             auto end = json.find('"', pos);
             return json.substr(pos, end - pos);
         }
-        if (json[pos] == '[') {
+        if (json[pos] == '['){
             auto end = json.find(']', pos);
             return json.substr(pos, end - pos + 1);
         }
@@ -335,11 +306,11 @@ void ComponentTrail::onLoad(const std::string& json){
         return json.substr(pos, end - pos);
     };
 
-    auto extractArray = [&](const std::string& arr, float* out, int count) {
+    auto extractArray = [&](const std::string& arr, float* out, int count){
         if (arr.size() < 2) return;
         std::string inner = arr.substr(1, arr.size() - 2);
         size_t start = 0;
-        for (int i = 0; i < count; ++i) {
+        for (int i = 0; i < count; ++i){
             size_t comma = inner.find(',', start);
             std::string token = (comma == std::string::npos) ? inner.substr(start)
                                                               : inner.substr(start, comma - start);
@@ -349,16 +320,16 @@ void ComponentTrail::onLoad(const std::string& json){
         }
     };
 
-    auto getBool = [&](const char* key, bool def) { auto v = extract(key); return v.empty() ? def : (v == "true"); };
-    auto getFloat = [&](const char* key, float def) { auto v = extract(key); return v.empty() ? def : std::stof(v); };
-    auto getInt = [&](const char* key, int def) { auto v = extract(key); return v.empty() ? def : std::stoi(v); };
+    auto getBool = [&](const char* key, bool def){ auto v = extract(key); return v.empty() ? def : (v == "true"); };
+    auto getFloat = [&](const char* key, float def){ auto v = extract(key); return v.empty() ? def : std::stof(v); };
+    auto getInt = [&](const char* key, int def){ auto v = extract(key); return v.empty() ? def : std::stoi(v); };
 
     enabled = getBool("enabled", true);
     emitting = getBool("emitting", true);
     duration = getFloat("duration", duration);
     minPointDistance = getFloat("minPointDistance", minPointDistance);
-    width            = getFloat("width", width);
-    maxSegmentAngle  = getFloat("maxSegmentAngle", maxSegmentAngle);
+    width = getFloat("width", width);
+    maxSegmentAngle = getFloat("maxSegmentAngle", maxSegmentAngle);
     useCatmullRom = getBool("useCatmullRom", useCatmullRom);
     catmullRomAlpha = getFloat("catmullRomAlpha", catmullRomAlpha);
     subdivisions = getInt("subdivisions", subdivisions);
@@ -372,8 +343,8 @@ void ComponentTrail::onLoad(const std::string& json){
     texturePath = extract("texturePath");
     blendMode = (BlendMode)getInt("blendMode", (int)blendMode);
     textureMode = (TextureMode)getInt("textureMode", (int)textureMode);
-    layer        = getInt("layer", layer);
+    layer = getInt("layer", layer);
     previewOrbit = getBool("previewOrbit", previewOrbit);
-    orbitRadius  = getFloat("orbitRadius", orbitRadius);
-    orbitSpeed   = getFloat("orbitSpeed", orbitSpeed);
+    orbitRadius = getFloat("orbitRadius", orbitRadius);
+    orbitSpeed = getFloat("orbitSpeed", orbitSpeed);
 }

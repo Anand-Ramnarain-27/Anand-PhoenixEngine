@@ -11,7 +11,7 @@
 
 using namespace rapidjson;
 
-ComponentCamera::ComponentCamera(GameObject* owner) : Component(owner) {}
+ComponentCamera::ComponentCamera(GameObject* owner) : Component(owner){}
 
 void ComponentCamera::update(float){
     rebuildFrustum();
@@ -24,9 +24,9 @@ bool ComponentCamera::isMainCamera() const{
 
 void ComponentCamera::setMainCamera(bool v){
     ModuleCamera* cam = app->getCamera();
-    if (v) {
+    if (v){
         cam->setActiveCamera(owner);
-    } else if (cam->getActiveCamera() == owner) {
+    } else if (cam->getActiveCamera() == owner){
         cam->setActiveCamera(nullptr);
         cam->clearGameCameraFrustum();
     }
@@ -73,12 +73,12 @@ void ComponentCamera::onSave(std::string& outJson) const{
 
 void ComponentCamera::onLoad(const std::string& jsonStr){
     Document doc; doc.Parse(jsonStr.c_str());
-    if (doc.HasParseError()) { LOG("ComponentCamera: JSON parse error"); return; }
+    if (doc.HasParseError()){ LOG("ComponentCamera: JSON parse error"); return; }
     if (doc.HasMember("FOV")) m_fov = doc["FOV"].GetFloat();
     if (doc.HasMember("NearPlane")) m_nearPlane = doc["NearPlane"].GetFloat();
     if (doc.HasMember("FarPlane")) m_farPlane = doc["FarPlane"].GetFloat();
     if (doc.HasMember("IsMainCamera") && doc["IsMainCamera"].GetBool()) setMainCamera(true);
-    if (doc.HasMember("BackgroundColor")) {
+    if (doc.HasMember("BackgroundColor")){
         const auto& c = doc["BackgroundColor"];
         m_backgroundColor = { c[0].GetFloat(), c[1].GetFloat(), c[2].GetFloat(), c[3].GetFloat() };
     }

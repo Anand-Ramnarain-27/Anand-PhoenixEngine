@@ -3,38 +3,24 @@
 #include <wrl.h>
 using Microsoft::WRL::ComPtr;
 
-// Root-signature + PSO set for GPU particle rendering and simulation.
-//
-// Graphics pipeline (ParticleRenderVS/PS):
-//   Slot 0 (b0)  — CBV: CbParticle (ViewProj, CamRight, CamUp)
-//   Slot 1 (t0)  — SRV descriptor table: GpuParticle StructuredBuffer
-//   Slot 2 (t1)  — SRV descriptor table: particle texture
-//   Slot 3 (s0+) — Sampler descriptor table
-//
-// Compute pipeline (ParticleUpdateCS):
-//   Slot 0 (b0)  — CBV: CbUpdate (count, dt, noise params)
-//   Slot 1 (t0)  — SRV descriptor table: input GpuParticle buffer (upload heap)
-//   Slot 2 (u0)  — UAV descriptor table: output GpuParticle buffer (default heap)
 class ParticlePipeline {
 public:
-    // Graphics root sig slots
-    static constexpr UINT GFX_SLOT_CB       = 0;
+    static constexpr UINT GFX_SLOT_CB = 0;
     static constexpr UINT GFX_SLOT_PARTICLES = 1;
-    static constexpr UINT GFX_SLOT_TEXTURE   = 2;
-    static constexpr UINT GFX_SLOT_SAMPLER   = 3;
+    static constexpr UINT GFX_SLOT_TEXTURE = 2;
+    static constexpr UINT GFX_SLOT_SAMPLER = 3;
 
-    // Compute root sig slots
-    static constexpr UINT CS_SLOT_CB      = 0;
-    static constexpr UINT CS_SLOT_INPUT   = 1;
-    static constexpr UINT CS_SLOT_OUTPUT  = 2;
+    static constexpr UINT CS_SLOT_CB = 0;
+    static constexpr UINT CS_SLOT_INPUT = 1;
+    static constexpr UINT CS_SLOT_OUTPUT = 2;
 
     bool init(ID3D12Device* device);
 
-    ID3D12PipelineState* getPSO()         const { return m_pso.Get(); }
+    ID3D12PipelineState* getPSO() const { return m_pso.Get(); }
     ID3D12PipelineState* getAdditivePSO() const { return m_additivePso.Get(); }
-    ID3D12PipelineState* getComputePSO()  const { return m_computePso.Get(); }
-    ID3D12RootSignature* getGfxRootSig()  const { return m_gfxRootSig.Get(); }
-    ID3D12RootSignature* getCsRootSig()   const { return m_csRootSig.Get(); }
+    ID3D12PipelineState* getComputePSO() const { return m_computePso.Get(); }
+    ID3D12RootSignature* getGfxRootSig() const { return m_gfxRootSig.Get(); }
+    ID3D12RootSignature* getCsRootSig() const { return m_csRootSig.Get(); }
 
 private:
     bool createGfxRootSignature(ID3D12Device* device);

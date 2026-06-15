@@ -45,7 +45,7 @@ bool SkyboxRenderer::createRootSignature(ID3D12Device* device){
 
 	ComPtr<ID3DBlob> blob;
 	ComPtr<ID3DBlob> err;
-	if (FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))) {
+	if (FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))){
 		LOG("SkyboxRenderer: root signature serialise failed: %s", err ? (char*)err->GetBufferPointer() : "unknown error");
 		return false;
 	}
@@ -94,10 +94,6 @@ void SkyboxRenderer::render(ID3D12GraphicsCommandList* cmd, const EnvironmentMap
 	viewNoTranslation._42 = 0.0f;
 	viewNoTranslation._43 = 0.0f;
 
-	// Allocate a fresh constant buffer slot from the per-frame ring buffer for THIS
-	// draw call. A single shared/persistent CB would be overwritten by whichever
-	// viewport renders second before the GPU executes the first viewport's draw,
-	// and would also flicker for a frame when the active camera changes.
 	SkyboxCB cbDataLocal = {};
 	cbDataLocal.vp = (viewNoTranslation * projection).Transpose();
 	D3D12_GPU_VIRTUAL_ADDRESS cbAddress = app->getRingBuffer()->allocateConstantBuffer(&cbDataLocal, sizeof(SkyboxCB));

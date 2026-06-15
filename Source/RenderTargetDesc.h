@@ -4,8 +4,7 @@
 
 class ModuleRTDescriptors;
 
-class RenderTargetDesc : public DescriptorBase<RenderTargetDesc, ModuleRTDescriptors>
-{
+class RenderTargetDesc : public DescriptorBase<RenderTargetDesc, ModuleRTDescriptors> {
     using Base = DescriptorBase<RenderTargetDesc, ModuleRTDescriptors>;
     friend Base;
 

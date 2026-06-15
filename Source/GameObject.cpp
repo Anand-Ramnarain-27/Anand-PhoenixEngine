@@ -32,7 +32,7 @@ uint32_t GameObject::generateUID(){
 
 void GameObject::setParent(GameObject* newParent){
     if (parent == newParent) return;
-    if (parent) {
+    if (parent){
         auto& s = parent->children;
         s.erase(std::remove(s.begin(), s.end(), this), s.end());
     }
@@ -59,8 +59,7 @@ T* GameObject::createComponent(Args&&... args){
     T* ptr = comp.get();
     components.push_back(std::move(comp));
 
-    if (ptr->getType() != Component::Type::Transform)
-    {
+    if (ptr->getType() != Component::Type::Transform){
         PrefabManager::markComponentAdded(this, static_cast<int>(ptr->getType()));
     }
 
@@ -80,10 +79,8 @@ T* GameObject::getComponent() const{
 
 template<typename T>
 bool GameObject::removeComponent(){
-    for (auto it = components.begin(); it != components.end(); ++it)
-    {
-        if (dynamic_cast<T*>(it->get()) && (*it)->getType() != Component::Type::Transform)
-        {
+    for (auto it = components.begin(); it != components.end(); ++it){
+        if (dynamic_cast<T*>(it->get()) && (*it)->getType() != Component::Type::Transform){
             Component::Type type = (*it)->getType();
             components.erase(it);
             PrefabManager::markComponentRemoved(this, static_cast<int>(type));
@@ -94,11 +91,9 @@ bool GameObject::removeComponent(){
 }
 
 bool GameObject::removeComponentByType(Component::Type type){
-    if (type == Component::Type::Transform) { LOG("GameObject: Cannot remove Transform component."); return false; }
-    for (auto it = components.begin(); it != components.end(); ++it)
-    {
-        if ((*it)->getType() == type)
-        {
+    if (type == Component::Type::Transform){ LOG("GameObject: Cannot remove Transform component."); return false; }
+    for (auto it = components.begin(); it != components.end(); ++it){
+        if ((*it)->getType() == type){
             components.erase(it);
             PrefabManager::markComponentRemoved(this, static_cast<int>(type));
             return true;

@@ -17,13 +17,13 @@ std::unique_ptr<EnvironmentMap> EnvironmentGenerator::loadCubemap(const std::str
 	auto env = std::make_unique<EnvironmentMap>();
 	env->cubemap = resources->createTextureFromFile(file, true);
 
-	if (!env->cubemap) {
+	if (!env->cubemap){
 		LOG("EnvironmentGenerator: failed to load cubemap '%s'", file.c_str());
 		return nullptr;
 	}
 	app->getD3D12()->flush();
 	env->srvTable = shaderDesc->allocTable("SkyboxCubemap");
-	if (!env->srvTable.isValid()) {
+	if (!env->srvTable.isValid()){
 		LOG("EnvironmentGenerator: failed to alloc SRV table");
 		return nullptr;
 	}
@@ -65,7 +65,7 @@ std::unique_ptr<EnvironmentMap> EnvironmentGenerator::loadHDR(const std::string&
 	if (!ctx.submitAndReset("HDR conversion mip0")) return nullptr;
 	LOG("EnvironmentGenerator: mip 0 done.");
 
-	for (uint32_t mip = 1; mip < numMips; ++mip) {
+	for (uint32_t mip = 1; mip < numMips; ++mip){
 		if (!m_hdrConverter.recordMipLevel(device, ctx.cmd(), *env, mip)) return nullptr;
 		if (!ctx.submitAndReset("HDR mip blit")) return nullptr;
 	}
@@ -73,7 +73,7 @@ std::unique_ptr<EnvironmentMap> EnvironmentGenerator::loadHDR(const std::string&
 
 	if (!m_hdrConverter.finaliseSRV(*env)) return nullptr;
 
-	if (!m_iblGenerator.prepareResources(device, *env)) {
+	if (!m_iblGenerator.prepareResources(device, *env)){
 		LOG("EnvironmentGenerator: IBL prepareResources FAILED");
 		return nullptr;
 	}
@@ -82,7 +82,7 @@ std::unique_ptr<EnvironmentMap> EnvironmentGenerator::loadHDR(const std::string&
 	if (!ctx.submitAndReset("irradiance")) return nullptr;
 	LOG("EnvironmentGenerator: irradiance done.");
 
-	for (uint32_t mip = 0; mip < EnvironmentMap::NUM_ROUGHNESS_LEVELS; ++mip) {
+	for (uint32_t mip = 0; mip < EnvironmentMap::NUM_ROUGHNESS_LEVELS; ++mip){
 		if (!m_iblGenerator.bakePrefilter(device, ctx.cmd(), *env, mip)) return nullptr;
 		if (!ctx.submitAndReset("prefilter")) return nullptr;
 	}
@@ -107,7 +107,7 @@ std::unique_ptr<EnvironmentMap> EnvironmentGenerator::bakeIBL(ModuleD3D12* d3d12
 
 	LOG("EnvironmentGenerator: starting IBL pre-computation...");
 
-	if (!m_iblGenerator.generate(d3d12->getDevice(), ctx.cmd(), *env)) {
+	if (!m_iblGenerator.generate(d3d12->getDevice(), ctx.cmd(), *env)){
 		LOG("EnvironmentGenerator: IBL pre-computation FAILED.");
 		return nullptr;
 	}

@@ -5,13 +5,11 @@
 #include "Lights.hlsli"
 #include "Material.hlsli"
 
-cbuffer CbMVP : register(b0)
-{
+cbuffer CbMVP : register(b0){
     float4x4 MVP;
 };
 
-cbuffer CbPerFrame : register(b1)
-{
+cbuffer CbPerFrame : register(b1){
     uint DirLightCount;
     uint PointLightCount;
     uint SpotLightCount;
@@ -20,8 +18,7 @@ cbuffer CbPerFrame : register(b1)
     uint FramePad;
 };
 
-cbuffer CbPerInstance : register(b2)
-{
+cbuffer CbPerInstance : register(b2){
     float4x4 ModelMatrix;
     float4x4 NormalMatrix;
     Material InstanceMaterial;
@@ -41,4 +38,4 @@ Texture2D NormalTex : register(t8);
 Texture2D OcclusionTex : register(t9);
 Texture2D EmissiveTex : register(t10);
 
-#endif // _FORWARD_HLSLI_
+#endif

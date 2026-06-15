@@ -20,7 +20,7 @@ std::string MetaFileManager::getMetaPath(const std::string& assetPath){
 	std::replace(canonical.begin(), canonical.end(), '\\', '/');
 
 	std::string sanitised = canonical;
-	for (char& c : sanitised) {
+	for (char& c : sanitised){
 		if (c == '/') c = '~';
 	}
 
@@ -60,9 +60,9 @@ bool MetaFileManager::exists(const std::string& assetPath){
 
 UID MetaFileManager::getOrCreateUID(const std::string& assetPath, ResourceBase::Type type){
 	MetaData meta;
-	if (load(assetPath, meta)) {
+	if (load(assetPath, meta)){
 		uint64_t currentMod = getLastModified(assetPath);
-		if (currentMod != meta.lastModified) {
+		if (currentMod != meta.lastModified){
 			meta.lastModified = currentMod;
 			save(assetPath, meta);
 		}
@@ -86,7 +86,7 @@ uint64_t MetaFileManager::getLastModified(const std::string& filePath){
 	try {
 		return (uint64_t)std::chrono::duration_cast<std::chrono::seconds>(fs::last_write_time(filePath).time_since_epoch()).count();
 	}
-	catch (...) {
+	catch (...){
 		return 0;
 	}
 }

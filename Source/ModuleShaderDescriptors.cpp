@@ -35,11 +35,9 @@ void ModuleShaderDescriptors::preRender(){
     ++m_currentFrame;
 
     const UINT FRAME_DELAY = 3;
-    for (UINT i = 0; i < MAX_TABLES; ++i)
-    {
+    for (UINT i = 0; i < MAX_TABLES; ++i){
         auto& t = m_tables[i];
-        if (t.refCount == 0 && t.frameFreed && m_currentFrame - t.frameFreed >= FRAME_DELAY)
-        {
+        if (t.refCount == 0 && t.frameFreed && m_currentFrame - t.frameFreed >= FRAME_DELAY){
             t.name.clear();
             t.frameFreed = 0;
             m_freeHandles.push(i);

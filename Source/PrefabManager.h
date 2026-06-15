@@ -10,28 +10,24 @@
 class GameObject;
 class ModuleScene;
 
-struct PrefabOverrideRecord
-{
+struct PrefabOverrideRecord {
     std::unordered_map<int, std::unordered_set<std::string>> modifiedProperties;
     std::vector<int> addedComponentTypes;
     std::vector<int> removedComponentTypes;
 
     bool isEmpty() const { return modifiedProperties.empty() && addedComponentTypes.empty() && removedComponentTypes.empty(); }
-    void clear() { modifiedProperties.clear(); addedComponentTypes.clear(); removedComponentTypes.clear(); }
+    void clear(){ modifiedProperties.clear(); addedComponentTypes.clear(); removedComponentTypes.clear(); }
 };
 
-struct PrefabInstanceData
-{
+struct PrefabInstanceData {
     std::string prefabName;
     uint32_t prefabUID = 0;
     PrefabOverrideRecord overrides;
 };
 
-class PrefabManager
-{
+class PrefabManager {
 public:
-    struct PrefabInfo
-    {
+    struct PrefabInfo {
         std::string name;
         uint32_t uid = 0;
         int version = 0;

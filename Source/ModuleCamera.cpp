@@ -39,14 +39,12 @@ void ModuleCamera::update(){
     Vector3 translateLocal = Vector3::Zero;
     Vector2 rotateDelta = Vector2::Zero;
 
-    if (isFlyMode || isOrbiting)
-    {
+    if (isFlyMode || isOrbiting){
         rotateDelta.x = mouseDelta.x * ORBIT_SENSITIVITY * speedMultiplier;
         rotateDelta.y = mouseDelta.y * ORBIT_SENSITIVITY * speedMultiplier;
     }
 
-    if (gps.IsConnected())
-    {
+    if (gps.IsConnected()){
         rotateDelta.x += -gps.thumbSticks.rightX * dt * speedMultiplier;
         rotateDelta.y += -gps.thumbSticks.rightY * dt * speedMultiplier;
         translateLocal.x += gps.thumbSticks.leftX * dt * speedMultiplier;
@@ -57,8 +55,7 @@ void ModuleCamera::update(){
 
     if (wheelDelta != 0) translateLocal.z -= float(wheelDelta) * ZOOM_SPEED * dt * speedMultiplier;
 
-    if (isFlyMode)
-    {
+    if (isFlyMode){
         const float mv = PAN_SPEED * dt * speedMultiplier;
         if (ks.W) translateLocal.z -= mv;
         if (ks.S) translateLocal.z += mv;
@@ -92,16 +89,14 @@ bool ModuleCamera::isVisible(const Vector3& aabbMin, const Vector3& aabbMax) con
 void ModuleCamera::buildDebugLines(FrustumDebugDraw& dd) const{
     if (debugDrawEditorFrustum && m_editorFrustum.cornersValid) dd.addFrustum(m_editorFrustum, Vector3(1, 1, 1));
 
-    if (debugDrawCullFrustum && m_cullFrustum.cornersValid)
-    {
+    if (debugDrawCullFrustum && m_cullFrustum.cornersValid){
         bool isGameCam = (cullSource == CullSource::GameCamera && m_hasGameFrustum);
         dd.addFrustum(m_cullFrustum, isGameCam ? Vector3(0, 1, 0) : Vector3(1, 1, 0));
     }
 
     if (debugDrawCameraAxes) dd.addAxes(position, getForward(), getRight(), getUp(), 0.5f);
 
-    if (debugDrawForwardRay)
-    {
+    if (debugDrawForwardRay){
         Vector3 fwd = getForward();
         dd.addLine(position, position + fwd * nearZ, Vector3(0, 1, 1));
         dd.addLine(position + fwd * nearZ, position + fwd * std::min(farZ, 20.0f), Vector3(0, 0.5f, 0.5f));
@@ -215,7 +210,7 @@ void ModuleCamera::focusOnTarget(const Vector3& target){
     params.azimuthal = asinf(std::clamp(-dir.y, -1.0f, 1.0f));
 }
 
-Matrix ModuleCamera::getPerspectiveProj(float aspect, float fov) { return Matrix::CreatePerspectiveFieldOfView(fov, aspect, 0.1f, 500.0f); }
+Matrix ModuleCamera::getPerspectiveProj(float aspect, float fov){ return Matrix::CreatePerspectiveFieldOfView(fov, aspect, 0.1f, 500.0f); }
 Vector3 ModuleCamera::getForward() const { return Vector3::Transform(-Vector3::UnitZ, rotation); }
 Vector3 ModuleCamera::getRight() const { return Vector3::Transform(Vector3::UnitX, rotation); }
 Vector3 ModuleCamera::getUp() const { return Vector3::Transform(Vector3::UnitY, rotation); }

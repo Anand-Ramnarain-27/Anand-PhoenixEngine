@@ -31,5 +31,5 @@ private:
     float m_snapR = 15.0f;
     float m_snapS = 0.1f;
     bool m_fullscreen = false;
-    ImGuiID m_savedDockId = 0; // dock node to return to after fullscreen
+    ImGuiID m_savedDockId = 0;
 };

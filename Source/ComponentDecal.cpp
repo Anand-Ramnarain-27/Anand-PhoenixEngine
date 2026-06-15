@@ -4,7 +4,7 @@
 #include "ComponentTransform.h"
 #include <imgui.h>
 
-ComponentDecal::ComponentDecal(GameObject* owner) : Component(owner) {}
+ComponentDecal::ComponentDecal(GameObject* owner) : Component(owner){}
 
 void ComponentDecal::onEditor(){
     ImGui::Checkbox("Enabled##decal", &enabled);
@@ -21,7 +21,6 @@ void ComponentDecal::onEditor(){
 }
 
 void ComponentDecal::onSave(std::string& outJson) const{
-    // Simple JSON – enough to round-trip through the editor
     outJson += "\"texturePath\":\"" + texturePath + "\",";
     outJson += "\"colour\":[" + std::to_string(colour.x) + "," +
                                  std::to_string(colour.y) + "," +
@@ -31,13 +30,12 @@ void ComponentDecal::onSave(std::string& outJson) const{
 }
 
 void ComponentDecal::onLoad(const std::string& json){
-    // Basic key parsing – production code should use a real JSON library
     auto extract = [&](const char* key) -> std::string {
         std::string k = "\"" + std::string(key) + "\":";
         auto pos = json.find(k);
         if (pos == std::string::npos) return {};
         pos += k.size();
-        if (json[pos] == '"') {
+        if (json[pos] == '"'){
             ++pos;
             auto end = json.find('"', pos);
             return json.substr(pos, end - pos);

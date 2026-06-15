@@ -9,27 +9,19 @@ using Microsoft::WRL::ComPtr;
 
 class GBufferPass;
 
-// Per-decal constant buffer data uploaded to the GPU each frame.
 struct DecalInstance {
     Matrix mvp;
     Matrix invModel;
     Matrix invViewProj;
-    Vector4 colourOpacity; // rgb = tint colour, a = opacity
+    Vector4 colourOpacity;
 };
 
-// Deferred decal rendering pass.
-// Runs after the GBuffer geometry pass but before the deferred lighting pass.
-// For each decal it renders a unit box and the PS writes the decal texture
-// into the G-Buffer albedo render target.
 class DecalPass {
 public:
     static constexpr UINT MAX_DECALS = 64;
 
     bool init(ID3D12Device* device);
 
-    // Render all decals.
-    // G-Buffer color RTs must be in SRV state on entry (endGeomPass was called).
-    // They will be transitioned RTV→SRV by this call.
     void render(ID3D12GraphicsCommandList* cmd,
                 GBufferPass& gbufferPass,
                 const std::vector<DecalInstance>& decals,
@@ -43,18 +35,15 @@ private:
 
     DecalPipeline m_pipeline;
 
-    // Unit box geometry
     ComPtr<ID3D12Resource> m_vb;
     ComPtr<ID3D12Resource> m_ib;
     D3D12_VERTEX_BUFFER_VIEW m_vbv = {};
     D3D12_INDEX_BUFFER_VIEW m_ibv = {};
     UINT m_indexCount = 0;
 
-    // Per-decal CB ring (upload heap, MAX_DECALS slots)
     ComPtr<ID3D12Resource> m_cbRing;
     void* m_cbMapped = nullptr;
 
-    // Fallback 1×1 white texture used when a decal has no texture assigned
     ComPtr<ID3D12Resource> m_fallbackTex;
     ShaderTableDesc m_fallbackSRV;
 };

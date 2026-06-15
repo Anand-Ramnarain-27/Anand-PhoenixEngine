@@ -47,7 +47,7 @@ static constexpr float kRad2Deg = 57.2957795f;
 
 static GameObject* findPrefabRoot(GameObject* go){
     GameObject* cur = go;
-    while (cur) {
+    while (cur){
         if (PrefabManager::isPrefabInstance(cur)) return cur;
         cur = cur->getParent();
     }
@@ -58,7 +58,7 @@ void InspectorPanel::drawContent(){
     EditorSelection& sel = m_editor->getSelection();
     bool prefabMode = m_editor->getSceneManager() && m_editor->getSceneManager()->isEditingPrefab();
 
-    if (prefabMode) {
+    if (prefabMode){
         ImVec2 p = ImGui::GetCursorScreenPos();
         ImVec2 p2 = ImVec2(p.x + ImGui::GetContentRegionAvail().x, p.y + 28.f);
         ImGui::GetWindowDrawList()->AddRectFilled(p, p2, IM_COL32(25, 80, 25, 210));
@@ -71,14 +71,13 @@ void InspectorPanel::drawContent(){
         ImGui::Separator();
     }
 
-    if (!sel.has()) { textMuted("No GameObject selected."); return; }
+    if (!sel.has()){ textMuted("No GameObject selected."); return; }
     GameObject* go = sel.object;
 
     PrefabEditSession* session = m_editor->getPrefabSession();
     bool isEditRoot = prefabMode && session && go == session->rootObject;
     bool isInPrefabEdit = prefabMode && session && session->rootObject;
 
-    // ---- Entity header: checkbox + editable name ----
     {
         bool active = go->isActive();
         if (ImGui::Checkbox("##active", &active)) go->setActive(active);
@@ -97,8 +96,8 @@ void InspectorPanel::drawContent(){
         ImGui::Separator();
     }
 
-    if (isInPrefabEdit) {
-        if (isEditRoot) {
+    if (isInPrefabEdit){
+        if (isEditRoot){
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.75f, 0.20f, 1.f));
             ImGui::Text("Prefab root: %s", session->prefabName.c_str());
             ImGui::PopStyleColor();
@@ -111,7 +110,7 @@ void InspectorPanel::drawContent(){
         ImGui::BeginDisabled(!hasChanges);
         ImGui::PushStyleColor(ImGuiCol_Button, hasChanges ? ImVec4(0.14f, 0.42f, 0.14f, 1.f) : ImVec4(0.15f, 0.15f, 0.15f, 1.f));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.58f, 0.20f, 1.f));
-        if (ImGui::Button("Apply", ImVec2(bw, 0)) && session->rootObject) {
+        if (ImGui::Button("Apply", ImVec2(bw, 0)) && session->rootObject){
             PrefabManager::applyToPrefab(session->rootObject);
             m_editor->log(("Applied prefab: " + session->prefabName).c_str(), EditorColors::Success);
             m_editor->exitPrefabEdit();
@@ -122,7 +121,7 @@ void InspectorPanel::drawContent(){
             ImGui::SetTooltip(hasChanges ? "Save changes to prefab file" : "No changes");
         ImGui::SameLine(0, 4);
         ImGui::BeginDisabled(!hasChanges);
-        if (ImGui::Button("Revert", ImVec2(bw, 0)) && session->rootObject) {
+        if (ImGui::Button("Revert", ImVec2(bw, 0)) && session->rootObject){
             PrefabManager::revertToPrefab(session->rootObject, session->isolatedScene.get());
             m_editor->getSelection().object = session->rootObject;
             m_editor->log(("Reverted: " + session->prefabName).c_str(), EditorColors::Warning);
@@ -136,13 +135,13 @@ void InspectorPanel::drawContent(){
         ImGui::Spacing();
     }
 
-    if (!prefabMode && PrefabManager::isPrefabInstance(go)) {
+    if (!prefabMode && PrefabManager::isPrefabInstance(go)){
         ImGui::SameLine();
         ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Active);
         ImGui::Text("[Prefab: %s]", PrefabManager::getPrefabName(go).c_str());
         ImGui::PopStyleColor();
         const PrefabInstanceData* inst = PrefabManager::getInstanceData(go);
-        if (inst && !inst->overrides.isEmpty()) {
+        if (inst && !inst->overrides.isEmpty()){
             ImGui::SameLine();
             ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Override);
             ImGui::Text("(overrides)");
@@ -156,9 +155,8 @@ void InspectorPanel::drawContent(){
     Component::Type toRemove = Component::Type::Transform;
     bool wantsRemove = false;
 
-    // Returns the accent border color for a component type.
     auto compBorderColor = [](Component::Type t) -> ImU32 {
-        switch (t) {
+        switch (t){
         case Component::Type::Mesh: return ImGui::ColorConvertFloat4ToU32(EditorColors::Ok);
         case Component::Type::Camera: return ImGui::ColorConvertFloat4ToU32(EditorColors::Inf);
         case Component::Type::DirectionalLight:
@@ -174,7 +172,7 @@ void InspectorPanel::drawContent(){
         }
     };
 
-    for (const auto& comp : go->getComponents()) {
+    for (const auto& comp : go->getComponents()){
         if (comp->getType() == Component::Type::Transform) continue;
         const char* label =
             comp->getType() == Component::Type::Camera ? "Camera" :
@@ -196,22 +194,20 @@ void InspectorPanel::drawContent(){
 
         ImGui::PushID((int)comp->getType());
 
-        // Record Y position before header so we can draw the left border after.
         float headerY = ImGui::GetCursorScreenPos().y;
 
         bool headerOpen = true;
         bool expanded = ImGui::CollapsingHeader(label, &headerOpen,
             ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap |
             ImGuiTreeNodeFlags_ClipLabelForTrailingButton);
-        if (!headerOpen) { toRemove = comp->getType(); wantsRemove = true; }
+        if (!headerOpen){ toRemove = comp->getType(); wantsRemove = true; }
 
-        // 2px colored left border on the header row
         {
             ImVec2 rMin = ImVec2(ImGui::GetWindowPos().x, headerY);
             ImVec2 rMax = ImVec2(rMin.x + 2.f, ImGui::GetItemRectMax().y);
             ImGui::GetWindowDrawList()->AddRectFilled(rMin, rMax, compBorderColor(comp->getType()));
         }
-        if (expanded) {
+        if (expanded){
             std::string before;
             comp->onSave(before);
 
@@ -233,22 +229,22 @@ void InspectorPanel::drawContent(){
             std::string after;
             comp->onSave(after);
 
-            if (before != after) {
+            if (before != after){
                 GameObject* root = findPrefabRoot(go);
                 if (root)
                     PrefabManager::markPropertyOverride(root, static_cast<int>(comp->getType()), "data");
             }
         }
-        if (ImGui::BeginPopupContextItem("##compctx")) {
+        if (ImGui::BeginPopupContextItem("##compctx")){
             ImGui::TextDisabled("%s", label);
             ImGui::Separator();
-            if (ImGui::MenuItem("Remove Component")) { toRemove = comp->getType(); wantsRemove = true; }
+            if (ImGui::MenuItem("Remove Component")){ toRemove = comp->getType(); wantsRemove = true; }
             ImGui::EndPopup();
         }
         ImGui::PopID();
     }
 
-    if (wantsRemove && toRemove != Component::Type::Transform) {
+    if (wantsRemove && toRemove != Component::Type::Transform){
         if (toRemove == Component::Type::Mesh)
             app->getD3D12()->flush();
         go->removeComponentByType(toRemove);
@@ -263,8 +259,8 @@ void InspectorPanel::drawContent(){
     ImGui::SetNextItemWidth(-80);
     ImGui::InputText("##prefabname", prefabBuf, sizeof(prefabBuf));
     ImGui::SameLine();
-    if (ImGui::Button("Save") && strlen(prefabBuf) > 0) {
-        if (PrefabManager::createPrefab(go, prefabBuf)) {
+    if (ImGui::Button("Save") && strlen(prefabBuf) > 0){
+        if (PrefabManager::createPrefab(go, prefabBuf)){
             PrefabInstanceData d; d.prefabName = prefabBuf; d.prefabUID = PrefabManager::makePrefabUID(prefabBuf);
             PrefabManager::linkInstance(go, d);
             m_editor->log(("Prefab saved: " + std::string(prefabBuf)).c_str(), EditorColors::Success);
@@ -273,15 +269,12 @@ void InspectorPanel::drawContent(){
     }
 }
 
-// Draws a labeled row of three colored-axis DragFloat fields.
-// Returns true if any value was changed.
 static bool vec3Row(const char* label, float v[3], float speed,
                     const char* fmt = "%.2f"){
-    // Axis colors: X=red, Y=green, Z=blue — matching the viewport gizmo
     static const ImVec4 kAxisCol[3] = {
-        ImVec4(0.86f, 0.32f, 0.32f, 1.f), // X red
-        ImVec4(0.30f, 0.78f, 0.45f, 1.f), // Y green
-        ImVec4(0.30f, 0.55f, 0.90f, 1.f), // Z blue
+        ImVec4(0.86f, 0.32f, 0.32f, 1.f),
+        ImVec4(0.30f, 0.78f, 0.45f, 1.f),
+        ImVec4(0.30f, 0.55f, 0.90f, 1.f),
     };
     static const char* kAxisLbl[3] = { "X","Y","Z" };
     static const char* kIds[3] = { "##vx","##vy","##vz" };
@@ -289,20 +282,17 @@ static bool vec3Row(const char* label, float v[3], float speed,
     bool changed = false;
     ImGui::PushID(label);
 
-    // Label column (fixed 76px)
     ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx1);
     ImGui::Text("%s", label);
     ImGui::PopStyleColor();
     ImGui::SameLine(76.f);
 
-    // Three equal-width fields
     const float avail = ImGui::GetContentRegionAvail().x;
     const float fieldW = (avail - 2.f) / 3.f;
 
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 3; ++i){
         if (i > 0) ImGui::SameLine(0, 2.f);
 
-        // Colored axis prefix chip
         ImVec2 p = ImGui::GetCursorScreenPos();
         const float chipW = 16.f, h = 20.f;
         ImGui::GetWindowDrawList()->AddRectFilled(
@@ -327,7 +317,7 @@ void InspectorPanel::drawTransform(){
     ComponentTransform* t = go->getTransform();
     if (!t || !ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) return;
 
-    auto markOverride = [&](const char* prop) {
+    auto markOverride = [&](const char* prop){
         GameObject* root = findPrefabRoot(go);
         if (root) PrefabManager::markPropertyOverride(root, (int)Component::Type::Transform, prop);
     };
@@ -357,7 +347,7 @@ void InspectorPanel::drawAddComponentMenu(){
     if (ImGui::Button("Add Component", ImVec2(btnW, 0))) ImGui::OpenPopup("##AddComp");
     if (!ImGui::BeginPopup("##AddComp")) return;
 
-    auto addComp = [&](const char* label, Component::Type type, bool hasIt) {
+    auto addComp = [&](const char* label, Component::Type type, bool hasIt){
         if (!ImGui::MenuItem(label, nullptr, false, !hasIt)) return;
         go->addComponent(ComponentFactory::CreateComponent(type, go));
         GameObject* root = findPrefabRoot(go);
@@ -367,31 +357,25 @@ void InspectorPanel::drawAddComponentMenu(){
         ImGui::CloseCurrentPopup();
         };
 
-    // ---- Rendering ----
     addComp("Mesh", Component::Type::Mesh, go->getComponent<ComponentMesh>() != nullptr);
     addComp("Camera", Component::Type::Camera, go->getComponent<ComponentCamera>() != nullptr);
     ImGui::Separator();
-    // ---- Lights submenu ----
-    if (ImGui::BeginMenu("Lights")) {
+    if (ImGui::BeginMenu("Lights")){
         addComp("Directional Light", Component::Type::DirectionalLight, go->getComponent<ComponentDirectionalLight>() != nullptr);
         addComp("Point Light", Component::Type::PointLight, go->getComponent<ComponentPointLight>() != nullptr);
         addComp("Spot Light", Component::Type::SpotLight, go->getComponent<ComponentSpotLight>() != nullptr);
         ImGui::EndMenu();
     }
     ImGui::Separator();
-    // ---- Physics ----
     addComp("Rigidbody", Component::Type::Rigidbody, go->getComponent<ComponentRigidbody>() != nullptr);
     addComp("Bounds", Component::Type::Bounds, go->getComponent<ComponentBounds>() != nullptr);
     ImGui::Separator();
-    // ---- Animation / Character ----
     addComp("Animation", Component::Type::Animation, go->getComponent<ComponentAnimation>() != nullptr);
     addComp("Character Motion", Component::Type::CharacterMotion, go->getComponent<ComponentCharacterMotion>() != nullptr);
     addComp("Character Controller",Component::Type::SimpleCharacterController,go->getComponent<ComponentSimpleCharacterController>() != nullptr);
     ImGui::Separator();
-    // ---- Visual effects ----
     addComp("Decal", Component::Type::Decal, go->getComponent<ComponentDecal>() != nullptr);
-    // ---- Particles submenu ----
-    if (ImGui::BeginMenu("Particles")) {
+    if (ImGui::BeginMenu("Particles")){
         addComp("Billboard", Component::Type::Billboard, go->getComponent<ComponentBillboard>() != nullptr);
         addComp("Particle System", Component::Type::ParticleSystem, go->getComponent<ComponentParticleSystem>() != nullptr);
         addComp("Trail", Component::Type::Trail, go->getComponent<ComponentTrail>() != nullptr);
@@ -403,7 +387,7 @@ void InspectorPanel::drawAddComponentMenu(){
 void InspectorPanel::drawComponentCamera(ComponentCamera* cam){
     bool isMain = cam->isMainCamera();
     if (ImGui::Checkbox("Is Active Camera", &isMain)) cam->setMainCamera(isMain);
-    if (isMain) { ImGui::SameLine(); ImGui::TextColored(EditorColors::Success, "(rendering camera)"); }
+    if (isMain){ ImGui::SameLine(); ImGui::TextColored(EditorColors::Success, "(rendering camera)"); }
 
     ModuleCamera* modCam = app->getCamera();
     bool isCulling = (modCam->cullSource == ModuleCamera::CullSource::GameCamera);
@@ -432,7 +416,7 @@ void InspectorPanel::drawComponentCamera(ComponentCamera* cam){
 
     struct CamEntry { GameObject* go; ComponentCamera* cam; };
     std::vector<CamEntry> allCams;
-    std::function<void(GameObject*)> collect = [&](GameObject* node) {
+    std::function<void(GameObject*)> collect = [&](GameObject* node){
         if (auto* c = node->getComponent<ComponentCamera>()) allCams.push_back({ node, c });
         for (auto* child : node->getChildren()) collect(child);
         };
@@ -441,20 +425,20 @@ void InspectorPanel::drawComponentCamera(ComponentCamera* cam){
 
     ImGui::TextDisabled("Scene cameras:");
     float listH = std::min<float>(allCams.size() * 22.0f + 8.0f, 120.0f);
-    if (ImGui::BeginChild("##camList", ImVec2(0, listH), true)) {
-        for (auto& e : allCams) {
+    if (ImGui::BeginChild("##camList", ImVec2(0, listH), true)){
+        for (auto& e : allCams){
             bool isThis = (e.cam == cam);
             bool isMain2 = e.cam->isMainCamera();
             std::string lbl = isMain2 ? "[Main] " + e.go->getName() : e.go->getName();
             ImGui::PushID(e.go->getUID());
             if (isThis) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.9f, 1.0f, 1.0f));
-            if (ImGui::Selectable(lbl.c_str(), isMain2)) {
+            if (ImGui::Selectable(lbl.c_str(), isMain2)){
                 for (auto& e2 : allCams) e2.cam->setMainCamera(false);
                 e.cam->setMainCamera(true);
                 m_editor->getSelection().object = e.go;
             }
             if (isThis) ImGui::PopStyleColor();
-            if (ImGui::IsItemHovered()) {
+            if (ImGui::IsItemHovered()){
                 ImGui::BeginTooltip();
                 ImGui::Text("GameObject: %s", e.go->getName().c_str());
                 ImGui::Text("FOV: %.1f deg", e.cam->getFOV() * kRad2Deg);
@@ -467,7 +451,7 @@ void InspectorPanel::drawComponentCamera(ComponentCamera* cam){
     ImGui::EndChild();
 
     if (!cam->isMainCamera())
-        if (ImGui::Button("Make Active Camera")) {
+        if (ImGui::Button("Make Active Camera")){
             for (auto& e : allCams) e.cam->setMainCamera(false);
             cam->setMainCamera(true);
         }
@@ -498,14 +482,14 @@ void InspectorPanel::drawTexturePicker(ComponentMesh* mesh, Material* mat, int s
 
     ImGui::BeginChild("##texlist", ImVec2(0, 220));
     bool anyTex = false;
-    for (const auto& tf : texFiles) {
+    for (const auto& tf : texFiles){
         std::string tname = fs::path(tf).stem().string();
         if (!ts.empty() && toLower(tname).find(ts) == std::string::npos) continue;
         if (ImGui::Selectable(("  [T]  " + tname).c_str(), false, ImGuiSelectableFlags_AllowDoubleClick)
             && ImGui::IsMouseDoubleClicked(0)){
             ComPtr<ID3D12Resource> tex;
             D3D12_GPU_DESCRIPTOR_HANDLE srv{};
-            if (TextureImporter::Load(tf, tex, srv)) {
+            if (TextureImporter::Load(tf, tex, srv)){
                 onApply(tex, srv);
                 app->getD3D12()->flush(); mesh->rebuildMaterialBuffers();
                 m_editor->log(("Applied " + std::string(label) + ": " + tname).c_str(), EditorColors::Success);
@@ -515,13 +499,13 @@ void InspectorPanel::drawTexturePicker(ComponentMesh* mesh, Material* mat, int s
         }
         anyTex = true;
     }
-    if (!anyTex) { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("    No textures imported yet."); ImGui::PopStyleColor(); }
+    if (!anyTex){ ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("    No textures imported yet."); ImGui::PopStyleColor(); }
     ImGui::EndChild();
 
     ImGui::Separator();
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.5f, 0.12f, 0.12f, 1.f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.72f, 0.17f, 0.17f, 1.f));
-    if (ImGui::Button("Clear", ImVec2(80, 0)) && hasTex) {
+    if (ImGui::Button("Clear", ImVec2(80, 0)) && hasTex){
         onApply({}, {});
         app->getD3D12()->flush(); mesh->rebuildMaterialBuffers();
         m_editor->log((std::string("Cleared ") + label + " map").c_str(), EditorColors::Warning);
@@ -540,7 +524,7 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh){
     std::string modelPath = mesh->getModelPath();
     std::string modelName = hasEntries ? (modelPath.empty() ? "(unknown)" : fs::path(modelPath).stem().string()) : hasProcedural ? "(procedural)" : "None";
 
-    if (hasAnything) {
+    if (hasAnything){
         ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success);
         ImGui::Text("[M]  %s", modelName.c_str());
         ImGui::PopStyleColor();
@@ -553,7 +537,7 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh){
     ImGui::SetNextItemWidth(-160.0f);
     ImGui::InputTextWithHint("##meshpath", "Assets/Models/name/name.gltf", meshPathBuf, sizeof(meshPathBuf));
     ImGui::SameLine(0, 4);
-    if (ImGui::Button("Load##ml", ImVec2(70, 0)) && strlen(meshPathBuf) > 0) {
+    if (ImGui::Button("Load##ml", ImVec2(70, 0)) && strlen(meshPathBuf) > 0){
         bool ok = mesh->loadModel(meshPathBuf);
         logResult(m_editor, ok, ("Loaded: " + std::string(meshPathBuf)).c_str(), ("Failed: " + std::string(meshPathBuf)).c_str());
         if (ok) meshPathBuf[0] = '\0';
@@ -562,7 +546,7 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh){
     if (ImGui::Button("Pick##ml", ImVec2(70, 0))) ImGui::OpenPopup("##ModelPicker");
 
     ImGui::SetNextWindowSize(ImVec2(320, 280), ImGuiCond_Appearing);
-    if (ImGui::BeginPopup("##ModelPicker")) {
+    if (ImGui::BeginPopup("##ModelPicker")){
         ImGui::TextDisabled("Imported models  (double-click to load)");
         ImGui::Separator();
         static char pickerSearch[64] = "";
@@ -573,7 +557,7 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh){
         std::string meshesRoot = app->getFileSystem()->GetLibraryPath() + "Meshes/";
         bool any = false;
         try {
-            for (const auto& entry : fs::directory_iterator(meshesRoot)) {
+            for (const auto& entry : fs::directory_iterator(meshesRoot)){
                 if (!entry.is_directory()) continue;
                 std::string name = entry.path().filename().string();
                 if (!search.empty() && toLower(name).find(search) == std::string::npos) continue;
@@ -582,7 +566,7 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh){
                 if (isCurrent) ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success);
                 bool clicked = ImGui::Selectable(("  [M]  " + name).c_str(), isCurrent, ImGuiSelectableFlags_AllowDoubleClick);
                 if (isCurrent) ImGui::PopStyleColor();
-                if (clicked && ImGui::IsMouseDoubleClicked(0)) {
+                if (clicked && ImGui::IsMouseDoubleClicked(0)){
                     if (assetPath.empty()) m_editor->log(("No asset path for: " + name).c_str(), EditorColors::Danger);
                     else { bool ok = mesh->loadModel(assetPath.c_str()); logResult(m_editor, ok, ("Loaded: " + name).c_str(), ("Failed: " + assetPath).c_str()); }
                     ImGui::CloseCurrentPopup();
@@ -590,22 +574,20 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh){
                 any = true;
             }
         }
-        catch (...) {}
-        if (!any) { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("    No models imported yet."); ImGui::PopStyleColor(); }
+        catch (...){}
+        if (!any){ ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("    No models imported yet."); ImGui::PopStyleColor(); }
         ImGui::EndPopup();
     }
 
-    // --- Skinning status ---
     ImGui::Spacing();
     ImGui::SeparatorText("Skinning");
-    if (mesh->hasSkinData()) {
+    if (mesh->hasSkinData()){
         int jointCount = (int)mesh->getSkinJoints().size();
         ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f), "Skin data: %d joints", jointCount);
 
-        // Per-entry bone weight status
         const auto& entries = mesh->getEntries();
         int gpuCount = 0, totalCount = 0;
-        for (const auto& e : entries) {
+        for (const auto& e : entries){
             if (!e.meshRes || !e.meshRes->getMesh()) continue;
             ++totalCount;
             const Mesh* m = e.meshRes->getMesh();
@@ -636,77 +618,77 @@ void InspectorPanel::drawComponentMesh(ComponentMesh* mesh){
     ImGui::SeparatorText("Materials");
 
     auto& entries = mesh->getEntries();
-    for (int mi = 0; mi < (int)entries.size(); ++mi) {
+    for (int mi = 0; mi < (int)entries.size(); ++mi){
         MeshEntry& e = entries[mi];
         Material* mat = e.instanceMaterial.get();
         if (!mat) mat = e.material;
         if (!mat && e.materialRes) mat = e.materialRes->getMaterial();
-        if (!mat) { ImGui::PushID(mi); ImGui::TextDisabled("Submesh %d  (no material)", mi); ImGui::PopID(); continue; }
+        if (!mat){ ImGui::PushID(mi); ImGui::TextDisabled("Submesh %d  (no material)", mi); ImGui::PopID(); continue; }
         Material::Data& data = mat->getData();
 
         ImGui::PushID(mi);
         std::string header = "Submesh " + std::to_string(mi) + "  (" + modelName + ")";
-        if (!ImGui::CollapsingHeader(header.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) { ImGui::PopID(); continue; }
+        if (!ImGui::CollapsingHeader(header.c_str(), ImGuiTreeNodeFlags_DefaultOpen)){ ImGui::PopID(); continue; }
         ImGui::Indent(8.0f);
 
         ImGui::SeparatorText("Base Color");
-        if (ImGui::ColorEdit4("Color##bc", &data.baseColor.x)) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
+        if (ImGui::ColorEdit4("Color##bc", &data.baseColor.x)){ app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
         ImGui::Spacing();
 
-        if (mat->hasTexture()) { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::Text("[Albedo] Applied"); ImGui::PopStyleColor(); }
+        if (mat->hasTexture()){ ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::Text("[Albedo] Applied"); ImGui::PopStyleColor(); }
         else { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("[Albedo] None"); ImGui::PopStyleColor(); }
         ImGui::SameLine();
         drawTexturePicker(mesh, mat, mi, "Albedo", mat->hasTexture(), "Base color / albedo texture (.dds)",
-            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv) { mat->setBaseColorTexture(tex, srv); });
+            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv){ mat->setBaseColorTexture(tex, srv); });
 
         ImGui::SeparatorText("Surface");
         ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(4, 3));
-        if (ImGui::BeginTable("##pbr", 2, ImGuiTableFlags_SizingFixedFit)) {
+        if (ImGui::BeginTable("##pbr", 2, ImGuiTableFlags_SizingFixedFit)){
             ImGui::TableSetupColumn("##l", ImGuiTableColumnFlags_WidthFixed, 80.f);
             ImGui::TableSetupColumn("##v", ImGuiTableColumnFlags_WidthStretch);
 
             ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); textMuted("Metallic");
             ImGui::TableSetColumnIndex(1); ImGui::SetNextItemWidth(-1);
-            if (ImGui::SliderFloat("##metal", &data.metallic, 0.f, 1.f)) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
+            if (ImGui::SliderFloat("##metal", &data.metallic, 0.f, 1.f)){ app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
 
             ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); textMuted("Roughness");
             ImGui::TableSetColumnIndex(1); ImGui::SetNextItemWidth(-1);
-            if (ImGui::SliderFloat("##rough", &data.roughness, 0.f, 1.f)) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
+            if (ImGui::SliderFloat("##rough", &data.roughness, 0.f, 1.f)){ app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
             ImGui::EndTable();
         }
         ImGui::PopStyleVar();
 
         ImGui::SeparatorText("Normal Map");
-        if (mat->hasNormalMap()) { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::Text("[N] Applied"); ImGui::PopStyleColor(); }
+        if (mat->hasNormalMap()){ ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::Text("[N] Applied"); ImGui::PopStyleColor(); }
         else { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("[N] None"); ImGui::PopStyleColor(); }
         ImGui::SameLine();
         drawTexturePicker(mesh, mat, mi, "Normal", mat->hasNormalMap(), "Tangent-space normal map (.dds)",
-            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv) { mat->setNormalMap(tex, srv); });
-        if (mat->hasNormalMap()) {
+            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv){ mat->setNormalMap(tex, srv); });
+        if (mat->hasNormalMap()){
             ImGui::SetNextItemWidth(-1);
-            if (ImGui::SliderFloat("Strength##ns", &data.normalStrength, 0.f, 3.f, "%.2f")) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
+            if (ImGui::SliderFloat("Strength##ns", &data.normalStrength, 0.f, 3.f, "%.2f")){ app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Scales XY deviation of the normal map.\n1.0 = full strength, 0.0 = flat surface.");
         }
 
         ImGui::SeparatorText("Ambient Occlusion");
-        if (mat->hasAOMap()) { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::Text("[AO] Applied"); ImGui::PopStyleColor(); }
+        if (mat->hasAOMap()){ ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::Text("[AO] Applied"); ImGui::PopStyleColor(); }
         else { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("[AO] None"); ImGui::PopStyleColor(); }
         ImGui::SameLine();
         drawTexturePicker(mesh, mat, mi, "AO", mat->hasAOMap(), "Ambient Occlusion map - single channel (.dds)",
-            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv) { mat->setAOMap(tex, srv); });
-        if (mat->hasAOMap()) {
+            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv){ mat->setAOMap(tex, srv); });
+        if (mat->hasAOMap()){
             ImGui::SetNextItemWidth(-1);
-            if (ImGui::SliderFloat("Strength##aos", &data.aoStrength, 0.f, 1.f, "%.2f")) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
+            if (ImGui::SliderFloat("Strength##aos", &data.aoStrength, 0.f, 1.f, "%.2f")){ app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("0 = AO ignored (fully lit)\n1 = Full AO effect applied");
         }
 
         ImGui::SeparatorText("Emissive");
-        if (mat->hasEmissive()) { ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.9f, 0.3f, 1.f)); ImGui::Text("[E] Applied"); ImGui::PopStyleColor(); }
+        if (mat->hasEmissive()){ ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.9f, 0.3f, 1.f)); ImGui::Text("[E] Applied"); ImGui::PopStyleColor(); }
         else { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("[E] None"); ImGui::PopStyleColor(); }
         ImGui::SameLine();
         drawTexturePicker(mesh, mat, mi, "Emissive", mat->hasEmissive(), "Emissive color map - additively blended (.dds)",
-            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv) { mat->setEmissiveMap(tex, srv); });
-        if (ImGui::ColorEdit3("Tint##emtint", &data.emissiveFactor.x)) { app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
+            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv){ mat->setEmissiveMap(tex, srv); });
+        if (ImGui::ColorEdit3("Tint##emtint", &data.emissiveFactor.x)){ app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Multiplied with emissive map.\nWhite = use map as-is, Black = no emission.");
 
         ImGui::Unindent(8.0f);
@@ -719,23 +701,22 @@ void InspectorPanel::drawComponentAnimation(ComponentAnimation* anim){
     const auto& uids = anim->getAnimationUIDs();
     AnimationController& ctrl = anim->getController();
 
-    // --- Animation picker dropdown ---
     ImGui::SeparatorText("Clip");
 
     int currentIdx = -1;
     for (int i = 0; i < (int)uids.size(); ++i)
-        if (uids[i] == ctrl.Resource) { currentIdx = i; break; }
+        if (uids[i] == ctrl.Resource){ currentIdx = i; break; }
 
     std::string preview = "None";
-    if (currentIdx >= 0 && ctrl.Resource != 0) {
+    if (currentIdx >= 0 && ctrl.Resource != 0){
         auto* r = app->getResources()->RequestAnimation(ctrl.Resource);
-        if (r) { preview = r->getAnimName(); app->getResources()->ReleaseResource(r); }
+        if (r){ preview = r->getAnimName(); app->getResources()->ReleaseResource(r); }
         if (preview.empty()) preview = "Anim_" + std::to_string(currentIdx);
     }
 
     ImGui::SetNextItemWidth(-1);
-    if (ImGui::BeginCombo("##animclip", preview.c_str())) {
-        for (int i = 0; i < (int)uids.size(); ++i) {
+    if (ImGui::BeginCombo("##animclip", preview.c_str())){
+        for (int i = 0; i < (int)uids.size(); ++i){
             auto* r = app->getResources()->RequestAnimation(uids[i]);
             std::string name = r ? r->getAnimName() : ("Anim_" + std::to_string(i));
             if (r) app->getResources()->ReleaseResource(r);
@@ -748,15 +729,14 @@ void InspectorPanel::drawComponentAnimation(ComponentAnimation* anim){
         ImGui::EndCombo();
     }
 
-    // --- Playback controls ---
     ImGui::SeparatorText("Playback");
-    if (ctrl.isPlaying()) {
+    if (ctrl.isPlaying()){
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.1f, 1.f));
         if (ImGui::Button("Stop##animstop", ImVec2(60, 0))) ctrl.Stop();
         ImGui::PopStyleColor();
     } else {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.5f, 0.1f, 1.f));
-        if (ImGui::Button("Play##animplay", ImVec2(60, 0))) {
+        if (ImGui::Button("Play##animplay", ImVec2(60, 0))){
             UID uid = ctrl.Resource;
             if (uid == 0 && !uids.empty()) uid = uids[0];
             if (uid != 0) ctrl.Play(uid, ctrl.Loop);
@@ -766,27 +746,24 @@ void InspectorPanel::drawComponentAnimation(ComponentAnimation* anim){
     ImGui::SameLine();
     ImGui::Checkbox("Loop##animloop", &ctrl.Loop);
 
-    // --- Time scrub ---
     float duration = 0.f;
-    if (ctrl.Resource != 0) {
+    if (ctrl.Resource != 0){
         auto* r = app->getResources()->RequestAnimation(ctrl.Resource);
-        if (r) { duration = r->getDuration(); app->getResources()->ReleaseResource(r); }
+        if (r){ duration = r->getDuration(); app->getResources()->ReleaseResource(r); }
     }
-    if (duration > 0.f) {
+    if (duration > 0.f){
         ImGui::Spacing();
         ImGui::SetNextItemWidth(-60);
         if (ImGui::SliderFloat("##animscrub", &ctrl.CurrentTime, 0.f, duration, "%.2f s"))
-            if (!ctrl.isPlaying()) { /* manual scrub — controller already updated */ }
+            if (!ctrl.isPlaying()){ }
         ImGui::SameLine();
         ImGui::TextDisabled("%.1f s", duration);
     }
 
-    // --- Debug visualization ---
     ImGui::Spacing();
     ImGui::SeparatorText("Debug");
     ImGui::Checkbox("Draw Bones", &anim->drawBones());
     ImGui::Checkbox("Draw Axis Triads", &anim->drawAxisTriads());
 
-    // --- State Machine (path input + Load button + node graph) ---
     anim->drawStateMachineSection();
 }

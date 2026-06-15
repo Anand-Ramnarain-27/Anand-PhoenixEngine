@@ -4,24 +4,21 @@
 
 #define PI 3.14159265359f
 
-struct DirectionalLight
-{
+struct DirectionalLight {
     float3 direction;
     float intensity;
     float3 color;
     float pad;
 };
 
-struct PointLight
-{
+struct PointLight {
     float3 position;
     float sqRadius;
     float3 color;
     float intensity;
 };
 
-struct SpotLight
-{
+struct SpotLight {
     float3 position;
     float sqRadius;
     float3 direction;
@@ -33,8 +30,7 @@ struct SpotLight
     float2 pad;
 };
 
-cbuffer LightCB : register(b2)
-{
+cbuffer LightCB : register(b2){
     float3 ambientColor;
     float ambientIntensity;
 
@@ -54,15 +50,14 @@ cbuffer LightCB : register(b2)
     SpotLight spotLights[MAX_SPOT_LIGHTS];
 };
 
-cbuffer MaterialCB : register(b3)
-{
+cbuffer MaterialCB : register(b3){
     float4 baseColor;
     float metallic;
     float roughness;
     float normalStrength;
     float aoStrength;
     float exposure;
-    
+
     uint hasBaseColorTexture;
     uint hasNormalMap;
     uint hasAOMap;
@@ -85,8 +80,7 @@ Texture2D metalRoughTex : register(t7);
 
 SamplerState samplers[4] : register(s0);
 
-struct PSInput
-{
+struct PSInput {
     float4 pos : SV_POSITION;
     float2 uv : TEXCOORD;
     float3 worldPos : POSITION;
@@ -97,17 +91,14 @@ struct PSInput
 static const float GAMMA = 2.2f;
 static const float INV_GAMMA = 1.0f / GAMMA;
 
-float3 linearToSRGB(float3 c)
-{
+float3 linearToSRGB(float3 c){
     return pow(c, INV_GAMMA);
 }
-float3 sRGBToLinear(float3 c)
-{
+float3 sRGBToLinear(float3 c){
     return pow(c, GAMMA);
 }
 
-float3 PBRNeutralToneMapping(float3 color)
-{
+float3 PBRNeutralToneMapping(float3 color){
     const float startCompression = 0.8f - 0.04f;
     const float desaturation = 0.15f;
 
@@ -130,8 +121,7 @@ float3 PBRNeutralToneMapping(float3 color)
 #define VARIANCE  0.3f
 #define THRESHOLD 0.2f
 
-float getGeometricSpecularAA(float3 N, float roughness)
-{
+float getGeometricSpecularAA(float3 N, float roughness){
     float3 ndx = ddx(N);
     float3 ndy = ddy(N);
 
@@ -142,25 +132,21 @@ float getGeometricSpecularAA(float3 N, float roughness)
     return saturate(roughness + geomRoughnessOffset);
 }
 
-float3 F_Schlick(float3 f0, float3 f90, float cosTheta)
-{
+float3 F_Schlick(float3 f0, float3 f90, float cosTheta){
     return f0 + (f90 - f0) * pow(1.0f - cosTheta, 5.0f);
 }
 
-float F_Schlick(float f0, float f90, float cosTheta)
-{
+float F_Schlick(float f0, float f90, float cosTheta){
     return f0 + (f90 - f0) * pow(1.0f - cosTheta, 5.0f);
 }
 
-float D_GGX(float alphaRoughness, float NdotH)
-{
+float D_GGX(float alphaRoughness, float NdotH){
     float a2 = alphaRoughness * alphaRoughness;
     float denom = NdotH * NdotH * (a2 - 1.0f) + 1.0f;
     return (denom > 0.0f) ? a2 / (PI * denom * denom) : 0.0f;
 }
 
-float V_GGX(float NdotV, float NdotL, float alphaRoughness)
-{
+float V_GGX(float NdotV, float NdotL, float alphaRoughness){
     float a2 = alphaRoughness * alphaRoughness;
     float gV = NdotL * sqrt(NdotV * NdotV * (1.0f - a2) + a2);
     float gL = NdotV * sqrt(NdotL * NdotL * (1.0f - a2) + a2);
@@ -168,48 +154,43 @@ float V_GGX(float NdotV, float NdotL, float alphaRoughness)
     return (denom > 0.0f) ? 0.5f / denom : 0.0f;
 }
 
-float3 applyNormalMap(float3 N, float4 T, float2 uv)
-{
+float3 applyNormalMap(float3 N, float4 T, float2 uv){
     float3 tn = normalMapTex.Sample(samplers[0], uv).rgb * 2.0f - 1.0f;
     tn.xy *= normalStrength;
     tn = normalize(tn);
-    float3 B = normalize(cross(N, T.xyz)) * T.w; 
+    float3 B = normalize(cross(N, T.xyz)) * T.w;
     float3x3 TBN = float3x3(T.xyz, B, N);
     return normalize(mul(tn, TBN));
 }
 
-float computeSpecularAO(float NdotV, float ao, float rough)
-{
+float computeSpecularAO(float NdotV, float ao, float rough){
     return saturate(pow(NdotV + ao, exp2(-16.0f * rough - 1.0f)) - 1.0f + ao);
 }
 
-float3 getDiffuseAmbientLight(float3 N, float3 baseColour)
-{
+float3 getDiffuseAmbientLight(float3 N, float3 baseColour){
     return irradianceMap.Sample(samplers[2], N).rgb * baseColour;
 }
 
 void getSpecularAmbientLightNoFresnel(float3 R, float NdotV, float rough,
-                                      out float3 firstTerm, out float3 secondTerm)
-{
+                                      out float3 firstTerm, out float3 secondTerm){
     float mip = rough * (numRoughnessLevels - 1.0f);
     float3 radiance = prefilteredMap.SampleLevel(samplers[2], R, mip).rgb;
     float2 fab = brdfLUT.Sample(samplers[2], float2(NdotV, rough)).rg;
-    
-    firstTerm = radiance * fab.x; 
-    secondTerm = radiance * fab.y; 
+
+    firstTerm = radiance * fab.x;
+    secondTerm = radiance * fab.y;
 }
 
 float3 computeIBL(float3 N, float3 V, float3 R,
                   float3 baseColour, float metal, float rough,
-                  float diffuseAO, float specularAO)
-{
+                  float diffuseAO, float specularAO){
     float NdotV = saturate(dot(N, V));
 
     float3 diffuse = getDiffuseAmbientLight(N, baseColour) * diffuseAO;
 
     float3 firstTerm, secondTerm;
     getSpecularAmbientLightNoFresnel(R, NdotV, rough, firstTerm, secondTerm);
-    
+
     float3 metalF0 = baseColour;
     float3 dielectricF0 = float3(0.04f, 0.04f, 0.04f);
 
@@ -221,8 +202,7 @@ float3 computeIBL(float3 N, float3 V, float3 R,
 
 float3 cookTorranceGGX(float3 N, float3 L, float3 V,
                         float3 albedo, float metal, float alphaRough,
-                        float3 lightColor, float lightIntensity)
-{
+                        float3 lightColor, float lightIntensity){
     float3 H = normalize(L + V);
     float NdotL = saturate(dot(N, L));
     float NdotV = saturate(dot(N, V));
@@ -248,26 +228,24 @@ float3 cookTorranceGGX(float3 N, float3 L, float3 V,
     return lerp(dielectric, metallic, metal);
 }
 
-float4 main(PSInput input) : SV_TARGET
-{
+float4 main(PSInput input) : SV_TARGET {
     float3 albedo = baseColor.rgb;
     if (hasBaseColorTexture)
         albedo *= sRGBToLinear(albedoTex.Sample(samplers[0], input.uv).rgb);
-    
+
     float metal = metallic;
     float rough = roughness;
-    if (hasMetalRoughMap)
-    {
+    if (hasMetalRoughMap){
         float2 mr = metalRoughTex.Sample(samplers[0], input.uv).gb;
         rough *= mr.x;
         metal *= mr.y;
     }
     rough = max(rough, 0.04f);
-    
+
     float3 Ngeom = normalize(input.nrm);
     rough = getGeometricSpecularAA(Ngeom, rough);
     float alphaRough = rough * rough;
-    
+
     float3 N = Ngeom;
     if (hasNormalMap)
         N = applyNormalMap(normalize(input.nrm), float4(normalize(input.tangent.xyz), input.tangent.w), input.uv);
@@ -276,27 +254,24 @@ float4 main(PSInput input) : SV_TARGET
     float3 R = reflect(-V, N);
     float NdotV = saturate(dot(N, V));
     float NdotR = saturate(dot(N, R));
-    
+
     float diffuseAO = 1.0f;
     float specularAO = 1.0f;
-    if (hasAOMap)
-    {
+    if (hasAOMap){
         diffuseAO = lerp(1.0f, aoTex.Sample(samplers[0], input.uv).r, aoStrength);
         specularAO = computeSpecularAO(NdotV, diffuseAO, rough);
         specularAO *= max(1.0f + NdotR, 1.0f);
     }
-    
+
     float3 directLight = 0.0f;
 
-    for (uint i = 0; i < numDirLights; i++)
-    {
+    for (uint i = 0; i < numDirLights; i++){
         float3 L = normalize(-dirLights[i].direction);
         directLight += cookTorranceGGX(N, L, V, albedo, metal, alphaRough,
                                        dirLights[i].color, dirLights[i].intensity);
     }
 
-    for (uint i = 0; i < numPointLights; i++)
-    {
+    for (uint i = 0; i < numPointLights; i++){
         float3 toLight = pointLights[i].position - input.worldPos;
         float distSq = dot(toLight, toLight);
         float num = max(1.0f - (distSq * distSq) / (pointLights[i].sqRadius * pointLights[i].sqRadius), 0.0f);
@@ -306,8 +281,7 @@ float4 main(PSInput input) : SV_TARGET
                                        pointLights[i].color, pointLights[i].intensity) * atten;
     }
 
-    for (uint i = 0; i < numSpotLights; i++)
-    {
+    for (uint i = 0; i < numSpotLights; i++){
         float3 toLight = spotLights[i].position - input.worldPos;
         float3 L = normalize(toLight);
         float dist = dot(-toLight, spotLights[i].direction);
@@ -321,10 +295,9 @@ float4 main(PSInput input) : SV_TARGET
         directLight += cookTorranceGGX(N, L, V, albedo, metal, alphaRough,
                                        spotLights[i].color, spotLights[i].intensity) * atten;
     }
-    
+
     float3 ambient = 0.0f;
-    if (iblEnabled)
-    {
+    if (iblEnabled){
         ambient = computeIBL(N, V, R, albedo, metal, rough, diffuseAO, specularAO);
     }
     else
@@ -332,7 +305,7 @@ float4 main(PSInput input) : SV_TARGET
         ambient = ambientColor * ambientIntensity * albedo;
         ambient = max(ambient, albedo * 0.03f);
     }
-    
+
     float3 emissive = 0.0f;
     if (hasEmissiveMap)
         emissive = sRGBToLinear(emissiveTex.Sample(samplers[0], input.uv).rgb) * emissiveFactor;

@@ -3,8 +3,7 @@
 #include "ModuleDescriptorsBase.h"
 #include "RenderTargetDesc.h"
 
-class ModuleRTDescriptors : public ModuleDescriptorsBase<D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 256, RenderTargetDesc>
-{
+class ModuleRTDescriptors : public ModuleDescriptorsBase<D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 256, RenderTargetDesc> {
 public:
     RenderTargetDesc create(ID3D12Resource* resource){
         return ModuleDescriptorsBase::create(resource, nullptr);

@@ -12,7 +12,7 @@
 #include <algorithm>
 
 namespace {
-    constexpr UINT cbAlign(UINT b) { return (b + 255u) & ~255u; }
+    constexpr UINT cbAlign(UINT b){ return (b + 255u) & ~255u; }
 
     ComPtr<ID3D12Resource> makeUploadBuf(ID3D12Device* device, UINT64 bytes, void** mapped,
                                           const wchar_t* name){
@@ -22,7 +22,7 @@ namespace {
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                                                       D3D12_RESOURCE_STATE_GENERIC_READ,
                                                       nullptr, IID_PPV_ARGS(&buf));
-        if (FAILED(hr)) {
+        if (FAILED(hr)){
             LOG("GBufferPass: upload buf failed 0x%08X", hr);
             return nullptr;
         }
@@ -67,7 +67,7 @@ namespace {
 }
 
 bool GBufferPass::init(ID3D12Device* device){
-    if (!m_pipeline.init(device)) {
+    if (!m_pipeline.init(device)){
         LOG("GBufferPass: pipeline init failed");
         return false;
     }
@@ -82,7 +82,7 @@ bool GBufferPass::createUploadBuffers(ID3D12Device* device){
     const UINT mvpSz = cbAlign(sizeof(MeshPipeline::CbMVP));
     const UINT instSz = cbAlign(sizeof(MeshPipeline::CbPerInstance));
 
-    for (int i = 0; i < NUM_VIEWPORTS; ++i) {
+    for (int i = 0; i < NUM_VIEWPORTS; ++i){
         m_mvpRing[i] = makeUploadBuf(device, (UINT64)mvpSz * MAX_INSTANCES,
                                       &m_mvpMapped[i], L"GBufferPass_MVPRing");
         if (!m_mvpRing[i]) return false;
@@ -107,7 +107,7 @@ bool GBufferPass::createFallbackTexture(ID3D12Device* device){
     HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &td,
                                                   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                                                   nullptr, IID_PPV_ARGS(&m_fallbackTex));
-    if (FAILED(hr)) {
+    if (FAILED(hr)){
         LOG("GBufferPass: fallback texture failed 0x%08X", hr);
         return false;
     }
@@ -117,11 +117,11 @@ bool GBufferPass::createFallbackTexture(ID3D12Device* device){
 
 bool GBufferPass::createMatTableRing(){
     auto* sd = app->getShaderDescriptors();
-    for (int v = 0; v < NUM_VIEWPORTS; ++v) {
+    for (int v = 0; v < NUM_VIEWPORTS; ++v){
         m_matRing[v].reserve(MAX_INSTANCES);
-        for (UINT i = 0; i < MAX_INSTANCES; ++i) {
+        for (UINT i = 0; i < MAX_INSTANCES; ++i){
             ShaderTableDesc t = sd->allocTable("GBufferPass_MatTex");
-            if (!t.isValid()) {
+            if (!t.isValid()){
                 LOG("GBufferPass: mat ring alloc failed at %u", i);
                 return false;
             }
@@ -186,10 +186,9 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
 
     BEGIN_EVENT(cmd, L"GBuffer Geometry Pass");
 
-    // Always clear GBuffer and transition depth — transparent pass depends on cleared depth
     gbuffer.beginGeomPass(cmd);
 
-    if (!meshes.empty()) {
+    if (!meshes.empty()){
         cmd->SetPipelineState(m_pipeline.getPSO());
         cmd->SetGraphicsRootSignature(m_pipeline.getRootSig());
 
@@ -203,11 +202,11 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
                                              samplerHeap->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));
 
         UINT slot = 0;
-        for (MeshEntry* entry : meshes) {
+        for (MeshEntry* entry : meshes){
             if (!entry) continue;
             Mesh* mesh = entry->meshRes ? entry->meshRes->getMesh() : entry->mesh;
             if (!mesh) continue;
-            if (slot >= MAX_INSTANCES) {
+            if (slot >= MAX_INSTANCES){
                 LOG("GBufferPass: MAX_INSTANCES exceeded");
                 break;
             }
@@ -229,7 +228,7 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
             writeFallbackSRV(matTable, 3, m_fallbackTex.Get());
             writeFallbackSRV(matTable, 4, m_fallbackTex.Get());
 
-            if (mat) {
+            if (mat){
                 if (mat->hasTexture() && mat->getBaseColorResource()) writeTex2DSRV(matTable, 0, mat->getBaseColorResource());
                 if (mat->hasMetalRoughMap()&& mat->getMetalRoughResource()) writeTex2DSRV(matTable, 1, mat->getMetalRoughResource());
                 if (mat->hasNormalMap() && mat->getNormalMapResource()) writeTex2DSRV(matTable, 2, mat->getNormalMapResource());

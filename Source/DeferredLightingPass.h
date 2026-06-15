@@ -27,12 +27,6 @@ public:
         uint32_t pad0, pad1;
     };
 
-    // render() runs once per viewport per frame (Scene=0, Game=1) — all per-frame
-    // mutable upload buffers below are duplicated per viewport so the second
-    // viewport's memcpy() upload doesn't clobber the first's data before the GPU
-    // executes either pass (both renders are recorded into the same command list
-    // before either is submitted, so a single shared buffer would only ever be
-    // seen by the GPU with the second viewport's contents).
     static constexpr int NUM_VIEWPORTS = 2;
 
     bool init(ID3D12Device* device);

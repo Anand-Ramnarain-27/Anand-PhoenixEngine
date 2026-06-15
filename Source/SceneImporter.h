@@ -12,8 +12,6 @@ class SceneImporter {
 public:
     struct SceneHeader {
         uint32_t magic = 0x53434E45;
-        // v3: animation library added; any cache with version < 3 triggers a full reimport
-        //     so that morph-only animations that were silently skipped get re-exported.
         uint32_t version = 3;
         uint32_t meshCount = 0;
         uint32_t materialCount = 0;
@@ -21,10 +19,10 @@ public:
 
     struct NodeInfo {
         std::string name;
-        int parentIndex = -1; // -1 = root
-        int meshFileStart = -1; // -1 = no mesh
+        int parentIndex = -1;
+        int meshFileStart = -1;
         int meshFileCount = 0;
-        int skinIndex = -1; // -1 = not skinned
+        int skinIndex = -1;
         Vector3 translation;
         Quaternion rotation;
         Vector3 scale;
@@ -32,8 +30,8 @@ public:
 
     struct SkinInfo {
         std::string name;
-        std::vector<int> jointNodeIndices; // node indices of each joint
-        std::vector<Matrix> inverseBindMatrices; // row-major, one per joint
+        std::vector<int> jointNodeIndices;
+        std::vector<Matrix> inverseBindMatrices;
     };
 
     static bool ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const std::string& sceneName, const std::string& basePath);

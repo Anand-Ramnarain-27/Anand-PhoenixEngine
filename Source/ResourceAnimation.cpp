@@ -3,7 +3,6 @@
 #include "ImporterUtils.h"
 #include <cstring>
 
-// Must match the layout written by AnimationImporter::importOne.
 namespace {
 struct AnimFileHeader {
     uint32_t magic = 0x414E494D;
@@ -12,9 +11,9 @@ struct AnimFileHeader {
     uint32_t channelCount = 0;
     float duration = 0.f;
 };
-} // namespace
+}
 
-ResourceAnimation::ResourceAnimation(UID uid) : ResourceBase(uid, Type::Animation) {}
+ResourceAnimation::ResourceAnimation(UID uid) : ResourceBase(uid, Type::Animation){}
 
 const ResourceAnimation::MorphChannel* ResourceAnimation::getMorphChannel(const std::string& nodeName) const{
     auto it = m_morphChannels.find(nodeName);
@@ -42,7 +41,7 @@ bool ResourceAnimation::LoadInMemory(){
 
     m_channels.reserve(header.channelCount);
 
-    for (uint32_t i = 0; i < header.channelCount; ++i) {
+    for (uint32_t i = 0; i < header.channelCount; ++i){
         if (cur + 3 * sizeof(uint32_t) > end) return false;
 
         uint32_t nameLen, posCount, rotCount;
@@ -57,7 +56,7 @@ bool ResourceAnimation::LoadInMemory(){
 
         Channel ch;
 
-        if (posCount > 0) {
+        if (posCount > 0){
             size_t timeBytes = posCount * sizeof(float);
             size_t posBytes = posCount * sizeof(Vector3);
             if (cur + timeBytes + posBytes > end) return false;
@@ -70,7 +69,7 @@ bool ResourceAnimation::LoadInMemory(){
             cur += timeBytes + posBytes;
         }
 
-        if (rotCount > 0) {
+        if (rotCount > 0){
             size_t timeBytes = rotCount * sizeof(float);
             size_t rotBytes = rotCount * sizeof(Quaternion);
             if (cur + timeBytes + rotBytes > end) return false;
@@ -86,22 +85,14 @@ bool ResourceAnimation::LoadInMemory(){
         m_channels.emplace(std::move(nodeName), std::move(ch));
     }
 
-    // ---- v2 extension: morph-weight channels ----
-    // Layout appended after transform channels:
-    //   uint32 morphChannelCount
-    //   For each morph channel:
-    //     uint32 nodeNameLen | uint32 numTime | uint32 numTargets
-    //     char[nodeNameLen]
-    //     float[numTime]              weightsTimes
-    //     float[numTime * numTargets] weights
-    if (header.version >= 2 && cur + sizeof(uint32_t) <= end) {
+    if (header.version >= 2 && cur + sizeof(uint32_t) <= end){
         uint32_t morphCount = 0;
         memcpy(&morphCount, cur, sizeof(uint32_t));
         cur += sizeof(uint32_t);
 
         m_morphChannels.reserve(morphCount);
 
-        for (uint32_t i = 0; i < morphCount; ++i) {
+        for (uint32_t i = 0; i < morphCount; ++i){
             if (cur + 3 * sizeof(uint32_t) > end) break;
 
             uint32_t nameLen, numTime, numTargets;
@@ -133,17 +124,16 @@ bool ResourceAnimation::LoadInMemory(){
         }
     }
 
-    // Diagnostic: log what was loaded so node-name mismatches show up at load time.
-    if (!m_morphChannels.empty()) {
+    if (!m_morphChannels.empty()){
         std::string nodeList;
-        for (const auto& [name, mc] : m_morphChannels) {
+        for (const auto& [name, mc] : m_morphChannels){
             if (!nodeList.empty()) nodeList += ", ";
             nodeList += "'" + name + "'(" + std::to_string(mc.numTargets) + " targets/"
                       + std::to_string(mc.numTime) + " keys)";
         }
         LOG("ResourceAnimation '%s': %zu morph channel(s) — %s",
             m_name.c_str(), m_morphChannels.size(), nodeList.c_str());
-    } else if (!m_channels.empty()) {
+    } else if (!m_channels.empty()){
         LOG("ResourceAnimation '%s': %zu transform channel(s), no morph channels",
             m_name.c_str(), m_channels.size());
     }

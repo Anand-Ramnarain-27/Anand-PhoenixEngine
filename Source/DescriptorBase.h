@@ -4,8 +4,7 @@ class ModuleRTDescriptors;
 class ModuleDSDescriptors;
 
 template<typename Derived, typename ModuleType>
-class DescriptorBase
-{
+class DescriptorBase {
 protected:
     UINT handle = 0;
     UINT* refCount = nullptr;
@@ -25,11 +24,10 @@ public:
         other.refCount = nullptr;
     }
 
-    ~DescriptorBase() { release(); }
+    ~DescriptorBase(){ release(); }
 
     DescriptorBase& operator=(const DescriptorBase& other){
-        if (this != &other)
-        {
+        if (this != &other){
             release();
             handle = other.handle;
             refCount = other.refCount;
@@ -39,8 +37,7 @@ public:
     }
 
     DescriptorBase& operator=(DescriptorBase&& other) noexcept{
-        if (this != &other)
-        {
+        if (this != &other){
             release();
             handle = other.handle;
             refCount = other.refCount;
@@ -54,7 +51,7 @@ public:
         return handle != 0 && Derived::getModule()->isValid(handle);
     }
 
-    void reset() { release(); }
+    void reset(){ release(); }
 
     D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const{
         if (handle == 0) return { 0 };
@@ -65,8 +62,7 @@ public:
 
 private:
     void release(){
-        if (refCount && --(*refCount) == 0 && handle != 0)
-        {
+        if (refCount && --(*refCount) == 0 && handle != 0){
             Derived::getModule()->release(handle);
             handle = 0;
             refCount = nullptr;

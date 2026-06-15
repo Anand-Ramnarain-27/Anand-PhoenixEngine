@@ -4,7 +4,6 @@
 #include "3rdParty/rapidjson/stringbuffer.h"
 using namespace rapidjson;
 
-// LOG is available because GameScripts links against Engine.lib
 #include "Globals.h"
 
 PlayerScript::PlayerScript() = default;
@@ -12,7 +11,6 @@ PlayerScript::PlayerScript() = default;
 void PlayerScript::Start(GameObject* owner){
     m_owner = owner;
     m_timer = 0.0f;
-    //LOG("[PlayerScript] onStart � owner: %s", owner ? owner->getName().c_str() : "null");
 }
 
 void PlayerScript::Update(float dt){
@@ -40,7 +38,4 @@ void PlayerScript::Load(const std::string& json){
     if (doc.HasMember("timer")) m_timer = doc["timer"].GetFloat();
 }
 
-// ?? Factory ?????????????????????????????????????????????????????????????????
-// HotReloadManager calls this to get a new PlayerScript instance.
-// extern "C" prevents C++ name-mangling so GetProcAddress finds it by name.
-IScript* Create_PlayerScript() { return new PlayerScript(); }
+IScript* Create_PlayerScript(){ return new PlayerScript(); }

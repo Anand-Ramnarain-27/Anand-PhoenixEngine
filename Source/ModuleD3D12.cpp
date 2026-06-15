@@ -3,8 +3,8 @@
 #include "Application.h"
 #include "d3dx12.h"
 
-ModuleD3D12::ModuleD3D12(HWND wnd) : m_hWnd(wnd) {}
-ModuleD3D12::~ModuleD3D12() { cleanUp(); }
+ModuleD3D12::ModuleD3D12(HWND wnd) : m_hWnd(wnd){}
+ModuleD3D12::~ModuleD3D12(){ cleanUp(); }
 
 bool ModuleD3D12::init(){
 #if defined(_DEBUG)
@@ -31,7 +31,7 @@ bool ModuleD3D12::init(){
 
 bool ModuleD3D12::cleanUp(){
     flush();
-    if (m_drawEvent) { CloseHandle(m_drawEvent); m_drawEvent = nullptr; }
+    if (m_drawEvent){ CloseHandle(m_drawEvent); m_drawEvent = nullptr; }
     return true;
 }
 
@@ -77,13 +77,12 @@ void ModuleD3D12::resize(){
     m_rtDescriptorHeap.Reset();
 
     DXGI_SWAP_CHAIN_DESC desc = {};
-    if (FAILED(m_swapChain->GetDesc(&desc))) { LOG("Failed to get swap chain desc"); return; }
+    if (FAILED(m_swapChain->GetDesc(&desc))){ LOG("Failed to get swap chain desc"); return; }
 
     m_commandList->Reset(m_commandAllocators[m_currentBackBufferIdx].Get(), nullptr);
     m_commandList->Close();
 
-    if (FAILED(m_swapChain->ResizeBuffers(FRAMES_IN_FLIGHT, w, h, desc.BufferDesc.Format, desc.Flags)))
-    {
+    if (FAILED(m_swapChain->ResizeBuffers(FRAMES_IN_FLIGHT, w, h, desc.BufferDesc.Format, desc.Flags))){
         LOG("Failed to resize swap chain"); return;
     }
 
@@ -96,8 +95,7 @@ void ModuleD3D12::resize(){
 void ModuleD3D12::toggleFullscreen(){
     m_fullscreen = !m_fullscreen;
 
-    if (m_fullscreen)
-    {
+    if (m_fullscreen){
         GetWindowRect(m_hWnd, &m_lastWindowRect);
         UINT style = WS_OVERLAPPEDWINDOW & ~(WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
         SetWindowLongW(m_hWnd, GWL_STYLE, style);
@@ -130,8 +128,7 @@ void ModuleD3D12::flush(){
 }
 
 void ModuleD3D12::waitForFrameFence(UINT64 fenceValue){
-    if (m_drawFence->GetCompletedValue() < fenceValue && m_drawEvent)
-    {
+    if (m_drawFence->GetCompletedValue() < fenceValue && m_drawEvent){
         m_drawFence->SetEventOnCompletion(fenceValue, m_drawEvent);
         WaitForSingleObject(m_drawEvent, INFINITE);
     }
@@ -151,8 +148,7 @@ bool ModuleD3D12::createFactory(){
 }
 
 bool ModuleD3D12::createDevice(bool useWarp){
-    if (useWarp)
-    {
+    if (useWarp){
         ComPtr<IDXGIAdapter1> warp;
         return SUCCEEDED(m_factory->EnumWarpAdapter(IID_PPV_ARGS(&warp)))
             && SUCCEEDED(D3D12CreateDevice(warp.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_device)));
@@ -247,8 +243,7 @@ bool ModuleD3D12::createRenderTargets(){
     const UINT stride = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     D3D12_CPU_DESCRIPTOR_HANDLE rtv = m_rtDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
-    for (int i = 0; i < FRAMES_IN_FLIGHT; ++i)
-    {
+    for (int i = 0; i < FRAMES_IN_FLIGHT; ++i){
         if (FAILED(m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_backBuffers[i])))) return false;
         m_device->CreateRenderTargetView(m_backBuffers[i].Get(), nullptr, rtv);
         rtv.ptr += stride;
@@ -332,8 +327,7 @@ void ModuleD3D12::endFrameRender(){
         D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     m_commandList->ResourceBarrier(1, &barrier);
 
-    if (SUCCEEDED(m_commandList->Close()))
-    {
+    if (SUCCEEDED(m_commandList->Close())){
         ID3D12CommandList* lists[] = { m_commandList.Get() };
         m_drawCommandQueue->ExecuteCommandLists(1, lists);
     }

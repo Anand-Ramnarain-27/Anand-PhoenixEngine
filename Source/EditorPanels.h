@@ -9,11 +9,11 @@ struct ConsoleEntry { std::string text; ImVec4 color; };
 
 class ConsolePanel : public EditorPanel {
 public:
-    explicit ConsolePanel(ModuleEditor* editor) : EditorPanel(editor) {}
+    explicit ConsolePanel(ModuleEditor* editor) : EditorPanel(editor){}
     const char* getName() const override { return "Console"; }
 
-    void add(const char* text, const ImVec4& color = EditorColors::White) { m_entries.push_back({ text, color }); }
-    void clear() { m_entries.clear(); }
+    void add(const char* text, const ImVec4& color = EditorColors::White){ m_entries.push_back({ text, color }); }
+    void clear(){ m_entries.clear(); }
 
 protected:
     void drawContent() override{
@@ -22,7 +22,7 @@ protected:
         ImGui::Checkbox("Auto-scroll", &m_autoScroll);
         ImGui::Separator();
         ImGui::BeginChild("##scroll");
-        for (const auto& e : m_entries) {
+        for (const auto& e : m_entries){
             ImGui::PushStyleColor(ImGuiCol_Text, e.color);
             ImGui::TextUnformatted(e.text.c_str());
             ImGui::PopStyleColor();
@@ -38,12 +38,12 @@ private:
 
 class PerformancePanel : public EditorPanel {
 public:
-    explicit PerformancePanel(ModuleEditor* editor) : EditorPanel(editor) { open = false; }
+    explicit PerformancePanel(ModuleEditor* editor) : EditorPanel(editor){ open = false; }
     const char* getName() const override { return "Performance"; }
 
-    void pushFPS(float fps) { m_fpsHistory[m_fpsIdx] = fps; m_fpsIdx = (m_fpsIdx + 1) % kHistory; }
-    void setGpuMs(double ms) { m_gpuMs = ms; m_gpuReady = true; }
-    void setMemory(uint64_t gpu, uint64_t ram) { m_gpuMem = gpu; m_ramMem = ram; }
+    void pushFPS(float fps){ m_fpsHistory[m_fpsIdx] = fps; m_fpsIdx = (m_fpsIdx + 1) % kHistory; }
+    void setGpuMs(double ms){ m_gpuMs = ms; m_gpuReady = true; }
+    void setMemory(uint64_t gpu, uint64_t ram){ m_gpuMem = gpu; m_ramMem = ram; }
 
 protected:
     void drawContent() override;
@@ -60,7 +60,7 @@ private:
 
 class ResourcesPanel : public EditorPanel {
 public:
-    explicit ResourcesPanel(ModuleEditor* editor) : EditorPanel(editor) {}
+    explicit ResourcesPanel(ModuleEditor* editor) : EditorPanel(editor){}
     const char* getName() const override { return "Resources"; }
 
 protected:
@@ -71,22 +71,19 @@ private:
     static const char* typeName(ResourceBase::Type t);
 };
 
-// Shows live collision pipeline statistics (broad/mid/narrow pair counts and
-// individual contact details) updated every frame by CollisionSystem::run().
 class CollisionDebugPanel : public EditorPanel {
 public:
     explicit CollisionDebugPanel(ModuleEditor* editor)
-        : EditorPanel(editor) { open = false; }
+        : EditorPanel(editor){ open = false; }
     const char* getName() const override { return "Collision Debug"; }
 
 protected:
     void drawContent() override;
 };
 
-// Live GPU memory view: descriptor heaps, upload ring buffer, static pools.
 class GPUMemoryPanel : public EditorPanel {
 public:
-    explicit GPUMemoryPanel(ModuleEditor* editor) : EditorPanel(editor) {}
+    explicit GPUMemoryPanel(ModuleEditor* editor) : EditorPanel(editor){}
     const char* getName() const override { return "GPU Memory"; }
 
 protected:

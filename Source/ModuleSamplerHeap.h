@@ -3,11 +3,9 @@
 #include "Module.h"
 
 
-class ModuleSamplerHeap : public Module
-{
+class ModuleSamplerHeap : public Module {
 public:
-    enum Type
-    {
+    enum Type {
         LINEAR_WRAP,
         POINT_WRAP,
         LINEAR_CLAMP,
@@ -35,7 +33,7 @@ public:
     }
 
 
-    ID3D12DescriptorHeap* getHeap() { return heap.Get(); }
+    ID3D12DescriptorHeap* getHeap(){ return heap.Get(); }
 
 private:
 

@@ -12,7 +12,7 @@ static std::string norm(std::string p){
     return p;
 }
 
-HotReloadManager::~HotReloadManager() { unloadAll(); }
+HotReloadManager::~HotReloadManager(){ unloadAll(); }
 
 bool HotReloadManager::loadLibrary(const std::string& dllPath){
     std::string key = norm(dllPath);
@@ -26,12 +26,12 @@ bool HotReloadManager::loadLibrary(const std::string& dllPath){
 bool HotReloadManager::reloadLibrary(const std::string& dllPath){
     std::string key = norm(dllPath);
     auto it = m_libraries.find(key);
-    if (it != m_libraries.end()) {
+    if (it != m_libraries.end()){
         FreeLibrary(it->second.handle);
         m_libraries.erase(it);
     }
     ScriptLibrary lib;
-    if (!loadLibraryInternal(key, lib)) {
+    if (!loadLibraryInternal(key, lib)){
         LOG("[HotReload] FAILED to reload: %s", key.c_str());
         return false;
     }
@@ -48,7 +48,7 @@ void HotReloadManager::unloadAll(){
 }
 
 IScript* HotReloadManager::createScript(const std::string& className) const{
-    for (const auto& [k, lib] : m_libraries) {
+    for (const auto& [k, lib] : m_libraries){
         auto it = lib.factories.find(className);
         if (it != lib.factories.end()) return it->second();
     }
@@ -75,7 +75,7 @@ bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLib
         fs::copy_file(pdbSrc, out.pdbPath, fs::copy_options::overwrite_existing);
 
     out.handle = LoadLibraryA(dllPath.c_str());
-    if (!out.handle) {
+    if (!out.handle){
         LOG("[HotReload] LoadLibraryA failed for '%s' (GetLastError=%lu)",
             dllPath.c_str(), GetLastError());
         return false;
@@ -92,11 +92,11 @@ bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLib
         base + expDir.VirtualAddress);
     auto names = reinterpret_cast<const DWORD*>(base + exp->AddressOfNames);
 
-    for (DWORD i = 0; i < exp->NumberOfNames; ++i) {
+    for (DWORD i = 0; i < exp->NumberOfNames; ++i){
         const char* sym = reinterpret_cast<const char*>(base + names[i]);
-        if (strncmp(sym, "Create_", 7) == 0) {
+        if (strncmp(sym, "Create_", 7) == 0){
             auto fn = reinterpret_cast<ScriptFactoryFn>(GetProcAddress(out.handle, sym));
-            if (fn) {
+            if (fn){
                 std::string className = sym + 7;
                 out.factories[className] = fn;
                 LOG("[HotReload] Registered script: '%s'", className.c_str());
@@ -105,7 +105,7 @@ bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLib
     }
 
     static constexpr int kMaxPdbs = 5;
-    if (m_pdbVersion > kMaxPdbs) {
+    if (m_pdbVersion > kMaxPdbs){
         fs::path p(dllPath);
         std::string dir = (fs::path(app->getFileSystem()->GetLibraryPath()) / "Scripts").string();
         std::string stem = p.stem().string();

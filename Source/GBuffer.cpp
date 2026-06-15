@@ -19,8 +19,6 @@ namespace {
         "GBuffer_NormalMetalRough",
         "GBuffer_EmissiveAO"
     };
-    // Albedo alpha=0 so the deferred lighting pass can detect background pixels (no geometry).
-    // Geometry always writes alpha=1 in GBufferPS.
     static const Vector4 kClearColors[GBuffer::NUM_COLOR_RTS] = {
         { 0.f, 0.f, 0.f, 0.f },
         { 0.f, 0.f, 0.f, 0.f },
@@ -41,7 +39,7 @@ void GBuffer::resize(uint32_t w, uint32_t h){
     auto* dsd = app->getDSDescriptors();
     auto* sd = app->getShaderDescriptors();
 
-    for (int i = 0; i < NUM_COLOR_RTS; ++i) {
+    for (int i = 0; i < NUM_COLOR_RTS; ++i){
         m_colorTextures[i] = gpuRes->createRenderTarget(
             kColorFormats[i], w, h, 1, kClearColors[i], kColorNames[i]);
 
@@ -52,7 +50,6 @@ void GBuffer::resize(uint32_t w, uint32_t h){
             m_srvTables[i].createTexture2DSRV(m_colorTextures[i].Get(), 0, kColorFormats[i]);
     }
 
-    // Create depth as R32_TYPELESS so we can bind it both as DSV and as an R32_FLOAT SRV
     {
         D3D12_RESOURCE_DESC dd = {};
         dd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -73,20 +70,17 @@ void GBuffer::resize(uint32_t w, uint32_t h){
         m_depthTexture->SetName(L"GBuffer_Depth");
     }
 
-    // DSV with concrete D32_FLOAT format (writable)
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
     dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
     dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     m_dsvDesc = dsd->create(m_depthTexture.Get(), &dsvDesc);
 
-    // Read-only DSV — used by the transparent forward pass (depth test, no depth write)
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvRODesc = {};
     dsvRODesc.Format = DXGI_FORMAT_D32_FLOAT;
     dsvRODesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     dsvRODesc.Flags = D3D12_DSV_FLAG_READ_ONLY_DEPTH;
     m_dsvReadOnly = dsd->create(m_depthTexture.Get(), &dsvRODesc);
 
-    // SRV for sampling depth as R32_FLOAT in the deferred lighting pass
     m_depthSrvTable = sd->allocTable("GBuffer_DepthSRV");
     if (m_depthSrvTable.isValid())
         m_depthSrvTable.createTexture2DSRV(m_depthTexture.Get(), 0, DXGI_FORMAT_R32_FLOAT, 1);
@@ -96,7 +90,7 @@ void GBuffer::resize(uint32_t w, uint32_t h){
 
 void GBuffer::release(){
     auto* gpuRes = app->getGPUResources();
-    for (int i = 0; i < NUM_COLOR_RTS; ++i) {
+    for (int i = 0; i < NUM_COLOR_RTS; ++i){
         if (m_colorTextures[i]) gpuRes->deferRelease(m_colorTextures[i]);
         m_rtvDescs[i].reset();
         m_srvTables[i].reset();
@@ -113,16 +107,15 @@ void GBuffer::release(){
 void GBuffer::beginGeomPass(ID3D12GraphicsCommandList* cmd, bool clear){
     if (!isValid()) return;
 
-    // SRV -> RTV for all color targets; also transition depth back from readable state if needed
     CD3DX12_RESOURCE_BARRIER barriers[NUM_COLOR_RTS + 1];
     int barrierCount = NUM_COLOR_RTS;
-    for (int i = 0; i < NUM_COLOR_RTS; ++i) {
+    for (int i = 0; i < NUM_COLOR_RTS; ++i){
         barriers[i] = CD3DX12_RESOURCE_BARRIER::Transition(
             m_colorTextures[i].Get(),
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
             D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
-    if (m_depthReadable) {
+    if (m_depthReadable){
         barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(
             m_depthTexture.Get(),
             D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
@@ -138,7 +131,7 @@ void GBuffer::beginGeomPass(ID3D12GraphicsCommandList* cmd, bool clear){
     D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_dsvDesc.getCPUHandle();
     cmd->OMSetRenderTargets(NUM_COLOR_RTS, rtvHandles, FALSE, &dsvHandle);
 
-    if (clear) {
+    if (clear){
         for (int i = 0; i < NUM_COLOR_RTS; ++i)
             cmd->ClearRenderTargetView(rtvHandles[i], &kClearColors[i].x, 0, nullptr);
         cmd->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
@@ -153,9 +146,8 @@ void GBuffer::beginGeomPass(ID3D12GraphicsCommandList* cmd, bool clear){
 void GBuffer::endGeomPass(ID3D12GraphicsCommandList* cmd){
     if (!isValid()) return;
 
-    // RTV -> SRV for all color targets; depth DEPTH_WRITE -> DEPTH_READ|PSR for sampling
     CD3DX12_RESOURCE_BARRIER barriers[NUM_COLOR_RTS + 1];
-    for (int i = 0; i < NUM_COLOR_RTS; ++i) {
+    for (int i = 0; i < NUM_COLOR_RTS; ++i){
         barriers[i] = CD3DX12_RESOURCE_BARRIER::Transition(
             m_colorTextures[i].Get(),
             D3D12_RESOURCE_STATE_RENDER_TARGET,

@@ -27,14 +27,14 @@ bool DecalPipeline::createRootSignature(ID3D12Device* device){
 
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
-    if (FAILED(hr)) {
+    if (FAILED(hr)){
         if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
         LOG("DecalPipeline: serialize root sig failed 0x%08X", hr);
         return false;
     }
     hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
                                       IID_PPV_ARGS(&m_rootSig));
-    if (FAILED(hr)) { LOG("DecalPipeline: CreateRootSignature failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ LOG("DecalPipeline: CreateRootSignature failed 0x%08X", hr); return false; }
     return true;
 }
 
@@ -42,7 +42,6 @@ bool DecalPipeline::createPSO(ID3D12Device* device){
     auto vs = DX::ReadData(L"DecalVS.cso");
     auto ps = DX::ReadData(L"DecalPS.cso");
 
-    // Input layout: float3 POSITION
     D3D12_INPUT_ELEMENT_DESC layout[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
           D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
@@ -55,8 +54,6 @@ bool DecalPipeline::createPSO(ID3D12Device* device){
     desc.InputLayout = { layout, _countof(layout) };
     desc.PrimitiveTopologyType= D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
-    // Write only to albedo (RT0) and normalMetalRough (RT1).
-    // RT2 (EmissiveAO) is not output by the PS.
     desc.NumRenderTargets = 2;
     desc.RTVFormats[0] = GBuffer::kAlbedoFormat;
     desc.RTVFormats[1] = GBuffer::kNormalMetalRoughFormat;
@@ -65,13 +62,10 @@ bool DecalPipeline::createPSO(ID3D12Device* device){
     desc.SampleMask = UINT_MAX;
 
     desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    // No culling so the decal renders correctly whether the camera is inside or outside the box
     desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
-    // Alpha-blend the decal albedo onto the G-Buffer albedo RT
     desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     desc.BlendState.IndependentBlendEnable = TRUE;
-    // RT0 (albedo): alpha-blend the decal colour
     desc.BlendState.RenderTarget[0].BlendEnable = TRUE;
     desc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
     desc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
@@ -80,15 +74,13 @@ bool DecalPipeline::createPSO(ID3D12Device* device){
     desc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
     desc.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
     desc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-    // RT1 (normalMetalRough): do not write
     desc.BlendState.RenderTarget[1].RenderTargetWriteMask = 0;
 
-    // Depth: read-only (test enabled, write disabled)
     desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
     desc.DepthStencilState.DepthEnable = FALSE;
     desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 
     HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_pso));
-    if (FAILED(hr)) { LOG("DecalPipeline: CreateGraphicsPipelineState failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ LOG("DecalPipeline: CreateGraphicsPipelineState failed 0x%08X", hr); return false; }
     return true;
 }

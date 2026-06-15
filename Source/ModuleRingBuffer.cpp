@@ -35,11 +35,10 @@ void ModuleRingBuffer::preRender(){
     m_currentFrame = d3d12->getCurrentBackBufferIdx();
 
     auto& completed = m_frameData[completedFrame];
-    if (completed.allocationSize > 0)
-    {
+    if (completed.allocationSize > 0){
         m_tail = (completed.allocationStart + completed.allocationSize) % m_capacity;
         m_frameData[completedFrame] = {};
-        if (m_tail == m_head) { m_head = 0; m_tail = 0; }
+        if (m_tail == m_head){ m_head = 0; m_tail = 0; }
     }
 }
 
@@ -50,19 +49,18 @@ D3D12_GPU_VIRTUAL_ADDRESS ModuleRingBuffer::allocateConstantBuffer(const void* d
 D3D12_GPU_VIRTUAL_ADDRESS ModuleRingBuffer::allocateRaw(const void* data, size_t size){
     size = alignUp(size, MIN_ALLOCATION);
 
-    if (size > m_capacity) { _ASSERT_EXPR(false, L"Allocation exceeds ring buffer capacity"); return 0; }
+    if (size > m_capacity){ _ASSERT_EXPR(false, L"Allocation exceeds ring buffer capacity"); return 0; }
 
     size_t start = m_head;
     size_t end = start + size;
 
-    if (end > m_capacity)
-    {
+    if (end > m_capacity){
         start = 0;
         end = size;
-        if (end > m_tail && m_tail > m_head) { _ASSERT_EXPR(false, L"Ring buffer out of memory"); return 0; }
+        if (end > m_tail && m_tail > m_head){ _ASSERT_EXPR(false, L"Ring buffer out of memory"); return 0; }
     }
 
-    if (start < m_tail && end > m_tail) { _ASSERT_EXPR(false, L"Ring buffer out of memory"); return 0; }
+    if (start < m_tail && end > m_tail){ _ASSERT_EXPR(false, L"Ring buffer out of memory"); return 0; }
 
     memcpy(m_mappedPtr + start, data, size);
     m_head = end;

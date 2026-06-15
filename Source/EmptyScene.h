@@ -4,8 +4,7 @@
 #include "GameObject.h"
 #include <memory>
 
-class EmptyScene : public IScene
-{
+class EmptyScene : public IScene {
 public:
     EmptyScene() = default;
     ~EmptyScene() override = default;

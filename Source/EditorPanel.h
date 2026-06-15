@@ -7,7 +7,7 @@ class ModuleEditor;
 
 class EditorPanel {
 public:
-    explicit EditorPanel(ModuleEditor* editor) : m_editor(editor) {}
+    explicit EditorPanel(ModuleEditor* editor) : m_editor(editor){}
     virtual ~EditorPanel() = default;
 
     virtual void draw(){
@@ -21,16 +21,16 @@ public:
     bool open = true;
 
 protected:
-    virtual void drawContent() {}
+    virtual void drawContent(){}
     virtual ImGuiWindowFlags windowFlags() const { return 0; }
     virtual bool noPadding() const { return false; }
 
-    static void textColored(const ImVec4& col, const char* fmt, ...) { va_list a; va_start(a, fmt); ImGui::PushStyleColor(ImGuiCol_Text, col); ImGui::TextV(fmt, a); ImGui::PopStyleColor(); va_end(a); }
-    static void textMuted(const char* fmt, ...) { va_list a; va_start(a, fmt); ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::TextV(fmt, a); ImGui::PopStyleColor(); va_end(a); }
-    static void textSuccess(const char* fmt, ...) { va_list a; va_start(a, fmt); ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::TextV(fmt, a); ImGui::PopStyleColor(); va_end(a); }
-    static void textDanger(const char* fmt, ...) { va_list a; va_start(a, fmt); ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Danger); ImGui::TextV(fmt, a); ImGui::PopStyleColor(); va_end(a); }
-    static void textWarning(const char* fmt, ...) { va_list a; va_start(a, fmt); ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Warning); ImGui::TextV(fmt, a); ImGui::PopStyleColor(); va_end(a); }
-    static void textActive(const char* fmt, ...) { va_list a; va_start(a, fmt); ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Active); ImGui::TextV(fmt, a); ImGui::PopStyleColor(); va_end(a); }
+    static void textColored(const ImVec4& col, const char* fmt, ...){ va_list a; va_start(a, fmt); ImGui::PushStyleColor(ImGuiCol_Text, col); ImGui::TextV(fmt, a); ImGui::PopStyleColor(); va_end(a); }
+    static void textMuted(const char* fmt, ...){ va_list a; va_start(a, fmt); ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::TextV(fmt, a); ImGui::PopStyleColor(); va_end(a); }
+    static void textSuccess(const char* fmt, ...){ va_list a; va_start(a, fmt); ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::TextV(fmt, a); ImGui::PopStyleColor(); va_end(a); }
+    static void textDanger(const char* fmt, ...){ va_list a; va_start(a, fmt); ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Danger); ImGui::TextV(fmt, a); ImGui::PopStyleColor(); va_end(a); }
+    static void textWarning(const char* fmt, ...){ va_list a; va_start(a, fmt); ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Warning); ImGui::TextV(fmt, a); ImGui::PopStyleColor(); va_end(a); }
+    static void textActive(const char* fmt, ...){ va_list a; va_start(a, fmt); ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Active); ImGui::TextV(fmt, a); ImGui::PopStyleColor(); va_end(a); }
 
     static void logResult(ModuleEditor* ed, bool ok, const char* good, const char* bad);
     static std::string toLower(std::string s);

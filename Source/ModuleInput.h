@@ -4,8 +4,7 @@
 
 namespace DirectX { class Keyboard; class Mouse; class GamePad; }
 
-class ModuleInput : public Module
-{
+class ModuleInput : public Module {
 public:
 
     ModuleInput(HWND hWnd);

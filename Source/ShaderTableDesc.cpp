@@ -26,8 +26,7 @@ ShaderTableDesc::~ShaderTableDesc(){
 }
 
 ShaderTableDesc& ShaderTableDesc::operator=(const ShaderTableDesc& other){
-    if (this != &other)
-    {
+    if (this != &other){
         release();
         m_handle = other.m_handle;
         m_refCount = other.m_refCount;
@@ -38,8 +37,7 @@ ShaderTableDesc& ShaderTableDesc::operator=(const ShaderTableDesc& other){
 }
 
 ShaderTableDesc& ShaderTableDesc::operator=(ShaderTableDesc&& other) noexcept{
-    if (this != &other)
-    {
+    if (this != &other){
         release();
         m_handle = other.m_handle;
         m_refCount = other.m_refCount;
@@ -80,8 +78,7 @@ void ShaderTableDesc::createCBV(ID3D12Resource* buffer, UINT slot, UINT64 size, 
     if (!isValid() || !isValidSlot(slot)) return;
 
     D3D12_CONSTANT_BUFFER_VIEW_DESC desc{};
-    if (buffer)
-    {
+    if (buffer){
         desc.BufferLocation = buffer->GetGPUVirtualAddress() + offset;
         desc.SizeInBytes = size ? static_cast<UINT>(size) :
             static_cast<UINT>((buffer->GetDesc().Width + 255) & ~255);

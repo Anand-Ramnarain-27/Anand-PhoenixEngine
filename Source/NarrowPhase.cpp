@@ -4,11 +4,6 @@
 #include <cfloat>
 #include <algorithm>
 
-// ---------------------------------------------------------------------------
-// OBB–OBB (Separating Axis Theorem, 15 axes)
-// Unchanged from the original implementation.
-// normal points from B toward A.
-// ---------------------------------------------------------------------------
 static bool obbVsOBB(const CollisionBody& ba, const CollisionBody& bb,
                      ContactPoint& contact){
     const Vector3 T = bb.obbCenter - ba.obbCenter;
@@ -34,7 +29,7 @@ static bool obbVsOBB(const CollisionBody& ba, const CollisionBody& bb,
         float rb = project(uB, eB, L);
         float pen = ra + rb - fabsf(T.Dot(L));
         if (pen <= 0.f) return false;
-        if (pen < minPen) { minPen = pen; bestNrm = (T.Dot(L) >= 0.f) ? -L : L; }
+        if (pen < minPen){ minPen = pen; bestNrm = (T.Dot(L) >= 0.f) ? -L : L; }
         return true;
     };
 
@@ -52,10 +47,6 @@ static bool obbVsOBB(const CollisionBody& ba, const CollisionBody& bb,
     return true;
 }
 
-// ---------------------------------------------------------------------------
-// Sphere–Sphere
-// normal = (centerA - centerB) / dist  →  points from B toward A.
-// ---------------------------------------------------------------------------
 static bool sphereVsSphere(const CollisionBody& ba, const CollisionBody& bb,
                             ContactPoint& contact){
     Vector3 diff = ba.sphereCenter - bb.sphereCenter;
@@ -69,32 +60,24 @@ static bool sphereVsSphere(const CollisionBody& ba, const CollisionBody& bb,
     contact.a = ba.go;
     contact.b = bb.go;
 
-    if (dist < 1e-6f) {
-        contact.normal = Vector3(0.f, 1.f, 0.f); // arbitrary for perfectly coincident spheres
+    if (dist < 1e-6f){
+        contact.normal = Vector3(0.f, 1.f, 0.f);
         contact.depth = rSum;
         contact.point = ba.sphereCenter;
     } else {
-        contact.normal = diff / dist; // B→A
+        contact.normal = diff / dist;
         contact.depth = rSum - dist;
-        contact.point = bb.sphereCenter + contact.normal * bb.sphereRadius; // surface of B
+        contact.point = bb.sphereCenter + contact.normal * bb.sphereRadius;
     }
     return true;
 }
 
-// ---------------------------------------------------------------------------
-// Sphere–OBB
-// `bSphere` is treated as body A (sphere), `bOBB` as body B (box).
-// normal points from B (OBB surface) toward A (sphere centre).
-// ---------------------------------------------------------------------------
 static bool sphereVsOBB(const CollisionBody& bSphere, const CollisionBody& bOBB,
                          ContactPoint& contact){
-    // Vector from OBB centre to sphere centre expressed in world space.
     Vector3 d = bSphere.sphereCenter - bOBB.obbCenter;
 
-    // Find the closest point on the OBB to the sphere centre by projecting
-    // onto each OBB axis and clamping to the half-extent.
     Vector3 closest = bOBB.obbCenter;
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 3; ++i){
         float proj = d.Dot(bOBB.obbAxes[i]);
         float clamped = std::clamp(proj, -bOBB.obbHalves[i], bOBB.obbHalves[i]);
         closest += bOBB.obbAxes[i] * clamped;
@@ -109,14 +92,13 @@ static bool sphereVsOBB(const CollisionBody& bSphere, const CollisionBody& bOBB,
     contact.b = bOBB.go;
 
     float dist = sqrtf(distSq);
-    if (dist < 1e-6f) {
-        // Sphere centre is inside the OBB — find minimum-penetration face.
+    if (dist < 1e-6f){
         float minPen = FLT_MAX;
         Vector3 bestNrm;
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < 3; ++i){
             float q = d.Dot(bOBB.obbAxes[i]);
             float pen = bOBB.obbHalves[i] - fabsf(q) + bSphere.sphereRadius;
-            if (pen < minPen) {
+            if (pen < minPen){
                 minPen = pen;
                 bestNrm = (q >= 0.f) ? bOBB.obbAxes[i] : -bOBB.obbAxes[i];
             }
@@ -125,14 +107,13 @@ static bool sphereVsOBB(const CollisionBody& bSphere, const CollisionBody& bOBB,
         contact.depth = minPen;
         contact.point = closest;
     } else {
-        contact.normal = diff / dist; // OBB surface → sphere centre (B→A)
+        contact.normal = diff / dist;
         contact.depth = bSphere.sphereRadius - dist;
-        contact.point = closest; // point on OBB surface
+        contact.point = closest;
     }
     return true;
 }
 
-// ---------------------------------------------------------------------------
 
 std::vector<ContactPoint> NarrowPhase::test(
     const std::vector<CollisionPair>& pairs,
@@ -140,7 +121,7 @@ std::vector<ContactPoint> NarrowPhase::test(
     std::vector<ContactPoint> results;
     results.reserve(pairs.size());
 
-    for (const auto& p : pairs) {
+    for (const auto& p : pairs){
         const CollisionBody& ba = bodies[p.a];
         const CollisionBody& bb = bodies[p.b];
         ContactPoint cp;
@@ -149,20 +130,17 @@ std::vector<ContactPoint> NarrowPhase::test(
         const bool aIsSphere = (ba.bvType == BVType::Sphere);
         const bool bIsSphere = (bb.bvType == BVType::Sphere);
 
-        if (!aIsSphere && !bIsSphere) {
+        if (!aIsSphere && !bIsSphere){
             hit = obbVsOBB(ba, bb, cp);
-        } else if (aIsSphere && bIsSphere) {
+        } else if (aIsSphere && bIsSphere){
             hit = sphereVsSphere(ba, bb, cp);
-        } else if (aIsSphere && !bIsSphere) {
-            // A is sphere, B is OBB
+        } else if (aIsSphere && !bIsSphere){
             hit = sphereVsOBB(ba, bb, cp);
         } else {
-            // A is OBB, B is sphere — call sphereVsOBB with args swapped,
-            // then swap a/b back so the ContactPoint convention is preserved.
             hit = sphereVsOBB(bb, ba, cp);
-            if (hit) {
+            if (hit){
                 std::swap(cp.a, cp.b);
-                cp.normal = -cp.normal; // re-orient: now points from bb toward ba (B→A)
+                cp.normal = -cp.normal;
             }
         }
 

@@ -9,10 +9,6 @@ using Microsoft::WRL::ComPtr;
 
 class GBufferPass;
 
-// Tile-based light culling compute pass.
-// Executed after the GBuffer geometry pass (depth buffer is filled).
-// Outputs per-tile point-light and spot-light index lists consumed by
-// the deferred lighting pass.
 class LightCullingPass {
 public:
     static constexpr UINT TILE_SIZE = 16;
@@ -27,16 +23,10 @@ public:
         Matrix view;
     };
 
-    // cull() and the SRV getters run once per viewport per frame (Scene=0, Game=1) —
-    // all per-frame mutable state below is duplicated per viewport so the second
-    // viewport's upload doesn't clobber the first's data before the GPU executes
-    // either pass (see DeferredLightingPass for the matching fix).
     static constexpr int NUM_VIEWPORTS = 2;
 
     bool init(ID3D12Device* device);
 
-    // Dispatches the culling compute shader.
-    // After this call the index-list buffers are in SRV (PIXEL_SHADER_RESOURCE) state.
     void cull(ID3D12GraphicsCommandList* cmd,
               GBufferPass& gbufferPass,
               const FrameLightData& lights,
@@ -45,7 +35,6 @@ public:
               uint32_t width, uint32_t height,
               int viewportIndex);
 
-    // SRV handles for the resulting per-tile light lists (bind into the lighting PS).
     D3D12_GPU_DESCRIPTOR_HANDLE getPointListSRV(int viewportIndex) const { return m_pointListSRV[viewportIndex].getGPUHandle(0); }
     D3D12_GPU_DESCRIPTOR_HANDLE getSpotListSRV(int viewportIndex) const { return m_spotListSRV[viewportIndex] .getGPUHandle(0); }
 
@@ -61,23 +50,21 @@ private:
 
     LightCullingPipeline m_pipeline;
 
-    // GPU-side UAV/SRV list buffers (DEFAULT heap, 1 buffer = all tiles × MAX_LIGHTS_PER_TILE)
     ComPtr<ID3D12Resource> m_pointListBuf[NUM_VIEWPORTS];
     ComPtr<ID3D12Resource> m_spotListBuf[NUM_VIEWPORTS];
     UINT m_allocatedTiles[NUM_VIEWPORTS] = {};
 
-    ShaderTableDesc m_pointListUAV[NUM_VIEWPORTS]; // UAV for compute write
+    ShaderTableDesc m_pointListUAV[NUM_VIEWPORTS];
     ShaderTableDesc m_spotListUAV[NUM_VIEWPORTS];
-    ShaderTableDesc m_pointListSRV[NUM_VIEWPORTS]; // SRV for lighting PS read
+    ShaderTableDesc m_pointListSRV[NUM_VIEWPORTS];
     ShaderTableDesc m_spotListSRV[NUM_VIEWPORTS];
 
-    // Upload-heap light data used by the culling CB
     ComPtr<ID3D12Resource> m_pointLightBuf[NUM_VIEWPORTS];
     ComPtr<ID3D12Resource> m_spotLightBuf[NUM_VIEWPORTS];
     void* m_pointLightMapped[NUM_VIEWPORTS] = {};
     void* m_spotLightMapped[NUM_VIEWPORTS] = {};
 
-    ShaderTableDesc m_pointLightSRV[NUM_VIEWPORTS]; // SRV for light array in compute shader
+    ShaderTableDesc m_pointLightSRV[NUM_VIEWPORTS];
     ShaderTableDesc m_spotLightSRV[NUM_VIEWPORTS];
 
     ComPtr<ID3D12Resource> m_cb[NUM_VIEWPORTS];

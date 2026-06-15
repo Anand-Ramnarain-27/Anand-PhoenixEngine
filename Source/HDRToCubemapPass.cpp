@@ -26,13 +26,13 @@ bool HDRToCubemapPass::loadHDRTexture(ID3D12Device* device, const std::string& h
     auto* shaderDescs = app->getShaderDescriptors();
 
     m_hdrTex = resources->createTextureFromFile(hdrFile, false);
-    if (!m_hdrTex) {
+    if (!m_hdrTex){
         LOG("HDRToCubemapPass: failed to load HDR texture '%s'", hdrFile.c_str());
         return false;
     }
 
     m_hdrSRVTable = shaderDescs->allocTable("HDR_Equirect");
-    if (!m_hdrSRVTable.isValid()) {
+    if (!m_hdrSRVTable.isValid()){
         LOG("HDRToCubemapPass: failed to allocate HDR SRV table");
         return false;
     }
@@ -59,7 +59,7 @@ bool HDRToCubemapPass::createCubemapResource(ID3D12Device* device, EnvironmentMa
     for (uint32_t s = cubeFaceSize; s > 1; s >>= 1)
         ++m_numMips;
 
-    if (!D3D12ResourceFactory::createCubemapRT(device, cubeFaceSize, m_numMips, DXGI_FORMAT_R16G16B16A16_FLOAT, L"SkyboxCubemap", env.cubemap)) {
+    if (!D3D12ResourceFactory::createCubemapRT(device, cubeFaceSize, m_numMips, DXGI_FORMAT_R16G16B16A16_FLOAT, L"SkyboxCubemap", env.cubemap)){
         LOG("HDRToCubemapPass: failed to create cubemap resource (size=%u mips=%u)", cubeFaceSize, m_numMips);
         return false;
     }
@@ -89,7 +89,7 @@ bool HDRToCubemapPass::recordMipLevel(ID3D12Device* device, ID3D12GraphicsComman
     cmd->SetDescriptorHeaps(2, heaps);
 
     ShaderTableDesc mipTable = shaderDescs->allocTable("HDR_MipSrc");
-    if (!mipTable.isValid()) {
+    if (!mipTable.isValid()){
         LOG("HDRToCubemapPass: failed to allocate mip SRV table (mip=%u)", mipIndex);
         return false;
     }
@@ -103,7 +103,7 @@ bool HDRToCubemapPass::recordMipLevel(ID3D12Device* device, ID3D12GraphicsComman
 bool HDRToCubemapPass::finaliseSRV(EnvironmentMap& env){
     auto* shaderDescs = app->getShaderDescriptors();
     env.srvTable = shaderDescs->allocTable("SkyboxCubemap");
-    if (!env.srvTable.isValid()) {
+    if (!env.srvTable.isValid()){
         LOG("HDRToCubemapPass: failed to allocate cubemap SRV table");
         return false;
     }
@@ -142,7 +142,7 @@ bool HDRToCubemapPass::createConversionPipeline(ID3D12Device* device){
     rsDesc.Init(3, params, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     ComPtr<ID3DBlob> blob, err;
-    if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))) {
+    if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))){
         LOG("HDRToCubemapPass: conv root signature serialise failed: %s",
             err ? (char*)err->GetBufferPointer() : "unknown error");
         return false;
@@ -175,7 +175,7 @@ bool HDRToCubemapPass::createConversionPipeline(ID3D12Device* device){
     psoDesc.DepthStencilState.DepthEnable = FALSE;
     psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
-    if (FAILED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_convPSO)))) {
+    if (FAILED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_convPSO)))){
         LOG("HDRToCubemapPass: failed to create conversion PSO");
         return false;
     }
@@ -198,7 +198,7 @@ bool HDRToCubemapPass::createMipPipeline(ID3D12Device* device){
     rsDesc.Init(3, params, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
     ComPtr<ID3DBlob> blob, err;
-    if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))) {
+    if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))){
         LOG("HDRToCubemapPass: mip root signature serialise failed: %s",
             err ? (char*)err->GetBufferPointer() : "unknown error");
         return false;
@@ -225,7 +225,7 @@ bool HDRToCubemapPass::createMipPipeline(ID3D12Device* device){
     psoDesc.DepthStencilState.DepthEnable = FALSE;
     psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
-    if (FAILED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_mipPSO)))) {
+    if (FAILED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_mipPSO)))){
         LOG("HDRToCubemapPass: failed to create mip PSO");
         return false;
     }
@@ -240,7 +240,7 @@ bool HDRToCubemapPass::ensureGeometry(ID3D12Device* device){
     m_cubeVB = resources->createDefaultBuffer(
         CubeGeometry::kCubeVerts, CubeGeometry::kCubeVertexSize, "HDR_CubeVB");
 
-    if (!m_cubeVB) {
+    if (!m_cubeVB){
         LOG("HDRToCubemapPass: failed to create cube vertex buffer");
         return false;
     }
@@ -257,7 +257,7 @@ void HDRToCubemapPass::renderFace(ID3D12GraphicsCommandList* cmd, ID3D12Resource
     uint32_t mipSize = std::max(1u, baseFaceSize >> mipLevel);
 
     RenderTargetDesc rtv = rtDescs->create(target, faceIndex, mipLevel, rtvFmt);
-    if (!rtv) {
+    if (!rtv){
         LOG("HDRToCubemapPass: RTV alloc failed (face=%u mip=%u)", faceIndex, mipLevel);
         return;
     }
@@ -311,7 +311,7 @@ void HDRToCubemapPass::blitMipFace(ID3D12GraphicsCommandList* cmd, ID3D12Resourc
     mipTable.createSRV(cubemap, faceIndex, &srvDesc);
 
     RenderTargetDesc rtv = rtDescs->create(cubemap, faceIndex, dstMip, DXGI_FORMAT_R16G16B16A16_FLOAT);
-    if (!rtv) {
+    if (!rtv){
         LOG("HDRToCubemapPass: mip RTV alloc failed (face=%u mip=%u)", faceIndex, dstMip);
         return;
     }

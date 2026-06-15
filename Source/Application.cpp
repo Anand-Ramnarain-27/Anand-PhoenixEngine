@@ -37,8 +37,7 @@ Application::Application(int argc, wchar_t** argv, void* hWnd){
 Application::~Application(){
     cleanUp();
 
-	for (auto it = modules.rbegin(); it != modules.rend(); ++it)
-    {
+	for (auto it = modules.rbegin(); it != modules.rend(); ++it){
         delete *it;
     }
 }
@@ -57,8 +56,7 @@ bool Application::init(){
 void Application::update(){
     using namespace std::chrono_literals;
 
-    if (!updating)
-    {
+    if (!updating){
         updating = true;
 
         uint64_t currentMilis = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -70,13 +68,10 @@ void Application::update(){
         tickList[tickIndex] = elapsedMilis;
         tickIndex = (tickIndex + 1) % MAX_FPS_TICKS;
 
-        if (!app->paused)
-        {
-            for (auto it = swapModules.begin(); it != swapModules.end(); ++it)
-            {
+        if (!app->paused){
+            for (auto it = swapModules.begin(); it != swapModules.end(); ++it){
                 auto pos = std::find(modules.begin(), modules.end(), it->first);
-                if (pos != modules.end())
-                {
+                if (pos != modules.end()){
                     (*pos)->cleanUp();
                     delete* pos;
 

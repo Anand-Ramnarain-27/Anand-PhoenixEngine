@@ -15,7 +15,7 @@ void ViewportPanel::renderToTexture(ID3D12GraphicsCommandList* cmd){
     Matrix view, proj;
     if (!buildCameraMatrices(w, h, view, proj)) return;
     ModuleStaticBuffer* sb = app->getStaticBuffer();
-    if (sb && sb->isInitialized()) {
+    if (sb && sb->isInitialized()){
         app->getResources()->uploadPendingMeshes(cmd, sb);
         sb->finalizeUploads(cmd);
     }
@@ -27,7 +27,7 @@ void ViewportPanel::renderToTexture(ID3D12GraphicsCommandList* cmd){
 
 void ViewportPanel::handleResize(){
     if (!viewport.pendingResize) return;
-    if (viewport.newWidth > 4 && viewport.newHeight > 4) {
+    if (viewport.newWidth > 4 && viewport.newHeight > 4){
         app->getD3D12()->flush();
         viewport.rt->resize(viewport.newWidth, viewport.newHeight);
         onResized(viewport.newWidth, viewport.newHeight);
@@ -38,7 +38,7 @@ void ViewportPanel::handleResize(){
 void ViewportPanel::drawContent(){
     viewport.size = ImGui::GetContentRegionAvail();
     viewport.checkResize();
-    if (viewport.isReady()) {
+    if (viewport.isReady()){
         ImGui::Image((ImTextureID)viewport.rt->getSrvHandle().ptr, viewport.size);
         viewport.pos = ImGui::GetItemRectMin();
         onImageDrawn();

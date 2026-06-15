@@ -10,13 +10,13 @@
 
 using namespace rapidjson;
 
-ComponentCharacterMotion::ComponentCharacterMotion(GameObject* owner) : Component(owner) {}
+ComponentCharacterMotion::ComponentCharacterMotion(GameObject* owner) : Component(owner){}
 
 void ComponentCharacterMotion::update(float dt){
     ComponentTransform* t = owner->getTransform();
     if (!t) return;
 
-    if (!m_yawInit) {
+    if (!m_yawInit){
         const Quaternion& q = t->rotation;
         mYaw = 2.f * atan2f(q.y, q.w);
         m_yawInit = true;
@@ -53,5 +53,5 @@ void ComponentCharacterMotion::onLoad(const std::string& jsonStr){
     if (doc.HasParseError()) return;
     if (doc.HasMember("linearSpeed")) mLinearSpeed = doc["linearSpeed"].GetFloat();
     if (doc.HasMember("angularSpeed")) mAngularSpeed = doc["angularSpeed"].GetFloat();
-    if (doc.HasMember("yaw")) { mYaw = doc["yaw"].GetFloat(); m_yawInit = true; }
+    if (doc.HasMember("yaw")){ mYaw = doc["yaw"].GetFloat(); m_yawInit = true; }
 }

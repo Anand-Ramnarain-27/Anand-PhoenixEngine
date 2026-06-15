@@ -14,7 +14,7 @@ public:
 
     bool isOpen() const { return m_isOpen; }
     const std::string& getSelectedPath() const { return m_selectedPath; }
-    void setExtensionFilter(const std::string& ext) { m_extensionFilter = ext; }
+    void setExtensionFilter(const std::string& ext){ m_extensionFilter = ext; }
 
 private:
     void refreshDirectory();

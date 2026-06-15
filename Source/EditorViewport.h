@@ -19,7 +19,7 @@ struct EditorViewport {
     bool isReady() const { return rt && rt->isValid() && size.x > 4 && size.y > 4; }
 
     void checkResize(){
-        if (size.x > 4 && size.y > 4 && (size.x != lastSize.x || size.y != lastSize.y)) {
+        if (size.x > 4 && size.y > 4 && (size.x != lastSize.x || size.y != lastSize.y)){
             pendingResize = true;
             newWidth = (uint32_t)size.x;
             newHeight = (uint32_t)size.y;

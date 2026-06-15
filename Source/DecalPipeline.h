@@ -3,14 +3,12 @@
 #include <wrl.h>
 using Microsoft::WRL::ComPtr;
 
-// Root-signature + graphics PSO for the deferred decal pass.
-// Renders unit boxes that project textures onto the G-Buffer.
 class DecalPipeline {
 public:
-    static constexpr UINT SLOT_CB = 0; // b0 – CbDecal (VS+PS)
-    static constexpr UINT SLOT_DEPTH = 1; // t0 – depth SRV (PS)
-    static constexpr UINT SLOT_ALBEDO = 2; // t1 – decal albedo texture (PS)
-    static constexpr UINT SLOT_SAMPLER = 3; // s0-s3 – samplers (PS)
+    static constexpr UINT SLOT_CB = 0;
+    static constexpr UINT SLOT_DEPTH = 1;
+    static constexpr UINT SLOT_ALBEDO = 2;
+    static constexpr UINT SLOT_SAMPLER = 3;
 
     bool init(ID3D12Device* device);
 

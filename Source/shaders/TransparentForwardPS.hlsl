@@ -6,8 +6,7 @@
 #define VARIANCE  0.3
 #define THRESHOLD 0.2
 
-float getGeometricSpecularAA(float3 N, float roughness)
-{
+float getGeometricSpecularAA(float3 N, float roughness){
     float3 ndx = ddx(N);
     float3 ndy = ddy(N);
     float curvature = max(dot(ndx, ndx), dot(ndy, ndy));
@@ -19,9 +18,8 @@ float getGeometricSpecularAA(float3 N, float roughness)
 float4 main(
     float3 worldPos : POSITION,
     float2 texCoord : TEXCOORD,
-    float3 normal   : NORMAL0,
-    float4 tangent  : TANGENT) : SV_TARGET
-{
+    float3 normal : NORMAL0,
+    float4 tangent : TANGENT) : SV_TARGET {
     float3 V = normalize(CameraPosition - worldPos);
     float3 N = normalize(normal);
 
@@ -30,12 +28,11 @@ float4 main(
     SampleMetallicRoughness(InstanceMaterial, BaseColorTex, MetallicRoughnessTex,
                             texCoord, baseColour, roughness, alphaRoughness, metallic);
 
-    // Combine scalar alpha with texture alpha channel
     float alpha = InstanceMaterial.BaseColor.a;
     if (InstanceMaterial.Flags & HAS_BASECOLOUR_TEX)
         alpha *= BaseColorTex.Sample(BilinearWrap, texCoord).a;
 
-    roughness    = getGeometricSpecularAA(N, roughness);
+    roughness = getGeometricSpecularAA(N, roughness);
     alphaRoughness = roughness * roughness;
 
     float3 T = normalize(tangent.xyz);
@@ -43,7 +40,7 @@ float4 main(
     N = SampleNormal(InstanceMaterial, NormalTex, texCoord, N, T, B);
 
     float NdotV = saturate(dot(N, V));
-    float3 R    = reflect(-V, N);
+    float3 R = reflect(-V, N);
     float NdotR = saturate(dot(N, R));
 
     float diffuseAO, specularAO;

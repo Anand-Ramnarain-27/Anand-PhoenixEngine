@@ -5,8 +5,7 @@
 
 namespace DirectX { class ScratchImage; }
 
-class ModuleGPUResources : public Module
-{
+class ModuleGPUResources : public Module {
 public:
     ModuleGPUResources();
     ~ModuleGPUResources();
@@ -35,8 +34,7 @@ private:
     ComPtr<ID3D12CommandAllocator> commandAllocator;
     ComPtr<ID3D12GraphicsCommandList> commandList;
 
-    struct DeferredFree
-    {
+    struct DeferredFree {
         UINT frame = 0;
         ComPtr<ID3D12Resource> resource;
     };

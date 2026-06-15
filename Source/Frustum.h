@@ -4,16 +4,14 @@
 
 using namespace DirectX::SimpleMath;
 
-struct FrustumPlane
-{
+struct FrustumPlane {
     Vector3 normal;
     float d;
 
     float signedDist(const Vector3& p) const { return normal.Dot(p) - d; }
 };
 
-struct Frustum
-{
+struct Frustum {
     enum PlaneIdx { Near = 0, Far, Left, Right, Top, Bottom, COUNT };
     enum CornerIdx { NTL = 0, NTR, NBL, NBR, FTL, FTR, FBL, FBR, CORNER_COUNT };
 
@@ -50,8 +48,7 @@ struct Frustum
     }
 
     bool testVertsAgainstPlanes(const Vector3 verts[8]) const{
-        for (const FrustumPlane& plane : planes)
-        {
+        for (const FrustumPlane& plane : planes){
             int outCount = 0;
             for (int i = 0; i < 8; ++i) if (plane.signedDist(verts[i]) < 0.0f) ++outCount;
             if (outCount == 8) return false;

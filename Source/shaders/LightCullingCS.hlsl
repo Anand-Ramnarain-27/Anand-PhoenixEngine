@@ -3,119 +3,96 @@
 #define TILE_SIZE       16
 #define MAX_LIGHTS_PER_TILE 64
 
-cbuffer CbCulling : register(b0)
-{
-    uint     NumPointLights;
-    uint     NumSpotLights;
-    uint     ViewportWidth;
-    uint     ViewportHeight;
+cbuffer CbCulling : register(b0){
+    uint NumPointLights;
+    uint NumSpotLights;
+    uint ViewportWidth;
+    uint ViewportHeight;
     float4x4 Projection;
     float4x4 View;
 };
 
-Texture2D<float>           DepthBuffer  : register(t0);
+Texture2D<float> DepthBuffer : register(t0);
 StructuredBuffer<PointLight> PointLights : register(t1);
-StructuredBuffer<SpotLight>  SpotLights  : register(t2);
+StructuredBuffer<SpotLight> SpotLights : register(t2);
 
 RWStructuredBuffer<int> PointLightList : register(u0);
-RWStructuredBuffer<int> SpotLightList  : register(u1);
+RWStructuredBuffer<int> SpotLightList : register(u1);
 
 groupshared uint gsMinDepthUint;
 groupshared uint gsMaxDepthUint;
 groupshared uint gsPointCount;
 groupshared uint gsSpotCount;
 
-// Convert hardware depth to view-space Z using the projection matrix.
-// Z_v = -d / (depth + c)  where c = Projection[2][2], d = Projection[2][3]
-float depthToViewZ(float depth)
-{
+float depthToViewZ(float depth){
     float c = Projection[2][2];
     float d = Projection[2][3];
     return -d / (depth + c);
 }
 
-// Convert a screen-space pixel position + a view-space Z to a view-space point.
-float3 screenToView(float2 screenPos, float viewZ)
-{
-    float ndcX =  (screenPos.x / float(ViewportWidth))  * 2.0 - 1.0;
+float3 screenToView(float2 screenPos, float viewZ){
+    float ndcX = (screenPos.x / float(ViewportWidth)) * 2.0 - 1.0;
     float ndcY = -(screenPos.y / float(ViewportHeight)) * 2.0 + 1.0;
     float viewX = ndcX * (-viewZ) / Projection[0][0];
     float viewY = ndcY * (-viewZ) / Projection[1][1];
     return float3(viewX, viewY, viewZ);
 }
 
-// Signed distance from a plane defined by its normal (D=0, passes through origin).
-float distFromPlane(float3 planeNormal, float3 pos)
-{
+float distFromPlane(float3 planeNormal, float3 pos){
     return dot(planeNormal, pos);
 }
 
-// Linear tile index from tile (x,y) coordinates.
-uint tileIndex(uint2 tile)
-{
+uint tileIndex(uint2 tile){
     uint numTilesX = (ViewportWidth + TILE_SIZE - 1) / TILE_SIZE;
     return tile.y * numTilesX + tile.x;
 }
 
 [numthreads(TILE_SIZE, TILE_SIZE, 1)]
 void main(uint2 globalIdx : SV_DispatchThreadID,
-          uint  localIdx  : SV_GroupIndex,
-          uint2 groupIdx  : SV_GroupID)
-{
-    // ── Initialise shared variables (one thread only) ─────────────────────────
-    if (localIdx == 0)
-    {
+          uint localIdx : SV_GroupIndex,
+          uint2 groupIdx : SV_GroupID){
+    if (localIdx == 0){
         gsMinDepthUint = 0xFFFFFFFF;
         gsMaxDepthUint = 0;
-        gsPointCount   = 0;
-        gsSpotCount    = 0;
+        gsPointCount = 0;
+        gsSpotCount = 0;
     }
     GroupMemoryBarrierWithGroupSync();
 
-    // ── Per-thread: contribute one depth sample ───────────────────────────────
     uint2 coord = min(globalIdx, uint2(ViewportWidth - 1, ViewportHeight - 1));
     float d = DepthBuffer.Load(int3(coord, 0));
 
-    // Ignore sky (depth == 1 means no geometry)
-    if (d < 1.0f)
-    {
+    if (d < 1.0f){
         InterlockedMin(gsMinDepthUint, asuint(d));
         InterlockedMax(gsMaxDepthUint, asuint(d));
     }
     GroupMemoryBarrierWithGroupSync();
 
-    // ── Build the 4 side frustum planes for this tile ─────────────────────────
-    // Use near-plane view-space points at the 4 tile corners.
     float refDepth = 0.0f;
     float refViewZ = depthToViewZ(refDepth);
 
     float2 corners[4];
-    corners[0] = float2( groupIdx.x      * TILE_SIZE,  groupIdx.y      * TILE_SIZE);
-    corners[1] = float2((groupIdx.x + 1) * TILE_SIZE,  groupIdx.y      * TILE_SIZE);
+    corners[0] = float2( groupIdx.x * TILE_SIZE, groupIdx.y * TILE_SIZE);
+    corners[1] = float2((groupIdx.x + 1) * TILE_SIZE, groupIdx.y * TILE_SIZE);
     corners[2] = float2((groupIdx.x + 1) * TILE_SIZE, (groupIdx.y + 1) * TILE_SIZE);
-    corners[3] = float2( groupIdx.x      * TILE_SIZE, (groupIdx.y + 1) * TILE_SIZE);
+    corners[3] = float2( groupIdx.x * TILE_SIZE, (groupIdx.y + 1) * TILE_SIZE);
 
     float3 viewCorners[4];
     for (int ci = 0; ci < 4; ++ci)
         viewCorners[ci] = screenToView(corners[ci], refViewZ);
 
-    // Each plane passes through the origin (camera eye in view space = (0,0,0)).
-    // Normal = normalise(cross(P_i, P_{i+1})), pointing inward.
     float3 planes[4];
     for (int pi = 0; pi < 4; ++pi)
         planes[pi] = normalize(cross(viewCorners[pi], viewCorners[(pi + 1) & 3]));
 
-    // Tightest near/far from depth buffer
-    float viewMinZ = depthToViewZ(asfloat(gsMaxDepthUint)); // further depth → smaller viewZ
-    float viewMaxZ = depthToViewZ(asfloat(gsMinDepthUint)); // closer  depth → larger  viewZ
+    float viewMinZ = depthToViewZ(asfloat(gsMaxDepthUint));
+    float viewMaxZ = depthToViewZ(asfloat(gsMinDepthUint));
 
-    // ── Cull point lights ─────────────────────────────────────────────────────
     uint threadIdx = localIdx;
-    for (uint i = threadIdx; i < NumPointLights; i += TILE_SIZE * TILE_SIZE)
-    {
+    for (uint i = threadIdx; i < NumPointLights; i += TILE_SIZE * TILE_SIZE){
         PointLight pl = PointLights[i];
-        float radius  = sqrt(pl.SquaredRadius);
-        float3 vPos   = mul(float4(pl.Position, 1.0f), View).xyz;
+        float radius = sqrt(pl.SquaredRadius);
+        float3 vPos = mul(float4(pl.Position, 1.0f), View).xyz;
 
         bool inside =
             distFromPlane(planes[0], vPos) < radius &&
@@ -125,8 +102,7 @@ void main(uint2 globalIdx : SV_DispatchThreadID,
             (viewMinZ - vPos.z) < radius &&
             (vPos.z - viewMaxZ) < radius;
 
-        if (inside)
-        {
+        if (inside){
             uint slot;
             InterlockedAdd(gsPointCount, 1u, slot);
             if (slot < MAX_LIGHTS_PER_TILE)
@@ -134,26 +110,22 @@ void main(uint2 globalIdx : SV_DispatchThreadID,
         }
     }
 
-    // ── Cull spot lights (via bounding sphere) ────────────────────────────────
-    for (uint j = threadIdx; j < NumSpotLights; j += TILE_SIZE * TILE_SIZE)
-    {
-        SpotLight sl    = SpotLights[j];
-        float spotR     = sqrt(sl.SquaredRadius);
-        float cosOuter  = sl.OuterAngle;   // stored as cos(angle)
+    for (uint j = threadIdx; j < NumSpotLights; j += TILE_SIZE * TILE_SIZE){
+        SpotLight sl = SpotLights[j];
+        float spotR = sqrt(sl.SquaredRadius);
+        float cosOuter = sl.OuterAngle;
 
-        // Compute tightest bounding sphere for the spot cone
         float sphereR;
         float3 sphereC;
         static const float kCosQuarterPi = 0.70710678f;
 
-        if (cosOuter < kCosQuarterPi)   // halfAngle > pi/4 → wide cone
-        {
-            float sinA  = sqrt(1.0f - cosOuter * cosOuter);
-            float tanA  = sinA / cosOuter;
-            sphereR     = spotR * tanA;
-            sphereC     = sl.Position + sl.Direction * spotR;
+        if (cosOuter < kCosQuarterPi){
+            float sinA = sqrt(1.0f - cosOuter * cosOuter);
+            float tanA = sinA / cosOuter;
+            sphereR = spotR * tanA;
+            sphereC = sl.Position + sl.Direction * spotR;
         }
-        else                             // narrow cone
+        else
         {
             sphereR = spotR * 0.5f / (cosOuter * cosOuter);
             sphereC = sl.Position + sl.Direction * sphereR;
@@ -169,8 +141,7 @@ void main(uint2 globalIdx : SV_DispatchThreadID,
             (viewMinZ - vPos.z) < sphereR &&
             (vPos.z - viewMaxZ) < sphereR;
 
-        if (inside)
-        {
+        if (inside){
             uint slot;
             InterlockedAdd(gsSpotCount, 1u, slot);
             if (slot < MAX_LIGHTS_PER_TILE)
@@ -180,9 +151,7 @@ void main(uint2 globalIdx : SV_DispatchThreadID,
 
     GroupMemoryBarrierWithGroupSync();
 
-    // ── Write sentinel -1 at end of each light list ───────────────────────────
-    if (localIdx == 0)
-    {
+    if (localIdx == 0){
         uint ti = tileIndex(groupIdx);
         if (gsPointCount < MAX_LIGHTS_PER_TILE)
             PointLightList[ti * MAX_LIGHTS_PER_TILE + gsPointCount] = -1;

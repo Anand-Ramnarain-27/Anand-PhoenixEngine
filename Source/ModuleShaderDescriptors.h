@@ -7,8 +7,7 @@
 
 class ShaderTableDesc;
 
-class ModuleShaderDescriptors : public Module
-{
+class ModuleShaderDescriptors : public Module {
     friend class ShaderTableDesc;
 
 public:
@@ -25,8 +24,7 @@ public:
     ID3D12DescriptorHeap* getHeap() const { return m_heap.Get(); }
 
 private:
-    struct Table
-    {
+    struct Table {
         UINT refCount = 0;
         UINT frameFreed = 0;
         std::string name;

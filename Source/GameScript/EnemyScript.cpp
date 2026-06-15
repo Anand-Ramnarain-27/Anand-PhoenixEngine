@@ -20,7 +20,7 @@ void EnemyScript::Update(float dt){
 
 bool EnemyScript::shouldTickAI(bool isVisible, float distanceToCamera,
     float aiCullDistance, int aiCullTickRate){
-    if (isVisible || distanceToCamera <= aiCullDistance) {
+    if (isVisible || distanceToCamera <= aiCullDistance){
         m_aiFrameCounter = 0;
         return true;
     }
@@ -53,4 +53,4 @@ void EnemyScript::Load(const std::string& json){
     if (doc.HasMember("aggro")) m_isAggro = doc["aggro"].GetBool();
 }
 
-IScript* Create_EnemyScript() { return new EnemyScript(); }
+IScript* Create_EnemyScript(){ return new EnemyScript(); }

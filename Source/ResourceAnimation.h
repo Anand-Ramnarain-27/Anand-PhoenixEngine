@@ -17,12 +17,9 @@ public:
         uint32_t rotCount = 0;
     };
 
-    // One morph-weight channel per target node.
-    // weights is a flat array: [t0_w0, t0_w1, ..., t0_wN, t1_w0, ...]
-    // Access: weights[keyframe * numTargets + targetIndex]
     struct MorphChannel {
-        std::unique_ptr<float[]> weightsTimes; // keyframe timestamps, size = numTime
-        std::unique_ptr<float[]> weights; // flat weight array, size = numTime * numTargets
+        std::unique_ptr<float[]> weightsTimes;
+        std::unique_ptr<float[]> weights;
         uint32_t numTime = 0;
         uint32_t numTargets = 0;
     };
@@ -37,7 +34,6 @@ public:
     const std::unordered_map<std::string, Channel>& getChannels() const { return m_channels; }
     const std::unordered_map<std::string, MorphChannel>& getMorphChannels() const { return m_morphChannels; }
 
-    // Returns nullptr if no morph channel exists for nodeName.
     const MorphChannel* getMorphChannel(const std::string& nodeName) const;
 
 private:

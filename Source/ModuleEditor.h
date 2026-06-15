@@ -74,12 +74,12 @@ public:
     DebugDrawPass* getDebugDraw() const { return m_debugDraw.get(); }
     CollisionSystem* getCollisionSystem() const { return m_collisionSystem.get(); }
     CollisionResponse* getCollisionResponse() const { return m_collisionResponse.get(); }
-    EditorSelection& getSelection() { return m_selection; }
+    EditorSelection& getSelection(){ return m_selection; }
     double getGpuFrameTimeMs() const { return m_gpuFrameTimeMs; }
     bool isGpuTimerReady() const { return m_gpuTimerReady; }
     int getFrameDrawCalls() const { return m_frameDrawCalls; }
     int getSamplerType() const { return m_samplerType; }
-    void setSamplerType(int t) { m_samplerType = t; }
+    void setSamplerType(int t){ m_samplerType = t; }
     ModuleScene* getActiveModuleScene()const;
     ImVec2 getSceneViewSize() const;
 
@@ -94,28 +94,19 @@ public:
     void spawnAssetAtPath(const std::string& path);
     GameObject* spawnModel(const std::string& path);
 
-    // Spawn a built-in primitive (generates geometry procedurally, no external file).
-    // addPhysics = true attaches a Rigidbody so it falls under gravity immediately.
     GameObject* spawnPrimitive(PrimitiveType type,
                                const Vector3& position = Vector3::Zero,
                                const Vector3& scale = Vector3::One,
                                bool addPhysics = false);
 
-    // Lecture 11 "Particle Systems I" — Exercise 1: builds the 4-emitter fire rig
-    // (flames / brighter inner light / glow / sparks) as a parented GameObject group.
     GameObject* spawnFireParticleSystem(const Vector3& position = Vector3::Zero);
     GameObject* spawnSwordTrail(const Vector3& position = Vector3::Zero);
-    // Trail + particles combined prefab — fire orb that leaves a comet trail when moved.
     GameObject* spawnFireComet(const Vector3& position = Vector3::Zero);
 
-    // Stop playback, clear editor selection and undo stack so no stale pointers
-    // remain after the scene is restored.
     void stopPlay();
 
-    // Effects transport — preview particles + trails in edit mode without scene Play.
-    // Called from ComponentTrail / ComponentParticleSystem onEditor() buttons.
     bool isEffectsPlaying() const { return m_effectsPlaying; }
-    void effectsPlay()        { m_effectsPlaying = true;  m_effectsTime = 0.f; }
+    void effectsPlay(){ m_effectsPlaying = true; m_effectsTime = 0.f; }
     void effectsStop();
     void effectsRestartAll();
     void effectsRestartSelected();
@@ -133,7 +124,7 @@ public:
 
     void enterPrefabEdit(const std::string& prefabName);
     void exitPrefabEdit();
-    PrefabEditSession* getPrefabSession() { return &m_prefabSession; }
+    PrefabEditSession* getPrefabSession(){ return &m_prefabSession; }
 
     HotReloadManager* getHotReloadManager() const { return m_hotReload.get(); }
     void onScriptFileEvent(const std::string& absPath, FileWatcher::Event ev);
@@ -150,8 +141,8 @@ private:
     std::unique_ptr<DeferredLightingPass> m_deferredLightingPass;
     std::unique_ptr<DecalPass> m_decalPass;
     std::unique_ptr<BillboardPass> m_billboardPass;
-    std::unique_ptr<TrailPass>     m_trailPass;
-    std::unique_ptr<ParticlePass>  m_particlePass;
+    std::unique_ptr<TrailPass> m_trailPass;
+    std::unique_ptr<ParticlePass> m_particlePass;
     std::unique_ptr<EnvironmentSystem> m_envSystem;
     std::unique_ptr<HotReloadManager> m_hotReload;
     std::unique_ptr<SkinningPass> m_skinningPass;
@@ -166,7 +157,6 @@ private:
     bool m_gpuTimerReady = false;
     float m_memoryUpdateTimer = 0.0f;
 
-    // Live render stats updated each frame in renderSceneWithCamera().
     int m_frameDrawCalls = 0;
     int m_frameMeshCount = 0;
 
@@ -193,17 +183,12 @@ private:
     EditorSelection m_selection;
     FrameLightData m_frameLights;
 
-    // Gap 1: hierarchical render (frustum) culling — built once per frame in
-    // preRender() from all renderable GameObjects, queried against the active
-    // game camera frustum when ModuleCamera::cullAlgorithm == Octree.
     RenderOctree m_renderOctree;
     int m_samplerType = 0;
     bool m_firstFrame = true;
 
-    // Effects transport — controls particles/trails in editor (edit-mode preview).
-    // Independent of scene Play state: lets you preview fx without pressing Play.
-    bool  m_effectsPlaying = false;
-    float m_effectsTime    = 0.f;
+    bool m_effectsPlaying = false;
+    float m_effectsTime = 0.f;
 
     static constexpr int kMaxUndoSteps = 200;
     std::deque<EditorCommand> m_undoStack;
@@ -242,7 +227,7 @@ private:
                             float elapsedTime) const;
     void debugDrawLights(ModuleScene* scene, float lightSize);
     void updateMemory();
-    void updateEffectsInEditMode(float dt); // tick trails + particles when not in play mode
+    void updateEffectsInEditMode(float dt);
     void handleNewScenePopup(ID3D12GraphicsCommandList* cmd);
     void drawDockspace();
     void drawMenuBar();

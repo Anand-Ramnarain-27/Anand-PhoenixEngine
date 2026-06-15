@@ -8,8 +8,7 @@ class IScene;
 class ModuleCamera;
 class ModuleScene;
 
-class SceneManager
-{
+class SceneManager {
 public:
     enum class PlayState { Stopped, Playing, Paused };
 
@@ -42,7 +41,7 @@ public:
     bool isEditingPrefab() const { return m_editingPrefab; }
     const std::string& getPrefabEditName() const { return m_prefabEditName; }
 
-    EditorSceneSettings& getSettings() { return settings; }
+    EditorSceneSettings& getSettings(){ return settings; }
     const EditorSceneSettings& getSettings() const { return settings; }
 
 private:

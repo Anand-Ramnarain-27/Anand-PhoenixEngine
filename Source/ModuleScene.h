@@ -5,8 +5,7 @@
 
 class GameObject;
 
-class ModuleScene
-{
+class ModuleScene {
 public:
     ModuleScene();
     ~ModuleScene();

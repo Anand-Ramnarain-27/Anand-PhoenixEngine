@@ -5,24 +5,22 @@
 #include "ModuleStaticBuffer.h"
 #include <cstdint>
 
-ResourceMesh::ResourceMesh(UID uid) : ResourceBase(uid, Type::Mesh) {}
-ResourceMesh::~ResourceMesh() { UnloadFromMemory(); }
+ResourceMesh::ResourceMesh(UID uid) : ResourceBase(uid, Type::Mesh){}
+ResourceMesh::~ResourceMesh(){ UnloadFromMemory(); }
 
 bool ResourceMesh::LoadInMemory(){
     if (m_mesh) return true;
     std::unique_ptr<Mesh> mesh;
-    if (!MeshImporter::Load(libraryFile, mesh)) { LOG("ResourceMesh: Failed to load %s", libraryFile.c_str()); return false; }
+    if (!MeshImporter::Load(libraryFile, mesh)){ LOG("ResourceMesh: Failed to load %s", libraryFile.c_str()); return false; }
     m_mesh = std::move(mesh);
     return true;
 }
 
 bool ResourceMesh::LoadInMemory(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer){
-    if (m_mesh) {
+    if (m_mesh){
         m_mesh->uploadToGPU(cmd, staticBuffer);
 
-        // Pick up bone weights that were missing at CPU-load time (e.g. model re-imported
-        // while the engine was running — the .skin sidecar now exists but m_boneWeights is empty).
-        if (!m_mesh->hasBoneWeights()) {
+        if (!m_mesh->hasBoneWeights()){
             std::vector<Mesh::BoneWeight> bw;
             if (MeshImporter::LoadBoneWeights(libraryFile, bw) && !bw.empty())
                 m_mesh->setBoneWeights(cmd, staticBuffer, bw);
@@ -30,7 +28,7 @@ bool ResourceMesh::LoadInMemory(ID3D12GraphicsCommandList* cmd, ModuleStaticBuff
         return true;
     }
     std::unique_ptr<Mesh> mesh;
-    if (!MeshImporter::Load(libraryFile, cmd, staticBuffer, mesh)) { LOG("ResourceMesh: Failed to load %s into static buffer", libraryFile.c_str()); return false; }
+    if (!MeshImporter::Load(libraryFile, cmd, staticBuffer, mesh)){ LOG("ResourceMesh: Failed to load %s into static buffer", libraryFile.c_str()); return false; }
     m_mesh = std::move(mesh);
     return true;
 }

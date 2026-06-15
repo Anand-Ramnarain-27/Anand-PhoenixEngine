@@ -12,7 +12,7 @@ void RenderTexture::resize(UINT width, UINT height){
     m_width = width;
     m_height = height;
 
-    if (m_width == 0 || m_height == 0) { releaseResources(); return; }
+    if (m_width == 0 || m_height == 0){ releaseResources(); return; }
 
     auto* resources = app->getGPUResources();
     auto* shaderDesc = app->getShaderDescriptors();
@@ -22,8 +22,7 @@ void RenderTexture::resize(UINT width, UINT height){
     m_textures.texture = resources->createRenderTarget(
         m_format, (size_t)m_width, (size_t)m_height, m_msaa ? 4 : 1, m_clearColor, m_name);
 
-    if (m_autoResolveMSAA && m_msaa)
-    {
+    if (m_autoResolveMSAA && m_msaa){
         resources->deferRelease(m_textures.resolved);
         m_textures.resolved = resources->createRenderTarget(
             m_format, (size_t)m_width, (size_t)m_height, 1, m_clearColor,
@@ -38,8 +37,7 @@ void RenderTexture::resize(UINT width, UINT height){
     ID3D12Resource* srvRes = m_textures.resolved ? m_textures.resolved.Get() : m_textures.texture.Get();
     if (m_srvDesc.isValid()) m_srvDesc.createTexture2DSRV(srvRes, 0);
 
-    if (m_depthFormat != DXGI_FORMAT_UNKNOWN)
-    {
+    if (m_depthFormat != DXGI_FORMAT_UNKNOWN){
         resources->deferRelease(m_textures.depthTexture);
         m_textures.depthTexture = resources->createDepthStencil(
             m_depthFormat, (size_t)m_width, (size_t)m_height, m_msaa ? 4 : 1, m_clearDepth, 0, m_name);
@@ -86,12 +84,10 @@ void RenderTexture::beginRender(ID3D12GraphicsCommandList* cmdList, bool clear){
 
     cmdList->OMSetRenderTargets(1, &m_cachedRTV, FALSE, hasDepth ? &m_cachedDSV : nullptr);
 
-    if (clear)
-    {
+    if (clear){
         cmdList->ClearRenderTargetView(m_cachedRTV, &m_clearColor.x, 0, nullptr);
 
-        if (hasDepth)
-        {
+        if (hasDepth){
             cmdList->ClearDepthStencilView(
                 m_cachedDSV,
                 D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
@@ -111,8 +107,7 @@ void RenderTexture::beginRender(ID3D12GraphicsCommandList* cmdList, bool clear){
 void RenderTexture::endRender(ID3D12GraphicsCommandList* cmdList){
     if (!isValid()) return;
 
-    if (m_msaa && m_autoResolveMSAA && m_textures.resolved)
-    {
+    if (m_msaa && m_autoResolveMSAA && m_textures.resolved){
         resolveMSAA(cmdList);
     }
     else

@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <cmath>
 
-ComponentSimpleCharacterController::ComponentSimpleCharacterController(GameObject* owner) : Component(owner) {}
+ComponentSimpleCharacterController::ComponentSimpleCharacterController(GameObject* owner) : Component(owner){}
 
 void ComponentSimpleCharacterController::ensureInit(){
     if (m_initialized) return;
@@ -24,15 +24,14 @@ void ComponentSimpleCharacterController::update(float dt){
 
     auto kb = DirectX::Keyboard::Get().GetState();
 
-    // K pressed (edge) → die one-shot; after that ignore all input
     const bool kDown = kb.K;
-    if (kDown && !m_kWasDown && !m_isDead && m_anim) {
+    if (kDown && !m_kWasDown && !m_isDead && m_anim){
         m_isDead = true;
         m_anim->SendTrigger(HashString(std::string("die")));
     }
     m_kWasDown = kDown;
 
-    if (m_isDead) {
+    if (m_isDead){
         m_motion->Move(0.f);
         m_motion->Rotate(0.f);
         return;
@@ -47,7 +46,7 @@ void ComponentSimpleCharacterController::update(float dt){
     if (kb.Left || kb.A) rotateInput -= 1.f;
 
     auto pad = DirectX::GamePad::Get().GetState(0);
-    if (pad.IsConnected()) {
+    if (pad.IsConnected()){
         if (fabsf(pad.thumbSticks.leftY) > 0.2f) moveInput = pad.thumbSticks.leftY;
         if (fabsf(pad.thumbSticks.leftX) > 0.2f) rotateInput = pad.thumbSticks.leftX;
     }
@@ -58,7 +57,7 @@ void ComponentSimpleCharacterController::update(float dt){
     m_motion->Move(moveInput);
     m_motion->Rotate(rotateInput);
 
-    if (m_anim) {
+    if (m_anim){
         const bool isMoving = fabsf(moveInput) > 0.01f || fabsf(rotateInput) > 0.01f;
         const bool isRunning = isMoving && kb.LeftShift;
 
@@ -67,7 +66,7 @@ void ComponentSimpleCharacterController::update(float dt){
         else if (!isMoving && m_wasMoving)
             m_anim->SendTrigger(HashString(std::string("stop")));
 
-        if (isMoving) {
+        if (isMoving){
             if (isRunning && !m_wasRunning)
                 m_anim->SendTrigger(HashString(std::string("run")));
             else if (!isRunning && m_wasRunning)
@@ -98,4 +97,4 @@ void ComponentSimpleCharacterController::onSave(std::string& outJson) const{
     outJson = "{}";
 }
 
-void ComponentSimpleCharacterController::onLoad(const std::string&) {}
+void ComponentSimpleCharacterController::onLoad(const std::string&){}

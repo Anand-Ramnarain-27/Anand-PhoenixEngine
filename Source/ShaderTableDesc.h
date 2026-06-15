@@ -5,8 +5,7 @@
 
 class ModuleShaderDescriptors;
 
-class ShaderTableDesc
-{
+class ShaderTableDesc {
 public:
     ShaderTableDesc() = default;
     ShaderTableDesc(UINT handle, UINT* refCount, ModuleShaderDescriptors* mgr);
@@ -20,7 +19,7 @@ public:
     explicit operator bool() const { return m_refCount && *m_refCount > 0 && m_manager; }
 
     UINT getHandle() const { return m_handle; }
-    void reset() { release(); }
+    void reset(){ release(); }
     bool isValid() const { return static_cast<bool>(*this); }
 
     void createCBV(ID3D12Resource* buffer, UINT slot = 0, UINT64 size = 0, UINT64 offset = 0);

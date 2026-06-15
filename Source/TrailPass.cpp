@@ -12,11 +12,11 @@
 #include <cstring>
 
 namespace {
-    constexpr UINT cbAlign(UINT b) { return (b + 255u) & ~255u; }
+    constexpr UINT cbAlign(UINT b){ return (b + 255u) & ~255u; }
 }
 
 bool TrailPass::init(ID3D12Device* device){
-    if (!m_pipeline.init(device)) {
+    if (!m_pipeline.init(device)){
         LOG("TrailPass: pipeline init failed");
         return false;
     }
@@ -38,7 +38,7 @@ bool TrailPass::createBuffers(ID3D12Device* device){
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                                                       D3D12_RESOURCE_STATE_GENERIC_READ,
                                                       nullptr, IID_PPV_ARGS(&m_vbRing));
-        if (FAILED(hr)) { LOG("TrailPass: VB ring alloc failed 0x%08X", hr); return false; }
+        if (FAILED(hr)){ LOG("TrailPass: VB ring alloc failed 0x%08X", hr); return false; }
         m_vbRing->SetName(L"Trail_VBRing");
         m_vbRing->Map(0, nullptr, &m_vbMapped);
     }
@@ -50,7 +50,7 @@ bool TrailPass::createBuffers(ID3D12Device* device){
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                                                       D3D12_RESOURCE_STATE_GENERIC_READ,
                                                       nullptr, IID_PPV_ARGS(&m_cbRing));
-        if (FAILED(hr)) { LOG("TrailPass: CB ring alloc failed 0x%08X", hr); return false; }
+        if (FAILED(hr)){ LOG("TrailPass: CB ring alloc failed 0x%08X", hr); return false; }
         m_cbRing->SetName(L"Trail_CBRing");
         m_cbRing->Map(0, nullptr, &m_cbMapped);
     }
@@ -61,7 +61,7 @@ bool TrailPass::createFallbackTexture(ID3D12Device* device){
     (void)device;
     const uint32_t white = 0xFFFFFFFFu;
     m_fallbackTex = app->getGPUResources()->createRawTexture2D(&white, sizeof(white), 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
-    if (!m_fallbackTex) {
+    if (!m_fallbackTex){
         LOG("TrailPass: fallback texture creation failed");
         return false;
     }
@@ -69,7 +69,7 @@ bool TrailPass::createFallbackTexture(ID3D12Device* device){
 
     auto* sd = app->getShaderDescriptors();
     m_fallbackSRV = sd->allocTable("Trail_FallbackSRV");
-    if (!m_fallbackSRV.isValid()) {
+    if (!m_fallbackSRV.isValid()){
         LOG("TrailPass: fallback SRV alloc failed");
         return false;
     }
@@ -92,14 +92,14 @@ D3D12_GPU_DESCRIPTOR_HANDLE TrailPass::getOrLoadTexture(const std::string& path)
 
     auto* gpu = app->getGPUResources();
     ComPtr<ID3D12Resource> tex = gpu ? gpu->createTextureFromFile(path, true) : nullptr;
-    if (!tex) {
+    if (!tex){
         LOG("TrailPass: failed to load texture '%s', using fallback", path.c_str());
         m_textureCache.emplace(path, CachedTexture{ nullptr, m_fallbackSRV });
         return m_fallbackSRV.getGPUHandle(0);
     }
 
     ShaderTableDesc srv = app->getShaderDescriptors()->allocTable(("Trail_SRV_" + path).c_str());
-    if (!srv.isValid()) {
+    if (!srv.isValid()){
         LOG("TrailPass: SRV alloc failed for '%s', using fallback", path.c_str());
         m_textureCache.emplace(path, CachedTexture{ nullptr, m_fallbackSRV });
         return m_fallbackSRV.getGPUHandle(0);
@@ -140,18 +140,17 @@ void TrailPass::render(ID3D12GraphicsCommandList* cmd,
     cmd->SetPipelineState(m_pipeline.getPSO());
 
     UINT vertexCursor = 0;
-    for (UINT i = 0; i < maxDraws; ++i) {
+    for (UINT i = 0; i < maxDraws; ++i){
         const TrailInstance& tr = trails[i];
         const UINT vCount = (UINT)tr.vertices.size();
         if (vCount == 0) continue;
-        if (vertexCursor + vCount > MAX_TRAIL_VERTICES) break; // ring exhausted this frame
+        if (vertexCursor + vCount > MAX_TRAIL_VERTICES) break;
 
-        if (tr.additive != additiveBound) {
+        if (tr.additive != additiveBound){
             additiveBound = tr.additive;
             cmd->SetPipelineState(additiveBound ? m_pipeline.getAdditivePSO() : m_pipeline.getPSO());
         }
 
-        // Upload vertices for this trail at the current cursor position.
         uint8_t* dstV = reinterpret_cast<uint8_t*>(m_vbMapped) + (size_t)vertexCursor * m_vbStride;
         memcpy(dstV, tr.vertices.data(), (size_t)vCount * m_vbStride);
 
@@ -161,9 +160,6 @@ void TrailPass::render(ID3D12GraphicsCommandList* cmd,
         vbv.StrideInBytes = m_vbStride;
         cmd->IASetVertexBuffers(0, 1, &vbv);
 
-        // Per-draw constants — viewProj is identical across instances this frame
-        // but kept per-CB (matches the billboard pass layout and leaves room for
-        // future per-trail transforms / tints).
         TrailInstanceCB cb{};
         cb.viewProj = viewProj.Transpose();
         cb.tint = tr.tint;

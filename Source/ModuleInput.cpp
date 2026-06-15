@@ -13,4 +13,3 @@ ModuleInput::ModuleInput(HWND hWnd){
 
     mouse->SetWindow(hWnd);
 }
-

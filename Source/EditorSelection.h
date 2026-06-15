@@ -3,12 +3,11 @@
 
 class GameObject;
 
-struct EditorSelection
-{
+struct EditorSelection {
     GameObject* object = nullptr;
     GameObject* renaming = nullptr;
     char renameBuffer[256] = {};
 
-    void clear() { object = nullptr; }
+    void clear(){ object = nullptr; }
     bool has() const { return object != nullptr; }
 };

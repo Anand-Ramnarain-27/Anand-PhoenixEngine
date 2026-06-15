@@ -11,37 +11,33 @@
 #define HAS_OCCLUSION_TEX         0x10
 #define HAS_EMISSIVE_TEX          0x20
 
-struct Material
-{
+struct Material {
     float4 BaseColor;
-    float  MetallicFactor;
-    float  RoughnessFactor;
-    float  NormalScale;
-    float  OcclusionStrength;
+    float MetallicFactor;
+    float RoughnessFactor;
+    float NormalScale;
+    float OcclusionStrength;
     float3 EmissiveFactor;
-    float  AlphaCutoff;
-    uint   Flags;
-    uint   Padding;
+    float AlphaCutoff;
+    uint Flags;
+    uint Padding;
 };
 
-float ComputeSpecularAO(float NdotV, float ao, float roughness)
-{
+float ComputeSpecularAO(float NdotV, float ao, float roughness){
     return clamp(pow(NdotV + ao, exp2(-16.0 * roughness - 1.0)) - 1.0 + ao, 0.0, 1.0);
 }
 
 void SampleAmbientOcclusion(in Material material, in Texture2D occlusionTex, in float2 uv,
                              in float NdotV, in float NdotR, in float roughness,
-                             out float diffuseAO, out float specularAO)
-{
-    if (material.Flags & HAS_OCCLUSION_TEX)
-    {
+                             out float diffuseAO, out float specularAO){
+    if (material.Flags & HAS_OCCLUSION_TEX){
         float sampledAO = occlusionTex.Sample(BilinearWrap, uv).r;
         diffuseAO = lerp(1.0, sampledAO, material.OcclusionStrength);
         specularAO = ComputeSpecularAO(NdotV, diffuseAO, roughness);
     }
     else
     {
-        diffuseAO  = 1.0;
+        diffuseAO = 1.0;
         specularAO = 1.0;
     }
 
@@ -49,24 +45,19 @@ void SampleAmbientOcclusion(in Material material, in Texture2D occlusionTex, in 
 }
 
 float3 SampleNormal(in Material material, in Texture2D normalTex, in float2 uv,
-                    in float3 normal, in float3 tangent, in float3 bitangent)
-{
-    if (material.Flags & HAS_NORMAL_TEX)
-    {
+                    in float3 normal, in float3 tangent, in float3 bitangent){
+    if (material.Flags & HAS_NORMAL_TEX){
         float3 n;
-        if (material.Flags & HAS_COMPRESSED_NORMALS)
-        {
-            // BC5 stores only RG (x, y). Reconstruct z = sqrt(1 - x^2 - y^2).
+        if (material.Flags & HAS_COMPRESSED_NORMALS){
             n.xy = normalTex.Sample(BilinearWrap, uv).rg * 2.0 - 1.0;
             n.xy *= material.NormalScale;
-            n.z  = sqrt(max(1.0 - saturate(dot(n.xy, n.xy)), 0.0));
+            n.z = sqrt(max(1.0 - saturate(dot(n.xy, n.xy)), 0.0));
         }
         else
         {
-            // Uncompressed RGB normal map: all three channels are valid.
-            n     = normalTex.Sample(BilinearWrap, uv).xyz * 2.0 - 1.0;
+            n = normalTex.Sample(BilinearWrap, uv).xyz * 2.0 - 1.0;
             n.xy *= material.NormalScale;
-            n     = normalize(n);
+            n = normalize(n);
         }
 
         float3x3 TBN = float3x3(tangent, bitangent, normal);
@@ -76,8 +67,7 @@ float3 SampleNormal(in Material material, in Texture2D normalTex, in float2 uv,
     return normal;
 }
 
-float3 SampleEmissive(in Material material, in Texture2D emissiveTex, in float2 uv)
-{
+float3 SampleEmissive(in Material material, in Texture2D emissiveTex, in float2 uv){
     if (material.Flags & HAS_EMISSIVE_TEX)
         return emissiveTex.Sample(BilinearWrap, uv).rgb * material.EmissiveFactor;
 
@@ -92,27 +82,20 @@ void SampleMetallicRoughness(
     out float3 baseColor,
     out float roughness,
     out float alphaRoughness,
-    out float metallic)
-{
-    // --- Base color ---
+    out float metallic){
     baseColor = material.BaseColor.rgb;
 
-    if (material.Flags & HAS_BASECOLOUR_TEX)
-    {
+    if (material.Flags & HAS_BASECOLOUR_TEX){
         float3 albedo = baseColorTex.Sample(BilinearWrap, uv).rgb;
         baseColor *= albedo;
     }
 
-    // --- Defaults ---
     metallic = material.MetallicFactor;
     roughness = material.RoughnessFactor;
 
-    // --- Texture override ---
-    if (material.Flags & HAS_METALLICROUGHNESS_TEX)
-    {
+    if (material.Flags & HAS_METALLICROUGHNESS_TEX){
         float3 mrSample = metallicRoughnessTex.Sample(BilinearWrap, uv).rgb;
 
-        // ? EXPLICIT (no swizzle ambiguity)
         float texRoughness = mrSample.g;
         float texMetallic = mrSample.b;
 
@@ -120,11 +103,10 @@ void SampleMetallicRoughness(
         metallic *= texMetallic;
     }
 
-    // --- Safety ---
     roughness = saturate(roughness);
     metallic = saturate(metallic);
 
     alphaRoughness = roughness * roughness;
 }
 
-#endif // _MATERIAL_HLSLI_
+#endif

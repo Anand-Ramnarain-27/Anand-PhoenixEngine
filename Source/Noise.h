@@ -4,37 +4,27 @@
 #include <cmath>
 #include <algorithm>
 
-// ---------------------------------------------------------------------------
-// Lecture 12 "Noise" (Carlos Fuentes) — CPU port of the hash / value / gradient
-// (Perlin) noise and fractal Brownian motion (fbm) functions from the slides.
-// Used where GPU noise textures aren't convenient — chiefly the CPU-side
-// particle simulation flow field described in "Exercise: Sparks"
-// (ComponentParticleSystem turbulence).
-// ---------------------------------------------------------------------------
 namespace Noise {
 
-constexpr float kTau = 6.283185307179586f; // 2*PI
+constexpr float kTau = 6.283185307179586f;
 
-inline float lerpf(float a, float b, float t) { return a + (b - a) * t; }
+inline float lerpf(float a, float b, float t){ return a + (b - a) * t; }
 
-// lowbias32 — simple, fast, near-uniform 32-bit avalanche hash (slide "Normalized Hash").
 inline uint32_t hash(uint32_t x){
     x = (x ^ (x >> 16)) * 0x21f0aaadU;
     x = (x ^ (x >> 15)) * 0x735a2d97U;
     return x ^ (x >> 15);
 }
-inline uint32_t hash2(uint32_t x, uint32_t y) { return hash(x ^ hash(y)); }
-inline uint32_t hash3(uint32_t x, uint32_t y, uint32_t z) { return hash(x ^ hash2(y, z)); }
+inline uint32_t hash2(uint32_t x, uint32_t y){ return hash(x ^ hash(y)); }
+inline uint32_t hash3(uint32_t x, uint32_t y, uint32_t z){ return hash(x ^ hash2(y, z)); }
 
-// Maps the high 24 bits of a hash to a uniformly distributed float in [0,1).
 inline float hashToFloat01(uint32_t h){
-    return float(h >> 8) * (1.0f / 16777216.0f); // 1 / 2^24
+    return float(h >> 8) * (1.0f / 16777216.0f);
 }
 
-inline float hermiteFade(float t) { return t * t * (3.0f - 2.0f * t); } // 3t^2 - 2t^3
-inline float quinticFade(float t) { return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f); }
+inline float hermiteFade(float t){ return t * t * (3.0f - 2.0f * t); }
+inline float quinticFade(float t){ return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f); }
 
-// ---- 1D Value noise (smooth, Hermite-interpolated) -------------------------
 inline float valueNoise1D(float x){
     float i = std::floor(x);
     float f = x - i;
@@ -44,28 +34,22 @@ inline float valueNoise1D(float x){
     return lerpf(a, b, u);
 }
 
-// ---- Gradients --------------------------------------------------------------
-// 1D "inclination": random slope in [-1, 1]
-inline float grad1D(int32_t xi) { return hashToFloat01(hash((uint32_t)xi)) * 2.0f - 1.0f; }
+inline float grad1D(int32_t xi){ return hashToFloat01(hash((uint32_t)xi)) * 2.0f - 1.0f; }
 
-// 2D gradient via random angle (polar coordinates) — smoother than mapping two
-// independent hashes into [-1,1] and normalising (slide "2D Hash improved").
 inline Vector2 grad2D(int32_t xi, int32_t yi){
     float angle = hashToFloat01(hash2((uint32_t)xi, (uint32_t)yi)) * kTau;
     return Vector2(std::cos(angle), std::sin(angle));
 }
 
-// 3D gradient via spherical coordinates from two hash values.
 inline Vector3 grad3D(int32_t xi, int32_t yi, int32_t zi){
     uint32_t h0 = hash3((uint32_t)xi, (uint32_t)yi, (uint32_t)zi);
     uint32_t h1 = hash(h0);
-    float c = 2.0f * hashToFloat01(h0) - 1.0f; // cos(theta) in [-1,1]
-    float s = std::sqrt(std::max(0.0f, 1.0f - c * c)); // sin(theta)
-    float phi = kTau * hashToFloat01(h1); // azimuth
+    float c = 2.0f * hashToFloat01(h0) - 1.0f;
+    float s = std::sqrt(std::max(0.0f, 1.0f - c * c));
+    float phi = kTau * hashToFloat01(h1);
     return Vector3(std::cos(phi) * s, std::sin(phi) * s, c);
 }
 
-// ---- Gradient (Perlin-style) noise ------------------------------------------
 inline float gradientNoise1D(float x){
     float i = std::floor(x);
     float f = x - i;
@@ -93,7 +77,7 @@ inline float gradientNoise2D(float x, float y){
     float ux = hermiteFade(fx), uy = hermiteFade(fy);
     return lerpf(lerpf(va, vb, ux), lerpf(vc, vd, ux), uy);
 }
-inline float gradientNoise2D(const Vector2& p) { return gradientNoise2D(p.x, p.y); }
+inline float gradientNoise2D(const Vector2& p){ return gradientNoise2D(p.x, p.y); }
 
 inline float gradientNoise3D(float x, float y, float z){
     float ix = std::floor(x), iy = std::floor(y), iz = std::floor(z);
@@ -109,7 +93,7 @@ inline float gradientNoise3D(float x, float y, float z){
     Vector3 g6 = grad3D(xi, yi + 1, zi + 1);
     Vector3 g7 = grad3D(xi + 1, yi + 1, zi + 1);
 
-    auto d = [](const Vector3& g, float dx, float dy, float dz) { return g.x * dx + g.y * dy + g.z * dz; };
+    auto d = [](const Vector3& g, float dx, float dy, float dz){ return g.x * dx + g.y * dy + g.z * dz; };
     float v0 = d(g0, fx, fy, fz);
     float v1 = d(g1, fx - 1.f, fy, fz);
     float v2 = d(g2, fx, fy - 1.f, fz);
@@ -124,12 +108,11 @@ inline float gradientNoise3D(float x, float y, float z){
     float back = lerpf(lerpf(v4, v5, ux), lerpf(v6, v7, ux), uy);
     return lerpf(front, back, uz);
 }
-inline float gradientNoise3D(const Vector3& p) { return gradientNoise3D(p.x, p.y, p.z); }
+inline float gradientNoise3D(const Vector3& p){ return gradientNoise3D(p.x, p.y, p.z); }
 
-// ---- Fractal Brownian Motion (sum of octaves, slide "Fractal Noise") -------
 inline float fbm3D(const Vector3& p, int octaves = 5, float frequency = 0.1f, float amplitude = 0.5f){
     float value = 0.0f;
-    for (int i = 0; i < octaves; ++i) {
+    for (int i = 0; i < octaves; ++i){
         value += amplitude * gradientNoise3D(p * frequency);
         frequency *= 2.0f;
         amplitude *= 0.5f;
@@ -137,10 +120,8 @@ inline float fbm3D(const Vector3& p, int octaves = 5, float frequency = 0.1f, fl
     return value;
 }
 
-// Helper used by the "Exercise: Sparks" flow field: turn a noise value
-// (~[-1,1]) into an angle in [0, 2*pi] — slide "Angle = clamp(noise*0.5+0.5,0,1)*2*pi".
 inline float noiseToAngle(float n){
     return std::clamp(n * 0.5f + 0.5f, 0.0f, 1.0f) * kTau;
 }
 
-} // namespace Noise
+}

@@ -4,8 +4,7 @@
 #include "RenderTargetDesc.h"
 #include "DepthStencilDesc.h"
 
-class RenderTexture
-{
+class RenderTexture {
     struct TexturePair {
         ComPtr<ID3D12Resource> texture;
         ComPtr<ID3D12Resource> resolved;
@@ -38,8 +37,7 @@ public:
         float clearDepth = 1.0f, bool msaa = false, bool autoResolve = false)
         : m_format(format), m_depthFormat(depthFormat), m_name(name)
         , m_clearColor(clearColor), m_clearDepth(clearDepth)
-        , m_msaa(msaa), m_autoResolveMSAA(autoResolve)
-    {
+        , m_msaa(msaa), m_autoResolveMSAA(autoResolve){
     }
 
     ~RenderTexture() = default;

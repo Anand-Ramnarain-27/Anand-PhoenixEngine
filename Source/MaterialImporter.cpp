@@ -22,23 +22,20 @@ std::string MaterialImporter::importTexture(int texIndex, const tinygltf::Model&
 	std::string matFolder = fs->GetLibraryPath() + "Materials/" + sceneName + "/";
 	fs->CreateDir(matFolder.c_str());
 
-	if (!img.uri.empty()) {
-		// Strip leading '/' — some exporters (e.g. busterDrone) incorrectly prefix
-		// URIs with '/', producing a root-relative path instead of a relative one.
+	if (!img.uri.empty()){
 		std::string uri = img.uri;
 		if (!uri.empty() && uri[0] == '/') uri = uri.substr(1);
 
-		// Reject unsupported formats (e.g. PSD) before handing to WIC which cannot load them.
 		std::string ext = std::filesystem::path(uri).extension().string();
 		for (char& c : ext) c = (char)std::tolower((unsigned char)c);
-		if (ext == ".psd" || ext == ".psb") {
+		if (ext == ".psd" || ext == ".psb"){
 			LOG("MaterialImporter: Skipping unsupported texture format '%s' — falling back to base colour", uri.c_str());
 			return {};
 		}
 
 		std::string ddsPath = matFolder + TextureImporter::GetTextureName(uri.c_str()) + ".dds";
-		if (!fs->Exists(ddsPath.c_str()) || !fs->Exists(ImporterUtils::MetaPath(ddsPath).c_str())) {
-			if (!TextureImporter::Import((basePath + uri).c_str(), ddsPath, type)) {
+		if (!fs->Exists(ddsPath.c_str()) || !fs->Exists(ImporterUtils::MetaPath(ddsPath).c_str())){
+			if (!TextureImporter::Import((basePath + uri).c_str(), ddsPath, type)){
 				LOG("MaterialImporter: Failed to import texture %s", (basePath + uri).c_str());
 				return {};
 			}
@@ -46,13 +43,12 @@ std::string MaterialImporter::importTexture(int texIndex, const tinygltf::Model&
 		return ddsPath;
 	}
 
-	// Embedded texture (GLB or GLTF with bufferView — tinygltf decodes into img.image)
-	if (!img.image.empty() && img.width > 0 && img.height > 0 && img.component > 0) {
+	if (!img.image.empty() && img.width > 0 && img.height > 0 && img.component > 0){
 		std::string name = img.name.empty() ? ("embedded_" + std::to_string(tex.source)) : img.name;
 		for (char& c : name) if (!std::isalnum((unsigned char)c) && c != '_') c = '_';
 		std::string ddsPath = matFolder + name + ".dds";
-		if (!fs->Exists(ddsPath.c_str()) || !fs->Exists(ImporterUtils::MetaPath(ddsPath).c_str())) {
-			if (!TextureImporter::ImportFromMemory(img.image.data(), img.width, img.height, img.component, ddsPath, type)) {
+		if (!fs->Exists(ddsPath.c_str()) || !fs->Exists(ImporterUtils::MetaPath(ddsPath).c_str())){
+			if (!TextureImporter::ImportFromMemory(img.image.data(), img.width, img.height, img.component, ddsPath, type)){
 				LOG("MaterialImporter: Failed to import embedded texture '%s'", name.c_str());
 				return {};
 			}
@@ -65,7 +61,7 @@ std::string MaterialImporter::importTexture(int texIndex, const tinygltf::Model&
 
 bool MaterialImporter::Import(const tinygltf::Material& gltfMat, const tinygltf::Model& model,
 	const std::string& sceneName, const std::string& outputFile,
-	int /*materialIndex*/, const std::string& basePath){
+	int , const std::string& basePath){
 	const auto& pbr = gltfMat.pbrMetallicRoughness;
 
 	MaterialHeader header{};
@@ -84,14 +80,14 @@ bool MaterialImporter::Import(const tinygltf::Material& gltfMat, const tinygltf:
 
 	std::string baseColorPath = importTexture(pbr.baseColorTexture.index, model, sceneName, basePath, TextureImporter::TextureType::Color);
 
-	if (!baseColorPath.empty()) {
+	if (!baseColorPath.empty()){
 		header.hasTexture = 1;
 		header.texturePathLength = (uint32_t)baseColorPath.size();
 	}
 
 	std::string normalPath = importTexture(gltfMat.normalTexture.index, model, sceneName, basePath, TextureImporter::TextureType::Normal);
 
-	if (!normalPath.empty()) {
+	if (!normalPath.empty()){
 		header.hasNormalMap = 1;
 		header.normalPathLength = (uint32_t)normalPath.size();
 
@@ -103,7 +99,7 @@ bool MaterialImporter::Import(const tinygltf::Material& gltfMat, const tinygltf:
 
 	std::string aoPath = importTexture(gltfMat.occlusionTexture.index, model, sceneName, basePath, TextureImporter::TextureType::Occlusion);
 
-	if (!aoPath.empty()) {
+	if (!aoPath.empty()){
 		header.hasAOMap = 1;
 		header.aoPathLength = (uint32_t)aoPath.size();
 
@@ -113,14 +109,14 @@ bool MaterialImporter::Import(const tinygltf::Material& gltfMat, const tinygltf:
 
 	std::string metalRoughPath = importTexture(pbr.metallicRoughnessTexture.index, model, sceneName, basePath, TextureImporter::TextureType::MetalRoughness);
 
-	if (!metalRoughPath.empty()) {
+	if (!metalRoughPath.empty()){
 		header.hasMetalRoughMap = 1;
 		header.metalRoughPathLength = (uint32_t)metalRoughPath.size();
 	}
 
 	std::string emissivePath = importTexture(gltfMat.emissiveTexture.index, model, sceneName, basePath, TextureImporter::TextureType::Emissive);
 
-	if (!emissivePath.empty()) {
+	if (!emissivePath.empty()){
 		header.hasEmissiveMap = 1;
 		header.emissivePathLength = (uint32_t)emissivePath.size();
 	}
@@ -132,7 +128,7 @@ bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& 
 	MaterialHeader header;
 	std::vector<char> rawBuffer;
 	if (!ImporterUtils::LoadBuffer(file, header, rawBuffer)) return false;
-	if (!ImporterUtils::ValidateHeader(header, 0x4D415452)) {
+	if (!ImporterUtils::ValidateHeader(header, 0x4D415452)){
 		LOG("MaterialImporter: Invalid file format: %s", file.c_str());
 		return false;
 	}
@@ -152,7 +148,7 @@ bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& 
 	std::string emissivePath;
 	std::string metalRoughPath;
 
-	if (header.version != 7) {
+	if (header.version != 7){
 		LOG("MaterialImporter: Version mismatch (%u), forcing reimport: %s",
 			header.version, file.c_str());
 		return false;
@@ -178,7 +174,7 @@ bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& 
 			if (path.empty()) return false;
 			ComPtr<ID3D12Resource> tex;
 			D3D12_GPU_DESCRIPTOR_HANDLE srv{};
-			if (!TextureImporter::Load(path, tex, srv)) {
+			if (!TextureImporter::Load(path, tex, srv)){
 				LOG("MaterialImporter: Failed to load texture %s", path.c_str());
 				return false;
 			}
@@ -192,19 +188,19 @@ bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& 
 	loadTex(emissivePath, &Material::setEmissiveMap);
 	loadTex(metalRoughPath, &Material::setMetalRoughMap);
 
-	if (outMaterial->hasMetalRoughMap() && !outMaterial->getMetalRoughResource()) {
+	if (outMaterial->hasMetalRoughMap() && !outMaterial->getMetalRoughResource()){
 		outMaterial->getData().flags &= ~MAT_FLAG_METALROUGH_TEX;
 	}
 
-	if (outMaterial->hasNormalMap() && !outMaterial->getNormalMapResource()) {
+	if (outMaterial->hasNormalMap() && !outMaterial->getNormalMapResource()){
 		outMaterial->getData().flags &= ~MAT_FLAG_NORMAL_TEX;
 	}
 
-	if (outMaterial->hasAOMap() && !outMaterial->getAOMapResource()) {
+	if (outMaterial->hasAOMap() && !outMaterial->getAOMapResource()){
 		outMaterial->getData().flags &= ~MAT_FLAG_OCCLUSION_TEX;
 	}
 
-	if (outMaterial->hasEmissive() && !outMaterial->getEmissiveResource()) {
+	if (outMaterial->hasEmissive() && !outMaterial->getEmissiveResource()){
 		outMaterial->getData().flags &= ~MAT_FLAG_EMISSIVE_TEX;
 	}
 	return true;
@@ -218,7 +214,7 @@ bool MaterialImporter::Save(const MaterialHeader& header,
 	payload.reserve(baseColorPath.size() + normalPath.size() + aoPath.size()
 		+ emissivePath.size() + metalRoughPath.size());
 
-	auto append = [&](const std::string& s) {
+	auto append = [&](const std::string& s){
 		payload.insert(payload.end(), s.begin(), s.end());
 		};
 
@@ -228,7 +224,7 @@ bool MaterialImporter::Save(const MaterialHeader& header,
 	append(emissivePath);
 	append(metalRoughPath);
 
-	if (!ImporterUtils::SaveBuffer(file, header, payload)) {
+	if (!ImporterUtils::SaveBuffer(file, header, payload)){
 		LOG("MaterialImporter: Failed to save %s", file.c_str());
 		return false;
 	}

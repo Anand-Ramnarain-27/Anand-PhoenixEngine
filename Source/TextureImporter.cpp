@@ -22,7 +22,7 @@ static std::string CanonicalPath(const std::string& p){
 
 static bool ProcessAndSave(ScratchImage& image, const std::string& outputPath, TextureImporter::TextureType type){
 	ScratchImage mipChain;
-	if (image.GetMetadata().mipLevels == 1) {
+	if (image.GetMetadata().mipLevels == 1){
 		if (FAILED(GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), TEX_FILTER_DEFAULT, 0, mipChain))) mipChain = std::move(image);
 	}
 	else {
@@ -32,15 +32,14 @@ static bool ProcessAndSave(ScratchImage& image, const std::string& outputPath, T
 	ScratchImage compressed;
 	const TexMetadata& meta = mipChain.GetMetadata();
 
-	if (!IsCompressed(meta.format)) {
+	if (!IsCompressed(meta.format)){
 		DXGI_FORMAT fmt;
-		switch (type) {
+		switch (type){
 		case TextureImporter::TextureType::Color:
 		case TextureImporter::TextureType::Emissive:
 			fmt = HasAlpha(meta.format) ? DXGI_FORMAT_BC3_UNORM_SRGB : DXGI_FORMAT_BC1_UNORM_SRGB;
 			break;
 		case TextureImporter::TextureType::ColorHQ:
-			// BC7 handles both opaque and alpha in the same format — higher quality, slower compress.
 			fmt = DXGI_FORMAT_BC7_UNORM_SRGB;
 			break;
 		case TextureImporter::TextureType::Normal:
@@ -64,7 +63,7 @@ static bool ProcessAndSave(ScratchImage& image, const std::string& outputPath, T
 
 	std::string normOutput = CanonicalPath(outputPath);
 	std::wstring wOutput = std::filesystem::path(normOutput).wstring();
-	if (FAILED(SaveToDDSFile(compressed.GetImages(), compressed.GetImageCount(), compressed.GetMetadata(), DDS_FLAGS_NONE, wOutput.c_str()))) {
+	if (FAILED(SaveToDDSFile(compressed.GetImages(), compressed.GetImageCount(), compressed.GetMetadata(), DDS_FLAGS_NONE, wOutput.c_str()))){
 		LOG("TextureImporter: Failed to save DDS '%s'", normOutput.c_str());
 		return false;
 	}
@@ -87,7 +86,7 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
 	else if (ext == L".hdr") hr = LoadFromHDRFile(wSource.c_str(), nullptr, image);
 	else hr = LoadFromWICFile(wSource.c_str(), WIC_FLAGS_NONE, nullptr, image);
 
-	if (FAILED(hr)) {
+	if (FAILED(hr)){
 		LOG("TextureImporter: Failed to load image '%s' 0x%08X", sourcePath, hr);
 		return false;
 	}
@@ -97,7 +96,7 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
 
 bool TextureImporter::ImportFromMemory(const unsigned char* data, int width, int height, int channels,
 	const std::string& outputPath, TextureType type){
-	if (!data || width <= 0 || height <= 0 || channels < 1 || channels > 4) {
+	if (!data || width <= 0 || height <= 0 || channels < 1 || channels > 4){
 		LOG("TextureImporter: ImportFromMemory invalid args (channels=%d, %dx%d)", channels, width, height);
 		return false;
 	}
@@ -105,23 +104,23 @@ bool TextureImporter::ImportFromMemory(const unsigned char* data, int width, int
 	bool isColor = (type == TextureType::Color || type == TextureType::Emissive);
 
 	ScratchImage image;
-	if (channels == 4) {
+	if (channels == 4){
 		DXGI_FORMAT fmt = isColor ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
 		image.Initialize2D(fmt, (size_t)width, (size_t)height, 1, 1);
 		memcpy(image.GetPixels(), data, (size_t)width * height * 4);
 	}
-	else if (channels == 3) {
+	else if (channels == 3){
 		DXGI_FORMAT fmt = isColor ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
 		image.Initialize2D(fmt, (size_t)width, (size_t)height, 1, 1);
 		uint8_t* dst = image.GetPixels();
-		for (int i = 0; i < width * height; ++i) {
+		for (int i = 0; i < width * height; ++i){
 			dst[i * 4 + 0] = data[i * 3 + 0];
 			dst[i * 4 + 1] = data[i * 3 + 1];
 			dst[i * 4 + 2] = data[i * 3 + 2];
 			dst[i * 4 + 3] = 255;
 		}
 	}
-	else if (channels == 2) {
+	else if (channels == 2){
 		image.Initialize2D(DXGI_FORMAT_R8G8_UNORM, (size_t)width, (size_t)height, 1, 1);
 		memcpy(image.GetPixels(), data, (size_t)width * height * 2);
 	}
@@ -144,13 +143,13 @@ bool TextureImporter::Load(const std::string& file, ComPtr<ID3D12Resource>& outT
 	TextureHeader header;
 	std::vector<char> rawBuffer;
 
-	if (!ImporterUtils::LoadBuffer(metaPath, header, rawBuffer)) {
+	if (!ImporterUtils::LoadBuffer(metaPath, header, rawBuffer)){
 		LOG("TextureImporter: Missing metadata, regenerating for '%s'", normFile.c_str());
 
 		std::wstring wFile = std::filesystem::path(normFile).wstring();
 		DirectX::ScratchImage img;
 
-		if (FAILED(DirectX::LoadFromDDSFile(wFile.c_str(), DirectX::DDS_FLAGS_NONE, nullptr, img))) {
+		if (FAILED(DirectX::LoadFromDDSFile(wFile.c_str(), DirectX::DDS_FLAGS_NONE, nullptr, img))){
 			LOG("TextureImporter: Failed to reload DDS for metadata '%s'", normFile.c_str());
 			return false;
 		}
@@ -170,13 +169,13 @@ bool TextureImporter::Load(const std::string& file, ComPtr<ID3D12Resource>& outT
 		header.format = (uint32_t)meta.format;
 	}
 
-	if (!ImporterUtils::ValidateHeader(header, 0x54455854)) {
+	if (!ImporterUtils::ValidateHeader(header, 0x54455854)){
 		LOG("TextureImporter: Bad metadata magic/version for '%s'", normFile.c_str());
 		return false;
 	}
 
 	outTexture = app->getGPUResources()->createTextureFromFile(normFile, true);
-	if (!outTexture) {
+	if (!outTexture){
 		LOG("TextureImporter: Failed to create texture resource for '%s'", normFile.c_str());
 		return false;
 	}

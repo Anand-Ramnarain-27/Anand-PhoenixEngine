@@ -8,28 +8,12 @@
 #include <algorithm>
 #include <cstring>
 
-// Binary format written by this file and read by ResourceAnimation::LoadInMemory.
-// [AnimFileHeader]   (version 2)
-// char[animNameLen]
-// For each transform channel (channelCount):
-//   uint32 nodeNameLen | uint32 posCount | uint32 rotCount
-//   char[nodeNameLen]
-//   float[posCount]       posTimeStamps
-//   Vector3[posCount]     positions
-//   float[rotCount]       rotTimeStamps
-//   Quaternion[rotCount]  rotations
-// uint32 morphChannelCount
-// For each morph channel (morphChannelCount):
-//   uint32 nodeNameLen | uint32 numTime | uint32 numTargets
-//   char[nodeNameLen]
-//   float[numTime]              weightsTimes
-//   float[numTime * numTargets] weights
 
 namespace {
 
 struct AnimFileHeader {
-    uint32_t magic = 0x414E494D; // 'ANIM'
-    uint32_t version = 2; // v2 adds morph-channel section after transform channels
+    uint32_t magic = 0x414E494D;
+    uint32_t version = 2;
     uint32_t animNameLen = 0;
     uint32_t channelCount = 0;
     float duration = 0.f;
@@ -48,7 +32,7 @@ struct NodeAnim {
 struct NodeMorph {
     std::string name;
     std::unique_ptr<float[]> times;
-    std::unique_ptr<float[]> weights; // flat: [t0_w0, t0_w1, ..., t1_w0, ...]
+    std::unique_ptr<float[]> weights;
     uint32_t numTime = 0;
     uint32_t numTargets = 0;
 };
@@ -63,24 +47,22 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
         return n.name.empty() ? ("Node_" + std::to_string(idx)) : n.name;
     };
 
-    // One NodeAnim per node, merging translation and rotation channels.
     std::unordered_map<int, NodeAnim> nodeMap;
-    // One NodeMorph per node for weight channels (glTF path == "weights").
     std::unordered_map<int, NodeMorph> morphMap;
     float duration = 0.f;
 
-    for (const auto& chan : anim.channels) {
+    for (const auto& chan : anim.channels){
         if (chan.target_node < 0 ||
             chan.sampler < 0 || chan.sampler >= (int)anim.samplers.size()) continue;
 
         const auto& sampler = anim.samplers[chan.sampler];
         if (sampler.input < 0 || sampler.output < 0) continue;
 
-        if (chan.target_path == "translation" || chan.target_path == "rotation") {
+        if (chan.target_path == "translation" || chan.target_path == "rotation"){
             NodeAnim& na = nodeMap[chan.target_node];
             if (na.name.empty()) na.name = getNodeName(chan.target_node);
 
-            if (chan.target_path == "translation") {
+            if (chan.target_path == "translation"){
                 UINT timeCnt = 0, valCnt = 0;
                 std::unique_ptr<float[]> times;
                 std::unique_ptr<Vector3[]> values;
@@ -93,7 +75,7 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
                 na.positions = std::move(values);
                 na.posCount = timeCnt;
 
-            } else { // rotation
+            } else {
                 UINT timeCnt = 0, valCnt = 0;
                 std::unique_ptr<float[]> times;
                 std::unique_ptr<Quaternion[]> values;
@@ -107,15 +89,12 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
                 na.rotCount = timeCnt;
             }
 
-        } else if (chan.target_path == "weights") {
+        } else if (chan.target_path == "weights"){
             UINT timeCnt = 0, valCnt = 0;
             std::unique_ptr<float[]> times, values;
 
             if (!loadAccessorTyped(times, timeCnt, gltfModel, sampler.input)) continue;
 
-            // Weight output accessors may be quantized (e.g. UNSIGNED_BYTE normalized in
-            // KHR_mesh_quantization). loadAccessorTyped<float[]> requires stride==sizeof(float)
-            // and silently fails for 1- or 2-byte component types, so read raw then convert.
             {
                 const tinygltf::Accessor& outAcc = gltfModel.accessors[sampler.output];
                 valCnt = (UINT)outAcc.count;
@@ -123,34 +102,33 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
                 const bool normalized = outAcc.normalized;
                 const bool isFloat = (compType == TINYGLTF_COMPONENT_TYPE_FLOAT);
 
-                if (isFloat) {
+                if (isFloat){
                     values = std::make_unique<float[]>(valCnt);
                     if (!loadAccessorData(reinterpret_cast<uint8_t*>(values.get()),
                                           sizeof(float), sizeof(float), valCnt, gltfModel, sampler.output))
                         continue;
                 } else {
-                    // Convert quantized integer components to float.
                     size_t compSize = tinygltf::GetComponentSizeInBytes(compType);
                     std::vector<uint8_t> raw(valCnt * compSize);
                     if (!loadAccessorData(raw.data(), compSize, compSize, valCnt, gltfModel, sampler.output))
                         continue;
                     values = std::make_unique<float[]>(valCnt);
-                    for (UINT vi = 0; vi < valCnt; ++vi) {
+                    for (UINT vi = 0; vi < valCnt; ++vi){
                         const uint8_t* p = raw.data() + vi * compSize;
                         float f = 0.f;
-                        if (compType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+                        if (compType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE){
                             f = normalized ? (*p / 255.0f) : (float)*p;
-                        } else if (compType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+                        } else if (compType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT){
                             uint16_t v16; memcpy(&v16, p, 2);
                             f = normalized ? (v16 / 65535.0f) : (float)v16;
-                        } else if (compType == TINYGLTF_COMPONENT_TYPE_BYTE) {
+                        } else if (compType == TINYGLTF_COMPONENT_TYPE_BYTE){
                             int8_t s8; memcpy(&s8, p, 1);
                             f = normalized ? std::max(s8 / 127.0f, -1.0f) : (float)s8;
-                        } else if (compType == TINYGLTF_COMPONENT_TYPE_SHORT) {
+                        } else if (compType == TINYGLTF_COMPONENT_TYPE_SHORT){
                             int16_t s16; memcpy(&s16, p, 2);
                             f = normalized ? std::max(s16 / 32767.0f, -1.0f) : (float)s16;
                         } else {
-                            f = (float)*p; // fallback
+                            f = (float)*p;
                         }
                         values[vi] = f;
                     }
@@ -163,15 +141,14 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
             const uint32_t numTargets = valCnt / timeCnt;
             if (numTargets == 0) continue;
 
-            // Warn if the target count doesn't match the mesh's morph target count.
             int nodeIdx = chan.target_node;
-            if (nodeIdx >= 0 && nodeIdx < (int)gltfModel.nodes.size()) {
+            if (nodeIdx >= 0 && nodeIdx < (int)gltfModel.nodes.size()){
                 int meshIdx = gltfModel.nodes[nodeIdx].mesh;
-                if (meshIdx >= 0 && meshIdx < (int)gltfModel.meshes.size()) {
+                if (meshIdx >= 0 && meshIdx < (int)gltfModel.meshes.size()){
                     const auto& gltfMesh = gltfModel.meshes[meshIdx];
-                    if (!gltfMesh.primitives.empty()) {
+                    if (!gltfMesh.primitives.empty()){
                         size_t meshTargets = gltfMesh.primitives[0].targets.size();
-                        if (meshTargets > 0 && numTargets != (uint32_t)meshTargets) {
+                        if (meshTargets > 0 && numTargets != (uint32_t)meshTargets){
                             LOG("AnimationImporter: weights channel for node %d has %u targets but mesh has %zu",
                                 nodeIdx, numTargets, meshTargets);
                         }
@@ -190,7 +167,6 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
         }
     }
 
-    // Count channels that carry at least one type of keyframe.
     uint32_t validCount = 0;
     for (const auto& [idx, na] : nodeMap)
         if (na.posCount > 0 || na.rotCount > 0) ++validCount;
@@ -209,14 +185,14 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
     header.duration = duration;
 
     std::vector<char> payload;
-    auto append = [&](const void* d, size_t n) {
+    auto append = [&](const void* d, size_t n){
         const char* p = static_cast<const char*>(d);
         payload.insert(payload.end(), p, p + n);
     };
 
     append(animName.data(), animName.size());
 
-    for (const auto& [idx, na] : nodeMap) {
+    for (const auto& [idx, na] : nodeMap){
         if (na.posCount == 0 && na.rotCount == 0) continue;
 
         uint32_t nameLen = (uint32_t)na.name.size();
@@ -228,20 +204,19 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
         append(&rotCount, sizeof(uint32_t));
         append(na.name.data(), nameLen);
 
-        if (posCount > 0) {
+        if (posCount > 0){
             append(na.posTimes.get(), posCount * sizeof(float));
             append(na.positions.get(), posCount * sizeof(Vector3));
         }
-        if (rotCount > 0) {
+        if (rotCount > 0){
             append(na.rotTimes.get(), rotCount * sizeof(float));
             append(na.rotations.get(), rotCount * sizeof(Quaternion));
         }
     }
 
-    // Serialize morph channels (version 2 extension)
     uint32_t morphChannelCount = validMorphCount;
     append(&morphChannelCount, sizeof(uint32_t));
-    for (const auto& [idx, nm] : morphMap) {
+    for (const auto& [idx, nm] : morphMap){
         if (nm.numTime == 0) continue;
         uint32_t nameLen = (uint32_t)nm.name.size();
         uint32_t numTime = nm.numTime;
@@ -257,7 +232,7 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
     return ImporterUtils::SaveBuffer(outPath, header, payload);
 }
 
-} // namespace
+}
 
 int AnimationImporter::ImportAll(const tinygltf::Model& gltfModel, const std::string& sceneName){
     ModuleFileSystem* fs = app->getFileSystem();
@@ -269,12 +244,11 @@ int AnimationImporter::ImportAll(const tinygltf::Model& gltfModel, const std::st
     LOG("AnimationImporter: '%s' — %d animation(s) in glTF", sceneName.c_str(), (int)gltfModel.animations.size());
 
     int count = 0;
-    for (int i = 0; i < (int)gltfModel.animations.size(); ++i) {
+    for (int i = 0; i < (int)gltfModel.animations.size(); ++i){
         const auto& anim = gltfModel.animations[i];
 
-        // Log each channel's target node name and path so mismatches are visible immediately.
         std::string channelSummary;
-        for (const auto& ch : anim.channels) {
+        for (const auto& ch : anim.channels){
             const std::string& nodeName = (ch.target_node >= 0 && ch.target_node < (int)gltfModel.nodes.size())
                 ? (gltfModel.nodes[ch.target_node].name.empty()
                     ? ("Node_" + std::to_string(ch.target_node))

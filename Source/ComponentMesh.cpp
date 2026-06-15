@@ -22,11 +22,11 @@
 
 using namespace rapidjson;
 
-ComponentMesh::ComponentMesh(GameObject* owner) : Component(owner) {}
-ComponentMesh::~ComponentMesh() { releaseEntries(); }
+ComponentMesh::ComponentMesh(GameObject* owner) : Component(owner){}
+ComponentMesh::~ComponentMesh(){ releaseEntries(); }
 
 void ComponentMesh::releaseEntries(){
-    for (auto& e : m_entries) {
+    for (auto& e : m_entries){
         if (e.meshRes) app->getResources()->ReleaseResource(e.meshRes);
         if (e.materialRes) app->getResources()->ReleaseResource(e.materialRes);
         e.meshRes = nullptr;
@@ -49,10 +49,7 @@ static ComPtr<ID3D12Resource> makeMaterialCB(const Material::Data& data){
 }
 
 void ComponentMesh::rebuildEntry(MeshEntry& e){
-    // Initialise the per-instance material copy the first time (or after a reset).
-    // Subsequent calls (e.g. from markMaterialsDirty) reuse the existing copy so
-    // that in-editor changes to one instance are not clobbered.
-    if (!e.instanceMaterial) {
+    if (!e.instanceMaterial){
         e.instanceMaterial = std::make_unique<Material>();
         if (e.materialRes && e.materialRes->getMaterial())
             *e.instanceMaterial = *e.materialRes->getMaterial();
@@ -62,16 +59,16 @@ void ComponentMesh::rebuildEntry(MeshEntry& e){
     e.materialCB = makeMaterialCB(data);
 }
 
-void ComponentMesh::markMaterialsDirty() { m_materialsDirty = true; }
+void ComponentMesh::markMaterialsDirty(){ m_materialsDirty = true; }
 
 void ComponentMesh::flushDeferredReleases(){
     m_deferredRelease.clear();
-    if (m_materialsDirty) { m_materialsDirty = false; rebuildMaterialBuffers(); }
+    if (m_materialsDirty){ m_materialsDirty = false; rebuildMaterialBuffers(); }
 }
 
 void ComponentMesh::rebuildMaterialBuffers(){
     for (auto& e : m_entries) rebuildEntry(e);
-    if (m_proceduralModel) {
+    if (m_proceduralModel){
         m_proceduralMaterialBuffers.clear();
         for (const auto& mat : m_proceduralModel->getMaterials()) m_proceduralMaterialBuffers.push_back(makeMaterialCB(mat->getData()));
     }
@@ -83,15 +80,15 @@ static std::string resolveCanonicalPath(const char* filePath, UID& outUID){
     std::string sceneName = std::filesystem::path(normPath).stem().string();
 
     std::string libPath = app->getFileSystem()->GetLibraryPath();
-    if (normPath.find(libPath) == 0) {
+    if (normPath.find(libPath) == 0){
         std::string resolved = app->getAssets()->getAssetPathForScene(sceneName);
-        if (resolved.empty()) { outUID = 0; return {}; }
+        if (resolved.empty()){ outUID = 0; return {}; }
         normPath = resolved;
         for (char& c : normPath) if (c == '\\') c = '/';
     }
 
     outUID = app->getAssets()->findUID(normPath);
-    if (outUID == 0) {
+    if (outUID == 0){
         std::string resolved = app->getAssets()->getAssetPathForScene(
             std::filesystem::path(normPath).stem().string());
         if (!resolved.empty()) outUID = app->getAssets()->findUID(resolved);
@@ -113,7 +110,7 @@ bool ComponentMesh::loadModel(const char* filePath){
 
     UID sceneUID = 0;
     std::string canonicalPath = resolveCanonicalPath(filePath, sceneUID);
-    if (canonicalPath.empty()) { LOG("ComponentMesh: Cannot resolve '%s' - import it first", filePath); return false; }
+    if (canonicalPath.empty()){ LOG("ComponentMesh: Cannot resolve '%s' - import it first", filePath); return false; }
     m_modelUID = sceneUID;
     m_modelPath = canonicalPath;
     std::string sceneName = std::filesystem::path(canonicalPath).stem().string();
@@ -121,12 +118,12 @@ bool ComponentMesh::loadModel(const char* filePath){
     std::string meshFolder = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/";
     int meshCount = 0;
     while (app->getFileSystem()->Exists((meshFolder + std::to_string(meshCount) + ".mesh").c_str())) ++meshCount;
-    if (meshCount == 0) {
+    if (meshCount == 0){
         LOG("ComponentMesh: No meshes found, forcing reimport for '%s'", sceneName.c_str());
         return false;
     }
 
-    for (int i = 0; i < meshCount; ++i) {
+    for (int i = 0; i < meshCount; ++i){
         MeshEntry e;
         e.meshUID = app->getAssets()->findSubUID(canonicalPath, "mesh", i);
         e.materialUID = 0;
@@ -134,21 +131,21 @@ bool ComponentMesh::loadModel(const char* filePath){
         if (e.meshUID)
             e.meshRes = app->getResources()->RequestMesh(e.meshUID);
 
-        if (e.meshRes && e.meshRes->getMesh()) {
+        if (e.meshRes && e.meshRes->getMesh()){
             int matIdx = e.meshRes->getMesh()->getMaterialIndex();
 
-            if (matIdx >= 0) {
+            if (matIdx >= 0){
                 e.materialUID = app->getAssets()->findSubUID(
                     canonicalPath, "mat", matIdx);
             }
 
-            if (e.materialUID == 0) {
+            if (e.materialUID == 0){
                 LOG("ComponentMesh: submesh %d has invalid material, using default", i);
                 e.materialUID = 0;
             }
         }
 
-        if (e.materialUID != 0) {
+        if (e.materialUID != 0){
             e.materialRes = app->getResources()->RequestMaterial(e.materialUID);
         }
         else {
@@ -174,17 +171,17 @@ bool ComponentMesh::loadMeshSubset(const std::string& assetPath, int startMesh, 
 
     UID sceneUID = 0;
     std::string canonical = resolveCanonicalPath(assetPath.c_str(), sceneUID);
-    if (canonical.empty()) { LOG("ComponentMesh: Cannot resolve '%s' - import it first", assetPath.c_str()); return false; }
+    if (canonical.empty()){ LOG("ComponentMesh: Cannot resolve '%s' - import it first", assetPath.c_str()); return false; }
     m_modelUID = sceneUID;
     m_modelPath = canonical;
     m_meshFileStart = startMesh;
     m_meshFileCount = meshCount;
 
-    for (int i = startMesh; i < startMesh + meshCount; ++i) {
+    for (int i = startMesh; i < startMesh + meshCount; ++i){
         MeshEntry e;
         e.meshUID = app->getAssets()->findSubUID(canonical, "mesh", i);
         if (e.meshUID) e.meshRes = app->getResources()->RequestMesh(e.meshUID);
-        if (e.meshRes && e.meshRes->getMesh()) {
+        if (e.meshRes && e.meshRes->getMesh()){
             int matIdx = e.meshRes->getMesh()->getMaterialIndex();
             if (matIdx >= 0) e.materialUID = app->getAssets()->findSubUID(canonical, "mat", matIdx);
         }
@@ -231,8 +228,8 @@ void ComponentMesh::setProceduralModel(std::unique_ptr<Model> model){
 void ComponentMesh::overrideMaterial(int slot, UID materialUID){
     if (slot < 0 || slot >= (int)m_entries.size()) return;
     MeshEntry& e = m_entries[slot];
-    if (e.materialRes) { app->getResources()->ReleaseResource(e.materialRes); e.materialRes = nullptr; }
-    e.instanceMaterial.reset(); // force re-initialisation from the new resource
+    if (e.materialRes){ app->getResources()->ReleaseResource(e.materialRes); e.materialRes = nullptr; }
+    e.instanceMaterial.reset();
     e.materialUID = materialUID;
     if (materialUID != 0) e.materialRes = app->getResources()->RequestMaterial(materialUID);
     rebuildEntry(e);
@@ -248,11 +245,11 @@ void ComponentMesh::updateLOD(float coverage, int forceIndex){
     m_lastScreenCoverage = coverage;
 
     int selected = (int)m_lodLevels.size() - 1;
-    if (forceIndex >= 0) {
+    if (forceIndex >= 0){
         selected = std::min(forceIndex, (int)m_lodLevels.size() - 1);
     } else {
-        for (int i = 0; i < (int)m_lodLevels.size(); ++i) {
-            if (coverage > m_lodLevels[i].screenCoverageThreshold) { selected = i; break; }
+        for (int i = 0; i < (int)m_lodLevels.size(); ++i){
+            if (coverage > m_lodLevels[i].screenCoverageThreshold){ selected = i; break; }
         }
     }
 
@@ -268,13 +265,11 @@ void ComponentMesh::updateLOD(float coverage, int forceIndex){
     e.meshRes = app->getResources()->RequestMesh(e.meshUID);
 }
 
-void ComponentMesh::render(ID3D12GraphicsCommandList* /*cmd*/){
-    // Rendering is handled by MeshRenderPass via MeshEntry lists built in
-    // ModuleEditor::renderSceneWithCamera. This override is intentionally empty.
+void ComponentMesh::render(ID3D12GraphicsCommandList* ){
 }
 
 void ComponentMesh::onEditor(){
-    if (hasLODLevels()) {
+    if (hasLODLevels()){
         ImGui::Text("LOD: %d / %d   Coverage: %.3f", m_currentLOD, (int)m_lodLevels.size() - 1, m_lastScreenCoverage);
     }
     if (!m_hasSkin) return;
@@ -285,7 +280,7 @@ void ComponentMesh::onDrawGizmos(){
     if (!m_drawBindPose || !m_hasSkin) return;
 
     const int n = (int)m_skinJoints.size();
-    for (int i = 0; i < n; ++i) {
+    for (int i = 0; i < n; ++i){
         Matrix bindWorld = m_localSkin.inverseBindMatrices[i].Invert();
         Vector3 myPos = bindWorld.Translation();
         ddVec3 to = { myPos.x, myPos.y, myPos.z };
@@ -293,8 +288,8 @@ void ComponentMesh::onDrawGizmos(){
         dd::axisTriad(bindWorld.m[0], 0.f, 0.05f);
 
         GameObject* parentGO = m_skinJoints[i]->getParent();
-        for (int p = 0; p < n; ++p) {
-            if (m_skinJoints[p] == parentGO) {
+        for (int p = 0; p < n; ++p){
+            if (m_skinJoints[p] == parentGO){
                 Matrix parentBind = m_localSkin.inverseBindMatrices[p].Invert();
                 Vector3 parentPos = parentBind.Translation();
                 ddVec3 from = { parentPos.x, parentPos.y, parentPos.z };
@@ -313,16 +308,16 @@ void ComponentMesh::onSave(std::string& outJson) const{
     doc.AddMember("MeshFileStart", m_meshFileStart, a);
     doc.AddMember("MeshFileCount", m_meshFileCount, a);
     Value entries(kArrayType);
-    for (const auto& e : m_entries) { Value ev(kObjectType); ev.AddMember("meshUID", e.meshUID, a); ev.AddMember("materialUID", e.materialUID, a); entries.PushBack(ev, a); }
+    for (const auto& e : m_entries){ Value ev(kObjectType); ev.AddMember("meshUID", e.meshUID, a); ev.AddMember("materialUID", e.materialUID, a); entries.PushBack(ev, a); }
     doc.AddMember("Entries", entries, a);
 
-    if (m_hasSkin) {
+    if (m_hasSkin){
         Value jointNames(kArrayType);
-        for (auto* j : m_skinJoints) { Value n; n.SetString(j->getName().c_str(), a); jointNames.PushBack(n, a); }
+        for (auto* j : m_skinJoints){ Value n; n.SetString(j->getName().c_str(), a); jointNames.PushBack(n, a); }
         doc.AddMember("SkinJointNames", jointNames, a);
 
         Value ibms(kArrayType);
-        for (const auto& mat : m_localSkin.inverseBindMatrices) {
+        for (const auto& mat : m_localSkin.inverseBindMatrices){
             Value mArr(kArrayType);
             const float* f = reinterpret_cast<const float*>(&mat);
             for (int k = 0; k < 16; ++k) mArr.PushBack(f[k], a);
@@ -354,7 +349,7 @@ void ComponentMesh::onLoad(const std::string& jsonStr){
     if (doc.HasMember("ModelPath") && doc["ModelPath"].IsString())
         path = doc["ModelPath"].GetString();
 
-    if (!path.empty()) {
+    if (!path.empty()){
         int start = (doc.HasMember("MeshFileStart") && doc["MeshFileStart"].IsInt()) ? doc["MeshFileStart"].GetInt() : -1;
         int count = (doc.HasMember("MeshFileCount") && doc["MeshFileCount"].IsInt()) ? doc["MeshFileCount"].GetInt() : 0;
         if (start >= 0 && count > 0)
@@ -362,18 +357,17 @@ void ComponentMesh::onLoad(const std::string& jsonStr){
         else
             loadModel(path.c_str());
 
-        if (doc.HasMember("Entries") && doc["Entries"].IsArray()) {
+        if (doc.HasMember("Entries") && doc["Entries"].IsArray()){
             const auto& arr = doc["Entries"].GetArray();
-            for (int i = 0; i < (int)arr.Size() && i < (int)m_entries.size(); ++i) {
+            for (int i = 0; i < (int)arr.Size() && i < (int)m_entries.size(); ++i){
                 UID savedMat = arr[i]["materialUID"].GetUint64();
                 if (savedMat != m_entries[i].materialUID) overrideMaterial(i, savedMat);
             }
         }
-    } else if (doc.HasMember("Entries") && doc["Entries"].IsArray()) {
-        // UID-only path: spawned from ResourceModel with no file range
+    } else if (doc.HasMember("Entries") && doc["Entries"].IsArray()){
         releaseEntries();
         const auto& arr = doc["Entries"].GetArray();
-        for (const auto& ev : arr) {
+        for (const auto& ev : arr){
             UID meshUID = ev.HasMember("meshUID") ? ev["meshUID"].GetUint64() : 0;
             UID matUID = ev.HasMember("materialUID") ? ev["materialUID"].GetUint64() : 0;
             if (meshUID) addMeshEntry(meshUID, matUID);
@@ -381,20 +375,17 @@ void ComponentMesh::onLoad(const std::string& jsonStr){
         computeLocalAABB();
     }
 
-    if (doc.HasMember("SkinJointNames") && doc.HasMember("SkinIBMs")) {
+    if (doc.HasMember("SkinJointNames") && doc.HasMember("SkinIBMs")){
         const auto& names = doc["SkinJointNames"].GetArray();
         const auto& ibmsArr = doc["SkinIBMs"].GetArray();
-        if (names.Size() == ibmsArr.Size() && names.Size() > 0) {
-            // Parse the skin now, but defer binding joint GameObjects until the full scene
-            // hierarchy exists (resolveDeferredSkin). During deserialization the bone nodes may
-            // not be parented yet, so resolving by name here would silently fail.
+        if (names.Size() == ibmsArr.Size() && names.Size() > 0){
             m_pendingSkin = ResourceModel::Skin{};
             m_pendingSkin.jointNodeIndices.resize(names.Size());
             m_pendingSkin.inverseBindMatrices.resize(names.Size());
             m_pendingJointNames.clear();
             m_pendingJointNames.reserve(names.Size());
 
-            for (SizeType k = 0; k < names.Size(); ++k) {
+            for (SizeType k = 0; k < names.Size(); ++k){
                 m_pendingSkin.jointNodeIndices[k] = static_cast<int>(k);
                 const auto& mArr = ibmsArr[k].GetArray();
                 float* f = reinterpret_cast<float*>(&m_pendingSkin.inverseBindMatrices[k]);
@@ -403,7 +394,7 @@ void ComponentMesh::onLoad(const std::string& jsonStr){
             }
             m_hasPendingSkin = true;
         }
-    } else if (doc.HasMember("SkinJointNames") && !doc.HasMember("SkinIBMs")) {
+    } else if (doc.HasMember("SkinJointNames") && !doc.HasMember("SkinIBMs")){
         LOG("ComponentMesh: scene JSON has SkinJointNames but no SkinIBMs — "
             "IBP was not saved. Re-import the model and re-save the scene.");
     }
@@ -417,9 +408,9 @@ void ComponentMesh::resolveDeferredSkin(){
     std::vector<GameObject*> joints;
     joints.reserve(m_pendingJointNames.size());
     bool ok = true;
-    for (const auto& name : m_pendingJointNames) {
+    for (const auto& name : m_pendingJointNames){
         GameObject* jgo = findInSubtree(root, name);
-        if (!jgo) { LOG("ComponentMesh: skin joint '%s' not found", name.c_str()); ok = false; break; }
+        if (!jgo){ LOG("ComponentMesh: skin joint '%s' not found", name.c_str()); ok = false; break; }
         joints.push_back(jgo);
     }
     if (ok) setSkinData(m_pendingSkin, std::move(joints));
@@ -433,7 +424,7 @@ void ComponentMesh::computeLocalAABB(){
     m_localAABBMin = Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
     m_localAABBMax = Vector3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
     m_hasAABB = false;
-    for (const auto& e : m_entries) {
+    for (const auto& e : m_entries){
         if (!e.meshRes || !e.meshRes->getMesh()) continue;
         const Mesh* mesh = e.meshRes->getMesh();
         if (!mesh->hasAABB()) continue;
@@ -441,8 +432,8 @@ void ComponentMesh::computeLocalAABB(){
         m_localAABBMax = Vector3::Max(m_localAABBMax, mesh->getAABBMax());
         m_hasAABB = true;
     }
-    if (m_proceduralModel) {
-        for (const auto& mesh : m_proceduralModel->getMeshes()) {
+    if (m_proceduralModel){
+        for (const auto& mesh : m_proceduralModel->getMeshes()){
             if (!mesh || !mesh->hasAABB()) continue;
             m_localAABBMin = Vector3::Min(m_localAABBMin, mesh->getAABBMin());
             m_localAABBMax = Vector3::Max(m_localAABBMax, mesh->getAABBMax());
@@ -462,7 +453,7 @@ void ComponentMesh::getWorldAABB(Vector3& outMin, Vector3& outMax) const{
     };
     outMin = Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
     outMax = Vector3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-    for (const auto& c : corners) {
+    for (const auto& c : corners){
         Vector3 wc = Vector3::Transform(c, world);
         outMin = Vector3::Min(outMin, wc);
         outMax = Vector3::Max(outMax, wc);

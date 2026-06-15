@@ -9,7 +9,6 @@ bool LightCullingPipeline::init(ID3D12Device* device){
 }
 
 bool LightCullingPipeline::createRootSignature(ID3D12Device* device){
-    // Descriptor ranges
     CD3DX12_DESCRIPTOR_RANGE depthRange; depthRange .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
     CD3DX12_DESCRIPTOR_RANGE pointRange; pointRange .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
     CD3DX12_DESCRIPTOR_RANGE spotRange; spotRange .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2);
@@ -29,14 +28,14 @@ bool LightCullingPipeline::createRootSignature(ID3D12Device* device){
 
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
-    if (FAILED(hr)) {
+    if (FAILED(hr)){
         if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
         LOG("LightCullingPipeline: serialize root sig failed 0x%08X", hr);
         return false;
     }
     hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
                                       IID_PPV_ARGS(&m_rootSig));
-    if (FAILED(hr)) { LOG("LightCullingPipeline: CreateRootSignature failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ LOG("LightCullingPipeline: CreateRootSignature failed 0x%08X", hr); return false; }
     return true;
 }
 
@@ -48,6 +47,6 @@ bool LightCullingPipeline::createPSO(ID3D12Device* device){
     desc.CS = { cs.data(), cs.size() };
 
     HRESULT hr = device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&m_pso));
-    if (FAILED(hr)) { LOG("LightCullingPipeline: CreateComputePipelineState failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ LOG("LightCullingPipeline: CreateComputePipelineState failed 0x%08X", hr); return false; }
     return true;
 }

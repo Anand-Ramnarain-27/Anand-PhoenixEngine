@@ -30,28 +30,28 @@ public:
     void update();
     bool cleanUp();
 
-    ModuleD3D12* getD3D12() { return d3d12Module; }
-    ModuleGPUResources* getGPUResources() { return gpuresources; }
-    ModuleResources* getResources() { return resources; }
-    ModuleSamplerHeap* getSamplerHeap() { return samplerHeaps; }
-    ModuleFileSystem* getFileSystem() { return fileSystem; }
-    ModuleCamera* getCamera() { return camera; }
-    ModuleEditor* getEditor() { return editor; }
-    ModuleShaderDescriptors* getShaderDescriptors() { return shaderDescriptors; }
-    ModuleRingBuffer* getRingBuffer() { return ringBuffer; }
-    ModuleRTDescriptors* getRTDescriptors() { return rtDescriptors; }
-    ModuleDSDescriptors* getDSDescriptors() { return dsDescriptors; }
-    ModuleAssets* getAssets() { return assets; }
-    ModuleStaticBuffer* getStaticBuffer() { return staticBuffer; }
+    ModuleD3D12* getD3D12(){ return d3d12Module; }
+    ModuleGPUResources* getGPUResources(){ return gpuresources; }
+    ModuleResources* getResources(){ return resources; }
+    ModuleSamplerHeap* getSamplerHeap(){ return samplerHeaps; }
+    ModuleFileSystem* getFileSystem(){ return fileSystem; }
+    ModuleCamera* getCamera(){ return camera; }
+    ModuleEditor* getEditor(){ return editor; }
+    ModuleShaderDescriptors* getShaderDescriptors(){ return shaderDescriptors; }
+    ModuleRingBuffer* getRingBuffer(){ return ringBuffer; }
+    ModuleRTDescriptors* getRTDescriptors(){ return rtDescriptors; }
+    ModuleDSDescriptors* getDSDescriptors(){ return dsDescriptors; }
+    ModuleAssets* getAssets(){ return assets; }
+    ModuleStaticBuffer* getStaticBuffer(){ return staticBuffer; }
 
-    void swapModule(Module* from, Module* to) { swapModules.push_back(std::make_pair(from, to)); }
+    void swapModule(Module* from, Module* to){ swapModules.push_back(std::make_pair(from, to)); }
 
     float getFPS() const { return 1000.0f * float(MAX_FPS_TICKS) / float(tickSum); }
     float getAvgElapsedMs() const { return float(tickSum) / float(MAX_FPS_TICKS); }
     uint64_t getElapsedMilis() const { return elapsedMilis; }
 
     bool isPaused() const { return paused; }
-    bool setPaused(bool p) { paused = p; return paused; }
+    bool setPaused(bool p){ paused = p; return paused; }
 
 private:
     enum { MAX_FPS_TICKS = 30 };

@@ -3,8 +3,7 @@
 #include "Module.h"
 #include <cstdint>
 
-class ModuleRingBuffer : public Module
-{
+class ModuleRingBuffer : public Module {
 public:
     ModuleRingBuffer() = default;
     ~ModuleRingBuffer() = default;
@@ -13,10 +12,10 @@ public:
     void preRender() override;
 
     template<typename T>
-    D3D12_GPU_VIRTUAL_ADDRESS allocate(const T& data) { return allocateRaw(&data, sizeof(T)); }
+    D3D12_GPU_VIRTUAL_ADDRESS allocate(const T& data){ return allocateRaw(&data, sizeof(T)); }
 
     template<typename T>
-    D3D12_GPU_VIRTUAL_ADDRESS allocate(const T* data, size_t count = 1) { return allocateRaw(data, sizeof(T) * count); }
+    D3D12_GPU_VIRTUAL_ADDRESS allocate(const T* data, size_t count = 1){ return allocateRaw(data, sizeof(T) * count); }
 
     D3D12_GPU_VIRTUAL_ADDRESS allocateConstantBuffer(const void* data, size_t size);
 

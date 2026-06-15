@@ -11,28 +11,26 @@
 #include <cstring>
 
 namespace {
-    constexpr UINT cbAlign(UINT b) { return (b + 255u) & ~255u; }
+    constexpr UINT cbAlign(UINT b){ return (b + 255u) & ~255u; }
 
-    // Unit box vertices: 8 corners of [-0.5, 0.5]^3
     static const float kBoxVerts[] = {
-        -0.5f, -0.5f, 0.5f, // 0
-        -0.5f, 0.5f, 0.5f, // 1
-         0.5f, 0.5f, 0.5f, // 2
-         0.5f, -0.5f, 0.5f, // 3
-        -0.5f, -0.5f, -0.5f, // 4
-        -0.5f, 0.5f, -0.5f, // 5
-         0.5f, 0.5f, -0.5f, // 6
-         0.5f, -0.5f, -0.5f, // 7
+        -0.5f, -0.5f, 0.5f,
+        -0.5f, 0.5f, 0.5f,
+         0.5f, 0.5f, 0.5f,
+         0.5f, -0.5f, 0.5f,
+        -0.5f, -0.5f, -0.5f,
+        -0.5f, 0.5f, -0.5f,
+         0.5f, 0.5f, -0.5f,
+         0.5f, -0.5f, -0.5f,
     };
 
-    // 12 triangles, wound CCW (front faces outward)
     static const uint16_t kBoxIndices[] = {
-        0,2,1, 0,3,2, // +Z face
-        4,5,6, 4,6,7, // -Z face
-        1,6,5, 1,2,6, // +Y face
-        0,4,7, 0,7,3, // -Y face
-        0,1,5, 0,5,4, // -X face
-        3,6,2, 3,7,6, // +X face
+        0,2,1, 0,3,2,
+        4,5,6, 4,6,7,
+        1,6,5, 1,2,6,
+        0,4,7, 0,7,3,
+        0,1,5, 0,5,4,
+        3,6,2, 3,7,6,
     };
 
     ComPtr<ID3D12Resource> uploadBuffer(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd,
@@ -64,13 +62,12 @@ namespace {
 }
 
 bool DecalPass::init(ID3D12Device* device){
-    if (!m_pipeline.init(device)) {
+    if (!m_pipeline.init(device)){
         LOG("DecalPass: pipeline init failed");
         return false;
     }
     if (!createUploadBuffers(device)) return false;
 
-    // Create geometry using a one-shot command list
     auto* d3d = app->getD3D12();
     ComPtr<ID3D12CommandAllocator> alloc;
     ComPtr<ID3D12GraphicsCommandList> cmd;
@@ -100,7 +97,6 @@ bool DecalPass::init(ID3D12Device* device){
     ID3D12CommandList* lists[] = { cmd.Get() };
     d3d->getDrawCommandQueue()->ExecuteCommandLists(1, lists);
 
-    // Wait for upload to complete
     ComPtr<ID3D12Fence> fence;
     device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
     d3d->getDrawCommandQueue()->Signal(fence.Get(), 1);
@@ -121,7 +117,7 @@ bool DecalPass::createUploadBuffers(ID3D12Device* device){
     HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                                                   D3D12_RESOURCE_STATE_GENERIC_READ,
                                                   nullptr, IID_PPV_ARGS(&m_cbRing));
-    if (FAILED(hr)) { LOG("DecalPass: CB ring alloc failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ LOG("DecalPass: CB ring alloc failed 0x%08X", hr); return false; }
     m_cbRing->SetName(L"Decal_CBRing");
     m_cbRing->Map(0, nullptr, &m_cbMapped);
     return true;
@@ -142,8 +138,6 @@ bool DecalPass::createFallbackTexture(ID3D12Device* device, ID3D12GraphicsComman
                                      nullptr, IID_PPV_ARGS(&m_fallbackTex));
     m_fallbackTex->SetName(L"Decal_FallbackTex");
 
-    // Upload a single opaque white texel so untextured decals render as a flat
-    // colour tint instead of being discarded (alpha would otherwise be 0).
     UINT64 uploadSize = 0;
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
     device->GetCopyableFootprints(&td, 0, 1, 0, &footprint, nullptr, nullptr, &uploadSize);
@@ -168,7 +162,7 @@ bool DecalPass::createFallbackTexture(ID3D12Device* device, ID3D12GraphicsComman
 
     auto* sd = app->getShaderDescriptors();
     m_fallbackSRV = sd->allocTable("Decal_FallbackSRV");
-    if (!m_fallbackSRV.isValid()) {
+    if (!m_fallbackSRV.isValid()){
         LOG("DecalPass: fallback SRV alloc failed");
         return false;
     }
@@ -192,7 +186,6 @@ void DecalPass::render(ID3D12GraphicsCommandList* cmd,
 
     BEGIN_EVENT(cmd, L"Decal Pass");
 
-    // Transition G-Buffer color RTs: SRV → RTV so we can write to them
     {
         CD3DX12_RESOURCE_BARRIER barriers[2] = {
             CD3DX12_RESOURCE_BARRIER::Transition(gb.getColorTexture(GBuffer::Albedo),
@@ -205,7 +198,6 @@ void DecalPass::render(ID3D12GraphicsCommandList* cmd,
         cmd->ResourceBarrier(2, barriers);
     }
 
-    // Bind 2 G-Buffer RTs + read-only depth stencil (depth stays in PSR state)
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2] = {
         gb.getRtvHandle(GBuffer::Albedo),
         gb.getRtvHandle(GBuffer::NormalMetalRough)
@@ -227,10 +219,8 @@ void DecalPass::render(ID3D12GraphicsCommandList* cmd,
     };
     cmd->SetDescriptorHeaps(2, heaps);
 
-    // Bind depth buffer SRV (already in PIXEL_SHADER_RESOURCE|DEPTH_READ after endGeomPass)
     cmd->SetGraphicsRootDescriptorTable(DecalPipeline::SLOT_DEPTH, gb.getDepthSrvHandle());
 
-    // Bind sampler table
     cmd->SetGraphicsRootDescriptorTable(DecalPipeline::SLOT_SAMPLER,
         app->getSamplerHeap()->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));
 
@@ -241,8 +231,7 @@ void DecalPass::render(ID3D12GraphicsCommandList* cmd,
     const UINT cbStride = cbAlign(sizeof(DecalInstance));
     const UINT maxDecals = std::min((UINT)decals.size(), MAX_DECALS);
 
-    for (UINT i = 0; i < maxDecals; ++i) {
-        // Upload CB for this decal
+    for (UINT i = 0; i < maxDecals; ++i){
         void* dst = reinterpret_cast<uint8_t*>(m_cbMapped) + i * cbStride;
         memcpy(dst, &decals[i], sizeof(DecalInstance));
 
@@ -250,14 +239,12 @@ void DecalPass::render(ID3D12GraphicsCommandList* cmd,
             m_cbRing->GetGPUVirtualAddress() + i * cbStride;
         cmd->SetGraphicsRootConstantBufferView(DecalPipeline::SLOT_CB, cbVA);
 
-        // Albedo texture — use fallback for now (ComponentDecal can override)
         cmd->SetGraphicsRootDescriptorTable(DecalPipeline::SLOT_ALBEDO,
                                              m_fallbackSRV.getGPUHandle(0));
 
         cmd->DrawIndexedInstanced(m_indexCount, 1, 0, 0, 0);
     }
 
-    // Transition G-Buffer color RTs back: RTV → SRV for the lighting pass
     {
         CD3DX12_RESOURCE_BARRIER barriers[2] = {
             CD3DX12_RESOURCE_BARRIER::Transition(gb.getColorTexture(GBuffer::Albedo),

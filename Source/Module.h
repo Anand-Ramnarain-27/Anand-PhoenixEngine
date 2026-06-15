@@ -2,8 +2,7 @@
 
 #include "Globals.h"
 
-class Module
-{
+class Module {
 public:
 
 	Module(){

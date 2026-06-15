@@ -5,8 +5,7 @@
 class ModuleCamera;
 class ModuleScene;
 
-class IScene
-{
+class IScene {
 public:
     virtual ~IScene() = default;
 
@@ -18,10 +17,10 @@ public:
     virtual void render(ID3D12GraphicsCommandList* cmd, const ModuleCamera& camera, uint32_t width, uint32_t height) = 0;
     virtual void shutdown() = 0;
 
-    virtual void reset() {}
-    virtual void onEnter() {}
-    virtual void onExit() {}
-    virtual void onViewportResized(uint32_t, uint32_t) {}
+    virtual void reset(){}
+    virtual void onEnter(){}
+    virtual void onExit(){}
+    virtual void onViewportResized(uint32_t, uint32_t){}
     virtual bool wantsDebugDraw() const { return true; }
-    virtual ModuleScene* getModuleScene() { return nullptr; }
+    virtual ModuleScene* getModuleScene(){ return nullptr; }
 };

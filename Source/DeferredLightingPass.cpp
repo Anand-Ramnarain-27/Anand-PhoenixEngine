@@ -13,7 +13,7 @@
 #include <algorithm>
 
 namespace {
-    constexpr UINT cbAlign(UINT b) { return (b + 255u) & ~255u; }
+    constexpr UINT cbAlign(UINT b){ return (b + 255u) & ~255u; }
 
     ComPtr<ID3D12Resource> makeUploadBuf(ID3D12Device* device, UINT64 bytes,
                                           void** mapped, const wchar_t* name){
@@ -23,7 +23,7 @@ namespace {
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                                                       D3D12_RESOURCE_STATE_GENERIC_READ,
                                                       nullptr, IID_PPV_ARGS(&buf));
-        if (FAILED(hr)) { LOG("DeferredLightingPass: buf create failed 0x%08X", hr); return nullptr; }
+        if (FAILED(hr)){ LOG("DeferredLightingPass: buf create failed 0x%08X", hr); return nullptr; }
         buf->SetName(name);
         if (mapped) buf->Map(0, nullptr, mapped);
         return buf;
@@ -62,11 +62,11 @@ namespace {
 }
 
 bool DeferredLightingPass::init(ID3D12Device* device){
-    if (!m_pipeline.init(device)) {
+    if (!m_pipeline.init(device)){
         LOG("DeferredLightingPass: pipeline init failed");
         return false;
     }
-    if (!m_lightCulling.init(device)) {
+    if (!m_lightCulling.init(device)){
         LOG("DeferredLightingPass: light culling init failed");
         return false;
     }
@@ -79,7 +79,7 @@ bool DeferredLightingPass::init(ID3D12Device* device){
 
 bool DeferredLightingPass::createUploadBuffers(ID3D12Device* device){
     const UINT cbSz = cbAlign(sizeof(CbPerFrame));
-    for (int i = 0; i < NUM_VIEWPORTS; ++i) {
+    for (int i = 0; i < NUM_VIEWPORTS; ++i){
         m_perFrameCB[i] = makeUploadBuf(device, cbSz, &m_perFrameMapped[i], L"DeferredLight_PerFrameCB");
         if (!m_perFrameCB[i]) return false;
 
@@ -100,11 +100,11 @@ bool DeferredLightingPass::createUploadBuffers(ID3D12Device* device){
 
 bool DeferredLightingPass::createLightSRVs(){
     auto* sd = app->getShaderDescriptors();
-    for (int i = 0; i < NUM_VIEWPORTS; ++i) {
+    for (int i = 0; i < NUM_VIEWPORTS; ++i){
         m_dirLightSRV[i] = sd->allocTable("DeferredLight_DirSRV");
         m_pointLightSRV[i] = sd->allocTable("DeferredLight_PointSRV");
         m_spotLightSRV[i] = sd->allocTable("DeferredLight_SpotSRV");
-        if (!m_dirLightSRV[i].isValid() || !m_pointLightSRV[i].isValid() || !m_spotLightSRV[i].isValid()) {
+        if (!m_dirLightSRV[i].isValid() || !m_pointLightSRV[i].isValid() || !m_spotLightSRV[i].isValid()){
             LOG("DeferredLightingPass: light SRV alloc failed");
             return false;
         }
@@ -131,7 +131,7 @@ bool DeferredLightingPass::createFallbackIBL(ID3D12Device* device){
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &td,
                                                       D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                                                       nullptr, IID_PPV_ARGS(&m_fallbackCube));
-        if (FAILED(hr)) {
+        if (FAILED(hr)){
             LOG("DeferredLightingPass: fallback cube failed 0x%08X", hr);
             return false;
         }
@@ -149,7 +149,7 @@ bool DeferredLightingPass::createFallbackIBL(ID3D12Device* device){
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &td,
                                                       D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                                                       nullptr, IID_PPV_ARGS(&m_fallbackTex2D));
-        if (FAILED(hr)) {
+        if (FAILED(hr)){
             LOG("DeferredLightingPass: fallback 2D failed 0x%08X", hr);
             return false;
         }
@@ -172,7 +172,7 @@ bool DeferredLightingPass::createFallbackIBL(ID3D12Device* device){
 }
 
 void DeferredLightingPass::uploadLights(const FrameLightData& lights, int viewportIndex){
-    auto copy = [](void* dst, const void* src, size_t count, size_t stride, size_t maxCount) {
+    auto copy = [](void* dst, const void* src, size_t count, size_t stride, size_t maxCount){
         UINT n = static_cast<UINT>(std::min(count, maxCount));
         if (n > 0) memcpy(dst, src, n * stride);
     };
@@ -222,7 +222,6 @@ void DeferredLightingPass::render(ID3D12GraphicsCommandList* cmd,
     uint32_t roughLevels = 0;
     if (env && env->hasIBL()) roughLevels = EnvironmentMap::NUM_ROUGHNESS_LEVELS;
 
-    // Run tiled light culling (reads depth buffer, outputs per-tile index lists)
     m_lightCulling.cull(cmd, gbufferPass, lights, view, projection, width, height, viewportIndex);
 
     uploadLights(lights, viewportIndex);
@@ -250,7 +249,7 @@ void DeferredLightingPass::render(ID3D12GraphicsCommandList* cmd,
     cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_SPOT_LIGHTS,
                                          m_spotLightSRV[viewportIndex].getGPUHandle(0));
 
-    if (env && env->hasIBL()) {
+    if (env && env->hasIBL()){
         const EnvironmentMap* map = env->getEnvironmentMap();
         cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_IRRADIANCE,
                                              map->getIrradianceGPU());
@@ -277,7 +276,6 @@ void DeferredLightingPass::render(ID3D12GraphicsCommandList* cmd,
     cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_GBUF_DEPTH,
                                          gb.getDepthSrvHandle());
 
-    // Per-tile light index lists (from light culling pass)
     cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_POINT_INDICES,
                                          m_lightCulling.getPointListSRV(viewportIndex));
     cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_SPOT_INDICES,

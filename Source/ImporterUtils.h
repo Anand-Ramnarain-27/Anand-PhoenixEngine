@@ -14,7 +14,7 @@ namespace ImporterUtils {
         std::string metaFolder = fs->GetLibraryPath() + "metadata/";
         fs->CreateDir(metaFolder.c_str());
         std::string sanitised = assetPath;
-        for (char& c : sanitised) {
+        for (char& c : sanitised){
             if (c == '/' || c == '\\' || c == ':') c = '~';
         }
         return metaFolder + sanitised + ".meta";
@@ -24,7 +24,7 @@ namespace ImporterUtils {
     inline bool LoadBuffer(const std::string& file, THeader& outHeader, std::vector<char>& outBuffer){
         char* raw = nullptr;
         uint32_t size = app->getFileSystem()->Load(file.c_str(), &raw);
-        if (!raw || size < sizeof(THeader)) {
+        if (!raw || size < sizeof(THeader)){
             delete[] raw;
             return false;
         }

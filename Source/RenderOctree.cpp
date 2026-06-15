@@ -17,7 +17,7 @@ AABB RenderOctree::octant(const AABB& parent, int idx){
 }
 
 void RenderOctree::Node::subdivide(const std::vector<Entry>& entries, int capacity, int maxDepth){
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < 8; ++i){
         children[i] = std::make_unique<Node>();
         children[i]->region = octant(region, i);
         children[i]->depth = depth + 1;
@@ -30,7 +30,7 @@ void RenderOctree::Node::subdivide(const std::vector<Entry>& entries, int capaci
 
 void RenderOctree::Node::insert(uint32_t idx, const AABB& bounds, const std::vector<Entry>& entries, int capacity, int maxDepth){
     if (!region.intersects(bounds)) return;
-    if (isLeaf()) {
+    if (isLeaf()){
         entryIndices.push_back(idx);
         if (static_cast<int>(entryIndices.size()) > capacity && depth < maxDepth)
             subdivide(entries, capacity, maxDepth);
@@ -42,7 +42,7 @@ void RenderOctree::Node::insert(uint32_t idx, const AABB& bounds, const std::vec
 
 void RenderOctree::Node::queryFrustum(const Frustum& frustum, const std::vector<Entry>& entries, std::vector<GameObject*>& out) const{
     if (!frustum.intersectsAABB(region.min, region.max)) return;
-    if (isLeaf()) {
+    if (isLeaf()){
         for (uint32_t idx : entryIndices) out.push_back(entries[idx].go);
     } else {
         for (const auto& c : children)
@@ -65,8 +65,6 @@ void RenderOctree::add(GameObject* go, const AABB& worldAABB){
 }
 
 void RenderOctree::build(){
-    // Lazy rebuild: skip unless a transform changed or the renderable set
-    // itself changed size (object added/removed/disabled) since last build.
     if (!s_dirty && m_pending.size() == m_lastBuiltCount) return;
     s_dirty = false;
     m_lastBuiltCount = m_pending.size();
@@ -79,7 +77,7 @@ void RenderOctree::build(){
     AABB root;
     root.min = Vector3( FLT_MAX, FLT_MAX, FLT_MAX);
     root.max = Vector3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-    for (const auto& e : m_pending) {
+    for (const auto& e : m_pending){
         root.min = Vector3::Min(root.min, e.worldAABB.min);
         root.max = Vector3::Max(root.max, e.worldAABB.max);
     }

@@ -102,10 +102,6 @@ int CollisionSystem::getLastOctreeLeafCount() const{
     return o ? o->getLastLeafCount() : 0;
 }
 
-// ---------------------------------------------------------------------------
-// Build an OBB for a CollisionBody from the world matrix.
-// Extracts scale from each row's length, then normalises to get pure axes.
-// ---------------------------------------------------------------------------
 static void buildOBB(CollisionBody& body){
     const ComponentTransform* t = body.go->getTransform();
     const ComponentMesh* cm = body.go->getComponent<ComponentMesh>();
@@ -119,7 +115,6 @@ static void buildOBB(CollisionBody& body){
 
     body.obbCenter = Vector3::Transform(lCtr, W);
 
-    // Row 0..2 of the world matrix are the scaled world-space axes.
     Vector3 cx(W._11, W._12, W._13);
     Vector3 cy(W._21, W._22, W._23);
     Vector3 cz(W._31, W._32, W._33);
@@ -134,46 +129,38 @@ static void buildOBB(CollisionBody& body){
     body.obbHalves[2] = lHalf.z * sz;
 }
 
-// ---------------------------------------------------------------------------
-// Choose the bounding volume type for a body and populate its sphere fields.
-// Must be called after buildOBB() so obbCenter/obbHalves are valid.
-// ---------------------------------------------------------------------------
 static void applyBVType(CollisionBody& body){
     const ComponentBounds* cb = body.go->getComponent<ComponentBounds>();
-    if (!cb || cb->bvType == BVType::AABB) {
+    if (!cb || cb->bvType == BVType::AABB){
         body.bvType = BVType::AABB;
-        // worldAABB already set from the mesh AABB — nothing more to do.
         return;
     }
 
     body.bvType = BVType::Sphere;
     body.sphereCenter = body.obbCenter;
 
-    if (cb->radiusOverride >= 0.f) {
+    if (cb->radiusOverride >= 0.f){
         body.sphereRadius = cb->radiusOverride;
     } else {
-        // Circumscribed sphere: radius = half-diagonal of the OBB.
         body.sphereRadius = sqrtf(
             body.obbHalves[0] * body.obbHalves[0] +
             body.obbHalves[1] * body.obbHalves[1] +
             body.obbHalves[2] * body.obbHalves[2]);
     }
 
-    // Replace the broad-phase proxy with the sphere's tight enclosing AABB.
     Sphere s{ body.sphereCenter, body.sphereRadius };
     body.worldAABB = s.toAABB();
 }
 
-// ---------------------------------------------------------------------------
 
 std::vector<CollisionBody> CollisionSystem::gatherBodies(ModuleScene* scene, float dt){
     std::vector<CollisionBody> bodies;
     if (!scene) return bodies;
 
-    std::function<void(GameObject*)> visit = [&](GameObject* node) {
+    std::function<void(GameObject*)> visit = [&](GameObject* node){
         if (!node || !node->isActive()) return;
         ComponentMesh* cm = node->getComponent<ComponentMesh>();
-        if (cm && cm->hasAABB()) {
+        if (cm && cm->hasAABB()){
             CollisionBody body;
             body.go = node;
             Vector3 mn, mx;
@@ -181,19 +168,11 @@ std::vector<CollisionBody> CollisionSystem::gatherBodies(ModuleScene* scene, flo
             body.worldAABB.min = mn;
             body.worldAABB.max = mx;
             buildOBB(body);
-            applyBVType(body); // overrides worldAABB + sets sphere fields if needed
+            applyBVType(body);
 
-            // ---- Swept AABB for fast-moving objects ----
-            // Expand the broad-phase proxy to also cover the AABB at the
-            // predicted next-frame position (current + velocity * dt).  This
-            // guarantees the broad phase emits a candidate pair even when the
-            // object is not yet overlapping the obstacle at its current
-            // position but will be at the start of the next frame.
-            // The narrow phase still uses the unmodified OBB/sphere.
             const ComponentRigidbody* rb = node->getComponent<ComponentRigidbody>();
-            if (rb && rb->isFastMoving && !rb->isStatic && dt > 1e-7f) {
+            if (rb && rb->isFastMoving && !rb->isStatic && dt > 1e-7f){
                 const Vector3 disp = rb->velocity * dt;
-                // Union of current AABB with AABB displaced by one frame.
                 body.worldAABB.min = Vector3::Min(body.worldAABB.min,
                                                    body.worldAABB.min + disp);
                 body.worldAABB.max = Vector3::Max(body.worldAABB.max,
@@ -214,18 +193,15 @@ void CollisionSystem::run(ModuleScene* scene, float dt){
     std::vector<CollisionBody> bodies = gatherBodies(scene, dt);
     if (bodies.size() < 2) return;
 
-    // --- Broad phase (timed) ---
     auto bpT0 = std::chrono::high_resolution_clock::now();
     auto broadPairs = m_broadPhase->query(bodies);
     auto bpT1 = std::chrono::high_resolution_clock::now();
     m_results.broadPhaseMs = std::chrono::duration<float, std::milli>(bpT1 - bpT0).count();
     m_results.broadCount = static_cast<uint32_t>(broadPairs.size());
 
-    // --- Mid phase ---
     auto midPairs = m_midPhase->filter(std::move(broadPairs), bodies);
     m_results.midCount = static_cast<uint32_t>(midPairs.size());
 
-    // --- Narrow phase ---
     m_results.contacts = m_narrowPhase.test(midPairs, bodies);
     m_results.narrowCount = static_cast<uint32_t>(m_results.contacts.size());
 }

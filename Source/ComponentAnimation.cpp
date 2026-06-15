@@ -20,10 +20,6 @@
 
 using namespace rapidjson;
 
-// ─── Internal sampling helpers ────────────────────────────────────────────────
-// Mirror AnimationController::GetTransform / GetMorphWeights but accept an
-// explicit ResourceAnimation* and time, so each AnimLayer can be sampled
-// independently without disturbing the shared AnimationController state.
 
 static bool SampleTransform(const ResourceAnimation* anim, float timeSec,
                              const char* name, Vector3& pos, Quaternion& rot){
@@ -34,7 +30,7 @@ static bool SampleTransform(const ResourceAnimation* anim, float timeSec,
 
     const ResourceAnimation::Channel& ch = it->second;
 
-    if (ch.posCount > 0) {
+    if (ch.posCount > 0){
         const float* tf = ch.posTimeStamps.get();
         const float* tl = tf + ch.posCount;
         const float* up = std::upper_bound(tf, tl, timeSec);
@@ -48,7 +44,7 @@ static bool SampleTransform(const ResourceAnimation* anim, float timeSec,
         }
     }
 
-    if (ch.rotCount > 0) {
+    if (ch.rotCount > 0){
         const float* tf = ch.rotTimeStamps.get();
         const float* tl = tf + ch.rotCount;
         const float* up = std::upper_bound(tf, tl, timeSec);
@@ -75,10 +71,10 @@ static bool SampleMorphWeights(const ResourceAnimation* anim, float timeSec,
     const float* tl = tf + mc->numTime;
     const float* up = std::upper_bound(tf, tl, timeSec);
 
-    if (up == tf) {
+    if (up == tf){
         for (uint32_t i = 0; i < chTargets; ++i)
             out[i] = mc->weights[i];
-    } else if (up == tl) {
+    } else if (up == tl){
         const uint32_t k = mc->numTime - 1;
         for (uint32_t i = 0; i < chTargets; ++i)
             out[i] = mc->weights[k * mc->numTargets + i];
@@ -88,7 +84,7 @@ static bool SampleMorphWeights(const ResourceAnimation* anim, float timeSec,
         const float lm = d > 0.f
             ? std::max(0.f, std::min(1.f, (timeSec - tf[k]) / d))
             : 0.f;
-        for (uint32_t i = 0; i < chTargets; ++i) {
+        for (uint32_t i = 0; i < chTargets; ++i){
             out[i] = mc->weights[k * mc->numTargets + i] * (1.f - lm)
                    + mc->weights[(k + 1) * mc->numTargets + i] * lm;
         }
@@ -96,18 +92,16 @@ static bool SampleMorphWeights(const ResourceAnimation* anim, float timeSec,
     return true;
 }
 
-// ─── Lifecycle ────────────────────────────────────────────────────────────────
 
-ComponentAnimation::ComponentAnimation(GameObject* owner) : Component(owner) {}
+ComponentAnimation::ComponentAnimation(GameObject* owner) : Component(owner){}
 
 ComponentAnimation::~ComponentAnimation(){
     clearLayers();
 }
 
-// ─── Layer memory management ──────────────────────────────────────────────────
 
 void ComponentAnimation::freeLayerChain(AnimLayer* head){
-    while (head) {
+    while (head){
         AnimLayer* next = head->next;
         if (head->anim) app->getResources()->ReleaseResource(head->anim);
         delete head;
@@ -122,7 +116,7 @@ void ComponentAnimation::clearLayers(){
 
 void ComponentAnimation::pushLayer(UID animUID, float transitionTimeMs, bool loop){
     ResourceAnimation* anim = app->getResources()->RequestAnimation(animUID);
-    if (!anim) {
+    if (!anim){
         LOG("ComponentAnimation::pushLayer: failed to load animation uid=%llu", animUID);
         return;
     }
@@ -136,7 +130,6 @@ void ComponentAnimation::pushLayer(UID animUID, float transitionTimeMs, bool loo
     m_layerHead = layer;
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────────
 
 void ComponentAnimation::OnPlay(UID uid, bool loop){
     clearLayers();
@@ -159,13 +152,13 @@ void ComponentAnimation::OnPlay(){
     if (!clip || clip->animationUID == 0) return;
 
     m_activeState = m_stateMachine->defaultState;
-    pushLayer(clip->animationUID, 0.f, clip->loop); // base layer: instant, no cross-fade
+    pushLayer(clip->animationUID, 0.f, clip->loop);
 }
 
 void ComponentAnimation::SendTrigger(const HashString& trigger){
     if (!m_stateMachine) return;
 
-    for (const auto& tr : m_stateMachine->transitions) {
+    for (const auto& tr : m_stateMachine->transitions){
         if (tr.source != m_activeState || tr.trigger != trigger) continue;
 
         const SMState* target = m_stateMachine->FindState(tr.target);
@@ -176,17 +169,15 @@ void ComponentAnimation::SendTrigger(const HashString& trigger){
 
         pushLayer(clip->animationUID, (float)tr.interpolationMs, clip->loop);
         m_activeState = tr.target;
-        return; // only the first matching transition fires
+        return;
     }
-    // No matching transition → silent no-op.
 }
 
-// ─── State machine from path ─────────────────────────────────────────────────
 
 void ComponentAnimation::LoadStateMachineFromPath(const std::string& path){
     if (path.empty()) return;
     auto sm = std::make_unique<ResourceStateMachine>(0);
-    if (!sm->Load(path)) {
+    if (!sm->Load(path)){
         LOG("ComponentAnimation: failed to load SM from '%s'", path.c_str());
         return;
     }
@@ -196,15 +187,14 @@ void ComponentAnimation::LoadStateMachineFromPath(const std::string& path){
     OnPlay();
 }
 
-// ─── Animation list (inspector) ───────────────────────────────────────────────
 
 void ComponentAnimation::setAnimationList(const std::vector<UID>& uids){
     m_animUIDs.clear();
     m_animNames.clear();
-    for (UID uid : uids) {
+    for (UID uid : uids){
         m_animUIDs.push_back(uid);
         auto* anim = app->getResources()->RequestAnimation(uid);
-        if (anim) {
+        if (anim){
             std::string name = anim->getAnimName();
             m_animNames.push_back(name.empty() ? ("Anim_" + std::to_string(m_animUIDs.size() - 1)) : name);
             app->getResources()->ReleaseResource(anim);
@@ -214,12 +204,7 @@ void ComponentAnimation::setAnimationList(const std::vector<UID>& uids){
     }
 }
 
-// ─── Per-frame update ─────────────────────────────────────────────────────────
 
-// Searches owner and its subtree for the first ComponentMesh and returns its
-// isVisible() flag (GAME VIEW visibility — see ComponentMesh::isVisible()).
-// Returns true (always update) if no mesh is found, e.g. armature-only rigs
-// where visibility can't be determined.
 bool ComponentAnimation::isOwnerMeshVisible() const{
     std::function<const ComponentMesh*(const GameObject*)> findMesh = [&](const GameObject* go) -> const ComponentMesh* {
         if (auto* cm = go->getComponent<ComponentMesh>()) return cm;
@@ -232,21 +217,15 @@ bool ComponentAnimation::isOwnerMeshVisible() const{
 }
 
 void ComponentAnimation::update(float deltaTime){
-    // PERF: skip skinning for off-screen meshes; re-enable on first visible frame to prevent pop.
-    // The animation clock (above) keeps advancing every frame regardless, so the
-    // pose computed on the first visible frame reflects the correct elapsed time
-    // — no pop from a stale pose.
     const bool applyPose = isOwnerMeshVisible();
-    if (m_layerHead) {
-        // ── SM / layer-blending path ──────────────────────────────────────────
+    if (m_layerHead){
         const float dtMs = deltaTime * 1000.f;
 
-        for (AnimLayer* l = m_layerHead; l; l = l->next) {
-            // Advance playback time (speed-scaled).
+        for (AnimLayer* l = m_layerHead; l; l = l->next){
             l->currentTimeMs += dtMs * mSpeed;
-            if (l->anim) {
+            if (l->anim){
                 const float durMs = l->anim->getDuration() * 1000.f;
-                if (durMs > 0.f) {
+                if (durMs > 0.f){
                     if (l->loop && l->currentTimeMs >= durMs)
                         l->currentTimeMs = std::fmod(l->currentTimeMs, durMs);
                     else if (!l->loop && l->currentTimeMs > durMs)
@@ -254,13 +233,10 @@ void ComponentAnimation::update(float deltaTime){
                 }
             }
 
-            // Advance fade time (wall-clock only, NOT speed-scaled).
-            // The base layer (tail, next==nullptr) is always at full weight — skip it.
             if (l->next)
                 l->fadeTimeMs += dtMs;
         }
 
-        // Cleanup: once the head has fully faded in, the older layers are invisible.
         if (m_layerHead->next &&
             m_layerHead->fadeTimeMs >= m_layerHead->transitionTimeMs){
             freeLayerChain(m_layerHead->next);
@@ -272,7 +248,6 @@ void ComponentAnimation::update(float deltaTime){
                 applyBlendedAnimation(child);
 
     } else {
-        // ── Direct controller path (original behaviour) ───────────────────────
         if (!m_controller.isPlaying()) return;
         m_controller.Update(deltaTime);
 
@@ -281,17 +256,17 @@ void ComponentAnimation::update(float deltaTime){
                 applyAnimation(child);
 
         m_logTimer += deltaTime;
-        if (m_logTimer >= 1.f) {
+        if (m_logTimer >= 1.f){
             m_logTimer = 0.f;
-            std::function<void(GameObject*)> logWeights = [&](GameObject* go) {
-                if (auto* cm = go->getComponent<ComponentMesh>()) {
+            std::function<void(GameObject*)> logWeights = [&](GameObject* go){
+                if (auto* cm = go->getComponent<ComponentMesh>()){
                     const auto& entries = cm->getEntries();
-                    if (!entries.empty() && entries[0].meshRes) {
+                    if (!entries.empty() && entries[0].meshRes){
                         const uint32_t n = entries[0].meshRes->getNumMorphTargets();
-                        if (n > 0) {
+                        if (n > 0){
                             const float* w = cm->getMorphWeights();
                             std::string ws;
-                            for (uint32_t i = 0; i < n && i < 8; ++i) {
+                            for (uint32_t i = 0; i < n && i < 8; ++i){
                                 ws += std::to_string(w[i]);
                                 if (i + 1 < n && i + 1 < 8) ws += ", ";
                             }
@@ -307,7 +282,6 @@ void ComponentAnimation::update(float deltaTime){
     }
 }
 
-// ─── Blended sampling ────────────────────────────────────────────────────────
 
 void ComponentAnimation::GetBlendedTransform(const char* name, AnimLayer* layer,
                                               Vector3& pos, Quaternion& rot) const{
@@ -315,18 +289,14 @@ void ComponentAnimation::GetBlendedTransform(const char* name, AnimLayer* layer,
 
     const float timeSec = layer->currentTimeMs / 1000.f;
 
-    if (!layer->next) {
-        // Base layer: sample directly — this sets the foundation for all blends above.
+    if (!layer->next){
         if (layer->anim)
             SampleTransform(layer->anim, timeSec, name, pos, rot);
         return;
     }
 
-    // Recurse first: get the fully-blended result from all older layers.
     GetBlendedTransform(name, layer->next, pos, rot);
 
-    // Sample this layer; start from the current blended values as defaults
-    // (so if this layer has no channel for 'name', the result is unchanged).
     Vector3 thisPos = pos;
     Quaternion thisRot = rot;
     if (layer->anim)
@@ -338,7 +308,6 @@ void ComponentAnimation::GetBlendedTransform(const char* name, AnimLayer* layer,
 
     pos = Vector3::Lerp(pos, thisPos, w);
 
-    // Ensure shortest-path slerp by negating if quaternions are in opposite hemispheres.
     if (rot.Dot(thisRot) < 0.f)
         thisRot = Quaternion(-thisRot.x, -thisRot.y, -thisRot.z, -thisRot.w);
     rot = Quaternion::Slerp(rot, thisRot, w);
@@ -350,7 +319,7 @@ void ComponentAnimation::GetBlendedMorphWeights(const char* name, AnimLayer* lay
 
     const float timeSec = layer->currentTimeMs / 1000.f;
 
-    if (!layer->next) {
+    if (!layer->next){
         if (layer->anim)
             SampleMorphWeights(layer->anim, timeSec, name, weights, count);
         return;
@@ -358,9 +327,8 @@ void ComponentAnimation::GetBlendedMorphWeights(const char* name, AnimLayer* lay
 
     GetBlendedMorphWeights(name, layer->next, weights, count);
 
-    // Use stack buffer; count is bounded by ComponentMesh::MAX_MORPH_WEIGHTS.
     float thisWeights[ComponentMesh::MAX_MORPH_WEIGHTS] = {};
-    std::copy(weights, weights + count, thisWeights); // default: no change
+    std::copy(weights, weights + count, thisWeights);
     if (layer->anim)
         SampleMorphWeights(layer->anim, timeSec, name, thisWeights, count);
 
@@ -372,7 +340,6 @@ void ComponentAnimation::GetBlendedMorphWeights(const char* name, AnimLayer* lay
         weights[i] += w * (thisWeights[i] - weights[i]);
 }
 
-// ─── Apply helpers ────────────────────────────────────────────────────────────
 
 void ComponentAnimation::applyAnimation(GameObject* go){
     const char* nodeName = go->getName().c_str();
@@ -380,18 +347,18 @@ void ComponentAnimation::applyAnimation(GameObject* go){
     auto* t = go->getTransform();
     Vector3 pos = t->position;
     Quaternion rot = t->rotation;
-    if (m_controller.GetTransform(nodeName, pos, rot)) {
+    if (m_controller.GetTransform(nodeName, pos, rot)){
         t->position = pos;
         t->rotation = rot;
         t->markDirty();
     }
 
     auto* meshComp = go->getComponent<ComponentMesh>();
-    if (meshComp) {
+    if (meshComp){
         const auto& entries = meshComp->getEntries();
-        if (!entries.empty() && entries[0].meshRes) {
+        if (!entries.empty() && entries[0].meshRes){
             const uint32_t numTargets = entries[0].meshRes->getNumMorphTargets();
-            if (numTargets > 0) {
+            if (numTargets > 0){
                 float weights[ComponentMesh::MAX_MORPH_WEIGHTS] = {};
                 if (m_controller.GetMorphWeights(nodeName, weights, numTargets))
                     for (uint32_t i = 0; i < numTargets; ++i)
@@ -416,11 +383,11 @@ void ComponentAnimation::applyBlendedAnimation(GameObject* go){
     t->markDirty();
 
     auto* meshComp = go->getComponent<ComponentMesh>();
-    if (meshComp) {
+    if (meshComp){
         const auto& entries = meshComp->getEntries();
-        if (!entries.empty() && entries[0].meshRes) {
+        if (!entries.empty() && entries[0].meshRes){
             const uint32_t numTargets = entries[0].meshRes->getNumMorphTargets();
-            if (numTargets > 0) {
+            if (numTargets > 0){
                 float weights[ComponentMesh::MAX_MORPH_WEIGHTS] = {};
                 GetBlendedMorphWeights(name, m_layerHead, weights, numTargets);
                 for (uint32_t i = 0; i < numTargets; ++i)
@@ -433,33 +400,32 @@ void ComponentAnimation::applyBlendedAnimation(GameObject* go){
         applyBlendedAnimation(child);
 }
 
-// ─── Editor ───────────────────────────────────────────────────────────────────
 
 void ComponentAnimation::onEditor(){
     int currentIdx = -1;
-    for (int i = 0; i < (int)m_animUIDs.size(); ++i) {
-        if (m_animUIDs[i] == m_controller.Resource) { currentIdx = i; break; }
+    for (int i = 0; i < (int)m_animUIDs.size(); ++i){
+        if (m_animUIDs[i] == m_controller.Resource){ currentIdx = i; break; }
     }
     const char* preview = (currentIdx >= 0 && currentIdx < (int)m_animNames.size())
                           ? m_animNames[currentIdx].c_str() : "None";
 
     ImGui::SetNextItemWidth(-1);
-    if (ImGui::BeginCombo("##animsel", preview)) {
-        for (int i = 0; i < (int)m_animUIDs.size(); ++i) {
+    if (ImGui::BeginCombo("##animsel", preview)){
+        for (int i = 0; i < (int)m_animUIDs.size(); ++i){
             bool selected = (i == currentIdx);
             if (ImGui::Selectable(m_animNames[i].c_str(), selected))
                 m_controller.Play(m_animUIDs[i], m_controller.Loop);
             if (selected) ImGui::SetItemDefaultFocus();
         }
-        if (m_animUIDs.empty()) { ImGui::TextDisabled("No animations loaded"); }
+        if (m_animUIDs.empty()){ ImGui::TextDisabled("No animations loaded"); }
         ImGui::EndCombo();
     }
     ImGui::Spacing();
 
-    if (m_controller.isPlaying()) {
+    if (m_controller.isPlaying()){
         if (ImGui::Button("Stop")) m_controller.Stop();
     } else {
-        if (ImGui::Button("Play")) {
+        if (ImGui::Button("Play")){
             UID uid = m_controller.Resource;
             if (uid == 0 && !m_animUIDs.empty()) uid = m_animUIDs[0];
             if (uid != 0) m_controller.Play(uid, m_controller.Loop);
@@ -469,11 +435,11 @@ void ComponentAnimation::onEditor(){
     ImGui::Checkbox("Loop", &m_controller.Loop);
 
     float duration = 0.f;
-    if (m_controller.Resource != 0) {
+    if (m_controller.Resource != 0){
         auto* anim = app->getResources()->RequestAnimation(m_controller.Resource);
-        if (anim) { duration = anim->getDuration(); app->getResources()->ReleaseResource(anim); }
+        if (anim){ duration = anim->getDuration(); app->getResources()->ReleaseResource(anim); }
     }
-    if (duration > 0.f) {
+    if (duration > 0.f){
         ImGui::SetNextItemWidth(-1);
         ImGui::SliderFloat("##animtime", &m_controller.CurrentTime, 0.f, duration, "%.2f s");
         ImGui::SameLine(0, 4); ImGui::TextDisabled("/ %.2f", duration);
@@ -493,18 +459,15 @@ void ComponentAnimation::drawStateMachineSection(){
     ImGui::Spacing();
     ImGui::SeparatorText("State Machine");
 
-    // Path input — pre-fill from the current loaded path
     static char smBuf[512] = {};
     if (!m_stateMachinePath.empty() && smBuf[0] == '\0')
         strncpy_s(smBuf, m_stateMachinePath.c_str(), sizeof(smBuf) - 1);
 
-    // ── Row: [path input] [Load] [Pick] ──────────────────────────────────────
     ImGui::SetNextItemWidth(-140.f);
     ImGui::InputTextWithHint("##smpath", "Assets/StateMachines/name.json", smBuf, sizeof(smBuf));
 
-    // Drag-and-drop target: accepts any ASSET_PATH payload ending in .json
-    if (ImGui::BeginDragDropTarget()) {
-        if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload(kDragAsset)) {
+    if (ImGui::BeginDragDropTarget()){
+        if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload(kDragAsset)){
             std::string dropped(static_cast<const char*>(pl->Data), pl->DataSize - 1);
             if (dropped.size() >= 5 &&
                 dropped.compare(dropped.size() - 5, 5, ".json") == 0){
@@ -516,7 +479,7 @@ void ComponentAnimation::drawStateMachineSection(){
     }
 
     ImGui::SameLine(0, 4);
-    if (ImGui::Button("Load##sm", ImVec2(50, 0))) {
+    if (ImGui::Button("Load##sm", ImVec2(50, 0))){
         LoadStateMachineFromPath(std::string(smBuf));
     }
 
@@ -524,9 +487,8 @@ void ComponentAnimation::drawStateMachineSection(){
     if (ImGui::Button("Pick##sm", ImVec2(50, 0)))
         ImGui::OpenPopup("##SMPicker");
 
-    // ── SM file picker popup ──────────────────────────────────────────────────
     ImGui::SetNextWindowSize(ImVec2(340, 240), ImGuiCond_Appearing);
-    if (ImGui::BeginPopup("##SMPicker")) {
+    if (ImGui::BeginPopup("##SMPicker")){
         ImGui::TextDisabled("State Machine files  (double-click to load)");
         ImGui::Separator();
         static char pickerSearch[64] = "";
@@ -534,9 +496,8 @@ void ComponentAnimation::drawStateMachineSection(){
         ImGui::InputTextWithHint("##smpksearch", "Search...", pickerSearch, sizeof(pickerSearch));
         ImGui::Separator();
 
-        // Search in Assets/StateMachines/ for .json files
         std::string assetsRoot;
-        if (app->getFileSystem()) {
+        if (app->getFileSystem()){
             assetsRoot = (fs::path(app->getFileSystem()->GetAssetsPath()) / "StateMachines").string();
         }
 
@@ -544,8 +505,8 @@ void ComponentAnimation::drawStateMachineSection(){
         std::transform(search.begin(), search.end(), search.begin(), ::tolower);
         bool any = false;
         try {
-            if (fs::exists(assetsRoot)) {
-                for (const auto& entry : fs::directory_iterator(assetsRoot)) {
+            if (fs::exists(assetsRoot)){
+                for (const auto& entry : fs::directory_iterator(assetsRoot)){
                     if (!entry.is_regular_file()) continue;
                     if (entry.path().extension() != ".json") continue;
                     std::string name = entry.path().filename().string();
@@ -558,7 +519,7 @@ void ComponentAnimation::drawStateMachineSection(){
                     bool clicked = ImGui::Selectable(("  [SM]  " + name).c_str(), isCurrent,
                                                      ImGuiSelectableFlags_AllowDoubleClick);
                     if (isCurrent) ImGui::PopStyleColor();
-                    if (clicked && ImGui::IsMouseDoubleClicked(0)) {
+                    if (clicked && ImGui::IsMouseDoubleClicked(0)){
                         std::string fullPath = entry.path().string();
                         strncpy_s(smBuf, fullPath.c_str(), sizeof(smBuf) - 1);
                         LoadStateMachineFromPath(fullPath);
@@ -568,23 +529,21 @@ void ComponentAnimation::drawStateMachineSection(){
                     any = true;
                 }
             }
-        } catch (...) {}
-        if (!any) {
+        } catch (...){}
+        if (!any){
             ImGui::TextDisabled("    No .json files found in Assets/StateMachines/");
         }
         ImGui::EndPopup();
     }
 
-    // ── Status + graph ────────────────────────────────────────────────────────
-    if (m_stateMachine) {
+    if (m_stateMachine){
         ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f), "Active: %s",
             m_activeState.empty() ? "(none)" : m_activeState.str.c_str());
         int depth = getLayerCount();
         if (depth > 1)
             ImGui::TextDisabled("Blend layers: %d", depth);
 
-        // Lazy-init node editor (persists node positions per GO).
-        if (!m_graphEditor) {
+        if (!m_graphEditor){
             m_graphEditor = std::make_unique<StateMachineGraphEditor>();
             std::string settingsPath = app->getFileSystem()->GetLibraryPath()
                 + "smgraph_" + std::to_string(owner->getUID()) + ".ini";
@@ -604,7 +563,6 @@ void ComponentAnimation::drawStateMachineSection(){
     }
 }
 
-// ─── Gizmos ───────────────────────────────────────────────────────────────────
 
 void ComponentAnimation::onDrawGizmos(){
     if (!m_drawBones && !m_drawAxisTriads) return;
@@ -613,7 +571,7 @@ void ComponentAnimation::onDrawGizmos(){
         auto* t = go->getTransform();
         if (!t) return;
 
-        if (m_drawBones && go->getParent() && go->getParent() != owner) {
+        if (m_drawBones && go->getParent() && go->getParent() != owner){
             Vector3 from = go->getParent()->getTransform()->getGlobalMatrix().Translation();
             Vector3 to = t->getGlobalMatrix().Translation();
             ddVec3 f = { from.x, from.y, from.z };
@@ -621,7 +579,7 @@ void ComponentAnimation::onDrawGizmos(){
             dd::line(f, tt, dd::colors::Yellow);
         }
 
-        if (m_drawAxisTriads) {
+        if (m_drawAxisTriads){
             Matrix world = t->getGlobalMatrix();
             dd::axisTriad(world.m[0], 0.f, 0.1f);
         }
@@ -634,7 +592,6 @@ void ComponentAnimation::onDrawGizmos(){
         draw(draw, child);
 }
 
-// ─── Serialisation ────────────────────────────────────────────────────────────
 
 void ComponentAnimation::onSave(std::string& outJson) const{
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
@@ -655,16 +612,16 @@ void ComponentAnimation::onSave(std::string& outJson) const{
 
 void ComponentAnimation::onLoad(const std::string& json){
     Document doc; doc.Parse(json.c_str());
-    if (doc.HasParseError()) { LOG("ComponentAnimation: JSON parse error"); return; }
+    if (doc.HasParseError()){ LOG("ComponentAnimation: JSON parse error"); return; }
 
-    if (doc.HasMember("animUIDs") && doc["animUIDs"].IsArray()) {
+    if (doc.HasMember("animUIDs") && doc["animUIDs"].IsArray()){
         std::vector<UID> uids;
         for (const auto& v : doc["animUIDs"].GetArray())
             uids.push_back(static_cast<UID>(v.GetUint64()));
         setAnimationList(uids);
     }
 
-    if (doc.HasMember("smPath") && doc["smPath"].IsString()) {
+    if (doc.HasMember("smPath") && doc["smPath"].IsString()){
         std::string path = doc["smPath"].GetString();
         if (!path.empty()) LoadStateMachineFromPath(path);
     }
@@ -675,7 +632,7 @@ void ComponentAnimation::onLoad(const std::string& json){
     float time = doc.HasMember("currentTime") ? doc["currentTime"].GetFloat() : 0.f;
     mSpeed = doc.HasMember("speed") ? doc["speed"].GetFloat() : 1.f;
 
-    if (uid != 0) {
+    if (uid != 0){
         m_controller.Play(uid, loop);
         if (!playing) m_controller.Stop();
         m_controller.CurrentTime = time;

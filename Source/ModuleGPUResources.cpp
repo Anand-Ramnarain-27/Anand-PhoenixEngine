@@ -22,7 +22,7 @@ bool ModuleGPUResources::init(){
     return ok;
 }
 
-bool ModuleGPUResources::cleanUp() { return true; }
+bool ModuleGPUResources::cleanUp(){ return true; }
 
 void ModuleGPUResources::executeAndFlush(){
     ModuleD3D12* d3d12 = app->getD3D12();
@@ -65,8 +65,7 @@ ComPtr<ID3D12Resource> ModuleGPUResources::createDefaultBuffer(const void* data,
 
     ComPtr<ID3D12Resource> upload = getUploadHeap(size);
 
-    if (ok)
-    {
+    if (ok){
         BYTE* pData = nullptr;
         CD3DX12_RANGE readRange(0, 0);
         upload->Map(0, &readRange, reinterpret_cast<void**>(&pData));
@@ -126,12 +125,8 @@ ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromMemory(const void* d
 }
 
 ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromFile(const std::filesystem::path& path, bool defaultSRGB){
-    // Resolve relative paths (e.g. "Library/Textures/x.dds") against the exe's
-    // own directory rather than the process CWD -- when launched from the
-    // debugger the CWD is the Source/ folder, not build/.../x64/, so
-    // std::filesystem::absolute() would point at a non-existent location.
     std::filesystem::path absPath = path;
-    if (!absPath.is_absolute()) {
+    if (!absPath.is_absolute()){
         char exePath[MAX_PATH];
         GetModuleFileNameA(nullptr, exePath, MAX_PATH);
         absPath = std::filesystem::path(exePath).parent_path() / path;
@@ -140,17 +135,11 @@ ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromFile(const std::file
     ScratchImage image;
     HRESULT hrDDS = LoadFromDDSFile(fileName, DDS_FLAGS_NONE, nullptr, image);
     bool ok = SUCCEEDED(hrDDS);
-    HRESULT hrFirst = hrDDS; // for diagnostics
+    HRESULT hrFirst = hrDDS;
     if (!ok) ok = SUCCEEDED(LoadFromHDRFile(fileName, nullptr, image));
-    // TGA: use TGA_FLAGS_NONE — TGA_FLAGS_DEFAULT_SRGB requires sRGB metadata to be
-    // embedded inside the TGA file itself (a rare authoring-tool extension). Game-asset
-    // TGAs (e.g. TXT_Fire_01.tga, TXT_Sparks_01.tga) don't carry that metadata, so the
-    // flag causes LoadFromTGAFile to return E_FAIL. TextureImporter uses the same
-    // no-flags call and successfully imports these files.  The sRGB interpretation is
-    // handled downstream by the DXGI_FORMAT of the SRV, not the TGA loader.
     if (!ok) ok = SUCCEEDED(LoadFromTGAFile(fileName, TGA_FLAGS_NONE, nullptr, image));
     if (!ok) ok = SUCCEEDED(LoadFromWICFile(fileName, defaultSRGB ? WIC_FLAGS_DEFAULT_SRGB : WIC_FLAGS_NONE, nullptr, image));
-    if (!ok) {
+    if (!ok){
         LOG("ModuleGPUResources::createTextureFromFile: all loaders failed for '%s' (DDS hr=0x%08X)", absPath.string().c_str(), (unsigned)hrFirst);
         return nullptr;
     }
@@ -168,7 +157,7 @@ ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromImage(const ScratchI
     CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
     HRESULT hrCreate = device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&texture));
     bool ok = SUCCEEDED(hrCreate);
-    if (!ok) { LOG("ModuleGPUResources::createTextureFromImage: CreateCommittedResource failed 0x%08X for '%s'", (unsigned)hrCreate, name); return {}; }
+    if (!ok){ LOG("ModuleGPUResources::createTextureFromImage: CreateCommittedResource failed 0x%08X for '%s'", (unsigned)hrCreate, name); return {}; }
 
     ComPtr<ID3D12Resource> upload;
     if (ok){
@@ -182,8 +171,7 @@ ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromImage(const ScratchI
         std::vector<D3D12_SUBRESOURCE_DATA> subData;
         subData.reserve(image.GetImageCount());
         for (size_t item = 0; item < meta.arraySize; ++item)
-            for (size_t level = 0; level < meta.mipLevels; ++level)
-            {
+            for (size_t level = 0; level < meta.mipLevels; ++level){
                 const Image* subImg = image.GetImage(level, item, 0);
                 subData.push_back({ subImg->pixels, (LONG_PTR)subImg->rowPitch, (LONG_PTR)subImg->slicePitch });
             }
@@ -227,7 +215,7 @@ ComPtr<ID3D12Resource> ModuleGPUResources::createDepthStencil(DXGI_FORMAT format
 void ModuleGPUResources::preRender(){
     UINT completedFrame = app->getD3D12()->getLastCompletedFrame();
     for (int i = 0; i < (int)deferredFrees.size();){
-        if (completedFrame >= deferredFrees[i].frame) { deferredFrees[i] = deferredFrees.back(); deferredFrees.pop_back(); }
+        if (completedFrame >= deferredFrees[i].frame){ deferredFrees[i] = deferredFrees.back(); deferredFrees.pop_back(); }
         else ++i;
     }
 }
@@ -235,7 +223,7 @@ void ModuleGPUResources::preRender(){
 void ModuleGPUResources::deferRelease(ComPtr<ID3D12Resource> resource){
     if (!resource) return;
     UINT currentFrame = app->getD3D12()->getCurrentFrame();
-    auto it = std::find_if(deferredFrees.begin(), deferredFrees.end(), [&resource](const DeferredFree& item) { return item.resource.Get() == resource.Get(); });
+    auto it = std::find_if(deferredFrees.begin(), deferredFrees.end(), [&resource](const DeferredFree& item){ return item.resource.Get() == resource.Get(); });
     if (it != deferredFrees.end()) it->frame = currentFrame;
     else deferredFrees.push_back({ currentFrame, resource });
 }

@@ -71,8 +71,7 @@ bool ModuleSamplerHeap::init(){
         }
     };
 
-    for (uint32_t i = 0; i < COUNT; ++i)
-    {
+    for (uint32_t i = 0; i < COUNT; ++i){
         device->CreateSampler(&samplers[i], CD3DX12_CPU_DESCRIPTOR_HANDLE(cpuStart, i, descriptorSize));
     }
 

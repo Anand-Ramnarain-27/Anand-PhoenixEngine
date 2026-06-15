@@ -26,9 +26,7 @@ public:
     void resize(uint32_t w, uint32_t h);
     void release();
 
-    // Transition all color RTs from SRV to RTV, bind them + DSV, clear, set viewport/scissor
     void beginGeomPass(ID3D12GraphicsCommandList* cmd, bool clear = true);
-    // Transition all color RTs from RTV back to SRV
     void endGeomPass(ID3D12GraphicsCommandList* cmd);
 
     D3D12_GPU_DESCRIPTOR_HANDLE getSrvHandle(Target t) const;

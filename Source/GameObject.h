@@ -18,7 +18,7 @@ public:
     void setParent(GameObject* newParent);
     GameObject* getParent() const { return parent; }
     const std::vector<GameObject*>& getChildren() const { return children; }
-    void clearChildren() { children.clear(); }
+    void clearChildren(){ children.clear(); }
 
     ComponentTransform* getTransform() const { return transform; }
 
@@ -37,13 +37,13 @@ public:
     const std::vector<std::unique_ptr<Component>>& getComponents() const { return components; }
 
     const std::string& getName() const { return name; }
-    void setName(const std::string& newName) { name = newName; }
+    void setName(const std::string& newName){ name = newName; }
 
     uint32_t getUID() const { return uid; }
     bool isActive() const { return active; }
-    void setActive(bool value) { active = value; }
+    void setActive(bool value){ active = value; }
     bool isPendingDestroy() const { return pendingDestroy; }
-    void markForDestroy() { pendingDestroy = true; }
+    void markForDestroy(){ pendingDestroy = true; }
 
 private:
     static uint32_t generateUID();

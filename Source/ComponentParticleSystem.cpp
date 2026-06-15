@@ -23,7 +23,6 @@ namespace {
         return dist(rng);
     }
 
-    // Collapsible section header tinted red instead of the default purple accent.
     bool RedCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags = 0){
         ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.910f, 0.376f, 0.431f, 0.16f));
         ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.910f, 0.376f, 0.431f, 0.28f));
@@ -34,16 +33,13 @@ namespace {
     }
 }
 
-ComponentParticleSystem::ComponentParticleSystem(GameObject* owner) : Component(owner) {}
+ComponentParticleSystem::ComponentParticleSystem(GameObject* owner) : Component(owner){}
 
-// Direction sampling per emitter shape. Directions are generated in the emitter's
-// local frame (forward = +Y of the owner's transform) then rotated to world space.
 Vector3 ComponentParticleSystem::randomEmitDirection(std::mt19937& rng) const{
     Vector3 localDir(0.f, 1.f, 0.f);
 
-    switch (shape) {
+    switch (shape){
     case EmitterShape::Cone: {
-        // Random direction within a cone around +Y, half-angle = coneAngleDeg.
         float maxAngle = std::max(0.f, coneAngleDeg) * kDeg2Rad;
         float cosMax = std::cos(maxAngle);
         float cosTheta = randRange(rng, cosMax, 1.f);
@@ -53,7 +49,6 @@ Vector3 ComponentParticleSystem::randomEmitDirection(std::mt19937& rng) const{
         break;
     }
     case EmitterShape::Sphere: {
-        // Uniform direction over the full sphere.
         float cosTheta = randRange(rng, -1.f, 1.f);
         float sinTheta = std::sqrt(std::max(0.f, 1.f - cosTheta * cosTheta));
         float phi = randRange(rng, 0.f, 2.f * kPi);
@@ -74,11 +69,10 @@ Vector3 ComponentParticleSystem::randomEmitDirection(std::mt19937& rng) const{
     return worldDir;
 }
 
-// Position sampling within the emitter shape, in world space, around the owner origin.
 Vector3 ComponentParticleSystem::randomEmitPosition(std::mt19937& rng) const{
     Vector3 localOffset(0.f, 0.f, 0.f);
 
-    switch (shape) {
+    switch (shape){
     case EmitterShape::Box:
         localOffset = Vector3(randRange(rng, -shapeRadius, shapeRadius),
                               randRange(rng, -shapeRadius, shapeRadius),
@@ -93,7 +87,6 @@ Vector3 ComponentParticleSystem::randomEmitPosition(std::mt19937& rng) const{
         break;
     }
     case EmitterShape::Cone: {
-        // Random point on the cone's circular base (XZ plane around the local origin).
         float r = shapeRadius * std::sqrt(randRange(rng, 0.f, 1.f));
         float phi = randRange(rng, 0.f, 2.f * kPi);
         localOffset = Vector3(r * std::cos(phi), 0.f, r * std::sin(phi));
@@ -111,13 +104,12 @@ Vector3 ComponentParticleSystem::randomEmitPosition(std::mt19937& rng) const{
 
 void ComponentParticleSystem::spawnParticle(){
     Particle* slot = nullptr;
-    if ((int)m_particles.size() < maxParticles) {
+    if ((int)m_particles.size() < maxParticles){
         m_particles.emplace_back();
         slot = &m_particles.back();
     } else {
-        // Recycle the oldest dead slot, or — failing that — the closest-to-death particle.
-        for (auto& p : m_particles) if (!p.alive) { slot = &p; break; }
-        if (!slot) {
+        for (auto& p : m_particles) if (!p.alive){ slot = &p; break; }
+        if (!slot){
             slot = &m_particles.front();
             for (auto& p : m_particles)
                 if (p.lifetime - p.age < slot->lifetime - slot->age) slot = &p;
@@ -140,30 +132,26 @@ void ComponentParticleSystem::spawnParticle(){
 void ComponentParticleSystem::update(float dt){
     if (!enabled) return;
 
-    if (playing) {
+    if (playing){
         m_age += dt;
-        if (looping || m_age <= duration) {
+        if (looping || m_age <= duration){
             m_spawnAccumulator += emissionRate * dt;
             while (m_spawnAccumulator >= 1.f && (int)std::count_if(m_particles.begin(), m_particles.end(),
-                                                                    [](const Particle& p) { return p.alive; }) < maxParticles) {
+                                                                    [](const Particle& p){ return p.alive; }) < maxParticles){
                 spawnParticle();
                 m_spawnAccumulator -= 1.f;
             }
         }
     }
 
-    for (auto& p : m_particles) {
+    for (auto& p : m_particles){
         if (!p.alive) continue;
         p.age += dt;
-        if (p.age >= p.lifetime) { p.alive = false; continue; }
+        if (p.age >= p.lifetime){ p.alive = false; continue; }
 
         p.velocity += gravity * dt;
 
-        // Lecture 12 "Noise" — "Exercise: Sparks": perturb velocity using a 3D
-        // gradient/fractal noise flow field. The noise value at the particle's
-        // (scrolling) world position becomes a polar angle over the XZ plane;
-        // a second sample (offset) modulates the flow strength.
-        if (useTurbulence) {
+        if (useTurbulence){
             Vector3 samplePos = p.position * turbulenceFrequency + Vector3(0.f, m_age * turbulenceScroll, 0.f);
             float angleNoise = Noise::fbm3D(samplePos, turbulenceOctaves);
             float strengthNoise = Noise::fbm3D(samplePos + Vector3(37.13f, -91.7f, 5.21f), turbulenceOctaves);
@@ -178,17 +166,16 @@ void ComponentParticleSystem::update(float dt){
 }
 
 void ComponentParticleSystem::onEditor(){
-    // ---- Effects transport ----
-    if (auto* ed = app->getEditor()) {
+    if (auto* ed = app->getEditor()){
         bool fxPlaying = ed->isEffectsPlaying();
         ImGui::SeparatorText("Effects Transport");
-        if (ImGui::Button(fxPlaying ? "Stop##fxps" : "Play##fxps")) {
+        if (ImGui::Button(fxPlaying ? "Stop##fxps" : "Play##fxps")){
             if (fxPlaying) ed->effectsStop(); else ed->effectsPlay();
         }
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip(fxPlaying ? "Stop effects preview" : "Play: updates particles + trails in edit mode");
         ImGui::SameLine();
-        if (ImGui::Button("Restart##fxps"))     ed->effectsRestartSelected();
+        if (ImGui::Button("Restart##fxps")) ed->effectsRestartSelected();
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Clear + replay this particle system");
         ImGui::SameLine();
         if (ImGui::Button("Restart All##fxps")) ed->effectsRestartAll();
@@ -198,13 +185,13 @@ void ComponentParticleSystem::onEditor(){
 
     ImGui::Checkbox("Enabled##ps", &enabled);
     ImGui::SameLine();
-    if (ImGui::Checkbox("Playing##ps", &playing)) {}
+    if (ImGui::Checkbox("Playing##ps", &playing)){}
     ImGui::SameLine();
     if (ImGui::Button("Clear##ps")) clear();
 
     ImGui::Spacing();
 
-    if (RedCollapsingHeader("Emitter", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (RedCollapsingHeader("Emitter", ImGuiTreeNodeFlags_DefaultOpen)){
         ImGui::Checkbox("Looping", &looping);
         if (!looping) ImGui::DragFloat("Duration", &duration, 0.1f, 0.01f, 120.f);
         ImGui::DragFloat("Emission rate (per sec)", &emissionRate, 0.5f, 0.f, 10000.f);
@@ -222,7 +209,7 @@ void ComponentParticleSystem::onEditor(){
             ImGui::DragFloat("Cone angle (deg)", &coneAngleDeg, 0.5f, 0.f, 89.f);
     }
 
-    if (RedCollapsingHeader("Initial Values", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (RedCollapsingHeader("Initial Values", ImGuiTreeNodeFlags_DefaultOpen)){
         ImGui::TextDisabled("Random range applied when each particle spawns");
         ImGui::DragFloat2("Lifetime", &lifeRange.x, 0.05f, 0.01f, 120.f);
         ImGui::DragFloat2("Speed", &speedRange.x, 0.05f, 0.f, 1000.f);
@@ -231,9 +218,9 @@ void ComponentParticleSystem::onEditor(){
         ImGui::DragFloat3("Gravity", &gravity.x, 0.05f, -100.f, 100.f);
     }
 
-    if (RedCollapsingHeader("Turbulence (Perlin Noise)")) {
+    if (RedCollapsingHeader("Turbulence (Perlin Noise)")){
         if (ImGui::Checkbox("Use turbulence##ps", &useTurbulence)) m_noisePreviewDirty = true;
-        if (useTurbulence) {
+        if (useTurbulence){
             bool dirty = false;
             dirty |= ImGui::DragFloat("Frequency##turb", &turbulenceFrequency, 0.01f, 0.001f, 10.f);
             ImGui::DragFloat("Strength##turb", &turbulenceStrength, 0.05f, 0.f, 100.f);
@@ -248,23 +235,21 @@ void ComponentParticleSystem::onEditor(){
             ImGui::Spacing();
             ImGui::TextUnformatted("Preview");
             if (m_noisePreviewDirty) updateNoisePreview();
-            if (m_noisePreviewSRV.isValid()) {
+            if (m_noisePreviewSRV.isValid()){
                 D3D12_GPU_DESCRIPTOR_HANDLE h = m_noisePreviewSRV.getGPUHandle();
                 ImGui::Image((ImTextureID)h.ptr, ImVec2(128.f, 128.f));
             }
         }
     }
 
-    if (RedCollapsingHeader("Over Lifetime", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (RedCollapsingHeader("Over Lifetime", ImGuiTreeNodeFlags_DefaultOpen)){
         ImGui::ColorEdit4("Start colour", &startColor.x);
         ImGui::ColorEdit4("End colour", &endColor.x);
         ImGui::TextUnformatted("Size over lifetime");
         CurveWidget::Edit("##sizeCurve", sizeCurve, &startSizeMul, &endSizeMul, 0.01f, 0.f, 100.f);
     }
 
-    if (RedCollapsingHeader("Render", ImGuiTreeNodeFlags_DefaultOpen)) {
-        // Unity-style asset picker: click to open a searchable list, or drag from
-        // the Asset Browser. Shows the filename with a type tag; full path in tooltip.
+    if (RedCollapsingHeader("Render", ImGuiTreeNodeFlags_DefaultOpen)){
         ImGui::TextUnformatted("Texture");
         ImGui::SameLine(90.f);
         AssetPicker::Draw("##psTexture", texturePath, AssetPicker::kTextures);
@@ -281,9 +266,9 @@ void ComponentParticleSystem::onEditor(){
         ImGui::DragInt("Layer", &layer, 1.f, -100, 100);
     }
 
-    if (RedCollapsingHeader("GPU Rendering")) {
+    if (RedCollapsingHeader("GPU Rendering")){
         ImGui::Checkbox("Use GPU batch rendering (ParticlePass)", &useGPU);
-        if (useGPU) {
+        if (useGPU){
             ImGui::TextWrapped("Particles are batched into one draw call per emitter via a "
                                "StructuredBuffer<GpuParticle>. When turbulence is also enabled "
                                "the ParticleUpdateCS compute shader applies the noise flow field "
@@ -292,7 +277,7 @@ void ComponentParticleSystem::onEditor(){
     }
 
     ImGui::Separator();
-    int alive = (int)std::count_if(m_particles.begin(), m_particles.end(), [](const Particle& p) { return p.alive; });
+    int alive = (int)std::count_if(m_particles.begin(), m_particles.end(), [](const Particle& p){ return p.alive; });
     ImGui::Text("Live particles: %d / %d", alive, maxParticles);
 }
 
@@ -300,8 +285,8 @@ void ComponentParticleSystem::updateNoisePreview(){
     constexpr int kSize = 64;
     std::vector<uint8_t> pixels((size_t)kSize * kSize * 4);
     const int octaves = std::clamp(turbulenceOctaves, 1, 8);
-    for (int y = 0; y < kSize; ++y) {
-        for (int x = 0; x < kSize; ++x) {
+    for (int y = 0; y < kSize; ++y){
+        for (int x = 0; x < kSize; ++x){
             Vector3 p((float)x, (float)y, 0.f);
             float n = Noise::fbm3D(p, octaves, turbulenceFrequency, 0.5f);
             uint8_t v = (uint8_t)std::clamp((n * 0.5f + 0.5f) * 255.f, 0.f, 255.f);
@@ -370,12 +355,12 @@ void ComponentParticleSystem::onLoad(const std::string& json){
         auto pos = json.find(k);
         if (pos == std::string::npos) return {};
         pos += k.size();
-        if (json[pos] == '"') {
+        if (json[pos] == '"'){
             ++pos;
             auto end = json.find('"', pos);
             return json.substr(pos, end - pos);
         }
-        if (json[pos] == '[') {
+        if (json[pos] == '['){
             auto end = json.find(']', pos);
             return json.substr(pos, end - pos + 1);
         }
@@ -383,11 +368,11 @@ void ComponentParticleSystem::onLoad(const std::string& json){
         return json.substr(pos, end - pos);
     };
 
-    auto extractArray = [&](const std::string& arr, float* out, int count) {
+    auto extractArray = [&](const std::string& arr, float* out, int count){
         if (arr.size() < 2) return;
         std::string inner = arr.substr(1, arr.size() - 2);
         size_t start = 0;
-        for (int i = 0; i < count; ++i) {
+        for (int i = 0; i < count; ++i){
             size_t comma = inner.find(',', start);
             std::string token = (comma == std::string::npos) ? inner.substr(start)
                                                               : inner.substr(start, comma - start);
@@ -397,9 +382,9 @@ void ComponentParticleSystem::onLoad(const std::string& json){
         }
     };
 
-    auto getBool = [&](const char* key, bool def) { auto v = extract(key); return v.empty() ? def : (v == "true"); };
-    auto getFloat = [&](const char* key, float def) { auto v = extract(key); return v.empty() ? def : std::stof(v); };
-    auto getInt = [&](const char* key, int def) { auto v = extract(key); return v.empty() ? def : std::stoi(v); };
+    auto getBool = [&](const char* key, bool def){ auto v = extract(key); return v.empty() ? def : (v == "true"); };
+    auto getFloat = [&](const char* key, float def){ auto v = extract(key); return v.empty() ? def : std::stof(v); };
+    auto getInt = [&](const char* key, int def){ auto v = extract(key); return v.empty() ? def : std::stoi(v); };
 
     enabled = getBool("enabled", true);
     playing = getBool("playing", true);
@@ -434,6 +419,6 @@ void ComponentParticleSystem::onLoad(const std::string& json){
     sheetRows = getInt("sheetRows", sheetRows);
     randomFrame = getBool("randomFrame", randomFrame);
     blendMode = (BlendMode)getInt("blendMode", (int)blendMode);
-    layer     = getInt("layer", layer);
-    useGPU    = getBool("useGPU", useGPU);
+    layer = getInt("layer", layer);
+    useGPU = getBool("useGPU", useGPU);
 }

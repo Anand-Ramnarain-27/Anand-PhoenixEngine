@@ -46,14 +46,14 @@ bool DeferredLightingPipeline::createRootSignature(ID3D12Device* device){
 
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
-    if (FAILED(hr)) {
+    if (FAILED(hr)){
         if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
         LOG("DeferredLightingPipeline: serialize root sig failed 0x%08X", hr);
         return false;
     }
     hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
                                       IID_PPV_ARGS(&m_rootSig));
-    if (FAILED(hr)) {
+    if (FAILED(hr)){
         LOG("DeferredLightingPipeline: CreateRootSignature failed 0x%08X", hr);
         return false;
     }
@@ -86,7 +86,7 @@ bool DeferredLightingPipeline::createPSO(ID3D12Device* device){
     desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 
     HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_pso));
-    if (FAILED(hr)) {
+    if (FAILED(hr)){
         LOG("DeferredLightingPipeline: CreateGraphicsPipelineState failed 0x%08X", hr);
         return false;
     }

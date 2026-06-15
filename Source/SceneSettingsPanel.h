@@ -5,7 +5,7 @@
 
 class SceneSettingsPanel : public EditorPanel {
 public:
-    explicit SceneSettingsPanel(ModuleEditor* editor) : EditorPanel(editor) {}
+    explicit SceneSettingsPanel(ModuleEditor* editor) : EditorPanel(editor){}
     const char* getName() const override { return "Scene Settings"; }
 
 protected:

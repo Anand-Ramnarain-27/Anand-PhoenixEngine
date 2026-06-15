@@ -11,9 +11,6 @@
 
 namespace fs = std::filesystem;
 
-// ---------------------------------------------------------------------------
-// Extension tables
-// ---------------------------------------------------------------------------
 static const char* kModelExts[] = { ".gltf", ".glb", ".fbx", ".obj", ".stl", ".blend", nullptr };
 static const char* kTextureExts[] = { ".png", ".jpg", ".jpeg", ".tga", ".dds", ".bmp", ".hdr", nullptr };
 static const char* kAnimExts[] = { ".anim", nullptr };
@@ -27,43 +24,30 @@ bool DragDropManager::IsSupportedExtension(const std::string& ext){
     return false;
 }
 
-// ---------------------------------------------------------------------------
-// Singleton
-// ---------------------------------------------------------------------------
 DragDropManager& DragDropManager::Get(){
     static DragDropManager s_instance;
     return s_instance;
 }
 
-// ---------------------------------------------------------------------------
-// Dragging state (atomic — safe from any thread)
-// ---------------------------------------------------------------------------
-void DragDropManager::SetDragging(bool dragging) { m_isDragging.store(dragging); }
+void DragDropManager::SetDragging(bool dragging){ m_isDragging.store(dragging); }
 bool DragDropManager::IsDragging() const { return m_isDragging.load(); }
 
-// ---------------------------------------------------------------------------
-// Callbacks
-// ---------------------------------------------------------------------------
 void DragDropManager::SetRefreshCallback(std::function<void()> cb){
     m_refreshCallback = std::move(cb);
 }
 
-// ---------------------------------------------------------------------------
-// QueueItems — main thread entry point
-// ---------------------------------------------------------------------------
 void DragDropManager::QueueItems(std::vector<DropItem> items){
     if (items.empty()) return;
 
-    // Filter individual files to supported extensions only.
     std::vector<DropItem> filtered;
     filtered.reserve(items.size());
-    for (auto& item : items) {
-        if (item.isFolder) {
+    for (auto& item : items){
+        if (item.isFolder){
             filtered.push_back(std::move(item));
         } else {
             std::string ext = item.path.extension().string();
             for (char& c : ext) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
-            if (IsSupportedExtension(ext)) {
+            if (IsSupportedExtension(ext)){
                 filtered.push_back(std::move(item));
             } else {
                 LOG("DragDrop: Skipping unsupported extension for '%s'",
@@ -73,7 +57,6 @@ void DragDropManager::QueueItems(std::vector<DropItem> items){
     }
     if (filtered.empty()) return;
 
-    // Reset progress state for the new batch.
     m_allDone.store(false);
     m_showingComplete = false;
     {
@@ -84,15 +67,13 @@ void DragDropManager::QueueItems(std::vector<DropItem> items){
     }
     m_tasksRemaining.store(static_cast<int>(filtered.size()));
 
-    // Push all tasks into the shared queue.
     {
         std::lock_guard<std::mutex> lk(m_queueMutex);
         for (auto& item : filtered)
             m_taskQueue.push_back(std::move(item));
     }
 
-    // Start the thread pool on the first call; thereafter just wake workers.
-    if (!m_poolStarted.exchange(true)) {
+    if (!m_poolStarted.exchange(true)){
         m_stopWorkers.store(false);
         for (int i = 0; i < kNumWorkers; ++i)
             m_workerPool[i] = std::thread(&DragDropManager::workerFunc, this);
@@ -100,7 +81,6 @@ void DragDropManager::QueueItems(std::vector<DropItem> items){
     m_queueCV.notify_all();
 }
 
-// Convenience wrapper for callers that only deal with individual file paths.
 void DragDropManager::QueueFiles(const std::vector<fs::path>& paths){
     std::vector<DropItem> items;
     items.reserve(paths.size());
@@ -108,13 +88,7 @@ void DragDropManager::QueueFiles(const std::vector<fs::path>& paths){
     QueueItems(std::move(items));
 }
 
-// ---------------------------------------------------------------------------
-// Worker thread — persistent, pulls one task at a time from the shared queue.
-// ---------------------------------------------------------------------------
 
-// Handles a single file copy + importAsset call.  Called from a detached
-// sub-thread so that the 30-second timeout can abandon a hanging importer
-// without blocking the pool worker.
 static void importFileTask(const fs::path& srcPath,
                             const std::string& assetsRoot,
                             ModuleFileSystem* fsys,
@@ -123,10 +97,10 @@ static void importFileTask(const fs::path& srcPath,
     for (char& c : ext) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
 
     std::string subDir;
-    for (auto** p = kModelExts; *p; ++p) if (ext == *p) { subDir = "Models/"; break; }
-    for (auto** p = kTextureExts; *p; ++p) if (ext == *p) { subDir = "Textures/"; break; }
-    for (auto** p = kAnimExts; *p; ++p) if (ext == *p) { subDir = "Animations/"; break; }
-    for (auto** p = kMatExts; *p; ++p) if (ext == *p) { subDir = "Materials/"; break; }
+    for (auto** p = kModelExts; *p; ++p) if (ext == *p){ subDir = "Models/"; break; }
+    for (auto** p = kTextureExts; *p; ++p) if (ext == *p){ subDir = "Textures/"; break; }
+    for (auto** p = kAnimExts; *p; ++p) if (ext == *p){ subDir = "Animations/"; break; }
+    for (auto** p = kMatExts; *p; ++p) if (ext == *p){ subDir = "Materials/"; break; }
 
     std::string destDir = assetsRoot + subDir;
     std::string destPath = destDir + srcPath.filename().string();
@@ -134,8 +108,8 @@ static void importFileTask(const fs::path& srcPath,
     fsys->CreateDir(destDir.c_str());
 
     bool alreadyInAssets = (srcPath.string().rfind(assetsRoot, 0) == 0);
-    if (!alreadyInAssets) {
-        if (!fsys->Copy(srcPath.string().c_str(), destPath.c_str())) {
+    if (!alreadyInAssets){
+        if (!fsys->Copy(srcPath.string().c_str(), destPath.c_str())){
             LOG("DragDrop: Failed to copy '%s' -> '%s'",
                 srcPath.string().c_str(), destPath.c_str());
             return;
@@ -145,11 +119,9 @@ static void importFileTask(const fs::path& srcPath,
         destPath = srcPath.string();
     }
 
-    // importAsset is serialized across all workers via importMutex.
     std::lock_guard<std::mutex> lk(importMutex);
     UID uid = app->getAssets()->importAsset(destPath.c_str());
-    if (uid != 0)
-    {
+    if (uid != 0){
         LOG("DragDrop: Imported '%s' (uid=%llu)", destPath.c_str(), uid);
     }
     else
@@ -166,7 +138,7 @@ static void importFolderTask(const fs::path& srcFolder,
     fs::path destRoot = fs::path(assetsRoot + "Models/") / folderName;
 
     bool alreadyInAssets = (srcFolder.string().rfind(assetsRoot, 0) == 0);
-    if (!alreadyInAssets) {
+    if (!alreadyInAssets){
         try {
             fs::copy(srcFolder, destRoot,
                      fs::copy_options::recursive |
@@ -182,20 +154,18 @@ static void importFolderTask(const fs::path& srcFolder,
         destRoot = srcFolder;
     }
 
-    // Import model files found anywhere in the copied folder (serialized).
     try {
-        for (const auto& entry : fs::recursive_directory_iterator(destRoot)) {
+        for (const auto& entry : fs::recursive_directory_iterator(destRoot)){
             if (!entry.is_regular_file()) continue;
             std::string ext = entry.path().extension().string();
             for (char& c : ext) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
             bool isModel = false;
-            for (auto** p = kModelExts; *p; ++p) if (ext == *p) { isModel = true; break; }
+            for (auto** p = kModelExts; *p; ++p) if (ext == *p){ isModel = true; break; }
             if (!isModel) continue;
 
             std::lock_guard<std::mutex> lk(importMutex);
             UID uid = app->getAssets()->importAsset(entry.path().string().c_str());
-            if (uid != 0)
-            {
+            if (uid != 0){
                 LOG("DragDrop: Imported '%s' from folder (uid=%llu)",
                     entry.path().filename().string().c_str(), uid);
             }
@@ -213,8 +183,7 @@ static void importFolderTask(const fs::path& srcFolder,
 void DragDropManager::workerFunc(){
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
-    while (true) {
-        // Pull next task (blocks until work is available or stop is signalled).
+    while (true){
         DropItem item;
         {
             std::unique_lock<std::mutex> lk(m_queueMutex);
@@ -229,33 +198,29 @@ void DragDropManager::workerFunc(){
 
         std::string fname = item.path.filename().string();
 
-        // Update the "currently importing" display name.
         {
             std::lock_guard<std::mutex> lk(m_progressMutex);
             m_progress.currentFile = fname;
         }
 
-        if (app && app->getAssets() && app->getFileSystem()) {
+        if (app && app->getAssets() && app->getFileSystem()){
             const std::string assetsRoot = app->getFileSystem()->GetAssetsPath();
             ModuleFileSystem* fsys = app->getFileSystem();
 
-            // Run the import inside a detached sub-thread so we can enforce
-            // the per-file timeout without blocking the pool worker forever.
             std::promise<void> donePromise;
             auto doneFuture = donePromise.get_future();
             const bool isFolder = item.isFolder;
 
             std::thread importThread(
                 [this, item = std::move(item), assetsRoot, fsys, isFolder,
-                 p = std::move(donePromise)]() mutable
-            {
+                 p = std::move(donePromise)]() mutable {
                 CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
                 if (isFolder)
                     importFolderTask(item.path, assetsRoot, fsys, m_importMutex);
                 else
                     importFileTask(item.path, assetsRoot, fsys, m_importMutex);
                 CoUninitialize();
-                try { p.set_value(); } catch (...) {}
+                try { p.set_value(); } catch (...){}
             });
             importThread.detach();
 
@@ -266,7 +231,6 @@ void DragDropManager::workerFunc(){
             }
         }
 
-        // Record completion and check whether the whole batch is finished.
         {
             std::lock_guard<std::mutex> lk(m_progressMutex);
             m_progress.current++;
@@ -275,7 +239,7 @@ void DragDropManager::workerFunc(){
                 m_progress.completedFiles.erase(m_progress.completedFiles.begin());
         }
 
-        if (--m_tasksRemaining == 0) {
+        if (--m_tasksRemaining == 0){
             std::lock_guard<std::mutex> lk(m_progressMutex);
             m_progress.active = false;
             m_allDone.store(true);
@@ -285,11 +249,8 @@ void DragDropManager::workerFunc(){
     CoUninitialize();
 }
 
-// ---------------------------------------------------------------------------
-// Update — called every frame on the main thread
-// ---------------------------------------------------------------------------
 void DragDropManager::Update(){
-    if (m_allDone.exchange(false)) {
+    if (m_allDone.exchange(false)){
         if (app && app->getAssets())
             app->getAssets()->refreshAssets();
 
@@ -304,10 +265,10 @@ void DragDropManager::Update(){
         m_completeTime = std::chrono::steady_clock::now();
     }
 
-    if (m_showingComplete) {
+    if (m_showingComplete){
         float secs = std::chrono::duration<float>(
             std::chrono::steady_clock::now() - m_completeTime).count();
-        if (secs >= kCompleteBannerSecs) {
+        if (secs >= kCompleteBannerSecs){
             m_showingComplete = false;
             std::lock_guard<std::mutex> lk(m_progressMutex);
             m_progress = {};
@@ -315,21 +276,14 @@ void DragDropManager::Update(){
     }
 }
 
-// ---------------------------------------------------------------------------
-// GetProgress — try_lock; falls back to cached copy so the main thread never
-// stalls waiting for a worker that holds the progress mutex.
-// ---------------------------------------------------------------------------
 DragDropManager::ImportProgress DragDropManager::GetProgress(){
-    if (m_progressMutex.try_lock()) {
+    if (m_progressMutex.try_lock()){
         m_cachedProgress = m_progress;
         m_progressMutex.unlock();
     }
     return m_cachedProgress;
 }
 
-// ---------------------------------------------------------------------------
-// Shutdown — drain the queue and join all pool workers
-// ---------------------------------------------------------------------------
 void DragDropManager::Shutdown(){
     {
         std::lock_guard<std::mutex> lk(m_queueMutex);

@@ -38,7 +38,6 @@ public:
 		float _pad = 0.f;
 		uint32_t flags = 0;
 		uint32_t _pad2 = 0;
-		// Added in version 7
 		float baseColorR = 1.f;
 		float baseColorG = 1.f;
 		float baseColorB = 1.f;

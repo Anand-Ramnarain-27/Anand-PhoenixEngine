@@ -4,9 +4,6 @@
 #include <vector>
 
 void log(const char file[], int line, const char* format, ...){
-	// Size the buffer to the message: vsprintf_s into a fixed buffer asserts
-	// and aborts in Debug when a log line (e.g. long animation channel dumps)
-	// exceeds it. Locals instead of statics so background import threads can log.
 	va_list ap;
 	va_start(ap, format);
 	int msgLen = _vscprintf(format, ap);

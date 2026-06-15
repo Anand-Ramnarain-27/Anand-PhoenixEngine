@@ -7,11 +7,10 @@ using Microsoft::WRL::ComPtr;
 
 class GBufferPipeline {
 public:
-    // Root parameter slots
-    static constexpr UINT SLOT_MVP_CB = 0; // b0, vertex  — CbMVP
-    static constexpr UINT SLOT_INSTANCE_CB = 1; // b1, all     — CbPerInstance
-    static constexpr UINT SLOT_MAT_TEXTURES = 2; // t0-t4, pixel — 5 material textures
-    static constexpr UINT SLOT_SAMPLER = 3; // s0-s3, pixel — samplers
+    static constexpr UINT SLOT_MVP_CB = 0;
+    static constexpr UINT SLOT_INSTANCE_CB = 1;
+    static constexpr UINT SLOT_MAT_TEXTURES = 2;
+    static constexpr UINT SLOT_SAMPLER = 3;
 
     bool init(ID3D12Device* device);
 

@@ -13,7 +13,7 @@ struct ID3D12Resource;
 
 class InspectorPanel : public EditorPanel {
 public:
-    explicit InspectorPanel(ModuleEditor* editor) : EditorPanel(editor) {}
+    explicit InspectorPanel(ModuleEditor* editor) : EditorPanel(editor){}
     const char* getName() const override { return "Inspector"; }
 
 protected:

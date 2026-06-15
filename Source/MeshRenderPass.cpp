@@ -28,7 +28,7 @@ namespace {
 		auto bd = CD3DX12_RESOURCE_DESC::Buffer(bytes);
 		ComPtr<ID3D12Resource> buf;
 		HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buf));
-		if (FAILED(hr)) {
+		if (FAILED(hr)){
 			LOG("MeshRenderPass: upload buf failed 0x%08X", hr);
 			return nullptr;
 		}
@@ -94,7 +94,7 @@ namespace {
 }
 
 bool MeshRenderPass::init(ID3D12Device* device, bool useMSAA){
-	if (!m_pipeline.init(device, useMSAA)) {
+	if (!m_pipeline.init(device, useMSAA)){
 		LOG("MeshRenderPass: pipeline init failed");
 		return false;
 	}
@@ -133,7 +133,7 @@ bool MeshRenderPass::createLightSRVs(){
 	m_pointLightSRV = sd->allocTable("MeshPass_PointSRV");
 	m_spotLightSRV = sd->allocTable("MeshPass_SpotSRV");
 
-	if (!m_dirLightSRV.isValid() || !m_pointLightSRV.isValid() || !m_spotLightSRV.isValid()) {
+	if (!m_dirLightSRV.isValid() || !m_pointLightSRV.isValid() || !m_spotLightSRV.isValid()){
 		LOG("MeshRenderPass: light SRV alloc failed");
 		return false;
 	}
@@ -155,7 +155,7 @@ bool MeshRenderPass::createFallbackTextures(ID3D12Device* device){
 		td.SampleDesc = { 1, 0 };
 		auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 		HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &td, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&m_fallbackTex2D));
-		if (FAILED(hr)) {
+		if (FAILED(hr)){
 			LOG("MeshRenderPass: fallback Texture2D failed 0x%08X", hr);
 			return false;
 		}
@@ -173,7 +173,7 @@ bool MeshRenderPass::createFallbackTextures(ID3D12Device* device){
 		td.Flags = D3D12_RESOURCE_FLAG_NONE;
 		auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 		HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &td, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&m_fallbackCube));
-		if (FAILED(hr)) {
+		if (FAILED(hr)){
 			LOG("MeshRenderPass: fallback TextureCube failed 0x%08X", hr);
 			return false;
 		}
@@ -183,7 +183,7 @@ bool MeshRenderPass::createFallbackTextures(ID3D12Device* device){
 		m_fallbackPrefilterSRV = app->getShaderDescriptors()->allocTable("MeshPass_FallbackPref");
 		m_fallbackBRDFSRV = app->getShaderDescriptors()->allocTable("MeshPass_FallbackBRDF");
 
-		if (!m_fallbackIrradianceSRV.isValid() || !m_fallbackPrefilterSRV.isValid() || !m_fallbackBRDFSRV.isValid()) {
+		if (!m_fallbackIrradianceSRV.isValid() || !m_fallbackPrefilterSRV.isValid() || !m_fallbackBRDFSRV.isValid()){
 			LOG("MeshRenderPass: fallback IBL SRV alloc failed");
 			return false;
 		}
@@ -200,9 +200,9 @@ bool MeshRenderPass::createMatTableRing(){
 	auto* sd = app->getShaderDescriptors();
 	m_matRing.reserve(MAX_INSTANCES);
 
-	for (UINT i = 0; i < MAX_INSTANCES; ++i) {
+	for (UINT i = 0; i < MAX_INSTANCES; ++i){
 		ShaderTableDesc t = sd->allocTable("MeshPass_MatTex");
-		if (!t.isValid()) {
+		if (!t.isValid()){
 			LOG("MeshRenderPass: mat ring alloc failed at index %u", i);
 			return false;
 		}
@@ -217,7 +217,7 @@ bool MeshRenderPass::createMatTableRing(){
 }
 
 void MeshRenderPass::uploadLights(const FrameLightData& lights){
-	auto copy = [](void* dst, const void* src, size_t count, size_t stride, size_t maxCount) {
+	auto copy = [](void* dst, const void* src, size_t count, size_t stride, size_t maxCount){
 		UINT n = static_cast<UINT>(std::min(count, maxCount));
 		if (n > 0) memcpy(dst, src, n * stride);
 		};
@@ -241,9 +241,6 @@ void MeshRenderPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewP
 	const UINT mvpSz = cbAlign(sizeof(MeshPipeline::CbMVP));
 	const UINT instSz = cbAlign(sizeof(MeshPipeline::CbPerInstance));
 
-	// For skinned meshes, worldMatrix holds the mesh node's world transform which brings
-	// the skinning-CS output (in mesh-node-local space) into engine world space.
-	// For non-skinned meshes, worldMatrix is the node's world transform as usual.
 	Matrix world;
 	memcpy(&world, entry.worldMatrix, sizeof(float) * 16);
 
@@ -314,7 +311,7 @@ void MeshRenderPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12Pipelin
 	cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_POINT_LIGHTS, m_pointLightSRV.getGPUHandle(0));
 	cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_SPOT_LIGHTS, m_spotLightSRV.getGPUHandle(0));
 
-	if (env && env->hasIBL()) {
+	if (env && env->hasIBL()){
 		m_pipeline.bindIBL(cmd, env);
 	} else {
 		cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_IRRADIANCE, m_fallbackIrradianceSRV.getGPUHandle(0));
@@ -326,13 +323,13 @@ void MeshRenderPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12Pipelin
 	                                     samplerHeap->getGPUHandle(static_cast<ModuleSamplerHeap::Type>(samplerType)));
 
 	UINT drawn = 0;
-	for (MeshEntry* entry : meshes) {
+	for (MeshEntry* entry : meshes){
 		if (!entry) continue;
 
 		Mesh* mesh = entry->meshRes ? entry->meshRes->getMesh() : entry->mesh;
 		if (!mesh) continue;
 
-		if (drawn >= maxSlots) {
+		if (drawn >= maxSlots){
 			LOG("MeshRenderPass: slot limit exceeded");
 			break;
 		}
@@ -357,7 +354,7 @@ void MeshRenderPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12Pipelin
 		writeFallbackTex2DSRV(matTable, MAT_SLOT_AO, m_fallbackTex2D.Get());
 		writeFallbackTex2DSRV(matTable, MAT_SLOT_EMISSIVE, m_fallbackTex2D.Get());
 
-		if (mat) {
+		if (mat){
 			if (mat->hasTexture() && mat->getBaseColorResource()) writeTex2DSRV(matTable, MAT_SLOT_BASECOLOR, mat->getBaseColorResource());
 			if (mat->hasMetalRoughMap()&& mat->getMetalRoughResource()) writeTex2DSRV(matTable, MAT_SLOT_METALROUGH, mat->getMetalRoughResource());
 			if (mat->hasNormalMap() && mat->getNormalMapResource()) writeTex2DSRV(matTable, MAT_SLOT_NORMAL, mat->getNormalMapResource());

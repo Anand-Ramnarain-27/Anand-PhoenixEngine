@@ -3,18 +3,18 @@
 #include <d3dx12.h>
 
 bool ModuleStaticBuffer::init(ID3D12Device* device, size_t poolSizeBytes){
-    if (m_initialized) { LOG("ModuleStaticBuffer: already initialized - call shutdown() first."); return false; }
+    if (m_initialized){ LOG("ModuleStaticBuffer: already initialized - call shutdown() first."); return false; }
     m_poolSize = poolSizeBytes;
 
     auto defaultHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(poolSizeBytes);
     HRESULT hr = device->CreateCommittedResource(&defaultHeapProps, D3D12_HEAP_FLAG_NONE, &resDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&m_defaultHeapBuffer));
-    if (FAILED(hr)) { LOG("ModuleStaticBuffer: failed to create DEFAULT heap buffer (%zu MB)", poolSizeBytes / (1024 * 1024)); return false; }
+    if (FAILED(hr)){ LOG("ModuleStaticBuffer: failed to create DEFAULT heap buffer (%zu MB)", poolSizeBytes / (1024 * 1024)); return false; }
     m_defaultHeapBuffer->SetName(L"StaticBuffer_DEFAULT");
 
     auto uploadHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     hr = device->CreateCommittedResource(&uploadHeapProps, D3D12_HEAP_FLAG_NONE, &resDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_uploadHeapBuffer));
-    if (FAILED(hr)) { LOG("ModuleStaticBuffer: failed to create UPLOAD heap buffer"); m_defaultHeapBuffer.Reset(); return false; }
+    if (FAILED(hr)){ LOG("ModuleStaticBuffer: failed to create UPLOAD heap buffer"); m_defaultHeapBuffer.Reset(); return false; }
     m_uploadHeapBuffer->SetName(L"StaticBuffer_UPLOAD");
     m_uploadHeapBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_uploadPtr));
 
@@ -28,7 +28,7 @@ bool ModuleStaticBuffer::init(ID3D12Device* device, size_t poolSizeBytes){
 
 size_t ModuleStaticBuffer::suballocate(size_t sizeBytes){
     size_t aligned = alignUp(sizeBytes);
-    if (m_defaultOffset + aligned > m_poolSize) { LOG("ModuleStaticBuffer: DEFAULT heap FULL (used %zu / %zu bytes)", m_defaultOffset, m_poolSize); return SIZE_MAX; }
+    if (m_defaultOffset + aligned > m_poolSize){ LOG("ModuleStaticBuffer: DEFAULT heap FULL (used %zu / %zu bytes)", m_defaultOffset, m_poolSize); return SIZE_MAX; }
     size_t offset = m_defaultOffset;
     m_defaultOffset += aligned;
     return offset;
@@ -36,7 +36,7 @@ size_t ModuleStaticBuffer::suballocate(size_t sizeBytes){
 
 size_t ModuleStaticBuffer::suballocateCB(size_t sizeBytes){
     size_t aligned = alignUp(sizeBytes);
-    if (m_cbOffset + aligned > m_poolSize) { LOG("ModuleStaticBuffer: UPLOAD heap FULL for CB (used %zu / %zu bytes)", m_cbOffset, m_poolSize); return SIZE_MAX; }
+    if (m_cbOffset + aligned > m_poolSize){ LOG("ModuleStaticBuffer: UPLOAD heap FULL for CB (used %zu / %zu bytes)", m_cbOffset, m_poolSize); return SIZE_MAX; }
     size_t offset = m_cbOffset;
     m_cbOffset += aligned;
     return offset;

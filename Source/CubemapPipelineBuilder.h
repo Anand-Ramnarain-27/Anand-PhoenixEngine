@@ -8,8 +8,7 @@
 
 using Microsoft::WRL::ComPtr;
 
-namespace CubemapPipelineBuilder
-{
+namespace CubemapPipelineBuilder {
     inline bool buildCubeFacePipeline(ID3D12Device* device, const wchar_t* psCsoPath, DXGI_FORMAT rtvFmt, ComPtr<ID3D12RootSignature>& outRS, ComPtr<ID3D12PipelineState>& outPSO){
         CD3DX12_ROOT_PARAMETER params[4];
         params[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
@@ -27,12 +26,12 @@ namespace CubemapPipelineBuilder
         rsDesc.Init(4, params, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
         ComPtr<ID3DBlob> blob, err;
-        if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))) {
+        if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))){
             LOG("CubemapPipelineBuilder: root signature serialise failed: %s", err ? (char*)err->GetBufferPointer() : "unknown error");
             return false;
         }
 
-        if (FAILED(device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&outRS)))) {
+        if (FAILED(device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&outRS)))){
             LOG("CubemapPipelineBuilder: CreateRootSignature failed");
             return false;
         }
@@ -59,7 +58,7 @@ namespace CubemapPipelineBuilder
         psoDesc.DepthStencilState.DepthEnable = FALSE;
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
-        if (FAILED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&outPSO)))) {
+        if (FAILED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&outPSO)))){
             LOG("CubemapPipelineBuilder: PSO creation failed for '%ls'", psCsoPath);
             return false;
         }
@@ -73,7 +72,7 @@ namespace CubemapPipelineBuilder
         rsDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
         ComPtr<ID3DBlob> blob, err;
-        if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))) {
+        if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))){
             LOG("CubemapPipelineBuilder: BRDF root signature serialise failed");
             return false;
         }
@@ -100,7 +99,7 @@ namespace CubemapPipelineBuilder
         psoDesc.DepthStencilState.DepthEnable = FALSE;
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
-        if (FAILED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&outPSO)))) {
+        if (FAILED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&outPSO)))){
             LOG("CubemapPipelineBuilder: BRDF PSO creation failed");
             return false;
         }

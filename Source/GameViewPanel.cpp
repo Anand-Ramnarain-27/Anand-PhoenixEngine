@@ -25,9 +25,6 @@ void GameViewPanel::draw(){
 }
 
 bool GameViewPanel::buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView, Matrix& outProj){
-    // The Game view always renders through ModuleCamera's centralized "active game
-    // camera" pointer. This is independent of the editor/scene-view fly camera —
-    // selecting an active game camera never touches the Scene viewport's matrices.
     GameObject* activeCamGO = app->getCamera()->getActiveCamera();
     if (!activeCamGO) return false;
     auto* cam = activeCamGO->getComponent<ComponentCamera>();
@@ -38,9 +35,6 @@ bool GameViewPanel::buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView,
     Vector3 pos = world.Translation();
     Vector3 fwd = Vector3::TransformNormal(-Vector3::UnitZ, world); fwd.Normalize();
     Vector3 up = Vector3::TransformNormal(Vector3::UnitY, world); up.Normalize();
-    // GAME VIEW SKYBOX — uses active game camera rotation.
-    // outView is forwarded to renderSceneWithCamera(), which draws the skybox
-    // with this exact view matrix immediately, independent of the Scene View.
     outView = Matrix::CreateLookAt(pos, pos + fwd, up);
     outProj = Matrix::CreatePerspectiveFieldOfView(cam->getFOV(), float(w) / float(h), cam->getNearPlane(), cam->getFarPlane());
     return true;

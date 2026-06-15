@@ -27,7 +27,7 @@ namespace {
 
 }
 
-ComponentDirectionalLight::ComponentDirectionalLight(GameObject* owner) : Component(owner) {}
+ComponentDirectionalLight::ComponentDirectionalLight(GameObject* owner) : Component(owner){}
 
 void ComponentDirectionalLight::onEditor(){
     editorBaseLight(enabled, color, intensity);
@@ -56,7 +56,7 @@ void ComponentDirectionalLight::onLoad(const std::string& jsonStr){
     if (doc.HasMember("enabled")) enabled = doc["enabled"].GetBool();
 }
 
-ComponentPointLight::ComponentPointLight(GameObject* owner) : Component(owner) {}
+ComponentPointLight::ComponentPointLight(GameObject* owner) : Component(owner){}
 
 void ComponentPointLight::onEditor(){
     editorBaseLight(enabled, color, intensity);
@@ -84,7 +84,7 @@ void ComponentPointLight::onLoad(const std::string& jsonStr){
     if (doc.HasMember("enabled")) enabled = doc["enabled"].GetBool();
 }
 
-ComponentSpotLight::ComponentSpotLight(GameObject* owner) : Component(owner) {}
+ComponentSpotLight::ComponentSpotLight(GameObject* owner) : Component(owner){}
 
 void ComponentSpotLight::onEditor(){
     editorBaseLight(enabled, color, intensity);

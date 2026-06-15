@@ -18,20 +18,16 @@ public:
     float getNearPlane() const { return m_nearPlane; }
     float getFarPlane() const { return m_farPlane; }
 
-    // BREAKING CHANGE: "main camera" is no longer a per-instance bool. It is now
-    // derived from ModuleCamera's centralized active-game-camera pointer, so only
-    // one camera in the whole scene can ever be active at a time. The "IsMainCamera"
-    // JSON key is still read/written for save-file compatibility.
     bool isMainCamera() const;
     void setMainCamera(bool v);
 
     const Vector4& getBackgroundColor() const { return m_backgroundColor; }
     const Frustum& getFrustum() const { return m_frustum; }
 
-    void setFOV(float v) { m_fov = v; }
-    void setNearPlane(float v) { m_nearPlane = v; }
-    void setFarPlane(float v) { m_farPlane = v; }
-    void setBackgroundColor(const Vector4& v) { m_backgroundColor = v; }
+    void setFOV(float v){ m_fov = v; }
+    void setNearPlane(float v){ m_nearPlane = v; }
+    void setFarPlane(float v){ m_farPlane = v; }
+    void setBackgroundColor(const Vector4& v){ m_backgroundColor = v; }
 
     Matrix getViewMatrix() const;
     Matrix getProjectionMatrix(float aspectRatio) const;

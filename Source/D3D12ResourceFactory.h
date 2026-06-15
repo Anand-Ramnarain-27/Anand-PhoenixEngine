@@ -14,7 +14,7 @@ namespace D3D12ResourceFactory {
 
 		HRESULT hr = device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&out));
 
-		if (FAILED(hr)) {
+		if (FAILED(hr)){
 			return false;
 		}
 

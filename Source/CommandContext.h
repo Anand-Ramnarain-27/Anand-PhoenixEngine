@@ -25,12 +25,12 @@ public:
 	bool submitAndReset(const char* stage){
 		if (!closeAndExecute(stage)) return false;
 
-		if (FAILED(m_alloc->Reset())) {
+		if (FAILED(m_alloc->Reset())){
 			LOG("CommandContext: alloc Reset() failed after '%s'", stage);
 			return false;
 		}
 
-		if (FAILED(m_cmd->Reset(m_alloc.Get(), nullptr))) {
+		if (FAILED(m_cmd->Reset(m_alloc.Get(), nullptr))){
 			LOG("CommandContext: cmd Reset() failed after '%s'", stage);
 			return false;
 		}
@@ -57,7 +57,7 @@ private:
 	}
 
 	bool closeAndExecute(const char* stage){
-		if (FAILED(m_cmd->Close())) {
+		if (FAILED(m_cmd->Close())){
 			LOG("CommandContext: cmd->Close() failed at '%s'", stage);
 			return false;
 		}
@@ -66,7 +66,7 @@ private:
 		getDrawQueue()->ExecuteCommandLists(1, lists);
 		getD3D12()->flush();
 
-		if (FAILED(getDevice()->GetDeviceRemovedReason())) {
+		if (FAILED(getDevice()->GetDeviceRemovedReason())){
 			LOG("CommandContext: device removed after '%s'!", stage);
 			return false;
 		}

@@ -13,10 +13,10 @@
 #include "3rdParty/rapidjson/stringbuffer.h"
 using namespace rapidjson;
 
-ComponentScript::ComponentScript(GameObject* owner) : Component(owner) {}
+ComponentScript::ComponentScript(GameObject* owner) : Component(owner){}
 
 ComponentScript::~ComponentScript(){
-    if (m_script) {
+    if (m_script){
         m_script->Destroy();
         delete m_script;
     }
@@ -24,14 +24,14 @@ ComponentScript::~ComponentScript(){
 
 void ComponentScript::setScriptClass(const std::string& className,
     HotReloadManager* mgr){
-    if (m_script) {
+    if (m_script){
         m_script->Destroy();
         delete m_script;
         m_script = nullptr;
     }
     m_className = className;
     m_started = false;
-    if (mgr) {
+    if (mgr){
         m_script = mgr->createScript(className);
         if (!m_script)
             LOG("ScriptComponent: class '%s' not found in any loaded DLL",
@@ -41,14 +41,14 @@ void ComponentScript::setScriptClass(const std::string& className,
 
 void ComponentScript::onDllReloaded(HotReloadManager* mgr){
     std::string savedState;
-    if (m_script) {
+    if (m_script){
         savedState = m_script->Save();
         m_script->Destroy();
         delete m_script;
         m_script = nullptr;
         m_started = false;
     }
-    if (!m_className.empty() && mgr) {
+    if (!m_className.empty() && mgr){
         m_script = mgr->createScript(m_className);
         if (m_script && !savedState.empty())
             m_script->Load(savedState);
@@ -57,14 +57,11 @@ void ComponentScript::onDllReloaded(HotReloadManager* mgr){
 
 void ComponentScript::update(float dt){
     if (!m_script) return;
-    if (!m_started) {
+    if (!m_started){
         m_script->Start(owner);
         m_started = true;
     }
 
-    // Gap 3 (AI culling): compute visibility + distance-to-camera here (Engine
-    // side) and pass as plain data — GameScript DLLs cannot link directly
-    // against Engine internals like GameObject/ComponentMesh/ComponentTransform.
     bool isVisible = true;
     if (auto* mesh = owner->getComponent<ComponentMesh>())
         isVisible = mesh->isVisible();
@@ -72,12 +69,12 @@ void ComponentScript::update(float dt){
     float distanceToCamera = 0.0f;
     float aiCullDistance = 50.0f;
     int aiCullTickRate = 10;
-    if (ModuleCamera* camera = app->getCamera()) {
+    if (ModuleCamera* camera = app->getCamera()){
         aiCullDistance = camera->aiCullDistance;
         aiCullTickRate = camera->aiCullTickRate;
-        if (GameObject* activeCam = camera->getActiveCamera()) {
-            if (auto* camTransform = activeCam->getTransform()) {
-                if (auto* myTransform = owner->getTransform()) {
+        if (GameObject* activeCam = camera->getActiveCamera()){
+            if (auto* camTransform = activeCam->getTransform()){
+                if (auto* myTransform = owner->getTransform()){
                     distanceToCamera = Vector3::Distance(
                         myTransform->getGlobalMatrix().Translation(),
                         camTransform->getGlobalMatrix().Translation());
@@ -93,7 +90,7 @@ void ComponentScript::update(float dt){
 void ComponentScript::onEditor(){
     ImGui::Text("Script class: %s",
         m_className.empty() ? "<none assigned>" : m_className.c_str());
-    if (!m_script) {
+    if (!m_script){
         ImGui::TextColored({ 1.0f, 0.3f, 0.3f, 1.0f }, "DLL not loaded");
         return;
     }
@@ -105,7 +102,7 @@ void ComponentScript::onSave(std::string& outJson) const{
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
     Value cn; cn.SetString(m_className.c_str(), a);
     doc.AddMember("ClassName", cn, a);
-    if (m_script) {
+    if (m_script){
         Value sd; sd.SetString(m_script->Save().c_str(), a);
         doc.AddMember("ScriptData", sd, a);
     }

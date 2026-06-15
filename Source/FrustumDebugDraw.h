@@ -2,19 +2,17 @@
 #include "Frustum.h"
 #include <vector>
 
-struct DebugLine
-{
+struct DebugLine {
     Vector3 from;
     Vector3 to;
     Vector3 color;
 };
 
-class FrustumDebugDraw
-{
+class FrustumDebugDraw {
 public:
     std::vector<DebugLine> lines;
 
-    void clear() { lines.clear(); }
+    void clear(){ lines.clear(); }
     size_t lineCount() const { return lines.size(); }
     bool empty() const { return lines.empty(); }
 

@@ -4,8 +4,7 @@
 
 class ModuleDSDescriptors;
 
-class DepthStencilDesc : public DescriptorBase<DepthStencilDesc, ModuleDSDescriptors>
-{
+class DepthStencilDesc : public DescriptorBase<DepthStencilDesc, ModuleDSDescriptors> {
     using Base = DescriptorBase<DepthStencilDesc, ModuleDSDescriptors>;
     friend Base;
 

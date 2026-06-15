@@ -11,14 +11,9 @@
 
 namespace fs = std::filesystem;
 
-// tinygltf's default loader uses stb_image, which cannot decode DDS files.
-// For any image that has a URI (external file), we skip stb_image and keep the
-// URI intact — MaterialImporter loads those files itself via TextureImporter.
-// For embedded images (GLB bufferViews with no URI), we fall back to the default
-// tinygltf decoder so that PNG/JPG embedded data still gets decoded.
 static bool engineImageLoader(tinygltf::Image* img, int idx, std::string* err, std::string* warn,
     int req_w, int req_h, const unsigned char* bytes, int size, void* ud){
-    if (!img->uri.empty()) return true; // URI image — handled via TextureImporter
+    if (!img->uri.empty()) return true;
     return tinygltf::LoadImageData(img, idx, err, warn, req_w, req_h, bytes, size, ud);
 }
 
@@ -37,7 +32,7 @@ static bool isSupportedExtension(const std::string& ext){
 static UID makeSubUID(UID parentUID, const std::string& type, int index){
     std::string key = std::to_string(parentUID) + "|" + type + "|" + std::to_string(index);
     UID hash = 14695981039346656037ULL;
-    for (char c : key) {
+    for (char c : key){
         hash ^= (uint8_t)c;
         hash *= 1099511628211ULL;
     }
@@ -54,7 +49,7 @@ bool ModuleAssets::init(){
     refreshAssets();
 
     std::string assetsRoot = app->getFileSystem()->GetAssetsPath();
-    m_watcher.start(assetsRoot, [this](const std::string& path, FileWatcher::Event ev) {
+    m_watcher.start(assetsRoot, [this](const std::string& path, FileWatcher::Event ev){
         onAssetFileEvent(path, ev);
         });
     return true;
@@ -81,10 +76,10 @@ void ModuleAssets::onAssetFileEvent(const std::string& absPath, FileWatcher::Eve
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
     if (ext == ".meta" || !isSupportedExtension(ext)) return;
 
-    switch (ev) {
+    switch (ev){
     case FileWatcher::Event::Added:
     case FileWatcher::Event::Modified:
-        if (needsReimport(path)) {
+        if (needsReimport(path)){
             LOG("ModuleAssets: Detected change, re-importing %s", path.c_str());
             importAsset(path.c_str());
         }
@@ -118,7 +113,7 @@ static bool materialCacheNeedsUpgrade(const std::string& sceneName){
     if (!fsys->Exists(firstMat.c_str())) return false;
     char* buf = nullptr;
     uint32_t size = fsys->Load(firstMat.c_str(), &buf);
-    if (!buf || size < 8) { delete[] buf; return true; }
+    if (!buf || size < 8){ delete[] buf; return true; }
     uint32_t magic, version;
     memcpy(&magic, buf, 4);
     memcpy(&version, buf + 4, 4);
@@ -126,10 +121,6 @@ static bool materialCacheNeedsUpgrade(const std::string& sceneName){
     return magic != 0x4D415452 || version < 7;
 }
 
-// Returns true when the scene.meta predates animation-library support (version < 3).
-// Morph-only animations were silently skipped by the old importer (validCount==0 early-exit),
-// so any cache from before version 3 may be missing .anim files even though the glTF has
-// weight channels.  Triggering a reimport fixes this automatically.
 static bool animCacheNeedsUpgrade(const std::string& sceneName){
     SceneImporter::SceneHeader header;
     if (!SceneImporter::LoadSceneMetadata(sceneName, header)) return false;
@@ -140,7 +131,7 @@ void ModuleAssets::refreshAssets(){
     std::string assetsRoot = app->getFileSystem()->GetAssetsPath();
     if (!fs::exists(assetsRoot)) return;
 
-    for (const auto& entry : fs::recursive_directory_iterator(assetsRoot)) {
+    for (const auto& entry : fs::recursive_directory_iterator(assetsRoot)){
         if (!entry.is_regular_file()) continue;
 
         std::string path = normalisePath(entry.path().string());
@@ -155,7 +146,7 @@ void ModuleAssets::refreshAssets(){
         m_pathToUID[path] = uid;
         m_uidToPath[uid] = path;
 
-        if (isModelExtension(ext)) {
+        if (isModelExtension(ext)){
             std::string sceneName = entry.path().stem().string();
             if (!sceneExists(sceneName) || needsReimport(path) ||
                 materialCacheNeedsUpgrade(sceneName) || animCacheNeedsUpgrade(sceneName)){
@@ -171,21 +162,21 @@ void ModuleAssets::refreshAssets(){
                 registerSceneSubResources(path, sceneName, mc, matc, animc);
             }
         }
-        else if (isTextureExtension(ext)) {
+        else if (isTextureExtension(ext)){
             importTexture(path, ext, uid);
         }
     }
 }
 
-void ModuleAssets::importTexture(const std::string& path, const std::string& /*ext*/, UID uid){
+void ModuleAssets::importTexture(const std::string& path, const std::string& , UID uid){
     ModuleFileSystem* fsys = app->getFileSystem();
     std::string outDir = fsys->GetLibraryPath() + "Textures/";
     std::string outPath = outDir + TextureImporter::GetTextureName(path.c_str()) + ".dds";
 
-    if (!fsys->Exists(outPath.c_str()) || needsReimport(path)) {
+    if (!fsys->Exists(outPath.c_str()) || needsReimport(path)){
         LOG("ModuleAssets: Importing texture %s", path.c_str());
         fsys->CreateDir(outDir.c_str());
-        if (TextureImporter::Import(path.c_str(), outPath)) {
+        if (TextureImporter::Import(path.c_str(), outPath)){
             MetaData meta;
             MetaFileManager::load(path, meta);
             meta.lastModified = MetaFileManager::getLastModified(path);
@@ -202,7 +193,7 @@ UID ModuleAssets::importAsset(const char* filePath){
     std::string path = normalisePath(filePath);
 
     ModuleFileSystem* fsys = app->getFileSystem();
-    if (!fsys->Exists(path.c_str())) {
+    if (!fsys->Exists(path.c_str())){
         LOG("ModuleAssets: File does not exist: %s", path.c_str());
         return 0;
     }
@@ -230,7 +221,7 @@ UID ModuleAssets::importAsset(const char* filePath){
 
     bool ok = false;
 
-    if (ext == ".gltf" || ext == ".glb") {
+    if (ext == ".gltf" || ext == ".glb"){
         tinygltf::Model gltfModel;
         tinygltf::TinyGLTF loader;
         loader.SetImageLoader(&engineImageLoader, nullptr);
@@ -240,7 +231,7 @@ UID ModuleAssets::importAsset(const char* filePath){
         ok = (ext == ".gltf") ? loader.LoadASCIIFromFile(&gltfModel, &err, &warn, path.c_str()) : loader.LoadBinaryFromFile(&gltfModel, &err, &warn, path.c_str());
 
         if (!warn.empty()) LOG("ModuleAssets: GLTF Warning: %s", warn.c_str());
-        if (!ok) {
+        if (!ok){
             LOG("ModuleAssets: Failed to load GLTF: %s", err.c_str());
             releaseGuard();
             return 0;
@@ -250,7 +241,7 @@ UID ModuleAssets::importAsset(const char* filePath){
         std::string baseDir = fs::path(path).parent_path().string();
         for (char& c : baseDir) if (c == '\\') c = '/';
         baseDir += '/';
-        if (!SceneImporter::ImportFromLoadedGLTF(gltfModel, sceneName, baseDir)) {
+        if (!SceneImporter::ImportFromLoadedGLTF(gltfModel, sceneName, baseDir)){
             LOG("ModuleAssets: Import failed for: %s", sceneName.c_str());
             releaseGuard();
             return 0;
@@ -263,20 +254,20 @@ UID ModuleAssets::importAsset(const char* filePath){
         registerSceneSubResources(path, sceneName, mc, matc, animc);
         ok = true;
     }
-    else if (isTextureExtension(ext)) {
+    else if (isTextureExtension(ext)){
         std::string outDir = fsys->GetLibraryPath() + "Textures/";
         std::string outPath = outDir + TextureImporter::GetTextureName(path.c_str()) + ".dds";
         fsys->CreateDir(outDir.c_str());
         ok = TextureImporter::Import(path.c_str(), outPath);
         if (ok) app->getResources()->registerTexture(uid, outPath);
     }
-    else if (ext == ".fbx" || ext == ".stl" || ext == ".blend") {
+    else if (ext == ".fbx" || ext == ".stl" || ext == ".blend"){
         LOG("ModuleAssets: Format not yet supported: %s", ext.c_str());
         releaseGuard();
         return uid;
     }
 
-    if (ok) {
+    if (ok){
         MetaData meta;
         MetaFileManager::load(path, meta);
         meta.lastModified = MetaFileManager::getLastModified(path);
@@ -295,14 +286,13 @@ void ModuleAssets::registerSceneSubResources(const std::string& filePath, const 
     ModuleFileSystem* fsys = app->getFileSystem();
     m_sceneNameToPath[sceneName] = filePath;
 
-    // Register the model resource itself (uses the GLTF asset's UID)
     std::string nodesMetaPath = fsys->GetLibraryPath() + "Meshes/" + sceneName + "/nodes.meta";
     app->getResources()->registerModel(parent, nodesMetaPath);
 
     std::string meshFolder = fsys->GetLibraryPath() + "Meshes/" + sceneName + "/";
     std::string matFolder = fsys->GetLibraryPath() + "Materials/" + sceneName + "/";
 
-    for (int i = 0; i < meshCount; ++i) {
+    for (int i = 0; i < meshCount; ++i){
         UID meshUID = makeSubUID(parent, "mesh", i);
         std::string lp = meshFolder + std::to_string(i) + ".mesh";
         m_subUIDs[filePath + "|mesh|" + std::to_string(i)] = meshUID;
@@ -310,7 +300,7 @@ void ModuleAssets::registerSceneSubResources(const std::string& filePath, const 
         app->getResources()->registerMesh(meshUID, lp);
     }
 
-    for (int i = 0; i < materialCount; ++i) {
+    for (int i = 0; i < materialCount; ++i){
         UID matUID = makeSubUID(parent, "mat", i);
         std::string lp = matFolder + std::to_string(i) + ".mat";
         m_subUIDs[filePath + "|mat|" + std::to_string(i)] = matUID;
@@ -319,7 +309,7 @@ void ModuleAssets::registerSceneSubResources(const std::string& filePath, const 
     }
 
     std::string animFolder = fsys->GetLibraryPath() + "Animations/" + sceneName + "/";
-    for (int i = 0; i < animCount; ++i) {
+    for (int i = 0; i < animCount; ++i){
         UID animUID = makeSubUID(parent, "anim", i);
         std::string lp = animFolder + std::to_string(i) + ".anim";
         m_subUIDs[filePath + "|anim|" + std::to_string(i)] = animUID;
@@ -340,18 +330,18 @@ void ModuleAssets::deleteAsset(const std::string& assetPath){
 
     UID uid = findUID(path);
 
-    auto deleteIfExists = [&](const std::string& p) {
+    auto deleteIfExists = [&](const std::string& p){
         if (fsys->Exists(p.c_str())) fsys->Delete(p.c_str());
         };
 
-    if (isModelExtension(ext)) {
+    if (isModelExtension(ext)){
         std::string sceneName = fs::path(path).stem().string();
         deleteIfExists(fsys->GetLibraryPath() + "Meshes/" + sceneName);
         deleteIfExists(fsys->GetLibraryPath() + "Materials/" + sceneName);
         deleteIfExists(fsys->GetLibraryPath() + "Animations/" + sceneName);
         deleteIfExists(path + ".meta");
         deleteIfExists(path);
-        for (int i = 0; ; ++i) {
+        for (int i = 0;; ++i){
             bool anyMesh = m_subUIDs.erase(path + "|mesh|" + std::to_string(i)) > 0;
             bool anyMat = m_subUIDs.erase(path + "|mat|" + std::to_string(i)) > 0;
             bool anyAnim = m_subUIDs.erase(path + "|anim|" + std::to_string(i)) > 0;
@@ -359,16 +349,16 @@ void ModuleAssets::deleteAsset(const std::string& assetPath){
         }
         m_sceneNameToPath.erase(sceneName);
     }
-    else if (isTextureExtension(ext)) {
+    else if (isTextureExtension(ext)){
         deleteIfExists(path + ".meta");
         deleteIfExists(path);
-        if (uid != 0) {
+        if (uid != 0){
             std::string srcPath = getPathFromUID(uid);
             if (!srcPath.empty()) deleteIfExists(srcPath + ".meta");
         }
     }
 
-    if (uid != 0) {
+    if (uid != 0){
         m_pathToUID.erase(path);
         m_uidToPath.erase(uid);
     }
@@ -418,7 +408,7 @@ std::vector<ModuleAssets::SceneInfo> ModuleAssets::getImportedScenes() const{
     if (!fsys->Exists(meshesPath.c_str())) return scenes;
 
     try {
-        for (const auto& entry : fs::directory_iterator(meshesPath)) {
+        for (const auto& entry : fs::directory_iterator(meshesPath)){
             if (!entry.is_directory()) continue;
             SceneInfo info;
             info.name = entry.path().filename().string();
@@ -429,10 +419,10 @@ std::vector<ModuleAssets::SceneInfo> ModuleAssets::getImportedScenes() const{
 
             char* buffer = nullptr;
             uint32_t size = fsys->Load((info.path + "/scene.meta").c_str(), &buffer);
-            if (buffer && size >= sizeof(SceneImporter::SceneHeader)) {
+            if (buffer && size >= sizeof(SceneImporter::SceneHeader)){
                 SceneImporter::SceneHeader header;
                 memcpy(&header, buffer, sizeof(header));
-                if (header.magic == 0x53434E45 && header.version == 1) {
+                if (header.magic == 0x53434E45 && header.version == 1){
                     info.meshCount = header.meshCount;
                     info.materialCount = header.materialCount;
                 }
@@ -441,7 +431,7 @@ std::vector<ModuleAssets::SceneInfo> ModuleAssets::getImportedScenes() const{
             scenes.push_back(info);
         }
     }
-    catch (const std::exception& e) {
+    catch (const std::exception& e){
         LOG("ModuleAssets: Error listing scenes: %s", e.what());
     }
     return scenes;

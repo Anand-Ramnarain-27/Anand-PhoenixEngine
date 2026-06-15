@@ -40,7 +40,7 @@ void ModuleFileSystem::CreateProjectDirectories(){
 
 bool ModuleFileSystem::CreateDir(const char* path){
     try { return fs::exists(path) || fs::create_directories(path); }
-    catch (const fs::filesystem_error& e) { std::cerr << "[FileSystem] CreateDir error: " << e.what() << std::endl; return false; }
+    catch (const fs::filesystem_error& e){ std::cerr << "[FileSystem] CreateDir error: " << e.what() << std::endl; return false; }
 }
 
 const std::string& ModuleFileSystem::GetAssetsPath() const { return assetsPath; }
@@ -53,7 +53,7 @@ unsigned int ModuleFileSystem::Load(const char* path, char** buffer) const{
     std::streamsize size = file.tellg();
     file.seekg(0, std::ios::beg);
     *buffer = new char[size];
-    if (!file.read(*buffer, size)) { delete[] * buffer; *buffer = nullptr; return 0; }
+    if (!file.read(*buffer, size)){ delete[] * buffer; *buffer = nullptr; return 0; }
     return (unsigned int)size;
 }
 
@@ -70,18 +70,18 @@ bool ModuleFileSystem::IsDirectory(const char* path) const { return fs::is_direc
 
 bool ModuleFileSystem::Delete(const char* path){
     try { return fs::remove_all(path) > 0; }
-    catch (...) { return false; }
+    catch (...){ return false; }
 }
 
 bool ModuleFileSystem::Copy(const char* source, const char* destination){
     try { fs::copy(source, destination, fs::copy_options::overwrite_existing | fs::copy_options::recursive); return true; }
-    catch (...) { return false; }
+    catch (...){ return false; }
 }
 
 std::vector<std::string> ModuleFileSystem::GetFilesInDirectory(const char* path, const char* ext) const{
     std::vector<std::string> results;
     if (!fs::exists(path)) return results;
-    for (const auto& entry : fs::directory_iterator(path)) {
+    for (const auto& entry : fs::directory_iterator(path)){
         if (!entry.is_regular_file()) continue;
         if (ext && entry.path().extension() != ext) continue;
         results.push_back(entry.path().string());

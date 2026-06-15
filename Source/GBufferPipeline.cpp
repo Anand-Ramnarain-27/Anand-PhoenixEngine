@@ -11,11 +11,9 @@ bool GBufferPipeline::init(ID3D12Device* device){
 }
 
 bool GBufferPipeline::createRootSignature(ID3D12Device* device){
-    // 5 material textures: t0..t4
     CD3DX12_DESCRIPTOR_RANGE matRange;
     matRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0);
 
-    // Samplers: s0..s(COUNT-1)
     CD3DX12_DESCRIPTOR_RANGE samplerRange;
     samplerRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, ModuleSamplerHeap::COUNT, 0);
 
@@ -31,7 +29,7 @@ bool GBufferPipeline::createRootSignature(ID3D12Device* device){
 
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
-    if (FAILED(hr)) {
+    if (FAILED(hr)){
         if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
         LOG("GBufferPipeline: D3D12SerializeRootSignature failed 0x%08X", hr);
         return false;
@@ -39,7 +37,7 @@ bool GBufferPipeline::createRootSignature(ID3D12Device* device){
 
     hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
                                       IID_PPV_ARGS(&m_rootSig));
-    if (FAILED(hr)) {
+    if (FAILED(hr)){
         LOG("GBufferPipeline: CreateRootSignature failed 0x%08X", hr);
         return false;
     }
@@ -57,7 +55,6 @@ bool GBufferPipeline::createPSO(ID3D12Device* device){
     desc.PS = { ps.data(), ps.size() };
     desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
-    // 3 MRT outputs
     desc.NumRenderTargets = GBuffer::NUM_COLOR_RTS;
     desc.RTVFormats[0] = GBuffer::kAlbedoFormat;
     desc.RTVFormats[1] = GBuffer::kNormalMetalRoughFormat;
@@ -70,9 +67,8 @@ bool GBufferPipeline::createPSO(ID3D12Device* device){
     desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     desc.RasterizerState.FrontCounterClockwise = TRUE;
 
-    // Blending explicitly disabled on all MRT outputs
     desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-    for (int i = 0; i < GBuffer::NUM_COLOR_RTS; ++i) {
+    for (int i = 0; i < GBuffer::NUM_COLOR_RTS; ++i){
         desc.BlendState.RenderTarget[i].BlendEnable = FALSE;
         desc.BlendState.RenderTarget[i].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
     }
@@ -80,7 +76,7 @@ bool GBufferPipeline::createPSO(ID3D12Device* device){
     desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 
     HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_pso));
-    if (FAILED(hr)) {
+    if (FAILED(hr)){
         LOG("GBufferPipeline: CreateGraphicsPipelineState failed 0x%08X", hr);
         return false;
     }

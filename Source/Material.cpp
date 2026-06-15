@@ -13,7 +13,6 @@ void Material::setNormalMap(ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HAN
 	m_normalSRV = srv;
 	m_hasNormal = true;
 	m_data.flags |= MAT_FLAG_NORMAL_TEX;
-	// Normal maps are always stored as BC5 (RG only), so z must be reconstructed in the shader.
 	m_data.flags |= MAT_FLAG_COMPRESSED_NORMS;
 }
 

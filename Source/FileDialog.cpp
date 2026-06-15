@@ -19,12 +19,12 @@ bool FileDialog::draw(){
     if (!m_isOpen) return false;
     bool fileSelected = false;
     ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin(m_title.c_str(), &m_isOpen, ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return false; }
+    if (!ImGui::Begin(m_title.c_str(), &m_isOpen, ImGuiWindowFlags_NoCollapse)){ ImGui::End(); return false; }
     ImGui::Text("Location: %s", m_currentPath.c_str());
     ImGui::Separator();
 
-    auto navigateTo = [&](const fs::path& path) {
-        if (fs::exists(path)) { m_currentPath = path.string(); m_selectedIndex = -1; refreshDirectory(); }
+    auto navigateTo = [&](const fs::path& path){
+        if (fs::exists(path)){ m_currentPath = path.string(); m_selectedIndex = -1; refreshDirectory(); }
         };
 
     if (ImGui::Button("..")) navigateTo(fs::path(m_currentPath).parent_path());
@@ -33,15 +33,15 @@ bool FileDialog::draw(){
     ImGui::Separator();
 
     ImGui::BeginChild("FileList", ImVec2(0, -70), true);
-    for (int i = 0; i < (int)m_entries.size(); ++i) {
+    for (int i = 0; i < (int)m_entries.size(); ++i){
         const FileEntry& entry = m_entries[i];
         std::string label = (entry.isDirectory ? "[DIR]  " : "[FILE] ") + entry.name;
-        if (ImGui::Selectable(label.c_str(), m_selectedIndex == i, ImGuiSelectableFlags_AllowDoubleClick)) {
+        if (ImGui::Selectable(label.c_str(), m_selectedIndex == i, ImGuiSelectableFlags_AllowDoubleClick)){
             m_selectedIndex = i;
-            if (entry.isDirectory) { if (ImGui::IsMouseDoubleClicked(0)) navigateTo(fs::path(m_currentPath) / entry.name); }
+            if (entry.isDirectory){ if (ImGui::IsMouseDoubleClicked(0)) navigateTo(fs::path(m_currentPath) / entry.name); }
             else {
                 m_fileName = entry.name;
-                if (ImGui::IsMouseDoubleClicked(0)) { m_selectedPath = (fs::path(m_currentPath) / entry.name).string(); fileSelected = true; m_isOpen = false; }
+                if (ImGui::IsMouseDoubleClicked(0)){ m_selectedPath = (fs::path(m_currentPath) / entry.name).string(); fileSelected = true; m_isOpen = false; }
             }
         }
     }
@@ -53,9 +53,9 @@ bool FileDialog::draw(){
     if (ImGui::InputText("##filename", buf, sizeof(buf))) m_fileName = buf;
     ImGui::Separator();
 
-    if (!m_fileName.empty()) {
+    if (!m_fileName.empty()){
         const char* label = (m_type == Type::Save) ? "Save" : "Open";
-        if (ImGui::Button(label)) {
+        if (ImGui::Button(label)){
             std::string path = (fs::path(m_currentPath) / m_fileName).string();
             if (m_type == Type::Save && !m_extensionFilter.empty() && !path.ends_with(m_extensionFilter)) path += m_extensionFilter;
             m_selectedPath = path; fileSelected = true; m_isOpen = false;
@@ -71,19 +71,19 @@ bool FileDialog::draw(){
 void FileDialog::refreshDirectory(){
     m_entries.clear();
     try {
-        if (!fs::exists(m_currentPath)) { LOG("FileDialog: Directory does not exist: %s", m_currentPath.c_str()); return; }
-        for (const auto& entry : fs::directory_iterator(m_currentPath)) {
+        if (!fs::exists(m_currentPath)){ LOG("FileDialog: Directory does not exist: %s", m_currentPath.c_str()); return; }
+        for (const auto& entry : fs::directory_iterator(m_currentPath)){
             std::string name = entry.path().filename().string();
             if (name[0] == '.') continue;
             bool isDir = entry.is_directory();
             if (!isDir && !m_extensionFilter.empty() && !matchesFilter(name)) continue;
             m_entries.push_back({ name, isDir });
         }
-        std::sort(m_entries.begin(), m_entries.end(), [](const FileEntry& a, const FileEntry& b) {
+        std::sort(m_entries.begin(), m_entries.end(), [](const FileEntry& a, const FileEntry& b){
             return a.isDirectory != b.isDirectory ? a.isDirectory : a.name < b.name;
             });
     }
-    catch (const fs::filesystem_error& e) { LOG("FileDialog: Error reading directory: %s", e.what()); }
+    catch (const fs::filesystem_error& e){ LOG("FileDialog: Error reading directory: %s", e.what()); }
 }
 
 bool FileDialog::matchesFilter(const std::string& filename) const{

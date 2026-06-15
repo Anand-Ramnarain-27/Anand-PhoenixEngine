@@ -7,7 +7,7 @@
 
 using namespace rapidjson;
 
-ComponentBounds::ComponentBounds(GameObject* owner) : Component(owner) {}
+ComponentBounds::ComponentBounds(GameObject* owner) : Component(owner){}
 
 void ComponentBounds::onEditor(){
     ImGui::SeparatorText("Shape");
@@ -17,10 +17,10 @@ void ComponentBounds::onEditor(){
     ImGui::SameLine();
     if (ImGui::RadioButton("Sphere", &typeIdx, 1)) bvType = BVType::Sphere;
 
-    if (bvType == BVType::Sphere) {
+    if (bvType == BVType::Sphere){
         ImGui::Spacing();
         ImGui::SeparatorText("Sphere Radius");
-        if (radiusOverride < 0.f) {
+        if (radiusOverride < 0.f){
             ImGui::TextDisabled("Auto (derived from mesh AABB)");
             if (ImGui::Button("Override##rb")) radiusOverride = 1.f;
         } else {

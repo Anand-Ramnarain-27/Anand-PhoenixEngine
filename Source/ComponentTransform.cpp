@@ -8,12 +8,10 @@
 
 using namespace rapidjson;
 
-ComponentTransform::ComponentTransform(GameObject* owner) : Component(owner) {}
+ComponentTransform::ComponentTransform(GameObject* owner) : Component(owner){}
 
 void ComponentTransform::markDirty(){
     dirty = true;
-    // Any world-space AABB derived from this transform is now stale — flag the
-    // render octree (Gap 1: hierarchical render culling) for a lazy rebuild.
     RenderOctree::notifyTransformChanged();
     for (auto* child : owner->getChildren())
         if (auto* t = child->getTransform()) t->markDirty();
@@ -29,12 +27,12 @@ void ComponentTransform::rebuildGlobal(){
 }
 
 const Matrix& ComponentTransform::getLocalMatrix(){
-    if (dirty) { rebuildLocal(); dirty = false; }
+    if (dirty){ rebuildLocal(); dirty = false; }
     return localMatrix;
 }
 
 const Matrix& ComponentTransform::getGlobalMatrix(){
-    if (dirty) { rebuildLocal(); rebuildGlobal(); dirty = false; }
+    if (dirty){ rebuildLocal(); rebuildGlobal(); dirty = false; }
     return globalMatrix;
 }
 
@@ -52,9 +50,9 @@ void ComponentTransform::onSave(std::string& outJson) const{
 
 void ComponentTransform::onLoad(const std::string& jsonStr){
     Document doc; doc.Parse(jsonStr.c_str());
-    if (doc.HasParseError()) { LOG("ComponentTransform: JSON parse error"); return; }
-    if (doc.HasMember("position")) { auto& p = doc["position"]; position = { p[0].GetFloat(), p[1].GetFloat(), p[2].GetFloat() }; }
-    if (doc.HasMember("rotation")) { auto& r = doc["rotation"]; rotation = { r[0].GetFloat(), r[1].GetFloat(), r[2].GetFloat(), r[3].GetFloat() }; }
-    if (doc.HasMember("scale")) { auto& s = doc["scale"]; scale = { s[0].GetFloat(), s[1].GetFloat(), s[2].GetFloat() }; }
+    if (doc.HasParseError()){ LOG("ComponentTransform: JSON parse error"); return; }
+    if (doc.HasMember("position")){ auto& p = doc["position"]; position = { p[0].GetFloat(), p[1].GetFloat(), p[2].GetFloat() }; }
+    if (doc.HasMember("rotation")){ auto& r = doc["rotation"]; rotation = { r[0].GetFloat(), r[1].GetFloat(), r[2].GetFloat(), r[3].GetFloat() }; }
+    if (doc.HasMember("scale")){ auto& s = doc["scale"]; scale = { s[0].GetFloat(), s[1].GetFloat(), s[2].GetFloat() }; }
     markDirty();
 }

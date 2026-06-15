@@ -10,7 +10,7 @@
 #include <algorithm>
 
 namespace {
-    constexpr UINT cbAlign(UINT b) { return (b + 255u) & ~255u; }
+    constexpr UINT cbAlign(UINT b){ return (b + 255u) & ~255u; }
 
     ComPtr<ID3D12Resource> makeUploadBuf(ID3D12Device* dev, UINT64 bytes, void** mapped, const wchar_t* name){
         auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
@@ -19,7 +19,7 @@ namespace {
         HRESULT hr = dev->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                                                    D3D12_RESOURCE_STATE_GENERIC_READ,
                                                    nullptr, IID_PPV_ARGS(&buf));
-        if (FAILED(hr)) { LOG("LightCullingPass: upload buf failed 0x%08X", hr); return nullptr; }
+        if (FAILED(hr)){ LOG("LightCullingPass: upload buf failed 0x%08X", hr); return nullptr; }
         buf->SetName(name);
         if (mapped) buf->Map(0, nullptr, mapped);
         return buf;
@@ -48,7 +48,7 @@ namespace {
 }
 
 bool LightCullingPass::init(ID3D12Device* device){
-    if (!m_pipeline.init(device)) {
+    if (!m_pipeline.init(device)){
         LOG("LightCullingPass: pipeline init failed");
         return false;
     }
@@ -62,7 +62,7 @@ bool LightCullingPass::createUploadBuffers(ID3D12Device* device){
     const UINT cbSz = cbAlign(sizeof(CbCulling));
     auto* sd = app->getShaderDescriptors();
 
-    for (int i = 0; i < NUM_VIEWPORTS; ++i) {
+    for (int i = 0; i < NUM_VIEWPORTS; ++i){
         m_cb[i] = makeUploadBuf(device, cbSz, &m_cbMapped[i], L"LightCulling_CB");
         if (!m_cb[i]) return false;
 
@@ -76,7 +76,7 @@ bool LightCullingPass::createUploadBuffers(ID3D12Device* device){
 
         m_pointLightSRV[i] = sd->allocTable("LightCulling_PointLightSRV");
         m_spotLightSRV[i] = sd->allocTable("LightCulling_SpotLightSRV");
-        if (!m_pointLightSRV[i].isValid() || !m_spotLightSRV[i].isValid()) {
+        if (!m_pointLightSRV[i].isValid() || !m_spotLightSRV[i].isValid()){
             LOG("LightCullingPass: light SRV alloc failed");
             return false;
         }
@@ -88,7 +88,6 @@ bool LightCullingPass::createUploadBuffers(ID3D12Device* device){
     return true;
 }
 
-// Allocate/reallocate the per-tile index UAV buffers when the viewport size changes.
 static bool allocTileBuffers(ID3D12Device* device, UINT numTiles, UINT maxPerTile,
                               ComPtr<ID3D12Resource>& buf, const wchar_t* name){
     UINT64 bytes = (UINT64)numTiles * maxPerTile * sizeof(int);
@@ -98,10 +97,8 @@ static bool allocTileBuffers(ID3D12Device* device, UINT numTiles, UINT maxPerTil
     HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                                                   D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                                                   nullptr, IID_PPV_ARGS(&newBuf));
-    if (FAILED(hr)) { LOG("LightCullingPass: tile buf alloc failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ LOG("LightCullingPass: tile buf alloc failed 0x%08X", hr); return false; }
     newBuf->SetName(name);
-    // SAFETY: GPU flush required before freeing this resource — caller (cull()) has
-    // already deferred-released the old buffer, so overwriting the ComPtr here is safe.
     buf = std::move(newBuf);
     return true;
 }
@@ -120,23 +117,9 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
     const uint32_t tilesY = getNumTilesY(height);
     const UINT numTiles = tilesX * tilesY;
 
-    // Reallocate tile buffers only when the viewport needs MORE tiles than currently
-    // allocated (grow-only policy). cull() is called once per viewport (Scene + Game)
-    // every frame with potentially different resolutions; reallocating on every size
-    // difference would thrash these buffers every frame and risk freeing a buffer that
-    // the current frame's command list already referenced earlier (e.g. for the other
-    // viewport's cull() call), which is what produced the
-    // OBJECT_DELETED_WHILE_STILL_IN_USE crash on LightCulling_PointList. Once grown to
-    // the largest viewport seen, the buffer is reused (and just under-filled) for
-    // smaller viewports — dispatch only writes/reads the first tilesX*tilesY tiles.
     bool freshlyAllocated = false;
-    if (numTiles > m_allocatedTiles[viewportIndex] || !m_pointListBuf[viewportIndex]) {
+    if (numTiles > m_allocatedTiles[viewportIndex] || !m_pointListBuf[viewportIndex]){
         freshlyAllocated = true;
-        // SAFETY: GPU flush required before freeing this resource — defer the release
-        // of the old tile buffers via the engine's existing deferred-release queue
-        // (same mechanism GBuffer::release() uses) so the command list currently being
-        // recorded — which may already reference the old buffers from the other
-        // viewport's cull() call this frame — keeps them alive until the GPU is done.
         auto* gpuRes = app->getGPUResources();
         if (m_pointListBuf[viewportIndex]) gpuRes->deferRelease(m_pointListBuf[viewportIndex]);
         if (m_spotListBuf[viewportIndex]) gpuRes->deferRelease(m_spotListBuf[viewportIndex]);
@@ -148,7 +131,6 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
                               m_spotListBuf[viewportIndex], L"LightCulling_SpotList")) return;
         m_allocatedTiles[viewportIndex] = numTiles;
 
-        // Recreate descriptors for the new buffers
         auto* sd = app->getShaderDescriptors();
         m_pointListUAV[viewportIndex] = sd->allocTable("LightCulling_PointUAV");
         m_spotListUAV[viewportIndex] = sd->allocTable("LightCulling_SpotUAV");
@@ -165,7 +147,6 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
                           numTiles * MAX_LIGHTS_PER_TILE, sizeof(int));
     }
 
-    // Upload light data
     {
         UINT nP = (UINT)std::min(lights.pointLights.size(), (size_t)MeshPipeline::MAX_POINT_LIGHTS);
         UINT nS = (UINT)std::min(lights.spotLights.size(), (size_t)MeshPipeline::MAX_SPOT_LIGHTS);
@@ -173,7 +154,6 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
         if (nS) memcpy(m_spotLightMapped[viewportIndex], lights.spotLights.data(), nS * sizeof(MeshPipeline::GPUSpotLight));
     }
 
-    // Upload CB
     {
         CbCulling cb = {};
         cb.numPointLights = (uint32_t)std::min(lights.pointLights.size(), (size_t)MeshPipeline::MAX_POINT_LIGHTS);
@@ -187,7 +167,6 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
 
     BEGIN_EVENT(cmd, L"Light Culling Pass");
 
-    // Transition depth: DEPTH_READ|PSR → DEPTH_READ|PSR|NON_PSR so the compute shader can read it
     {
         auto bar = CD3DX12_RESOURCE_BARRIER::Transition(
             gbufferPass.getGBuffer().getDepthTexture(),
@@ -197,8 +176,6 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
         cmd->ResourceBarrier(1, &bar);
     }
 
-    // Transition tile buffers PSR → UAV for compute write
-    // (On first dispatch after alloc they are already in UAV state, but the transition is a no-op.)
     {
         CD3DX12_RESOURCE_BARRIER barriers[2] = {
             CD3DX12_RESOURCE_BARRIER::Transition(m_pointListBuf[viewportIndex].Get(),
@@ -208,9 +185,6 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
         };
-        // Skip if this is the first allocation ever, OR the buffers were just (re)grown
-        // this call — freshly allocated tile buffers start in UAV state, so a
-        // PSR->UAV transition on them would be an invalid state transition.
         if (m_lastWidth[viewportIndex] != 0 && !freshlyAllocated)
             cmd->ResourceBarrier(2, barriers);
     }
@@ -223,7 +197,6 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
 
     cmd->SetComputeRootConstantBufferView(LightCullingPipeline::SLOT_CB, m_cb[viewportIndex]->GetGPUVirtualAddress());
 
-    // Depth SRV (already in PIXEL_SHADER_RESOURCE after endGeomPass)
     cmd->SetComputeRootDescriptorTable(LightCullingPipeline::SLOT_DEPTH,
                                         gbufferPass.getGBuffer().getDepthSrvHandle());
     cmd->SetComputeRootDescriptorTable(LightCullingPipeline::SLOT_POINT_LIGHTS,
@@ -237,8 +210,6 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
 
     cmd->Dispatch(tilesX, tilesY, 1);
 
-    // Transition tile buffers from UAV to SRV so the lighting pass can read them
-    // Also restore depth to DEPTH_READ|PSR (remove NON_PSR)
     {
         CD3DX12_RESOURCE_BARRIER barriers[3] = {
             CD3DX12_RESOURCE_BARRIER::Transition(m_pointListBuf[viewportIndex].Get(),

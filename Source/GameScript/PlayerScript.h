@@ -16,9 +16,8 @@ public:
 
 private:
     GameObject* m_owner = nullptr;
-    float m_speed = 5.0f; // exposed to Inspector via onEditor()
+    float m_speed = 5.0f;
     float m_timer = 0.0f;
 };
 
-// Factory � HotReloadManager finds this by name: "Create_PlayerScript"
 extern "C" SCRIPT_API IScript* Create_PlayerScript();

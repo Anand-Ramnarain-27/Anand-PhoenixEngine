@@ -5,17 +5,16 @@
 #include <functional>
 #include <cstdint>
 
-// Name + cached hash. Always serialise/deserialise from str; hash is recomputed on load.
 struct HashString {
     std::string str;
     uint32_t hash = 0;
 
     HashString() = default;
-    explicit HashString(const std::string& s) : str(s), hash(compute(s)) {}
-    explicit HashString(std::string&& s) : str(std::move(s)), hash(compute(str)) {}
+    explicit HashString(const std::string& s) : str(s), hash(compute(s)){}
+    explicit HashString(std::string&& s) : str(std::move(s)), hash(compute(str)){}
 
-    HashString& operator=(const std::string& s) { str = s; hash = compute(str); return *this; }
-    HashString& operator=(std::string&& s) { str = std::move(s); hash = compute(str); return *this; }
+    HashString& operator=(const std::string& s){ str = s; hash = compute(str); return *this; }
+    HashString& operator=(std::string&& s){ str = std::move(s); hash = compute(str); return *this; }
 
     bool operator==(const HashString& o) const { return hash == o.hash && str == o.str; }
     bool operator!=(const HashString& o) const { return !(*this == o); }
@@ -54,7 +53,6 @@ public:
     bool Save(const std::string& path) const;
     bool Load(const std::string& path);
 
-    // Return nullptr / -1 if not found.
     const SMClip* FindClip(const HashString& name) const;
     const SMState* FindState(const HashString& name) const;
     int FindStateIndex(const HashString& name) const;

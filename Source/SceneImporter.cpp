@@ -14,7 +14,7 @@
 namespace {
     struct NodeFileHeader {
         uint32_t magic = 0x4E4F4445;
-        uint32_t version = 2; // v1: no skinIndex; v2: skinIndex added
+        uint32_t version = 2;
         uint32_t nodeCount = 0;
         uint32_t rootCount = 0;
         uint32_t meshRangeCount = 0;
@@ -23,7 +23,6 @@ namespace {
         uint32_t fileStart;
         uint32_t fileCount;
     };
-    // v1 on-disk layout (read-only — used for backward compat)
     struct NodeFileEntryV1 {
         int32_t parentIndex;
         int32_t meshRangeIdx;
@@ -32,11 +31,10 @@ namespace {
         float r[4];
         float s[3];
     };
-    // v2 on-disk layout (current write format)
     struct NodeFileEntry {
         int32_t parentIndex;
         int32_t meshRangeIdx;
-        int32_t skinIndex; // -1 if not skinned
+        int32_t skinIndex;
         uint32_t nameLen;
         float t[3];
         float r[4];
@@ -44,7 +42,7 @@ namespace {
     };
 
     struct SkinFileHeader {
-        uint32_t magic = 0x534B4E53; // 'SKNS'
+        uint32_t magic = 0x534B4E53;
         uint32_t version = 1;
         uint32_t skinCount = 0;
         uint32_t pad = 0;
@@ -53,9 +51,9 @@ namespace {
     struct TempNode {
         std::string name;
         int parentIdx;
-        int gltfNodeIdx; // original GLTF global node index
+        int gltfNodeIdx;
         int gltfMeshIdx;
-        int skinIdx; // gltf node.skin (-1 if none)
+        int skinIdx;
         float t[3], r[4], s[3];
     };
 
@@ -70,16 +68,13 @@ namespace {
         tn.gltfMeshIdx = n.mesh;
         tn.skinIdx = n.skin;
 
-        if (n.matrix.size() == 16) {
+        if (n.matrix.size() == 16){
             float fm[16];
             for (int i = 0; i < 16; ++i) fm[i] = (float)n.matrix[i];
             Matrix mat;
             memcpy(&mat, fm, 64);
-            // glTF stores MAT4 in column-major order. Copying 64 bytes into a row-major
-            // DirectXMath Matrix gives the correct DX row-major equivalent — no transpose needed.
-            // (The old Transpose() call here was incorrect and inverted rotations/translations.)
             Vector3 t, s; Quaternion r;
-            if (mat.Decompose(s, r, t)) {
+            if (mat.Decompose(s, r, t)){
                 tn.t[0]=t.x; tn.t[1]=t.y; tn.t[2]=t.z;
                 tn.r[0]=r.x; tn.r[1]=r.y; tn.r[2]=r.z; tn.r[3]=r.w;
                 tn.s[0]=s.x; tn.s[1]=s.y; tn.s[2]=s.z;
@@ -111,8 +106,8 @@ bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const
     std::string matFolder = fs->GetLibraryPath() + "Materials/" + sceneName;
     int meshIndex = 0;
 
-    for (const auto& mesh : gltfModel.meshes) {
-        for (const auto& prim : mesh.primitives) {
+    for (const auto& mesh : gltfModel.meshes){
+        for (const auto& prim : mesh.primitives){
 
             int currentMeshIndex = meshIndex;
 
@@ -123,19 +118,19 @@ bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const
                 LOG("SceneImporter: Failed to import mesh %d", currentMeshIndex);
             }
 
-            if (prim.material < -1 || prim.material >= (int)gltfModel.materials.size()) {
+            if (prim.material < -1 || prim.material >= (int)gltfModel.materials.size()){
                 LOG("SceneImporter: Invalid material index %d on mesh %d", prim.material, currentMeshIndex);
             }
 
             meshIndex++;
         }
     }
-    for (int k = 0; k < (int)gltfModel.materials.size(); k++) {
+    for (int k = 0; k < (int)gltfModel.materials.size(); k++){
         const auto& mat = gltfModel.materials[k];
 
         MaterialImporter::Import(mat, gltfModel, sceneName, ImporterUtils::IndexedPath(matFolder, k, ".mat"), k, basePath);
     }
-    if (!SaveSceneMetadata(sceneName, gltfModel)) { LOG("SceneImporter: Failed to save scene metadata"); return false; }
+    if (!SaveSceneMetadata(sceneName, gltfModel)){ LOG("SceneImporter: Failed to save scene metadata"); return false; }
     SaveNodeMetadata(sceneName, gltfModel);
     SaveSkinMetadata(sceneName, gltfModel);
     AnimationImporter::ImportAll(gltfModel, sceneName);
@@ -145,9 +140,9 @@ bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const
 bool SceneImporter::LoadScene(const std::string& sceneName, std::unique_ptr<Model>& outModel){
     ModuleFileSystem* fs = app->getFileSystem();
     std::string folder = fs->GetLibraryPath() + "Meshes/" + sceneName;
-    if (!fs->Exists(folder.c_str())) { LOG("SceneImporter: Scene folder does not exist: %s", folder.c_str()); return false; }
+    if (!fs->Exists(folder.c_str())){ LOG("SceneImporter: Scene folder does not exist: %s", folder.c_str()); return false; }
     SceneHeader header;
-    if (!LoadSceneMetadata(sceneName, header)) { LOG("SceneImporter: Failed to load metadata for %s", sceneName.c_str()); return false; }
+    if (!LoadSceneMetadata(sceneName, header)){ LOG("SceneImporter: Failed to load metadata for %s", sceneName.c_str()); return false; }
     return true;
 }
 
@@ -162,8 +157,8 @@ bool SceneImporter::CreateSceneDirectory(const std::string& sceneName){
 bool SceneImporter::SaveSceneMetadata(const std::string& sceneName, const tinygltf::Model& gltfModel){
     SceneHeader header;
     std::vector<int32_t> matIndices;
-    for (const auto& mesh : gltfModel.meshes) {
-        for (const auto& prim : mesh.primitives) {
+    for (const auto& mesh : gltfModel.meshes){
+        for (const auto& prim : mesh.primitives){
 
             header.meshCount++;
 
@@ -185,15 +180,14 @@ bool SceneImporter::LoadSceneMetadata(const std::string& sceneName, SceneHeader&
     std::vector<char> rawBuffer;
     std::string path = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/scene.meta";
     if (!ImporterUtils::LoadBuffer(path, header, rawBuffer)) return false;
-    if (!ImporterUtils::ValidateHeader(header, 0x53434E45)) { LOG("SceneImporter: Invalid scene metadata"); return false; }
+    if (!ImporterUtils::ValidateHeader(header, 0x53434E45)){ LOG("SceneImporter: Invalid scene metadata"); return false; }
     return true;
 }
 
 bool SceneImporter::SaveNodeMetadata(const std::string& sceneName, const tinygltf::Model& gltfModel){
-    // Build mesh-range table: gltfMeshIndex -> (firstFileIndex, primitiveCount)
     std::vector<NodeFileMeshRange> meshRanges;
     uint32_t fi = 0;
-    for (const auto& m : gltfModel.meshes) {
+    for (const auto& m : gltfModel.meshes){
         meshRanges.push_back({fi, (uint32_t)m.primitives.size()});
         fi += (uint32_t)m.primitives.size();
     }
@@ -201,19 +195,18 @@ bool SceneImporter::SaveNodeMetadata(const std::string& sceneName, const tinyglt
     std::vector<TempNode> nodes;
     std::vector<int32_t> roots;
 
-    if (!gltfModel.scenes.empty()) {
+    if (!gltfModel.scenes.empty()){
         int si = (gltfModel.defaultScene >= 0 && gltfModel.defaultScene < (int)gltfModel.scenes.size())
                  ? gltfModel.defaultScene : 0;
-        for (int ni : gltfModel.scenes[si].nodes) {
+        for (int ni : gltfModel.scenes[si].nodes){
             roots.push_back((int32_t)nodes.size());
             visitGLTFNode(ni, -1, gltfModel, nodes);
         }
     }
 
-    // Build fixed-size entry array and a concatenated name blob
     std::vector<NodeFileEntry> entries;
     std::string nameBlob;
-    for (const auto& tn : nodes) {
+    for (const auto& tn : nodes){
         NodeFileEntry e{};
         e.parentIndex = tn.parentIdx;
         e.meshRangeIdx = (tn.gltfMeshIdx >= 0 && tn.gltfMeshIdx < (int)meshRanges.size())
@@ -230,9 +223,8 @@ bool SceneImporter::SaveNodeMetadata(const std::string& sceneName, const tinyglt
     header.rootCount = (uint32_t)roots.size();
     header.meshRangeCount = (uint32_t)meshRanges.size();
 
-    // Payload: meshRanges | entries | roots | name blob
     std::vector<char> payload;
-    auto append = [&](const void* d, size_t n) {
+    auto append = [&](const void* d, size_t n){
         const char* p = static_cast<const char*>(d);
         payload.insert(payload.end(), p, p + n);
     };
@@ -248,11 +240,8 @@ bool SceneImporter::SaveNodeMetadata(const std::string& sceneName, const tinyglt
 bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinygltf::Model& gltfModel){
     if (gltfModel.skins.empty()) return true;
 
-    // Build GLTF global node index -> DFS engine index mapping.
-    // The skin joint arrays use GLTF global indices; ResourceModel::spawnIntoScene
-    // indexes goList by DFS order, so we must convert here at import time.
     std::unordered_map<int, int> gltfToDfs;
-    if (!gltfModel.scenes.empty()) {
+    if (!gltfModel.scenes.empty()){
         int si = (gltfModel.defaultScene >= 0 && gltfModel.defaultScene < (int)gltfModel.scenes.size())
                  ? gltfModel.defaultScene : 0;
         std::vector<TempNode> nodes;
@@ -266,12 +255,12 @@ bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinyglt
     hdr.skinCount = (uint32_t)gltfModel.skins.size();
 
     std::vector<char> payload;
-    auto append = [&](const void* d, size_t n) {
+    auto append = [&](const void* d, size_t n){
         const char* p = static_cast<const char*>(d);
         payload.insert(payload.end(), p, p + n);
     };
 
-    for (const auto& skin : gltfModel.skins) {
+    for (const auto& skin : gltfModel.skins){
         uint32_t nameLen = (uint32_t)skin.name.size();
         uint32_t jointCount = (uint32_t)skin.joints.size();
         append(&nameLen, sizeof(uint32_t));
@@ -279,22 +268,19 @@ bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinyglt
         if (nameLen > 0)
             append(skin.name.data(), nameLen);
 
-        for (int ji : skin.joints) {
+        for (int ji : skin.joints){
             auto it = gltfToDfs.find(ji);
             int32_t dfsIdx = (it != gltfToDfs.end()) ? it->second : -1;
             append(&dfsIdx, sizeof(int32_t));
         }
 
-        // Inverse bind matrices — glTF MAT4 is column-major; memcpy into a row-major Matrix
-        // implicitly transposes, producing the correct DX row-major inverse bind matrix.
-        // Do NOT call Transpose() explicitly — that would revert to column-major (wrong).
         std::vector<Matrix> ibms(jointCount, Matrix::Identity);
-        if (skin.inverseBindMatrices < 0) {
+        if (skin.inverseBindMatrices < 0){
             LOG("SceneImporter: skin '%s' has no inverseBindMatrices accessor — "
                 "all IBP matrices default to Identity and skinning will be broken. "
                 "Re-export from the DCC tool with skinning enabled.",
                 skin.name.c_str());
-        } else if (skin.inverseBindMatrices < (int)gltfModel.accessors.size()) {
+        } else if (skin.inverseBindMatrices < (int)gltfModel.accessors.size()){
             const auto& acc = gltfModel.accessors[skin.inverseBindMatrices];
             const auto& view = gltfModel.bufferViews[acc.bufferView];
             const uint8_t* data = gltfModel.buffers[view.buffer].data.data()
@@ -305,13 +291,6 @@ bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinyglt
                 memcpy(&ibms[j], data + j * stride, 64);
         }
 
-        // No coordinate-frame correction is applied here: every glTF node (including any
-        // armature/object node ancestor of the skeleton root) is spawned as a GameObject and
-        // parented normally (see ResourceModel::spawnIntoScene), so jointWorldMatrices already
-        // include that ancestor's transform via ComponentTransform::getGlobalMatrix().
-        // IBP * jointWorld therefore cancels to Identity at T-pose without any extra baking
-        // (see ModuleEditor.cpp SkinJob construction). Baking an additional correction into the
-        // IBP here would double-apply the armature transform and distort the rest pose.
         append(ibms.data(), jointCount * sizeof(Matrix));
     }
 
@@ -331,27 +310,25 @@ bool SceneImporter::LoadSkins(const std::string& sceneName, std::vector<SkinInfo
 
     outSkins.clear();
     outSkins.reserve(hdr.skinCount);
-    for (uint32_t i = 0; i < hdr.skinCount; ++i) {
+    for (uint32_t i = 0; i < hdr.skinCount; ++i){
         if (cur + 8 > end) return false;
         uint32_t nameLen, jointCount;
         memcpy(&nameLen, cur, 4); cur += 4;
         memcpy(&jointCount, cur, 4); cur += 4;
 
         SkinInfo si;
-        if (nameLen > 0 && cur + nameLen <= end) {
+        if (nameLen > 0 && cur + nameLen <= end){
             si.name = std::string(cur, nameLen);
             cur += nameLen;
         }
 
-        if (jointCount > 0) {
+        if (jointCount > 0){
             if (cur + jointCount * sizeof(int32_t) > end) return false;
             si.jointNodeIndices.resize(jointCount);
             memcpy(si.jointNodeIndices.data(), cur, jointCount * sizeof(int32_t));
             cur += jointCount * sizeof(int32_t);
 
-            if (cur + jointCount * sizeof(Matrix) > end) {
-                // File has joint indices but no IBP block — stale skins.meta from before IBP support.
-                // Re-import the model (drag-and-drop the glTF again) to regenerate skins.meta.
+            if (cur + jointCount * sizeof(Matrix) > end){
                 LOG("SceneImporter: stale skins.meta for skin '%s' — no IBP matrix block. "
                     "Re-import the model to fix.", si.name.c_str());
                 return false;
@@ -402,12 +379,12 @@ bool SceneImporter::LoadNodeTree(const std::string& sceneName, std::vector<NodeI
 
     const auto* ranges = reinterpret_cast<const NodeFileMeshRange*>(cur); cur += rangesBytes;
     const char* entryBase = cur; cur += entriesBytes;
-    cur += rootsBytes; // skip root list — not needed by callers
+    cur += rootsBytes;
     const char* strCur = cur;
 
     outNodes.clear();
     outNodes.reserve(header.nodeCount);
-    for (uint32_t i = 0; i < header.nodeCount; ++i) {
+    for (uint32_t i = 0; i < header.nodeCount; ++i){
         const char* ep = entryBase + i * entrySize;
         NodeInfo ni;
 
@@ -418,7 +395,7 @@ bool SceneImporter::LoadNodeTree(const std::string& sceneName, std::vector<NodeI
         const float* r;
         const float* s;
 
-        if (isV2) {
+        if (isV2){
             const NodeFileEntry* e = reinterpret_cast<const NodeFileEntry*>(ep);
             parentIndex = e->parentIndex;
             meshRangeIdx = e->meshRangeIdx;
@@ -435,14 +412,14 @@ bool SceneImporter::LoadNodeTree(const std::string& sceneName, std::vector<NodeI
 
         ni.parentIndex = parentIndex;
         ni.skinIndex = skinIndex;
-        if (meshRangeIdx >= 0 && meshRangeIdx < (int)header.meshRangeCount) {
+        if (meshRangeIdx >= 0 && meshRangeIdx < (int)header.meshRangeCount){
             ni.meshFileStart = (int)ranges[meshRangeIdx].fileStart;
             ni.meshFileCount = (int)ranges[meshRangeIdx].fileCount;
         } else {
             ni.meshFileStart = -1;
             ni.meshFileCount = 0;
         }
-        if (nameLen > 0 && strCur + nameLen <= end) {
+        if (nameLen > 0 && strCur + nameLen <= end){
             ni.name = std::string(strCur, nameLen);
             strCur += nameLen;
         }

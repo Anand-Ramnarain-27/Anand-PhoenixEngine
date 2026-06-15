@@ -1,19 +1,16 @@
-cbuffer SkyboxCB : register(b0)
-{
+cbuffer SkyboxCB : register(b0){
     float4x4 vp;
     bool flipX;
     bool flipZ;
     uint padding[2];
 };
 
-struct VSOut
-{
+struct VSOut {
     float3 texCoord : TEXCOORD;
     float4 position : SV_POSITION;
 };
 
-VSOut main(float3 pos : POSITION)
-{
+VSOut main(float3 pos : POSITION){
     VSOut o;
 
     o.texCoord = pos;

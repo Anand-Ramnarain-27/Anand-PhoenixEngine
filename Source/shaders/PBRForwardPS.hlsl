@@ -6,8 +6,7 @@
 #define VARIANCE  0.3
 #define THRESHOLD 0.2
 
-float getGeometricSpecularAA(float3 N, float roughness)
-{
+float getGeometricSpecularAA(float3 N, float roughness){
     float3 ndx = ddx(N);
     float3 ndy = ddy(N);
     float curvature = max(dot(ndx, ndx), dot(ndy, ndy));
@@ -20,8 +19,7 @@ float4 main(
     float3 worldPos : POSITION,
     float2 texCoord : TEXCOORD,
     float3 normal : NORMAL0,
-    float4 tangent : TANGENT) : SV_TARGET 
-{
+    float4 tangent : TANGENT) : SV_TARGET {
     float3 V = normalize(CameraPosition - worldPos);
     float3 N = normalize(normal);
 

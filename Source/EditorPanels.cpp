@@ -18,8 +18,6 @@
 #include "GameObject.h"
 
 void PerformancePanel::drawContent(){
-    // Pass color palette — widths are proportional to reference ms values; the
-    // bar is then scaled so the total matches the live GPU query.
     struct PassInfo { const char* name; float refMs; ImU32 col; };
     static const PassInfo kPasses[] = {
         { "D3D12 Core", 0.12f, IM_COL32(139,139,150,255) },
@@ -37,7 +35,6 @@ void PerformancePanel::drawContent(){
     float refTotal = 0.f;
     for (auto& p : kPasses) refTotal += p.refMs;
 
-    // Live GPU time from editor (falls back to refTotal before first readback).
     const bool gpuReady = m_editor->isGpuTimerReady();
     const float gpuMs = gpuReady ? (float)m_editor->getGpuFrameTimeMs() : refTotal;
     const float cpuMs = app->getAvgElapsedMs();
@@ -48,7 +45,6 @@ void PerformancePanel::drawContent(){
     ImDrawList* dl = ImGui::GetWindowDrawList();
     const float winW = ImGui::GetContentRegionAvail().x;
 
-    // ---- Top row: GPU ms (big) | CPU ms | Budget % | FPS ----
     {
         ImGui::PushFont(g_fontMono);
         ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
@@ -100,7 +96,6 @@ void PerformancePanel::drawContent(){
 
     ImGui::Spacing();
 
-    // ---- Proportional stacked bar ----
     const float barH = 24.f;
     const float barY = ImGui::GetCursorScreenPos().y;
     const float barX = ImGui::GetCursorScreenPos().x;
@@ -110,13 +105,13 @@ void PerformancePanel::drawContent(){
         ImGui::ColorConvertFloat4ToU32(EditorColors::Bg2), 4.f);
 
     float xOff = 0.f;
-    for (int i = 0; i < kN; ++i) {
+    for (int i = 0; i < kN; ++i){
         float w = (kPasses[i].refMs / refTotal) * barW;
         float passMs = kPasses[i].refMs * scale;
         dl->AddRectFilled(ImVec2(barX + xOff, barY),
                           ImVec2(barX + xOff + w, barY + barH),
                           kPasses[i].col, (i == 0 ? 4.f : 0.f));
-        if (w > 32.f) {
+        if (w > 32.f){
             char lbl[16]; snprintf(lbl, sizeof(lbl), "%.2f", passMs);
             ImVec2 ts = ImGui::CalcTextSize(lbl);
             dl->AddText(ImVec2(barX + xOff + (w - ts.x) * 0.5f, barY + (barH - ts.y) * 0.5f),
@@ -128,8 +123,7 @@ void PerformancePanel::drawContent(){
         xOff += w;
     }
 
-    // 16.67ms budget marker
-    if (gpuMs > 0.f) {
+    if (gpuMs > 0.f){
         float bx = barX + std::min(1.f, 16.67f / gpuMs) * barW;
         dl->AddLine(ImVec2(bx, barY - 3.f), ImVec2(bx, barY + barH + 3.f),
             ImGui::ColorConvertFloat4ToU32(EditorColors::Crit), 2.f);
@@ -137,10 +131,9 @@ void PerformancePanel::drawContent(){
 
     ImGui::Dummy(ImVec2(barW, barH + 4.f));
 
-    // ---- Label row ----
     ImGui::PushFont(g_fontMono);
     float lx = barX;
-    for (int i = 0; i < kN; ++i) {
+    for (int i = 0; i < kN; ++i){
         float segW = (kPasses[i].refMs / refTotal) * barW;
         float passMs = kPasses[i].refMs * scale;
         char lbl[64]; snprintf(lbl, sizeof(lbl), "%s %.2f", kPasses[i].name, passMs);
@@ -164,13 +157,12 @@ void PerformancePanel::drawContent(){
     ImGui::Separator();
     ImGui::Spacing();
 
-    // ---- FPS history plot ----
     ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
     ImGui::TextUnformatted("FPS History");
     ImGui::PopStyleColor();
     float ordered[kHistory];
     float maxFPS = 60.0f;
-    for (int i = 0; i < kHistory; ++i) {
+    for (int i = 0; i < kHistory; ++i){
         ordered[i] = m_fpsHistory[(m_fpsIdx + i) % kHistory];
         if (ordered[i] > maxFPS) maxFPS = ordered[i];
     }
@@ -185,7 +177,7 @@ void ResourcesPanel::drawContent(){
     ImGui::Separator();
     textMuted("  %-10s  %-5s  %s", "Type", "Refs", "Asset Path");
     ImGui::Separator();
-    for (auto& [uid, res] : resources) {
+    for (auto& [uid, res] : resources){
         std::string path = app->getAssets()->getPathFromUID(uid);
         if (path.empty()) path = app->getResources()->getLibraryPath(uid);
         if (path.empty()) path = "(uid=" + std::to_string(uid) + ")";
@@ -196,7 +188,7 @@ void ResourcesPanel::drawContent(){
 }
 
 ImVec4 ResourcesPanel::typeColor(ResourceBase::Type t){
-    switch (t) {
+    switch (t){
     case ResourceBase::Type::Mesh: return { 0.6f, 0.9f, 1.0f, 1.f };
     case ResourceBase::Type::Material: return { 1.0f, 0.85f, 0.5f, 1.f };
     case ResourceBase::Type::Texture: return { 0.8f, 0.6f, 1.0f, 1.f };
@@ -206,25 +198,23 @@ ImVec4 ResourcesPanel::typeColor(ResourceBase::Type t){
 
 void CollisionDebugPanel::drawContent(){
     CollisionSystem* cs = m_editor->getCollisionSystem();
-    if (!cs) { textMuted("No collision system."); return; }
+    if (!cs){ textMuted("No collision system."); return; }
 
     const CollisionResults& r = cs->getResults();
     EditorSceneSettings* s = m_editor->getSceneManager() ? &m_editor->getSceneManager()->getSettings() : nullptr;
 
-    // ---- Two-column layout: timings (left) + toggles (right) ----
     float winW = ImGui::GetContentRegionAvail().x;
     float leftW = winW * 0.6f;
 
     ImGui::BeginGroup();
 
-    // ---- Left: Broadphase Timings table ----
     ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
     ImGui::TextUnformatted("BROADPHASE TIMINGS");
     ImGui::PopStyleColor();
     ImGui::Spacing();
 
     struct PhaseRow { const char* phase; const char* impl; uint32_t pairs; float gpuMs; float cpuMs; };
-    float totalGpu = r.broadPhaseMs; // Only broad phase timing is available currently
+    float totalGpu = r.broadPhaseMs;
     PhaseRow rows[] = {
         { "Broad", "(SAP grid)", r.broadCount, r.broadPhaseMs, r.broadPhaseMs * 2.1f },
         { "Mid", "(AABB tree)", r.midCount, r.broadPhaseMs * 0.45f, r.broadPhaseMs * 0.7f },
@@ -248,7 +238,7 @@ void CollisionDebugPanel::drawContent(){
         ImGui::TableHeadersRow();
 
         float gtotal = 0.f, ctotal = 0.f;
-        for (auto& row : rows) {
+        for (auto& row : rows){
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::PushFont(g_fontMono);
@@ -282,7 +272,6 @@ void CollisionDebugPanel::drawContent(){
             gtotal += row.gpuMs; ctotal += row.cpuMs;
         }
 
-        // Total row
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
         ImGui::PushFont(g_fontMono);
@@ -306,13 +295,12 @@ void CollisionDebugPanel::drawContent(){
     ImGui::SameLine(leftW + 20.f);
     ImGui::BeginGroup();
 
-    // ---- Right: Debug Draw Toggles ----
     ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
     ImGui::TextUnformatted("DEBUG DRAW TOGGLES");
     ImGui::PopStyleColor();
     ImGui::Spacing();
 
-    if (s) {
+    if (s){
         ImGui::Checkbox("AABB Bounding Volumes", &s->debugDrawBounds);
         ImGui::Checkbox("Broadphase Grid", &s->debugDrawGrid);
         ImGui::Checkbox("Show Light Proxies", &s->debugDrawLights);
@@ -323,7 +311,6 @@ void CollisionDebugPanel::drawContent(){
 
     ImGui::Separator();
 
-    // ---- Broad phase selector & tuning -----------------------------------
     ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
     ImGui::TextUnformatted("BROAD PHASE");
     ImGui::PopStyleColor();
@@ -336,8 +323,7 @@ void CollisionDebugPanel::drawContent(){
     ImGui::SameLine();
     if (ImGui::Button("Octree")) cs->useOctreeBroadPhase();
 
-    // Grid-specific controls
-    if (cs->isUsingGrid()) {
+    if (cs->isUsingGrid()){
         ImGui::Spacing();
         ImGui::TextDisabled("Occupied cells last frame: %d", cs->getLastGridCellCount());
         float cellSize = cs->getGridCellSize();
@@ -349,8 +335,7 @@ void CollisionDebugPanel::drawContent(){
                               "~2× average object diameter is a good starting point.");
     }
 
-    // Octree-specific controls
-    if (cs->isUsingOctree()) {
+    if (cs->isUsingOctree()){
         ImGui::Spacing();
         ImGui::TextDisabled("Nodes: %d   Leaves: %d",
             cs->getLastOctreeNodeCount(), cs->getLastOctreeLeafCount());
@@ -373,10 +358,8 @@ void CollisionDebugPanel::drawContent(){
                               "Depth 6 ≈ 8^6 = 262 144 possible leaf nodes.");
     }
 
-    // ---- Pipeline statistics (with timing) -------------------------------
     ImGui::SeparatorText("Pipeline  (this frame)");
 
-    // Broad phase timing — shown for all implementations.
     {
         float ms = r.broadPhaseMs;
         ImVec4 col = ms < 0.5f ? ImVec4(0.4f,1.f,0.4f,1.f) :
@@ -388,9 +371,9 @@ void CollisionDebugPanel::drawContent(){
     }
 
     ImGui::Text("Broad phase  candidate pairs : %u", r.broadCount);
-    if (cs->isUsingGrid()) {
+    if (cs->isUsingGrid()){
         ImGui::TextDisabled("  (grid, %d occupied cell(s))", cs->getLastGridCellCount());
-    } else if (cs->isUsingOctree()) {
+    } else if (cs->isUsingOctree()){
         ImGui::TextDisabled("  (octree, %d node(s), %d leaf(ves))",
             cs->getLastOctreeNodeCount(), cs->getLastOctreeLeafCount());
     }
@@ -401,23 +384,21 @@ void CollisionDebugPanel::drawContent(){
     ImGui::Text("Narrow phase confirmed hits  : %u", r.narrowCount);
     if (anyHit) ImGui::PopStyleColor();
 
-    if (r.contacts.empty()) {
+    if (r.contacts.empty()){
         ImGui::Spacing();
         textMuted("No contacts.");
         return;
     }
 
-    // ---- Contact list ----------------------------------------------------
     ImGui::SeparatorText("Contacts");
     ImGui::BeginChild("##contacts", ImVec2(0, 0), false);
-    for (uint32_t i = 0; i < static_cast<uint32_t>(r.contacts.size()); ++i) {
+    for (uint32_t i = 0; i < static_cast<uint32_t>(r.contacts.size()); ++i){
         const ContactPoint& c = r.contacts[i];
         ImGui::PushID(static_cast<int>(i));
         const char* na = c.a ? c.a->getName().c_str() : "?";
         const char* nb = c.b ? c.b->getName().c_str() : "?";
         if (ImGui::TreeNodeEx("##cp", ImGuiTreeNodeFlags_DefaultOpen,
-                              "%s  ×  %s  (depth %.3f)", na, nb, c.depth))
-        {
+                              "%s  ×  %s  (depth %.3f)", na, nb, c.depth)){
             ImGui::Text("  point   (%.2f, %.2f, %.2f)", c.point.x, c.point.y, c.point.z);
             ImGui::Text("  normal  (%.2f, %.2f, %.2f)", c.normal.x, c.normal.y, c.normal.z);
             ImGui::TreePop();
@@ -427,12 +408,8 @@ void CollisionDebugPanel::drawContent(){
     ImGui::EndChild();
 }
 
-// ============================================================
-// GPUMemoryPanel
-// ============================================================
 
-// Horizontal fill-bar helper. tipId is a ## unique id for tooltip.
-void GPUMemoryPanel::drawBar(const char* /*tipId*/, float used, float total, ImU32 color){
+void GPUMemoryPanel::drawBar(const char* , float used, float total, ImU32 color){
     const float barH = 14.f;
     ImVec2 p = ImGui::GetCursorScreenPos();
     float w = ImGui::GetContentRegionAvail().x;
@@ -443,7 +420,7 @@ void GPUMemoryPanel::drawBar(const char* /*tipId*/, float used, float total, ImU
     ImU32 c0 = (color & 0x00FFFFFF) | ((((color >> 24) * 204u) / 255u) << 24);
     dl->AddRectFilled(p, ImVec2(p.x + fill, p.y + barH), c0, 3.f);
     dl->AddRectFilled(ImVec2(p.x + fill * 0.5f, p.y), ImVec2(p.x + fill, p.y + barH), color, 0.f);
-    for (int i = 1; i < 12; ++i) {
+    for (int i = 1; i < 12; ++i){
         float gx = p.x + w * i / 11.f;
         dl->AddLine(ImVec2(gx, p.y), ImVec2(gx, p.y + barH), IM_COL32(0, 0, 0, 40));
     }
@@ -457,15 +434,13 @@ void GPUMemoryPanel::drawContent(){
 
     ModuleStaticBuffer* sb = app->getStaticBuffer();
 
-    // ---- Descriptor Heaps ----
     {
         ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
         ImGui::TextUnformatted("DESCRIPTOR HEAPS");
         ImGui::PopStyleColor();
         ImGui::SameLine();
-        // VRAM display on the right
         float vramUsed = 0.f, vramTotal = 0.f;
-        if (sb) { vramUsed = sb->getUsedBytes() / (1024.f*1024.f*1024.f);
+        if (sb){ vramUsed = sb->getUsedBytes() / (1024.f*1024.f*1024.f);
                   vramTotal = sb->getTotalBytes() / (1024.f*1024.f*1024.f); }
         char vramBuf[64];
         snprintf(vramBuf, sizeof(vramBuf), "resident %.2f / %.1f GB VRAM", vramUsed, vramTotal);
@@ -488,11 +463,11 @@ void GPUMemoryPanel::drawContent(){
     };
 
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 4.f, 4.f });
-    if (ImGui::BeginTable("##heaps", 3, ImGuiTableFlags_SizingFixedFit)) {
+    if (ImGui::BeginTable("##heaps", 3, ImGuiTableFlags_SizingFixedFit)){
         ImGui::TableSetupColumn("##n", ImGuiTableColumnFlags_WidthFixed, labelW);
         ImGui::TableSetupColumn("##b", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("##v", ImGuiTableColumnFlags_WidthFixed, valW);
-        for (auto& h : heaps) {
+        for (auto& h : heaps){
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx1);
@@ -511,7 +486,6 @@ void GPUMemoryPanel::drawContent(){
     }
     ImGui::PopStyleVar();
 
-    // ---- Ring Buffer ----
     ImGui::Spacing();
     ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
     ImGui::TextUnformatted("UPLOAD RING BUFFER");
@@ -519,20 +493,17 @@ void GPUMemoryPanel::drawContent(){
     ImGui::Spacing();
 
     {
-        // Donut chart (SVG-style using ImDrawList circles)
         const float radius = 40.f;
         const float thick = 9.f;
-        const float rpc = 0.575f; // 57.5%
+        const float rpc = 0.575f;
         ImVec2 center = { ImGui::GetCursorScreenPos().x + radius + 8.f,
                           ImGui::GetCursorScreenPos().y + radius + 4.f };
         ImDrawList* dl = ImGui::GetWindowDrawList();
         dl->AddCircle(center, radius, ImGui::ColorConvertFloat4ToU32(EditorColors::Bg3), 64, thick);
-        // Arc fill
         const int kSegs = 64;
         float sweepEnd = -IM_PI * 0.5f + IM_PI * 2.f * rpc;
         dl->PathArcTo(center, radius, -IM_PI * 0.5f, sweepEnd, kSegs);
         dl->PathStroke(ImGui::ColorConvertFloat4ToU32(EditorColors::Inf), 0, thick);
-        // Center text
         ImGui::PushFont(g_fontMono);
         char pct[8]; snprintf(pct, sizeof(pct), "%.0f%%", rpc * 100.f);
         ImVec2 ts = ImGui::CalcTextSize(pct);
@@ -544,11 +515,9 @@ void GPUMemoryPanel::drawContent(){
             ImGui::ColorConvertFloat4ToU32(EditorColors::Tx2), sub);
         ImGui::PopFont();
 
-        // Side info
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + radius * 2.f + 20.f);
         ImGui::BeginGroup();
 
-        // Frame bars
         const float fBW = 40.f, fBH = 18.f;
         ImVec2 fStart = ImGui::GetCursorScreenPos();
         struct Frame { const char* n; float mb; ImU32 col; };
@@ -558,7 +527,7 @@ void GPUMemoryPanel::drawContent(){
             { "N", 5.3f, IM_COL32(121,192,255,255) },
         };
         float fx = fStart.x;
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < 3; ++i){
             bool isCur = (i == 1);
             dl->AddRectFilled({ fx, fStart.y }, { fx + fBW, fStart.y + fBH },
                 ImGui::ColorConvertFloat4ToU32(EditorColors::Bg0), 3.f);
@@ -568,7 +537,6 @@ void GPUMemoryPanel::drawContent(){
             ImU32 border = isCur ? ImGui::ColorConvertFloat4ToU32(EditorColors::Acc) :
                                    ImGui::ColorConvertFloat4ToU32(EditorColors::Line2);
             dl->AddRect({ fx, fStart.y }, { fx + fBW, fStart.y + fBH }, border, 3.f);
-            // Label
             ImVec2 lt = ImGui::CalcTextSize(frames[i].n);
             dl->AddText({ fx + (fBW - lt.x) * 0.5f, fStart.y + 3.f },
                 ImGui::ColorConvertFloat4ToU32(EditorColors::Tx2), frames[i].n);
@@ -594,18 +562,15 @@ void GPUMemoryPanel::drawContent(){
         ImGui::PopFont();
         ImGui::EndGroup();
     }
-    // Ensure enough vertical space for the 40px-radius donut drawn via ImDrawList.
     float ringGroupH = ImGui::GetItemRectSize().y;
     if (ringGroupH < 88.f) ImGui::Dummy(ImVec2(0.f, 88.f - ringGroupH));
 
-    // ---- Static Buffer Pools ----
     ImGui::Spacing();
     ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
     ImGui::TextUnformatted("STATIC BUFFER POOLS");
     ImGui::PopStyleColor();
     ImGui::Spacing();
 
-    // If the static buffer is live, show it; otherwise use design-spec values.
     struct PoolRow { const char* name; float used; float total; const char* unit; ImU32 col; };
     float sbUsedMB = sb ? sb->getUsedBytes() / (1024.f * 1024.f) : 412.f;
     float sbTotalMB = sb ? sb->getTotalBytes() / (1024.f * 1024.f) : 512.f;
@@ -616,11 +581,11 @@ void GPUMemoryPanel::drawContent(){
     };
 
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 4.f, 4.f });
-    if (ImGui::BeginTable("##pools", 3, ImGuiTableFlags_SizingFixedFit)) {
+    if (ImGui::BeginTable("##pools", 3, ImGuiTableFlags_SizingFixedFit)){
         ImGui::TableSetupColumn("##pn", ImGuiTableColumnFlags_WidthFixed, labelW);
         ImGui::TableSetupColumn("##pb", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("##pv", ImGuiTableColumnFlags_WidthFixed, valW);
-        for (auto& p : pools) {
+        for (auto& p : pools){
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx1);
@@ -641,7 +606,7 @@ void GPUMemoryPanel::drawContent(){
 }
 
 const char* ResourcesPanel::typeName(ResourceBase::Type t){
-    switch (t) {
+    switch (t){
     case ResourceBase::Type::Mesh: return "Mesh";
     case ResourceBase::Type::Texture: return "Texture";
     case ResourceBase::Type::Material: return "Material";

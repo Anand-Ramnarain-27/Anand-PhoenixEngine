@@ -3,15 +3,13 @@
 #include <imgui.h>
 #include <cstdio>
 
-// Helper: convert #RRGGBB hex literal to ImVec4 (alpha=1).
-static constexpr ImVec4 hex(float r, float g, float b, float a = 1.f) { return { r, g, b, a }; }
+static constexpr ImVec4 hex(float r, float g, float b, float a = 1.f){ return { r, g, b, a }; }
 
 void PhoenixTheme_Apply(){
     using namespace EditorColors;
 
     ImGuiStyle& s = ImGui::GetStyle();
 
-    // ---- Rounding / spacing ----
     s.WindowRounding = 6.f;
     s.ChildRounding = 4.f;
     s.FrameRounding = 4.f;
@@ -34,7 +32,6 @@ void PhoenixTheme_Apply(){
     s.GrabMinSize = 10.f;
     s.TabMinWidthForCloseButton = 0.f;
 
-    // ---- Colors ----
     ImVec4* c = s.Colors;
 
     c[ImGuiCol_Text] = Tx0;

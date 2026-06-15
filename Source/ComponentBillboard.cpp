@@ -10,11 +10,9 @@
 #include <filesystem>
 #include <unordered_map>
 
-ComponentBillboard::ComponentBillboard(GameObject* owner) : Component(owner) {}
+ComponentBillboard::ComponentBillboard(GameObject* owner) : Component(owner){}
 
 namespace {
-    // Recursively collects image asset paths under <project>/Assets so the
-    // inspector can offer a "pick from project" dropdown alongside drag-and-drop.
     std::vector<std::string> collectTextureAssets(){
         std::vector<std::string> out;
         std::string lib = app->getFileSystem()->GetLibraryPath();
@@ -38,8 +36,6 @@ namespace {
         return out;
     }
 
-    // Cached GPU thumbnail for the asset-picker grid (mirrors AssetBrowserPanel's
-    // thumbnail cache so the picker shows real previews like Unity's object picker).
     struct PickerThumb {
         ComPtr<ID3D12Resource> tex;
         D3D12_GPU_DESCRIPTOR_HANDLE srv = {};
@@ -48,9 +44,6 @@ namespace {
 
     constexpr float kPickerThumbSize = 64.0f;
 
-    // Draws Unity-style "Select Texture" object-picker popup: search bar + thumbnail
-    // grid (with a leading "None" tile). Returns true and writes `outPath` when the
-    // user picks an entry (outPath is cleared for "None"); the popup closes itself.
     bool drawTexturePickerPopup(const char* popupId, const std::vector<std::string>& assets,
                                 std::string& outPath){
         bool changed = false;
@@ -75,7 +68,6 @@ namespace {
 
         int col = 0;
 
-        // "None" entry — clears the texture, exactly like Unity's object picker.
         {
             ImGui::BeginGroup();
             bool clicked = ImGui::Selectable("##pickNone", false, ImGuiSelectableFlags_AllowDoubleClick,
@@ -89,12 +81,12 @@ namespace {
             ImGui::SetCursorScreenPos(ImVec2(cellMin.x, cellMin.y + kPickerThumbSize + 2.0f));
             ImGui::TextUnformatted("None");
             ImGui::EndGroup();
-            if (clicked) { outPath.clear(); changed = true; ImGui::CloseCurrentPopup(); }
+            if (clicked){ outPath.clear(); changed = true; ImGui::CloseCurrentPopup(); }
             ImGui::SameLine();
             ++col;
         }
 
-        for (const auto& path : assets) {
+        for (const auto& path : assets){
             std::string name = std::filesystem::path(path).filename().string();
             std::string lower = name;
             std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
@@ -107,8 +99,8 @@ namespace {
             ImVec2 cellMin = ImGui::GetItemRectMin();
 
             auto& th = s_thumbs[path];
-            if (!th.attempted) { th.attempted = true; TextureImporter::Load(path, th.tex, th.srv); }
-            if (th.tex) {
+            if (!th.attempted){ th.attempted = true; TextureImporter::Load(path, th.tex, th.srv); }
+            if (th.tex){
                 ImGui::GetWindowDrawList()->AddImage((ImTextureID)th.srv.ptr, cellMin,
                     ImVec2(cellMin.x + kPickerThumbSize, cellMin.y + kPickerThumbSize));
             } else {
@@ -123,7 +115,7 @@ namespace {
             ImGui::TextUnformatted(disp.c_str());
             ImGui::EndGroup();
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", path.c_str());
-            if (clicked) { outPath = path; changed = true; ImGui::CloseCurrentPopup(); }
+            if (clicked){ outPath = path; changed = true; ImGui::CloseCurrentPopup(); }
             ImGui::PopID();
 
             ++col;
@@ -144,7 +136,7 @@ void ComponentBillboard::update(float dt){
     const int totalTiles = std::max(1, sheetColumns * sheetRows);
     m_currentFrame += framesPerSecond * dt;
 
-    if (loop) {
+    if (loop){
         m_currentFrame = fmodf(m_currentFrame, (float)totalTiles);
         if (m_currentFrame < 0.f) m_currentFrame += (float)totalTiles;
     } else {
@@ -155,12 +147,10 @@ void ComponentBillboard::update(float dt){
 void ComponentBillboard::onEditor(){
     ImGui::Checkbox("Enabled##billboard", &enabled);
 
-    // Unity-style object field: a thumbnail swatch + name that opens an asset
-    // picker popup when clicked, plus drag-and-drop support straight onto the field.
     {
         static std::vector<std::string> s_textureAssets;
         static bool s_scanned = false;
-        if (!s_scanned) { s_textureAssets = collectTextureAssets(); s_scanned = true; }
+        if (!s_scanned){ s_textureAssets = collectTextureAssets(); s_scanned = true; }
 
         static std::unordered_map<std::string, PickerThumb> s_fieldThumbs;
 
@@ -176,9 +166,9 @@ void ComponentBillboard::onEditor(){
         ImDrawList* dl = ImGui::GetWindowDrawList();
         dl->AddRect(fMin, fMax, IM_COL32(90, 90, 90, 255), 3.0f);
 
-        if (!texturePath.empty()) {
+        if (!texturePath.empty()){
             auto& th = s_fieldThumbs[texturePath];
-            if (!th.attempted) { th.attempted = true; TextureImporter::Load(texturePath, th.tex, th.srv); }
+            if (!th.attempted){ th.attempted = true; TextureImporter::Load(texturePath, th.tex, th.srv); }
             const float thumb = fieldH - 6.0f;
             ImVec2 thumbMin(fMin.x + 3.0f, fMin.y + 3.0f);
             if (th.tex)
@@ -199,13 +189,12 @@ void ComponentBillboard::onEditor(){
             ImGui::SetTooltip("Click to pick a texture, or drag one here from the Asset Browser.\n%s",
                               texturePath.empty() ? "" : texturePath.c_str());
 
-        // Drag-and-drop target straight onto the object field (Unity behaviour)
-        if (ImGui::BeginDragDropTarget()) {
-            if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload(kDragAsset)) {
+        if (ImGui::BeginDragDropTarget()){
+            if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload(kDragAsset)){
                 std::string dropped(static_cast<const char*>(pl->Data), pl->DataSize - 1);
                 std::string lower = dropped;
                 std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
-                auto endsWith = [&](const char* ext) {
+                auto endsWith = [&](const char* ext){
                     size_t n = strlen(ext);
                     return lower.size() >= n && lower.compare(lower.size() - n, n, ext) == 0;
                 };
@@ -215,22 +204,20 @@ void ComponentBillboard::onEditor(){
             ImGui::EndDragDropTarget();
         }
 
-        if (fieldClicked) {
-            s_textureAssets = collectTextureAssets(); // refresh on open, like Unity rescans on picker open
+        if (fieldClicked){
+            s_textureAssets = collectTextureAssets();
             ImGui::OpenPopup("##billboardTexPicker");
         }
         drawTexturePickerPopup("##billboardTexPicker", s_textureAssets, texturePath);
 
-        // Small circular-looking "select" button on the right, mirroring Unity's
-        // object-field picker button (the little circle at the field's right edge).
         ImGui::SameLine();
-        if (ImGui::Button("o##billboardTexPickBtn", ImVec2(20, fieldH))) {
+        if (ImGui::Button("o##billboardTexPickBtn", ImVec2(20, fieldH))){
             s_textureAssets = collectTextureAssets();
             ImGui::OpenPopup("##billboardTexPicker");
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Pick texture asset...");
 
-        if (!texturePath.empty()) {
+        if (!texturePath.empty()){
             ImGui::SameLine();
             if (ImGui::SmallButton("X##clearBillboardTex"))
                 texturePath.clear();
@@ -272,12 +259,12 @@ void ComponentBillboard::onLoad(const std::string& json){
         auto pos = json.find(k);
         if (pos == std::string::npos) return {};
         pos += k.size();
-        if (json[pos] == '"') {
+        if (json[pos] == '"'){
             ++pos;
             auto end = json.find('"', pos);
             return json.substr(pos, end - pos);
         }
-        if (json[pos] == '[') {
+        if (json[pos] == '['){
             auto end = json.find(']', pos);
             return json.substr(pos, end - pos + 1);
         }
@@ -285,11 +272,11 @@ void ComponentBillboard::onLoad(const std::string& json){
         return json.substr(pos, end - pos);
     };
 
-    auto extractArray = [&](const std::string& arr, float* out, int count) {
+    auto extractArray = [&](const std::string& arr, float* out, int count){
         if (arr.size() < 2) return;
         std::string inner = arr.substr(1, arr.size() - 2);
         size_t start = 0;
-        for (int i = 0; i < count; ++i) {
+        for (int i = 0; i < count; ++i){
             size_t comma = inner.find(',', start);
             std::string token = (comma == std::string::npos) ? inner.substr(start)
                                                               : inner.substr(start, comma - start);

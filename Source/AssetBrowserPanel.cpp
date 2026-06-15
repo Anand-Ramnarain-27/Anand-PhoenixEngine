@@ -62,12 +62,12 @@ void AssetBrowserPanel::refreshCurrentDir(){
     if (m_currentPath.empty()) return;
     std::vector<Entry> dirs, files;
     try {
-        for (const auto& e : fs::directory_iterator(m_currentPath)) {
+        for (const auto& e : fs::directory_iterator(m_currentPath)){
             Entry en;
             en.path = e.path().string();
             en.name = e.path().filename().string();
             en.isDir = e.is_directory();
-            if (en.isDir) { dirs.push_back(std::move(en)); }
+            if (en.isDir){ dirs.push_back(std::move(en)); }
             else {
                 en.ext = e.path().extension().string();
                 std::transform(en.ext.begin(), en.ext.end(), en.ext.begin(), ::tolower);
@@ -75,8 +75,8 @@ void AssetBrowserPanel::refreshCurrentDir(){
             }
         }
     }
-    catch (...) {}
-    auto byName = [](const Entry& a, const Entry& b) { return a.name < b.name; };
+    catch (...){}
+    auto byName = [](const Entry& a, const Entry& b){ return a.name < b.name; };
     std::sort(dirs.begin(), dirs.end(), byName);
     std::sort(files.begin(), files.end(), byName);
     m_entries.insert(m_entries.end(), dirs.begin(), dirs.end());
@@ -84,11 +84,11 @@ void AssetBrowserPanel::refreshCurrentDir(){
 }
 
 void AssetBrowserPanel::drawContent(){
-    if (m_roots.empty()) {
+    if (m_roots.empty()){
         std::string lib = app->getFileSystem()->GetLibraryPath();
         while (!lib.empty() && (lib.back() == '/' || lib.back() == '\\')) lib.pop_back();
         fs::path projectRoot = fs::path(lib).parent_path();
-        for (auto& [rel, label] : std::vector<std::pair<std::string, std::string>>{ {"Assets","Assets"}, {"Library","Library"} }) {
+        for (auto& [rel, label] : std::vector<std::pair<std::string, std::string>>{ {"Assets","Assets"}, {"Library","Library"} }){
             std::string full = (projectRoot / rel).string();
             if (fs::exists(full)) m_roots.push_back({ full, label });
         }
@@ -112,7 +112,7 @@ void AssetBrowserPanel::drawContent(){
     ImGui::Separator();
     drawThumbnailGrid();
     ImGui::EndChild();
-    if (isInst) { ImGui::Separator(); drawPrefabInstanceBar(); }
+    if (isInst){ ImGui::Separator(); drawPrefabInstanceBar(); }
     ImGui::Separator();
     drawStatusBar();
     drawModals();
@@ -128,18 +128,18 @@ void AssetBrowserPanel::drawFolderTree(){
 void AssetBrowserPanel::drawFolderNode(const std::string& absPath, bool forceOpen){
     std::vector<std::string> subDirs;
     try {
-        for (const auto& e : fs::directory_iterator(absPath)) {
+        for (const auto& e : fs::directory_iterator(absPath)){
             if (!e.is_directory()) continue;
             std::string dname = e.path().filename().string();
             if (dname.empty() || dname[0] == '.' || isDirSkipped(dname)) continue;
             subDirs.push_back(e.path().string());
         }
     }
-    catch (...) {}
+    catch (...){}
     std::sort(subDirs.begin(), subDirs.end());
 
     std::string name = fs::path(absPath).filename().string();
-    for (const auto& r : m_roots) if (r.path == absPath) { name = r.label; break; }
+    for (const auto& r : m_roots) if (r.path == absPath){ name = r.label; break; }
 
     ImGuiTreeNodeFlags flags =
         ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth |
@@ -151,7 +151,7 @@ void AssetBrowserPanel::drawFolderNode(const std::string& absPath, bool forceOpe
     bool open = ImGui::TreeNodeEx(absPath.c_str(), flags, "%s", name.c_str());
     ImGui::PopStyleColor();
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) navigateTo(absPath);
-    if (open) {
+    if (open){
         for (const auto& sub : subDirs) drawFolderNode(sub, false);
         ImGui::TreePop();
     }
@@ -166,20 +166,20 @@ void AssetBrowserPanel::drawBreadcrumb(){
 
     std::string rootPath, rootLabel;
     for (const auto& r : m_roots)
-        if (m_currentPath.rfind(r.path, 0) == 0) { rootPath = r.path; rootLabel = r.label; break; }
+        if (m_currentPath.rfind(r.path, 0) == 0){ rootPath = r.path; rootLabel = r.label; break; }
 
-    if (!rootPath.empty()) {
+    if (!rootPath.empty()){
         fs::path rel = fs::path(m_currentPath).lexically_relative(fs::path(rootPath).parent_path());
         fs::path built = fs::path(rootPath).parent_path();
         bool first = true;
         std::vector<std::pair<std::string, std::string>> crumbs;
-        for (const auto& seg : rel) {
+        for (const auto& seg : rel){
             built /= seg;
             crumbs.push_back({ first ? rootLabel : seg.string(), built.string() });
             first = false;
         }
-        for (int i = 0; i < (int)crumbs.size(); ++i) {
-            if (i > 0) { ImGui::SameLine(0, 2); textMuted(">"); ImGui::SameLine(0, 2); }
+        for (int i = 0; i < (int)crumbs.size(); ++i){
+            if (i > 0){ ImGui::SameLine(0, 2); textMuted(">"); ImGui::SameLine(0, 2); }
             bool last = (i == (int)crumbs.size() - 1);
             ImGui::PushID(i);
             ImGui::PushStyleColor(ImGuiCol_Text, last ? EditorColors::White : EditorColors::Muted);
@@ -203,12 +203,12 @@ void AssetBrowserPanel::drawThumbnailGrid(){
     ImGui::BeginChild("##ABGrid", ImVec2(0, 0), false);
 
     std::vector<int> visible;
-    for (int i = 0; i < (int)m_entries.size(); ++i) {
+    for (int i = 0; i < (int)m_entries.size(); ++i){
         if (!filterLow.empty() && toLower(m_entries[i].name).find(filterLow) == std::string::npos) continue;
         visible.push_back(i);
     }
 
-    if (visible.empty()) {
+    if (visible.empty()){
         ImGui::SetCursorPos({ 12, 12 });
         textMuted("No assets here.");
         drawEmptyAreaContextMenu();
@@ -218,7 +218,7 @@ void AssetBrowserPanel::drawThumbnailGrid(){
         float totalH = rows * (cellH + pad) + pad;
         ImGui::Dummy(ImVec2(avail, totalH));
 
-        for (int vi = 0; vi < (int)visible.size(); ++vi) {
+        for (int vi = 0; vi < (int)visible.size(); ++vi){
             int idx = visible[vi];
             const Entry& e = m_entries[idx];
             int c = vi % cols, r = vi / cols;
@@ -233,16 +233,16 @@ void AssetBrowserPanel::drawThumbnailGrid(){
             bool clicked = ImGui::Selectable("##cell", selected, ImGuiSelectableFlags_AllowDoubleClick, ImVec2(cellW, cellH));
             ImGui::PopStyleColor(2);
 
-            if (clicked) {
+            if (clicked){
                 m_selectedPath = e.path;
-                if (ImGui::IsMouseDoubleClicked(0)) {
+                if (ImGui::IsMouseDoubleClicked(0)){
                     if (e.isDir) navigateTo(e.path);
                     else if (e.ext == ".prefab") m_editor->enterPrefabEdit(fs::path(e.name).stem().string());
                     else spawnAsset(e.path);
                 }
             }
 
-            if (!e.isDir && ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+            if (!e.isDir && ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)){
                 ImGui::SetDragDropPayload(kDragAsset, e.path.c_str(), e.path.size() + 1);
                 ImVec4 c4 = typeColor(e.ext);
                 ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(c4.x * 0.15f, c4.y * 0.15f, c4.z * 0.15f, 1.f));
@@ -260,7 +260,7 @@ void AssetBrowserPanel::drawThumbnailGrid(){
             }
 
             ImVec2 thumbPos = { cx + (cellW - kThumbSize) * 0.5f, cy + 4.0f };
-            if (e.isDir) {
+            if (e.isDir){
                 drawColoredBox(thumbPos, EditorColors::Folder, nullptr);
                 ImDrawList* dl = ImGui::GetWindowDrawList();
                 ImVec2 wp = ImGui::GetWindowPos();
@@ -268,9 +268,9 @@ void AssetBrowserPanel::drawThumbnailGrid(){
                 float sy = wp.y + thumbPos.y - ImGui::GetScrollY();
                 dl->AddText({ sx + kThumbSize * 0.5f - 9, sy + kThumbSize * 0.5f - 7 }, IM_COL32(255, 215, 60, 255), "[ ]");
             }
-            else if (e.ext == ".dds" || e.ext == ".png" || e.ext == ".jpg" || e.ext == ".jpeg") {
+            else if (e.ext == ".dds" || e.ext == ".png" || e.ext == ".jpg" || e.ext == ".jpeg"){
                 auto& th = m_thumbCache[e.path];
-                if (!th.attempted) { th.attempted = true; TextureImporter::Load(e.path, th.tex, th.srv); }
+                if (!th.attempted){ th.attempted = true; TextureImporter::Load(e.path, th.tex, th.srv); }
                 ImGui::SetCursorPos(thumbPos);
                 if (th.tex) ImGui::Image((ImTextureID)th.srv.ptr, ImVec2(kThumbSize, kThumbSize));
                 else drawColoredBox(thumbPos, typeColor(e.ext), typeIcon(e.ext));
@@ -302,36 +302,36 @@ void AssetBrowserPanel::drawItemContextMenu(int idx){
     ImGui::PopStyleColor();
     ImGui::Separator();
 
-    if (e.isDir) {
+    if (e.isDir){
         if (ImGui::MenuItem("Open Folder")) navigateTo(e.path);
     }
     else {
         if (ImGui::MenuItem("Add to Scene")) spawnAsset(e.path);
         if (ImGui::MenuItem("Show in Explorer")) ShellExecuteA(nullptr, "explore", fs::path(e.path).parent_path().string().c_str(), nullptr, nullptr, SW_SHOWDEFAULT);
         ImGui::Separator();
-        if (e.ext == ".prefab") {
+        if (e.ext == ".prefab"){
             std::string pfName = fs::path(e.name).stem().string();
             if (ImGui::MenuItem("Edit Prefab...")) m_editor->enterPrefabEdit(pfName);
             ImGui::Separator();
             if (ImGui::MenuItem("Instantiate Prefab")) prefabInstantiate(pfName);
-            if (ImGui::MenuItem("Create Variant...")) { m_showVariantModal = true; strncpy_s(m_variantSrcBuf, pfName.c_str(), sizeof(m_variantSrcBuf) - 1); snprintf(m_variantDstBuf, sizeof(m_variantDstBuf), "%s_variant", pfName.c_str()); }
-            if (ImGui::MenuItem("Rename...")) { m_renamingPrefab = true; strncpy_s(m_renameSrcBuf, pfName.c_str(), sizeof(m_renameSrcBuf) - 1); strncpy_s(m_renameDstBuf, pfName.c_str(), sizeof(m_renameDstBuf) - 1); }
+            if (ImGui::MenuItem("Create Variant...")){ m_showVariantModal = true; strncpy_s(m_variantSrcBuf, pfName.c_str(), sizeof(m_variantSrcBuf) - 1); snprintf(m_variantDstBuf, sizeof(m_variantDstBuf), "%s_variant", pfName.c_str()); }
+            if (ImGui::MenuItem("Rename...")){ m_renamingPrefab = true; strncpy_s(m_renameSrcBuf, pfName.c_str(), sizeof(m_renameSrcBuf) - 1); strncpy_s(m_renameDstBuf, pfName.c_str(), sizeof(m_renameDstBuf) - 1); }
             ImGui::Separator();
         }
-        if (e.ext == ".json") {
+        if (e.ext == ".json"){
             if (ImGui::MenuItem("Load Scene"))
                 if (auto* sm = m_editor->getSceneManager(); sm && sm->loadScene(e.path)) m_editor->log(("Loaded: " + e.name).c_str(), EditorColors::Success);
             ImGui::Separator();
         }
-        if (e.ext == ".gltf" || e.ext == ".fbx" || e.ext == ".obj") {
+        if (e.ext == ".gltf" || e.ext == ".fbx" || e.ext == ".obj"){
             EditorSelection& sel = m_editor->getSelection();
             if (!sel.has()) ImGui::BeginDisabled();
             if (ImGui::MenuItem("Apply Texture / Model to Selection")) spawnAsset(e.path);
             if (!sel.has()) ImGui::EndDisabled();
             ImGui::Separator();
         }
-        if (e.ext == ".dds") {
-            if (ImGui::BeginMenu("Reimport As...")) {
+        if (e.ext == ".dds"){
+            if (ImGui::BeginMenu("Reimport As...")){
                 ImGui::TextDisabled("Block Compression format:");
                 ImGui::Separator();
                 struct { const char* label; const char* tip; int typeIdx; } opts[] = {
@@ -341,8 +341,8 @@ void AssetBrowserPanel::drawItemContextMenu(int idx){
                     { "Metal/Roughness (BC5)","BC5 — two grayscale channels (R=metal, G=rough).", 3 },
                     { "Occlusion (BC4)", "BC4 — single grayscale channel.", 4 },
                 };
-                for (auto& opt : opts) {
-                    if (ImGui::MenuItem(opt.label)) {
+                for (auto& opt : opts){
+                    if (ImGui::MenuItem(opt.label)){
                         reimportTextureAs(e.path, opt.typeIdx);
                         ImGui::CloseCurrentPopup();
                     }
@@ -353,12 +353,12 @@ void AssetBrowserPanel::drawItemContextMenu(int idx){
             ImGui::Separator();
         }
         EditorSelection& sel = m_editor->getSelection();
-        if (sel.has()) {
-            if (ImGui::MenuItem("Save Selected as Prefab...")) { m_showSavePrefabModal = true; strncpy_s(m_savePrefabNameBuf, sel.object->getName().c_str(), sizeof(m_savePrefabNameBuf) - 1); }
+        if (sel.has()){
+            if (ImGui::MenuItem("Save Selected as Prefab...")){ m_showSavePrefabModal = true; strncpy_s(m_savePrefabNameBuf, sel.object->getName().c_str(), sizeof(m_savePrefabNameBuf) - 1); }
             ImGui::Separator();
         }
         ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Danger);
-        if (ImGui::MenuItem("Delete")) {
+        if (ImGui::MenuItem("Delete")){
             app->getFileSystem()->Delete(e.path.c_str());
             m_editor->log(("Deleted: " + e.name).c_str(), EditorColors::Warning);
             if (m_selectedPath == e.path) m_selectedPath.clear();
@@ -378,8 +378,8 @@ void AssetBrowserPanel::drawEmptyAreaContextMenu(){
     if (ImGui::MenuItem("Show in Explorer")) ShellExecuteA(nullptr, "explore", m_currentPath.c_str(), nullptr, nullptr, SW_SHOWDEFAULT);
     ImGui::Separator();
     EditorSelection& sel = m_editor->getSelection();
-    if (sel.has()) {
-        if (ImGui::MenuItem("Save Selected as Prefab...")) { m_showSavePrefabModal = true; strncpy_s(m_savePrefabNameBuf, sel.object->getName().c_str(), sizeof(m_savePrefabNameBuf) - 1); }
+    if (sel.has()){
+        if (ImGui::MenuItem("Save Selected as Prefab...")){ m_showSavePrefabModal = true; strncpy_s(m_savePrefabNameBuf, sel.object->getName().c_str(), sizeof(m_savePrefabNameBuf) - 1); }
     }
     else { ImGui::BeginDisabled(); ImGui::MenuItem("Save Selected as Prefab (no selection)"); ImGui::EndDisabled(); }
     ImGui::EndPopup();
@@ -404,7 +404,7 @@ void AssetBrowserPanel::drawPrefabInstanceBar(){
     ImGui::Text("%s", go->getName().c_str());
     ImGui::SameLine(0, 4);
     textMuted("->  %s", pfName.c_str());
-    if (hasOverrides) { ImGui::SameLine(0, 4); textActive("(*)"); }
+    if (hasOverrides){ ImGui::SameLine(0, 4); textActive("(*)"); }
 
     ImGui::SetCursorPos({ 6, 26 });
     const float bw = 58.f;
@@ -430,7 +430,7 @@ void AssetBrowserPanel::drawPrefabInstanceBar(){
     ImGui::SameLine(0, pad);
 
     ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Warning);
-    if (ImGui::SmallButton("Unlink##ib")) {
+    if (ImGui::SmallButton("Unlink##ib")){
         PrefabManager::unlinkInstance(go);
         m_editor->log(("Unlinked '" + go->getName() + "'").c_str(), EditorColors::Warning);
     }
@@ -446,7 +446,7 @@ void AssetBrowserPanel::drawStatusBar(){
     const float bw1 = 90.0f, bw2 = 54.0f;
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 3);
 
-    if (!m_selectedPath.empty() && !fs::is_directory(m_selectedPath)) {
+    if (!m_selectedPath.empty() && !fs::is_directory(m_selectedPath)){
         std::string fname = fs::path(m_selectedPath).filename().string();
         std::string ext = fs::path(m_selectedPath).extension().string();
         std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
@@ -468,7 +468,7 @@ void AssetBrowserPanel::drawStatusBar(){
         ImGui::SameLine(0, 4);
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.55f, 0.15f, 0.15f, 1.f));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.75f, 0.20f, 0.20f, 1.f));
-        if (ImGui::Button("Delete", ImVec2(bw2, 0))) {
+        if (ImGui::Button("Delete", ImVec2(bw2, 0))){
             app->getFileSystem()->Delete(m_selectedPath.c_str());
             m_editor->log(("Deleted: " + fname).c_str(), EditorColors::Warning);
             m_selectedPath.clear(); m_dirty = true;
@@ -483,20 +483,20 @@ void AssetBrowserPanel::drawStatusBar(){
 
 void AssetBrowserPanel::drawModals(){
     ImVec2 centre = ImGui::GetMainViewport()->GetCenter();
-    auto openModal = [&](bool& flag, const char* id) {
-        if (flag) { ImGui::OpenPopup(id); flag = false; }
+    auto openModal = [&](bool& flag, const char* id){
+        if (flag){ ImGui::OpenPopup(id); flag = false; }
         ImGui::SetNextWindowPos(centre, ImGuiCond_Appearing, { 0.5f, 0.5f });
         };
 
     openModal(m_showVariantModal, "##variantModal");
     ImGui::SetNextWindowSize({ 320, 0 });
-    if (ImGui::BeginPopupModal("##variantModal", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    if (ImGui::BeginPopupModal("##variantModal", nullptr, ImGuiWindowFlags_AlwaysAutoResize)){
         ImGui::Text("Create variant of:  \"%s\"", m_variantSrcBuf);
         ImGui::Separator();
         ImGui::SetNextItemWidth(-1);
         ImGui::InputText("Variant name##vname", m_variantDstBuf, sizeof(m_variantDstBuf));
         ImGui::Spacing();
-        if (ImGui::Button("Create", { 100, 0 })) { prefabCreateVariant(m_variantSrcBuf, m_variantDstBuf); ImGui::CloseCurrentPopup(); }
+        if (ImGui::Button("Create", { 100, 0 })){ prefabCreateVariant(m_variantSrcBuf, m_variantDstBuf); ImGui::CloseCurrentPopup(); }
         ImGui::SameLine();
         if (ImGui::Button("Cancel", { 80, 0 })) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
@@ -504,13 +504,13 @@ void AssetBrowserPanel::drawModals(){
 
     openModal(m_renamingPrefab, "##renameModal");
     ImGui::SetNextWindowSize({ 300, 0 });
-    if (ImGui::BeginPopupModal("##renameModal", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    if (ImGui::BeginPopupModal("##renameModal", nullptr, ImGuiWindowFlags_AlwaysAutoResize)){
         ImGui::Text("Rename prefab:  \"%s\"", m_renameSrcBuf);
         ImGui::Separator();
         ImGui::SetNextItemWidth(-1);
         bool enter = ImGui::InputText("New name##rname", m_renameDstBuf, sizeof(m_renameDstBuf), ImGuiInputTextFlags_EnterReturnsTrue);
         ImGui::Spacing();
-        if (ImGui::Button("Rename", { 100, 0 }) || enter) { prefabRename(m_renameSrcBuf, m_renameDstBuf); ImGui::CloseCurrentPopup(); }
+        if (ImGui::Button("Rename", { 100, 0 }) || enter){ prefabRename(m_renameSrcBuf, m_renameDstBuf); ImGui::CloseCurrentPopup(); }
         ImGui::SameLine();
         if (ImGui::Button("Cancel", { 80, 0 })) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
@@ -518,14 +518,14 @@ void AssetBrowserPanel::drawModals(){
 
     openModal(m_showSavePrefabModal, "##savePfModal");
     ImGui::SetNextWindowSize({ 300, 0 });
-    if (ImGui::BeginPopupModal("##savePfModal", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    if (ImGui::BeginPopupModal("##savePfModal", nullptr, ImGuiWindowFlags_AlwaysAutoResize)){
         EditorSelection& sel = m_editor->getSelection();
         ImGui::Text("Save \"%s\" as prefab:", sel.has() ? sel.object->getName().c_str() : "?");
         ImGui::Separator();
         ImGui::SetNextItemWidth(-1);
         bool enter = ImGui::InputText("Prefab name##pfn", m_savePrefabNameBuf, sizeof(m_savePrefabNameBuf), ImGuiInputTextFlags_EnterReturnsTrue);
         ImGui::Spacing();
-        if ((ImGui::Button("Save", { 100, 0 }) || enter) && strlen(m_savePrefabNameBuf) > 0) { prefabSaveSelected(m_savePrefabNameBuf); ImGui::CloseCurrentPopup(); }
+        if ((ImGui::Button("Save", { 100, 0 }) || enter) && strlen(m_savePrefabNameBuf) > 0){ prefabSaveSelected(m_savePrefabNameBuf); ImGui::CloseCurrentPopup(); }
         ImGui::SameLine();
         if (ImGui::Button("Cancel", { 80, 0 })) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
@@ -539,7 +539,7 @@ void AssetBrowserPanel::drawColoredBox(ImVec2 lp, ImVec4 col, const char* label)
     ImVec2 br = { tl.x + kThumbSize, tl.y + kThumbSize };
     dl->AddRectFilled(tl, br, EditorColors::toU32Scaled(col, 0.20f), 6.f);
     dl->AddRect(tl, br, EditorColors::toU32Scaled(col, 0.65f), 6.f, 0, 1.5f);
-    if (label && label[0]) {
+    if (label && label[0]){
         ImVec2 ts = ImGui::CalcTextSize(label);
         dl->AddText({ tl.x + (kThumbSize - ts.x) * 0.5f, tl.y + (kThumbSize - ts.y) * 0.5f }, EditorColors::toU32(col), label);
     }
@@ -552,28 +552,28 @@ void AssetBrowserPanel::spawnAsset(const std::string& path){
     ModuleScene* scene = m_editor->getActiveModuleScene();
     EditorSelection& sel = m_editor->getSelection();
 
-    if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj") {
+    if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj"){
         if (!scene) return;
         if (GameObject* go = m_editor->spawnModel(path)) sel.object = go;
     }
-    else if (ext == ".json") {
+    else if (ext == ".json"){
         if (auto* sm = m_editor->getSceneManager(); sm && sm->loadScene(path)) m_editor->log(("Loaded scene: " + path).c_str(), EditorColors::Success);
     }
     else if (ext == ".prefab") prefabInstantiate(fs::path(path).stem().string());
-    else if (ext == ".dds" || ext == ".png" || ext == ".jpg" || ext == ".jpeg") {
+    else if (ext == ".dds" || ext == ".png" || ext == ".jpg" || ext == ".jpeg"){
         auto& th = m_thumbCache[path];
-        if (!th.attempted) { th.attempted = true; TextureImporter::Load(path, th.tex, th.srv); }
-        if (!th.tex) { m_editor->log("Failed to load texture.", EditorColors::Danger); return; }
+        if (!th.attempted){ th.attempted = true; TextureImporter::Load(path, th.tex, th.srv); }
+        if (!th.tex){ m_editor->log("Failed to load texture.", EditorColors::Danger); return; }
         std::string stem = fs::path(path).stem().string();
-        if (scene) { sel.object = PrimitiveFactory::createTexturedQuadObject(scene, stem, th.tex, th.srv); m_editor->log(("Added image: " + stem).c_str(), EditorColors::Success); }
+        if (scene){ sel.object = PrimitiveFactory::createTexturedQuadObject(scene, stem, th.tex, th.srv); m_editor->log(("Added image: " + stem).c_str(), EditorColors::Success); }
     }
 }
 
 
 void AssetBrowserPanel::prefabSaveSelected(const char* name){
     EditorSelection& sel = m_editor->getSelection();
-    if (!sel.has()) { m_editor->log("No GameObject selected.", EditorColors::Danger); return; }
-    if (PrefabManager::createPrefab(sel.object, name)) {
+    if (!sel.has()){ m_editor->log("No GameObject selected.", EditorColors::Danger); return; }
+    if (PrefabManager::createPrefab(sel.object, name)){
         PrefabInstanceData d; d.prefabName = name; d.prefabUID = PrefabManager::getPrefabUID(sel.object);
         PrefabManager::linkInstance(sel.object, d);
         m_editor->log(("Prefab saved: " + std::string(name)).c_str(), EditorColors::Success);
@@ -584,8 +584,8 @@ void AssetBrowserPanel::prefabSaveSelected(const char* name){
 
 void AssetBrowserPanel::prefabInstantiate(const std::string& name){
     ModuleScene* scene = m_editor->getActiveModuleScene();
-    if (!scene) { m_editor->log("No active scene.", EditorColors::Danger); return; }
-    if (GameObject* go = PrefabManager::instantiatePrefab(name, scene)) {
+    if (!scene){ m_editor->log("No active scene.", EditorColors::Danger); return; }
+    if (GameObject* go = PrefabManager::instantiatePrefab(name, scene)){
         m_editor->getSelection().object = go;
         m_editor->log(("Instantiated: " + name).c_str(), EditorColors::Success);
     }
@@ -631,8 +631,6 @@ void AssetBrowserPanel::prefabRename(const std::string& oldName, const std::stri
     m_dirty = true;
 }
 
-// Re-compresses an already-imported DDS file using the chosen TextureType.
-// The source is the DDS file itself (which is already the engine-side copy).
 void AssetBrowserPanel::reimportTextureAs(const std::string& ddsPath, int typeIndex){
     static const TextureImporter::TextureType kTypes[] = {
         TextureImporter::TextureType::Color,
@@ -647,11 +645,8 @@ void AssetBrowserPanel::reimportTextureAs(const std::string& ddsPath, int typeIn
 
     TextureImporter::TextureType type = kTypes[typeIndex];
 
-    // Re-import the DDS in place using itself as the source — DirectXTex can
-    // load a DDS and re-compress it to a different BC format.
     bool ok = TextureImporter::Import(ddsPath.c_str(), ddsPath, type);
-    if (ok) {
-        // Evict the cached thumbnail so the panel shows the refreshed image.
+    if (ok){
         m_thumbCache.erase(ddsPath);
         m_editor->log((std::string("Reimported as ") + kTypeNames[typeIndex] + ": " +
                        fs::path(ddsPath).filename().string()).c_str(), EditorColors::Success);

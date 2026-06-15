@@ -13,8 +13,7 @@ struct D3D12_RENDER_TARGET_VIEW_DESC;
 struct D3D12_DEPTH_STENCIL_VIEW_DESC;
 
 template<D3D12_DESCRIPTOR_HEAP_TYPE HeapType, size_t MaxDescriptors, typename DescriptorType>
-class ModuleDescriptorsBase : public Module
-{
+class ModuleDescriptorsBase : public Module {
     static_assert(MaxDescriptors > 0, "Must have at least one descriptor slot");
 
 protected:
@@ -47,8 +46,7 @@ public:
         };
 
         HRESULT hr = device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heap));
-        if (SUCCEEDED(hr))
-        {
+        if (SUCCEEDED(hr)){
             cpuStart = heap->GetCPUDescriptorHandleForHeapStart();
             return true;
         }
@@ -72,8 +70,7 @@ public:
     }
 
     void release(UINT handle){
-        if (handle != 0 && handles.validHandle(handle))
-        {
+        if (handle != 0 && handles.validHandle(handle)){
             UINT index = handles.indexFromHandle(handle);
             handles.freeHandle(handle);
         }

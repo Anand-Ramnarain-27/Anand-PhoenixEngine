@@ -31,7 +31,7 @@ public:
 
     std::vector<std::string> getRegisteredClassNames() const;
 
-    void setReloadCallback(ReloadCallback cb) { m_reloadCb = std::move(cb); }
+    void setReloadCallback(ReloadCallback cb){ m_reloadCb = std::move(cb); }
 
     bool isLoaded(const std::string& dllPath) const;
 

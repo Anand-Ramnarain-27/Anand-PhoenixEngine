@@ -13,11 +13,11 @@
 #include <filesystem>
 
 namespace {
-    constexpr UINT cbAlign(UINT b) { return (b + 255u) & ~255u; }
+    constexpr UINT cbAlign(UINT b){ return (b + 255u) & ~255u; }
 }
 
 bool BillboardPass::init(ID3D12Device* device){
-    if (!m_pipeline.init(device)) {
+    if (!m_pipeline.init(device)){
         LOG("BillboardPass: pipeline init failed");
         return false;
     }
@@ -38,20 +38,17 @@ bool BillboardPass::createUploadBuffer(ID3D12Device* device){
     HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                                                   D3D12_RESOURCE_STATE_GENERIC_READ,
                                                   nullptr, IID_PPV_ARGS(&m_cbRing));
-    if (FAILED(hr)) { LOG("BillboardPass: CB ring alloc failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ LOG("BillboardPass: CB ring alloc failed 0x%08X", hr); return false; }
     m_cbRing->SetName(L"Billboard_CBRing");
     m_cbRing->Map(0, nullptr, &m_cbMapped);
     return true;
 }
 
 bool BillboardPass::createFallbackTexture(ID3D12Device* device){
-    (void)device; // resource creation now goes through ModuleGPUResources
-    // Upload actual opaque-white pixel data — a committed resource with no
-    // initial data holds undefined GPU memory, which previously showed up as
-    // a solid garbage-coloured quad whenever a billboard's texture failed to load.
+    (void)device;
     const uint32_t white = 0xFFFFFFFFu;
     m_fallbackTex = app->getGPUResources()->createRawTexture2D(&white, sizeof(white), 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
-    if (!m_fallbackTex) {
+    if (!m_fallbackTex){
         LOG("BillboardPass: fallback texture creation failed");
         return false;
     }
@@ -59,7 +56,7 @@ bool BillboardPass::createFallbackTexture(ID3D12Device* device){
 
     auto* sd = app->getShaderDescriptors();
     m_fallbackSRV = sd->allocTable("Billboard_FallbackSRV");
-    if (!m_fallbackSRV.isValid()) {
+    if (!m_fallbackSRV.isValid()){
         LOG("BillboardPass: fallback SRV alloc failed");
         return false;
     }
@@ -82,37 +79,29 @@ D3D12_GPU_DESCRIPTOR_HANDLE BillboardPass::getOrLoadTexture(const std::string& p
 
     auto* gpu = app->getGPUResources();
 
-    // Try the path as-is first.  If it's a source-asset path (e.g. Assets/.../foo.tga)
-    // and the direct load fails, check whether the asset pipeline already imported an
-    // equivalent DDS into Library/Textures/<stem>.dds and load that instead.
     std::string resolvedPath = path;
     ComPtr<ID3D12Resource> tex = gpu ? gpu->createTextureFromFile(path, true) : nullptr;
-    // If the raw path failed and it's not already a DDS, try the imported DDS in
-    // Library/Textures/<stem>.dds — that's where TextureImporter writes converted assets.
-    // Don't use fs::exists; just attempt the load (no CWD dependency on the check).
-    if (!tex) {
+    if (!tex){
         namespace fs = std::filesystem;
         fs::path fp(path);
         std::string ext = fp.extension().string();
-        // Lowercase compare
         for (auto& c : ext) c = (char)std::tolower((unsigned char)c);
-        if (ext != ".dds") {
+        if (ext != ".dds"){
             std::string ddsCandidate = "Library/Textures/" + fp.stem().string() + ".dds";
             tex = gpu ? gpu->createTextureFromFile(ddsCandidate, true) : nullptr;
             if (tex) resolvedPath = ddsCandidate;
         }
     }
-    if (!tex) {
+    if (!tex){
         LOG("BillboardPass: failed to load texture '%s', using fallback", path.c_str());
         if (auto* ed = app->getEditor())
             ed->log(("Billboard: failed to load texture '" + path + "' (using fallback)").c_str(), ImVec4(1.f, 0.4f, 0.4f, 1.f));
-        // Cache the failure as a fallback entry so we don't retry every frame.
         m_textureCache.emplace(path, CachedTexture{ nullptr, m_fallbackSRV });
         return m_fallbackSRV.getGPUHandle(0);
     }
 
     ShaderTableDesc srv = app->getShaderDescriptors()->allocTable(("Billboard_SRV_" + path).c_str());
-    if (!srv.isValid()) {
+    if (!srv.isValid()){
         LOG("BillboardPass: SRV alloc failed for '%s', using fallback", path.c_str());
         if (auto* ed = app->getEditor())
             ed->log(("Billboard: SRV alloc failed for '" + path + "' (using fallback)").c_str(), ImVec4(1.f, 0.4f, 0.4f, 1.f));
@@ -121,7 +110,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE BillboardPass::getOrLoadTexture(const std::string& p
     }
     srv.createTexture2DSRV(tex.Get(), 0);
 
-    if (auto* ed = app->getEditor()) {
+    if (auto* ed = app->getEditor()){
         D3D12_RESOURCE_DESC rd = tex->GetDesc();
         std::string logMsg = "Billboard: loaded '" + resolvedPath + "'";
         if (resolvedPath != path) logMsg += " (resolved from '" + path + "')";
@@ -162,12 +151,10 @@ void BillboardPass::render(ID3D12GraphicsCommandList* cmd,
     bool additiveBound = false;
     cmd->SetPipelineState(m_pipeline.getPSO());
 
-    for (UINT i = 0; i < count; ++i) {
+    for (UINT i = 0; i < count; ++i){
         const BillboardInstance& bb = billboards[i];
 
-        // Switch PSO only when the blend mode actually changes between consecutive
-        // draws — instances are sorted back-to-front so runs are usually contiguous.
-        if (bb.additive != additiveBound) {
+        if (bb.additive != additiveBound){
             additiveBound = bb.additive;
             cmd->SetPipelineState(additiveBound ? m_pipeline.getAdditivePSO() : m_pipeline.getPSO());
         }

@@ -8,7 +8,7 @@ class ResourceBase {
 public:
     enum class Type { Unknown = 0, Mesh, Texture, Material, Scene, Model, Animation, StateMachine };
 
-    ResourceBase(UID id, Type t) : uid(id), type(t) {}
+    ResourceBase(UID id, Type t) : uid(id), type(t){}
     virtual ~ResourceBase() = default;
 
     UID uid = 0;
@@ -17,8 +17,8 @@ public:
     std::string libraryFile;
     uint32_t referenceCount = 0;
 
-    void addRef() { ++referenceCount; }
-    void releaseRef() { if (referenceCount > 0) --referenceCount; }
+    void addRef(){ ++referenceCount; }
+    void releaseRef(){ if (referenceCount > 0) --referenceCount; }
     bool isLoaded() const { return referenceCount > 0; }
 
     virtual bool LoadInMemory() = 0;

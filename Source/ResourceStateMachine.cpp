@@ -9,9 +9,8 @@
 using namespace rapidjson;
 
 ResourceStateMachine::ResourceStateMachine(UID uid)
-    : ResourceBase(uid, Type::StateMachine) {}
+    : ResourceBase(uid, Type::StateMachine){}
 
-// ─── ResourceBase interface ───────────────────────────────────────────────────
 
 bool ResourceStateMachine::LoadInMemory(){
     return Load(libraryFile);
@@ -24,7 +23,6 @@ void ResourceStateMachine::UnloadFromMemory(){
     defaultState = HashString{};
 }
 
-// ─── Finders ─────────────────────────────────────────────────────────────────
 
 const SMClip* ResourceStateMachine::FindClip(const HashString& name) const{
     for (const auto& c : clips)
@@ -44,7 +42,6 @@ int ResourceStateMachine::FindStateIndex(const HashString& name) const{
     return -1;
 }
 
-// ─── JSON Save ───────────────────────────────────────────────────────────────
 
 bool ResourceStateMachine::Save(const std::string& path) const{
     Document doc;
@@ -54,9 +51,8 @@ bool ResourceStateMachine::Save(const std::string& path) const{
     doc.AddMember("Version", 1, a);
     doc.AddMember("DefaultState", Value(defaultState.str.c_str(), a), a);
 
-    // Clips
     Value clipArr(kArrayType);
-    for (const auto& c : clips) {
+    for (const auto& c : clips){
         Value obj(kObjectType);
         obj.AddMember("Name", Value(c.name.str.c_str(), a), a);
         obj.AddMember("AnimationUID", c.animationUID, a);
@@ -65,9 +61,8 @@ bool ResourceStateMachine::Save(const std::string& path) const{
     }
     doc.AddMember("Clips", clipArr, a);
 
-    // States
     Value stateArr(kArrayType);
-    for (const auto& s : states) {
+    for (const auto& s : states){
         Value obj(kObjectType);
         obj.AddMember("Name", Value(s.name.str.c_str(), a), a);
         obj.AddMember("Clip", Value(s.clipName.str.c_str(), a), a);
@@ -75,9 +70,8 @@ bool ResourceStateMachine::Save(const std::string& path) const{
     }
     doc.AddMember("States", stateArr, a);
 
-    // Transitions
     Value transArr(kArrayType);
-    for (const auto& t : transitions) {
+    for (const auto& t : transitions){
         Value obj(kObjectType);
         obj.AddMember("Source", Value(t.source.str.c_str(), a), a);
         obj.AddMember("Target", Value(t.target.str.c_str(), a), a);
@@ -93,7 +87,6 @@ bool ResourceStateMachine::Save(const std::string& path) const{
     return app->getFileSystem()->Save(path.c_str(), sb.GetString(), (unsigned)sb.GetSize());
 }
 
-// ─── JSON Load ───────────────────────────────────────────────────────────────
 
 bool ResourceStateMachine::Load(const std::string& path){
     clips.clear();
@@ -103,7 +96,7 @@ bool ResourceStateMachine::Load(const std::string& path){
 
     char* buf = nullptr;
     unsigned size = app->getFileSystem()->Load(path.c_str(), &buf);
-    if (!buf || size == 0) {
+    if (!buf || size == 0){
         LOG("ResourceStateMachine: could not read '%s'", path.c_str());
         return false;
     }
@@ -112,7 +105,7 @@ bool ResourceStateMachine::Load(const std::string& path){
     doc.Parse(buf, size);
     delete[] buf;
 
-    if (doc.HasParseError()) {
+    if (doc.HasParseError()){
         LOG("ResourceStateMachine: JSON parse error in '%s'", path.c_str());
         return false;
     }
@@ -120,13 +113,12 @@ bool ResourceStateMachine::Load(const std::string& path){
     if (doc.HasMember("DefaultState") && doc["DefaultState"].IsString())
         defaultState = std::string(doc["DefaultState"].GetString());
 
-    // ── Clips (load first; states validate against this list) ─────────────────
-    if (doc.HasMember("Clips") && doc["Clips"].IsArray()) {
+    if (doc.HasMember("Clips") && doc["Clips"].IsArray()){
         const Value& arr = doc["Clips"];
         clips.reserve(arr.Size());
-        for (SizeType i = 0; i < arr.Size(); ++i) {
+        for (SizeType i = 0; i < arr.Size(); ++i){
             const Value& v = arr[i];
-            if (!v.HasMember("Name") || !v["Name"].IsString()) {
+            if (!v.HasMember("Name") || !v["Name"].IsString()){
                 LOG("ResourceStateMachine: Clips[%u] missing Name — skipped", i);
                 continue;
             }
@@ -138,13 +130,12 @@ bool ResourceStateMachine::Load(const std::string& path){
         }
     }
 
-    // ── States (load second; transitions validate against this list) ───────────
-    if (doc.HasMember("States") && doc["States"].IsArray()) {
+    if (doc.HasMember("States") && doc["States"].IsArray()){
         const Value& arr = doc["States"];
         states.reserve(arr.Size());
-        for (SizeType i = 0; i < arr.Size(); ++i) {
+        for (SizeType i = 0; i < arr.Size(); ++i){
             const Value& v = arr[i];
-            if (!v.HasMember("Name") || !v["Name"].IsString()) {
+            if (!v.HasMember("Name") || !v["Name"].IsString()){
                 LOG("ResourceStateMachine: States[%u] missing Name — skipped", i);
                 continue;
             }
@@ -162,11 +153,10 @@ bool ResourceStateMachine::Load(const std::string& path){
         }
     }
 
-    // ── Transitions ───────────────────────────────────────────────────────────
-    if (doc.HasMember("Transitions") && doc["Transitions"].IsArray()) {
+    if (doc.HasMember("Transitions") && doc["Transitions"].IsArray()){
         const Value& arr = doc["Transitions"];
         transitions.reserve(arr.Size());
-        for (SizeType i = 0; i < arr.Size(); ++i) {
+        for (SizeType i = 0; i < arr.Size(); ++i){
             const Value& v = arr[i];
             if (!v.HasMember("Source") || !v["Source"].IsString() ||
                 !v.HasMember("Target") || !v["Target"].IsString()){
@@ -181,12 +171,12 @@ bool ResourceStateMachine::Load(const std::string& path){
                               : std::string{};
             t.interpolationMs = v.HasMember("BlendMs") ? v["BlendMs"].GetUint() : 200u;
 
-            if (!FindState(t.source)) {
+            if (!FindState(t.source)){
                 LOG("ResourceStateMachine: Transitions[%u] unknown source state '%s' — skipped",
                     i, t.source.str.c_str());
                 continue;
             }
-            if (!FindState(t.target)) {
+            if (!FindState(t.target)){
                 LOG("ResourceStateMachine: Transitions[%u] unknown target state '%s' — skipped",
                     i, t.target.str.c_str());
                 continue;
@@ -198,24 +188,22 @@ bool ResourceStateMachine::Load(const std::string& path){
     return true;
 }
 
-// ─── ImGui Inspector ─────────────────────────────────────────────────────────
 
 static constexpr ImGuiTableFlags kTableFlags =
     ImGuiTableFlags_BordersOuter | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp;
 
 void ResourceStateMachine::DrawInspector(){
 
-    // ── Clips ─────────────────────────────────────────────────────────────────
-    if (ImGui::CollapsingHeader("Clips", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (ImGui::CollapsingHeader("Clips", ImGuiTreeNodeFlags_DefaultOpen)){
         int removeIdx = -1;
-        if (ImGui::BeginTable("##smclips", 4, kTableFlags)) {
+        if (ImGui::BeginTable("##smclips", 4, kTableFlags)){
             ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 2.0f);
             ImGui::TableSetupColumn("Animation UID", ImGuiTableColumnFlags_WidthStretch, 3.0f);
             ImGui::TableSetupColumn("Loop", ImGuiTableColumnFlags_WidthFixed, 40.0f);
             ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed, 22.0f);
             ImGui::TableHeadersRow();
 
-            for (int i = 0; i < (int)clips.size(); ++i) {
+            for (int i = 0; i < (int)clips.size(); ++i){
                 ImGui::TableNextRow();
                 ImGui::PushID(i);
                 auto& clip = clips[i];
@@ -248,21 +236,20 @@ void ResourceStateMachine::DrawInspector(){
         if (ImGui::Button("+ Add Clip")) clips.push_back({});
     }
 
-    // ── States ────────────────────────────────────────────────────────────────
-    if (ImGui::CollapsingHeader("States", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (ImGui::CollapsingHeader("States", ImGuiTreeNodeFlags_DefaultOpen)){
         std::vector<const char*> clipNames;
         clipNames.reserve(clips.size());
         for (const auto& c : clips) clipNames.push_back(c.name.str.c_str());
 
         int removeIdx = -1;
-        if (ImGui::BeginTable("##smstates", 4, kTableFlags)) {
+        if (ImGui::BeginTable("##smstates", 4, kTableFlags)){
             ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 2.0f);
             ImGui::TableSetupColumn("Clip", ImGuiTableColumnFlags_WidthStretch, 2.0f);
             ImGui::TableSetupColumn("Default", ImGuiTableColumnFlags_WidthFixed, 54.0f);
             ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed, 22.0f);
             ImGui::TableHeadersRow();
 
-            for (int i = 0; i < (int)states.size(); ++i) {
+            for (int i = 0; i < (int)states.size(); ++i){
                 ImGui::TableNextRow();
                 ImGui::PushID(i);
                 auto& state = states[i];
@@ -271,7 +258,7 @@ void ResourceStateMachine::DrawInspector(){
                 char nameBuf[128] = {};
                 strncpy_s(nameBuf, state.name.str.c_str(), sizeof(nameBuf) - 1);
                 ImGui::SetNextItemWidth(-1);
-                if (ImGui::InputText("##n", nameBuf, sizeof(nameBuf))) {
+                if (ImGui::InputText("##n", nameBuf, sizeof(nameBuf))){
                     bool wasDefault = (defaultState == state.name);
                     state.name = std::string(nameBuf);
                     if (wasDefault) defaultState = state.name;
@@ -281,11 +268,11 @@ void ResourceStateMachine::DrawInspector(){
                 {
                     int clipIdx = -1;
                     for (int j = 0; j < (int)clips.size(); ++j)
-                        if (clips[j].name == state.clipName) { clipIdx = j; break; }
+                        if (clips[j].name == state.clipName){ clipIdx = j; break; }
                     const char* preview = (clipIdx >= 0) ? clipNames[clipIdx] : "(none)";
                     ImGui::SetNextItemWidth(-1);
-                    if (ImGui::BeginCombo("##c", preview)) {
-                        for (int j = 0; j < (int)clips.size(); ++j) {
+                    if (ImGui::BeginCombo("##c", preview)){
+                        for (int j = 0; j < (int)clips.size(); ++j){
                             bool sel = (j == clipIdx);
                             if (ImGui::Selectable(clipNames[j], sel)) state.clipName = clips[j].name.str;
                             if (sel) ImGui::SetItemDefaultFocus();
@@ -297,7 +284,7 @@ void ResourceStateMachine::DrawInspector(){
                 ImGui::TableSetColumnIndex(2);
                 {
                     bool isDefault = (defaultState == state.name);
-                    if (ImGui::Checkbox("##d", &isDefault)) {
+                    if (ImGui::Checkbox("##d", &isDefault)){
                         if (isDefault) defaultState = state.name;
                         else if (defaultState == state.name) defaultState = HashString{};
                     }
@@ -310,28 +297,26 @@ void ResourceStateMachine::DrawInspector(){
             }
             ImGui::EndTable();
         }
-        if (removeIdx >= 0) {
+        if (removeIdx >= 0){
             if (defaultState == states[removeIdx].name) defaultState = HashString{};
             states.erase(states.begin() + removeIdx);
         }
         if (ImGui::Button("+ Add State")) states.push_back({});
     }
 
-    // ── Transitions ───────────────────────────────────────────────────────────
-    if (ImGui::CollapsingHeader("Transitions", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (ImGui::CollapsingHeader("Transitions", ImGuiTreeNodeFlags_DefaultOpen)){
         std::vector<const char*> stateNames;
         stateNames.reserve(states.size());
         for (const auto& s : states) stateNames.push_back(s.name.str.c_str());
 
-        // Combo helper to pick a state by HashString reference.
-        auto drawStateCombo = [&](const char* id, HashString& field) {
+        auto drawStateCombo = [&](const char* id, HashString& field){
             int idx = -1;
             for (int j = 0; j < (int)states.size(); ++j)
-                if (states[j].name == field) { idx = j; break; }
+                if (states[j].name == field){ idx = j; break; }
             const char* preview = (idx >= 0) ? stateNames[idx] : "(none)";
             ImGui::SetNextItemWidth(-1);
-            if (ImGui::BeginCombo(id, preview)) {
-                for (int j = 0; j < (int)states.size(); ++j) {
+            if (ImGui::BeginCombo(id, preview)){
+                for (int j = 0; j < (int)states.size(); ++j){
                     bool sel = (j == idx);
                     if (ImGui::Selectable(stateNames[j], sel)) field = states[j].name.str;
                     if (sel) ImGui::SetItemDefaultFocus();
@@ -341,7 +326,7 @@ void ResourceStateMachine::DrawInspector(){
         };
 
         int removeIdx = -1;
-        if (ImGui::BeginTable("##smtrans", 5, kTableFlags)) {
+        if (ImGui::BeginTable("##smtrans", 5, kTableFlags)){
             ImGui::TableSetupColumn("Source", ImGuiTableColumnFlags_WidthStretch, 2.0f);
             ImGui::TableSetupColumn("Target", ImGuiTableColumnFlags_WidthStretch, 2.0f);
             ImGui::TableSetupColumn("Trigger", ImGuiTableColumnFlags_WidthStretch, 2.0f);
@@ -349,7 +334,7 @@ void ResourceStateMachine::DrawInspector(){
             ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed, 22.0f);
             ImGui::TableHeadersRow();
 
-            for (int i = 0; i < (int)transitions.size(); ++i) {
+            for (int i = 0; i < (int)transitions.size(); ++i){
                 ImGui::TableNextRow();
                 ImGui::PushID(i);
                 auto& tr = transitions[i];

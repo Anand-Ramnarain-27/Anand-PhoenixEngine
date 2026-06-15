@@ -3,14 +3,11 @@
 #include <wrl.h>
 using Microsoft::WRL::ComPtr;
 
-// Root-signature + graphics PSO for the trail forward pass.
-// Renders CPU-generated ribbon meshes (position/uv/colour vertices, triangle list)
-// with alpha or additive blending and no face culling (ribbon can be viewed edge-on).
 class TrailPipeline {
 public:
-    static constexpr UINT SLOT_CB = 0; // b0 – CbTrail (VS)
-    static constexpr UINT SLOT_TEXTURE = 1; // t0 – ribbon texture (PS)
-    static constexpr UINT SLOT_SAMPLER = 2; // s0-s3 – samplers (PS)
+    static constexpr UINT SLOT_CB = 0;
+    static constexpr UINT SLOT_TEXTURE = 1;
+    static constexpr UINT SLOT_SAMPLER = 2;
 
     bool init(ID3D12Device* device);
 

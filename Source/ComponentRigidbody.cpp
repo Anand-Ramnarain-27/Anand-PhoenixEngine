@@ -14,36 +14,28 @@
 
 using namespace rapidjson;
 
-ComponentRigidbody::ComponentRigidbody(GameObject* owner) : Component(owner) {}
+ComponentRigidbody::ComponentRigidbody(GameObject* owner) : Component(owner){}
 
 void ComponentRigidbody::update(float dt){
     if (isStatic || mass <= 0.f) return;
 
-    // Apply gravity — read scene-global Y acceleration; fall back to kGravityAccel if no scene loaded.
     float grav = kGravityAccel;
     if (app && app->getEditor() && app->getEditor()->getSceneManager())
         grav = app->getEditor()->getSceneManager()->getSettings().gravityY;
     if (useGravity) velocity.y += grav * gravityScale * dt;
 
-    // Exponential velocity damping: preserves units regardless of frame rate
     float dampFactor = std::max(0.f, 1.f - linearDamping * dt);
     velocity *= dampFactor;
 
-    // Zero out very small velocities to prevent endless micro-jitter
     if (velocity.LengthSquared() < 1e-6f) velocity = Vector3::Zero;
 
-    // ---- Velocity clamping (tunneling prevention) ----
-    // Cap speed so the object cannot travel more than velocityClampDiameters
-    // times its own smallest world-space dimension in a single frame.  This
-    // guarantees the narrow phase always has a chance to detect the contact.
-    if (useVelocityClamping && dt > 1e-7f) {
-        float diameter = 1.f; // fallback for objects without a mesh
+    if (useVelocityClamping && dt > 1e-7f){
+        float diameter = 1.f;
         auto* cm = owner->getComponent<ComponentMesh>();
-        if (cm && cm->hasAABB()) {
+        if (cm && cm->hasAABB()){
             Vector3 mn, mx;
             cm->getWorldAABB(mn, mx);
             Vector3 sz = mx - mn;
-            // Smallest axis = tightest constraint, safest against tunneling.
             diameter = std::min(sz.x, std::min(sz.y, sz.z));
             if (diameter < 1e-3f) diameter = 1e-3f;
         }
@@ -53,9 +45,8 @@ void ComponentRigidbody::update(float dt){
             velocity *= maxSpeed / speed;
     }
 
-    // Integrate position
     ComponentTransform* t = owner->getTransform();
-    if (t) {
+    if (t){
         t->position += velocity * dt;
         t->markDirty();
     }
@@ -67,7 +58,7 @@ void ComponentRigidbody::onEditor(){
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Static objects never move from collisions.");
 
-    if (!isStatic) {
+    if (!isStatic){
         ImGui::DragFloat("Mass (kg)", &mass, 0.1f, 0.001f, 10000.f, "%.3f");
 
         ImGui::SeparatorText("Motion");
@@ -88,7 +79,7 @@ void ComponentRigidbody::onEditor(){
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("0 = no bounce (inelastic)   1 = full bounce (elastic)");
 
-    if (!isStatic) {
+    if (!isStatic){
         ImGui::SeparatorText("Tunneling Prevention");
 
         ImGui::Checkbox("Velocity Clamping", &useVelocityClamping);
@@ -96,7 +87,7 @@ void ComponentRigidbody::onEditor(){
             ImGui::SetTooltip("Limits speed each frame so the object cannot travel\n"
                               "more than N diameters in one frame.\n"
                               "Primary defence: keeps objects from skipping past walls.");
-        if (useVelocityClamping) {
+        if (useVelocityClamping){
             ImGui::SetNextItemWidth(130.f);
             ImGui::DragFloat("Max Diameters/Frame##vcd", &velocityClampDiameters,
                              0.05f, 0.1f, 10.f, "%.2f");
@@ -145,7 +136,7 @@ void ComponentRigidbody::onLoad(const std::string& jsonStr){
     if (doc.HasMember("useVelocityClamping")) useVelocityClamping = doc["useVelocityClamping"].GetBool();
     if (doc.HasMember("velocityClampDiameters")) velocityClampDiameters = doc["velocityClampDiameters"].GetFloat();
     if (doc.HasMember("isFastMoving")) isFastMoving = doc["isFastMoving"].GetBool();
-    if (doc.HasMember("velocity")) {
+    if (doc.HasMember("velocity")){
         const auto& v = doc["velocity"];
         velocity = { v[0].GetFloat(), v[1].GetFloat(), v[2].GetFloat() };
     }

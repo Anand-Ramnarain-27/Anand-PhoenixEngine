@@ -3,8 +3,7 @@
 
 class ModuleScene;
 
-class SceneSerializer
-{
+class SceneSerializer {
 public:
     static bool SaveScene(const ModuleScene* scene, const std::string& filePath);
     static bool LoadScene(const std::string& filePath, ModuleScene* scene);
