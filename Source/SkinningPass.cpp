@@ -191,13 +191,22 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
                 }
 #endif
 
-                memcpy(paletteDst + (job.paletteOffset + j) * sizeof(Matrix), &m, sizeof(Matrix));
+                // Engine-wide convention: row-major DX matrices are uploaded TRANSPOSED so the
+                // shader (HLSL packs StructuredBuffer<float4x4> column-major by default) reads
+                // them back correctly for mul(vector, matrix). Every other pass does this
+                // (GBufferPass/MeshRenderPass `.Transpose()` on upload; GBufferVS `mul(v, M)`).
+                // Without it each joint matrix is read transposed — rotations invert and the
+                // translation lands in the wrong place — giving an inverted/deformed skinned
+                // mesh that still animates. The Skinning.hlsl mul order matches GBufferVS.
+                Matrix mUpload = m.Transpose();
+                memcpy(paletteDst + (job.paletteOffset + j) * sizeof(Matrix), &mUpload, sizeof(Matrix));
 
-                Matrix inv, normalMat;
+                // Normal matrix = inverse-transpose of m. Upload it transposed too (which is
+                // just m's inverse) so the shader reads back (m^-1)^T for mul(normal, M).
+                Matrix inv;
                 m.Invert(inv);
-                normalMat = inv.Transpose();
                 memcpy(paletteNormalDst + (job.paletteOffset + j) * sizeof(Matrix),
-                       &normalMat, sizeof(Matrix));
+                       &inv, sizeof(Matrix));
             }
         }
         // Morph weights — written at job.morphWeightOffset within the combined weight section.
