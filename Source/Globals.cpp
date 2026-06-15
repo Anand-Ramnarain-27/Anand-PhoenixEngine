@@ -1,14 +1,29 @@
 #include "Globals.h"
 
-void log(const char file[], int line, const char* format, ...){
-	static char tmp_string[4096];
-	static char tmp_string2[4096];
-	static va_list ap;
+#include <cstdio>
+#include <vector>
 
-	// Construct the string from variable arguments
+void log(const char file[], int line, const char* format, ...){
+	// Size the buffer to the message: vsprintf_s into a fixed buffer asserts
+	// and aborts in Debug when a log line (e.g. long animation channel dumps)
+	// exceeds it. Locals instead of statics so background import threads can log.
+	va_list ap;
 	va_start(ap, format);
-	vsprintf_s(tmp_string, 4095, format, ap);
+	int msgLen = _vscprintf(format, ap);
 	va_end(ap);
-	sprintf_s(tmp_string2, 4095, "\n%s(%d) : %s", file, line, tmp_string);
-	OutputDebugStringA(tmp_string2);
+	if (msgLen < 0)
+		return;
+
+	std::vector<char> msg(msgLen + 1);
+	va_start(ap, format);
+	vsnprintf(msg.data(), msg.size(), format, ap);
+	va_end(ap);
+
+	int outLen = _scprintf("\n%s(%d) : %s", file, line, msg.data());
+	if (outLen < 0)
+		return;
+
+	std::vector<char> out(outLen + 1);
+	snprintf(out.data(), out.size(), "\n%s(%d) : %s", file, line, msg.data());
+	OutputDebugStringA(out.data());
 }
