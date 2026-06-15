@@ -1,5 +1,5 @@
 #pragma once
-#include "IBroadPhase.h"
+#include "CollisionInterfaces.h"
 #include "BoundingVolume.h"
 #include <vector>
 

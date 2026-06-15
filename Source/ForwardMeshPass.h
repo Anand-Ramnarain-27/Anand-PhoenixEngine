@@ -17,10 +17,10 @@ struct FrameLightData {
 	std::vector<MeshPipeline::GPUSpotLight> spotLights;
 };
 
-class MeshRenderPass {
+class ForwardMeshPass {
 public:
-	MeshRenderPass() = default;
-	~MeshRenderPass() = default;
+	ForwardMeshPass() = default;
+	~ForwardMeshPass() = default;
 
 	bool init(ID3D12Device* device, bool useMSAA = false);
 

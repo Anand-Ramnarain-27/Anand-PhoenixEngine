@@ -1,12 +1,12 @@
 #pragma once
 #include <string>
 
-class ModuleScene;
+class SceneGraph;
 
 class SceneSerializer {
 public:
-    static bool SaveScene(const ModuleScene* scene, const std::string& filePath);
-    static bool LoadScene(const std::string& filePath, ModuleScene* scene);
-    static bool SaveTempScene(const ModuleScene* scene);
-    static bool LoadTempScene(ModuleScene* scene);
+    static bool SaveScene(const SceneGraph* scene, const std::string& filePath);
+    static bool LoadScene(const std::string& filePath, SceneGraph* scene);
+    static bool SaveTempScene(const SceneGraph* scene);
+    static bool LoadTempScene(SceneGraph* scene);
 };

@@ -1,5 +1,5 @@
 #include "Globals.h"
-#include "MeshRenderPass.h"
+#include "ForwardMeshPass.h"
 #include "EnvironmentSystem.h"
 #include "ModuleSamplerHeap.h"
 #include "ModuleShaderDescriptors.h"
@@ -29,7 +29,7 @@ namespace {
 		ComPtr<ID3D12Resource> buf;
 		HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buf));
 		if (FAILED(hr)){
-			LOG("MeshRenderPass: upload buf failed 0x%08X", hr);
+			LOG("ForwardMeshPass: upload buf failed 0x%08X", hr);
 			return nullptr;
 		}
 		buf->SetName(name);
@@ -93,20 +93,20 @@ namespace {
 	}
 }
 
-bool MeshRenderPass::init(ID3D12Device* device, bool useMSAA){
+bool ForwardMeshPass::init(ID3D12Device* device, bool useMSAA){
 	if (!m_pipeline.init(device, useMSAA)){
-		LOG("MeshRenderPass: pipeline init failed");
+		LOG("ForwardMeshPass: pipeline init failed");
 		return false;
 	}
 	if (!createUploadBuffers(device)) return false;
 	if (!createLightSRVs()) return false;
 	if (!createFallbackTextures(device)) return false;
 	if (!createMatTableRing()) return false;
-	LOG("MeshRenderPass: init OK");
+	LOG("ForwardMeshPass: init OK");
 	return true;
 }
 
-bool MeshRenderPass::createUploadBuffers(ID3D12Device* device){
+bool ForwardMeshPass::createUploadBuffers(ID3D12Device* device){
 	const UINT mvpSz = cbAlign(sizeof(MeshPipeline::CbMVP));
 	const UINT instSz = cbAlign(sizeof(MeshPipeline::CbPerInstance));
 
@@ -127,14 +127,14 @@ bool MeshRenderPass::createUploadBuffers(ID3D12Device* device){
 	return true;
 }
 
-bool MeshRenderPass::createLightSRVs(){
+bool ForwardMeshPass::createLightSRVs(){
 	auto* sd = app->getShaderDescriptors();
 	m_dirLightSRV = sd->allocTable("MeshPass_DirSRV");
 	m_pointLightSRV = sd->allocTable("MeshPass_PointSRV");
 	m_spotLightSRV = sd->allocTable("MeshPass_SpotSRV");
 
 	if (!m_dirLightSRV.isValid() || !m_pointLightSRV.isValid() || !m_spotLightSRV.isValid()){
-		LOG("MeshRenderPass: light SRV alloc failed");
+		LOG("ForwardMeshPass: light SRV alloc failed");
 		return false;
 	}
 
@@ -144,7 +144,7 @@ bool MeshRenderPass::createLightSRVs(){
 	return true;
 }
 
-bool MeshRenderPass::createFallbackTextures(ID3D12Device* device){
+bool ForwardMeshPass::createFallbackTextures(ID3D12Device* device){
 	{
 		D3D12_RESOURCE_DESC td = {};
 		td.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -156,7 +156,7 @@ bool MeshRenderPass::createFallbackTextures(ID3D12Device* device){
 		auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 		HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &td, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&m_fallbackTex2D));
 		if (FAILED(hr)){
-			LOG("MeshRenderPass: fallback Texture2D failed 0x%08X", hr);
+			LOG("ForwardMeshPass: fallback Texture2D failed 0x%08X", hr);
 			return false;
 		}
 		m_fallbackTex2D->SetName(L"MeshPass_Fallback2D");
@@ -174,7 +174,7 @@ bool MeshRenderPass::createFallbackTextures(ID3D12Device* device){
 		auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 		HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &td, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&m_fallbackCube));
 		if (FAILED(hr)){
-			LOG("MeshRenderPass: fallback TextureCube failed 0x%08X", hr);
+			LOG("ForwardMeshPass: fallback TextureCube failed 0x%08X", hr);
 			return false;
 		}
 		m_fallbackCube->SetName(L"MeshPass_FallbackCube");
@@ -184,7 +184,7 @@ bool MeshRenderPass::createFallbackTextures(ID3D12Device* device){
 		m_fallbackBRDFSRV = app->getShaderDescriptors()->allocTable("MeshPass_FallbackBRDF");
 
 		if (!m_fallbackIrradianceSRV.isValid() || !m_fallbackPrefilterSRV.isValid() || !m_fallbackBRDFSRV.isValid()){
-			LOG("MeshRenderPass: fallback IBL SRV alloc failed");
+			LOG("ForwardMeshPass: fallback IBL SRV alloc failed");
 			return false;
 		}
 
@@ -196,14 +196,14 @@ bool MeshRenderPass::createFallbackTextures(ID3D12Device* device){
 	return true;
 }
 
-bool MeshRenderPass::createMatTableRing(){
+bool ForwardMeshPass::createMatTableRing(){
 	auto* sd = app->getShaderDescriptors();
 	m_matRing.reserve(MAX_INSTANCES);
 
 	for (UINT i = 0; i < MAX_INSTANCES; ++i){
 		ShaderTableDesc t = sd->allocTable("MeshPass_MatTex");
 		if (!t.isValid()){
-			LOG("MeshRenderPass: mat ring alloc failed at index %u", i);
+			LOG("ForwardMeshPass: mat ring alloc failed at index %u", i);
 			return false;
 		}
 		writeFallbackTex2DSRV(t, MAT_SLOT_BASECOLOR, m_fallbackTex2D.Get());
@@ -216,7 +216,7 @@ bool MeshRenderPass::createMatTableRing(){
 	return true;
 }
 
-void MeshRenderPass::uploadLights(const FrameLightData& lights){
+void ForwardMeshPass::uploadLights(const FrameLightData& lights){
 	auto copy = [](void* dst, const void* src, size_t count, size_t stride, size_t maxCount){
 		UINT n = static_cast<UINT>(std::min(count, maxCount));
 		if (n > 0) memcpy(dst, src, n * stride);
@@ -226,7 +226,7 @@ void MeshRenderPass::uploadLights(const FrameLightData& lights){
 	copy(m_spotLightMapped, lights.spotLights.data(), lights.spotLights.size(), sizeof(MeshPipeline::GPUSpotLight), MeshPipeline::MAX_SPOT_LIGHTS);
 }
 
-void MeshRenderPass::uploadPerFrameCB(const FrameLightData& lights, const Vector3& cameraPos, uint32_t envRoughLevels){
+void ForwardMeshPass::uploadPerFrameCB(const FrameLightData& lights, const Vector3& cameraPos, uint32_t envRoughLevels){
 	MeshPipeline::CbPerFrame cb;
 	cb.dirLightCount = static_cast<uint32_t>(std::min(lights.dirLights.size(), (size_t)MeshPipeline::MAX_DIR_LIGHTS));
 	cb.pointLightCount = static_cast<uint32_t>(std::min(lights.pointLights.size(), (size_t)MeshPipeline::MAX_POINT_LIGHTS));
@@ -237,7 +237,7 @@ void MeshRenderPass::uploadPerFrameCB(const FrameLightData& lights, const Vector
 	memcpy(m_perFrameMapped, &cb, sizeof(cb));
 }
 
-void MeshRenderPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj, UINT slot, D3D12_GPU_VIRTUAL_ADDRESS& outMvpVA, D3D12_GPU_VIRTUAL_ADDRESS& outInstVA){
+void ForwardMeshPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj, UINT slot, D3D12_GPU_VIRTUAL_ADDRESS& outMvpVA, D3D12_GPU_VIRTUAL_ADDRESS& outInstVA){
 	const UINT mvpSz = cbAlign(sizeof(MeshPipeline::CbMVP));
 	const UINT instSz = cbAlign(sizeof(MeshPipeline::CbPerInstance));
 
@@ -270,21 +270,21 @@ void MeshRenderPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewP
 	outInstVA = m_perInstanceRing->GetGPUVirtualAddress() + (UINT64)slot * instSz;
 }
 
-void MeshRenderPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
+void ForwardMeshPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
                              const FrameLightData& lights, const Vector3& cameraPos,
                              const Matrix& viewProj, const EnvironmentSystem* env, int samplerType){
 	renderWithPSO(cmd, m_pipeline.getPSO(), meshes, lights, cameraPos, viewProj, env, samplerType,
 	              0, MAX_OPAQUE);
 }
 
-void MeshRenderPass::renderTransparent(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
+void ForwardMeshPass::renderTransparent(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
                                         const FrameLightData& lights, const Vector3& cameraPos,
                                         const Matrix& viewProj, const EnvironmentSystem* env, int samplerType){
 	renderWithPSO(cmd, m_pipeline.getTransparentPSO(), meshes, lights, cameraPos, viewProj, env, samplerType,
 	              MAX_OPAQUE, MAX_TRANSPARENT);
 }
 
-void MeshRenderPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pso,
+void ForwardMeshPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pso,
                                     const std::vector<MeshEntry*>& meshes,
                                     const FrameLightData& lights, const Vector3& cameraPos,
                                     const Matrix& viewProj, const EnvironmentSystem* env,
@@ -330,7 +330,7 @@ void MeshRenderPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12Pipelin
 		if (!mesh) continue;
 
 		if (drawn >= maxSlots){
-			LOG("MeshRenderPass: slot limit exceeded");
+			LOG("ForwardMeshPass: slot limit exceeded");
 			break;
 		}
 

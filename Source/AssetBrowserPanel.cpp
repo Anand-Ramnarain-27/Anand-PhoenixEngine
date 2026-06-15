@@ -3,7 +3,7 @@
 #include "ModuleEditor.h"
 #include "ModuleAssets.h"
 #include "Application.h"
-#include "ModuleScene.h"
+#include "SceneGraph.h"
 #include "SceneManager.h"
 #include "GameObject.h"
 #include "ResourceMaterial.h"
@@ -549,7 +549,7 @@ void AssetBrowserPanel::spawnAsset(const std::string& path){
     if (path.empty() || fs::is_directory(path)) return;
     std::string ext = fs::path(path).extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-    ModuleScene* scene = m_editor->getActiveModuleScene();
+    SceneGraph* scene = m_editor->getActiveModuleScene();
     EditorSelection& sel = m_editor->getSelection();
 
     if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj"){
@@ -583,7 +583,7 @@ void AssetBrowserPanel::prefabSaveSelected(const char* name){
 }
 
 void AssetBrowserPanel::prefabInstantiate(const std::string& name){
-    ModuleScene* scene = m_editor->getActiveModuleScene();
+    SceneGraph* scene = m_editor->getActiveModuleScene();
     if (!scene){ m_editor->log("No active scene.", EditorColors::Danger); return; }
     if (GameObject* go = PrefabManager::instantiatePrefab(name, scene)){
         m_editor->getSelection().object = go;

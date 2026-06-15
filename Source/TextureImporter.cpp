@@ -143,7 +143,7 @@ bool TextureImporter::Load(const std::string& file, ComPtr<ID3D12Resource>& outT
 	TextureHeader header;
 	std::vector<char> rawBuffer;
 
-	if (!ImporterUtils::LoadBuffer(metaPath, header, rawBuffer)){
+	if (!ImporterUtils::LoadBlob(metaPath, header, rawBuffer)){
 		LOG("TextureImporter: Missing metadata, regenerating for '%s'", normFile.c_str());
 
 		std::wstring wFile = std::filesystem::path(normFile).wstring();
@@ -201,5 +201,5 @@ bool TextureImporter::SaveMetadata(const std::string& ddsPath, uint32_t width, u
 	header.height = height;
 	header.mipLevels = mipLevels;
 	header.format = format;
-	return ImporterUtils::SaveBuffer(ImporterUtils::MetaPath(normPath), header);
+	return ImporterUtils::SaveBlob(ImporterUtils::MetaPath(normPath), header);
 }

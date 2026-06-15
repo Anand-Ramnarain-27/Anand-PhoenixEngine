@@ -3,7 +3,7 @@
 #include <vector>
 #include <string>
 
-class ModuleScene;
+class SceneGraph;
 class GameObject;
 
 class ResourceModel : public ResourceBase {
@@ -37,7 +37,7 @@ public:
     const std::vector<Node>& getNodes() const { return m_nodes; }
     const std::vector<Skin>& getSkins() const { return m_skins; }
 
-    GameObject* spawnIntoScene(ModuleScene* scene, GameObject* parent = nullptr) const;
+    GameObject* spawnIntoScene(SceneGraph* scene, GameObject* parent = nullptr) const;
 
 private:
     std::vector<Node> m_nodes;

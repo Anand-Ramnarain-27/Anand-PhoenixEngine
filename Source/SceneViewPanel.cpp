@@ -5,7 +5,7 @@
 #include "ModuleEditor.h"
 #include "Application.h"
 #include "ModuleCamera.h"
-#include "ModuleScene.h"
+#include "SceneGraph.h"
 #include "SceneManager.h"
 #include "EditorSceneSettings.h"
 #include "GameObject.h"
@@ -59,7 +59,7 @@ bool SceneViewPanel::buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView
     outView = camera->getView();
     outProj = ModuleCamera::getPerspectiveProj(float(w) / float(h));
     camera->clearGameCameraFrustum();
-    if (ModuleScene* ms = m_editor->getActiveModuleScene()){
+    if (SceneGraph* ms = m_editor->getActiveModuleScene()){
         float aspect = float(w) / float(h);
         std::function<void(GameObject*)> findMainCam = [&](GameObject* go){
             if (auto* cam = go->getComponent<ComponentCamera>(); cam && cam->isMainCamera())
@@ -95,7 +95,7 @@ void SceneViewPanel::onImageDrawn(){
 
     if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGuizmo::IsOver()){
         ModuleCamera* cam = app->getCamera();
-        ModuleScene* ms = m_editor->getActiveModuleScene();
+        SceneGraph* ms = m_editor->getActiveModuleScene();
         if (cam && ms){
             const float w = viewport.size.x, h = viewport.size.y;
             Matrix view = cam->getView();

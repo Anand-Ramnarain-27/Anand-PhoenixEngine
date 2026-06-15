@@ -2,7 +2,7 @@
 #include "GameViewPanel.h"
 #include "ModuleEditor.h"
 #include "Application.h"
-#include "ModuleScene.h"
+#include "SceneGraph.h"
 #include "SceneManager.h"
 #include "GameObject.h"
 #include "ComponentCamera.h"

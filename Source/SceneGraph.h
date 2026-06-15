@@ -5,10 +5,10 @@
 
 class GameObject;
 
-class ModuleScene {
+class SceneGraph {
 public:
-    ModuleScene();
-    ~ModuleScene();
+    SceneGraph();
+    ~SceneGraph();
 
     GameObject* getRoot() const { return root.get(); }
 

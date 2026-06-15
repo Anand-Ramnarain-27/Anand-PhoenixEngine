@@ -1,7 +1,7 @@
 #include "Globals.h"
 #include "PrefabManager.h"
 #include "GameObject.h"
-#include "ModuleScene.h"
+#include "SceneGraph.h"
 #include "ComponentTransform.h"
 #include "ComponentFactory.h"
 #include "Application.h"
@@ -118,7 +118,7 @@ static void serialiseNodeInto(const GameObject* go, Value& out, Document::Alloca
     out.AddMember("Children", children, a);
 }
 
-GameObject* PrefabManager::deserialiseNode(const Value& node, ModuleScene* scene, GameObject* parent){
+GameObject* PrefabManager::deserialiseNode(const Value& node, SceneGraph* scene, GameObject* parent){
     if (!node.IsObject()) return nullptr;
     const char* name = node.HasMember("Name") ? node["Name"].GetString() : "Unnamed";
     GameObject* go = scene->createGameObject(name, parent);
@@ -179,7 +179,7 @@ bool PrefabManager::createPrefab(const GameObject* go, const std::string& prefab
     return true;
 }
 
-GameObject* PrefabManager::instantiatePrefab(const std::string& prefabName, ModuleScene* scene){
+GameObject* PrefabManager::instantiatePrefab(const std::string& prefabName, SceneGraph* scene){
     if (!scene || prefabName.empty()) return nullptr;
     std::string path = getPrefabPath(prefabName);
     if (!app->getFileSystem()->Exists(path.c_str())){ LOG("PrefabManager::instantiatePrefab: Prefab not found: %s", path.c_str()); return nullptr; }
@@ -257,7 +257,7 @@ bool PrefabManager::applyToPrefab(const GameObject* go, bool respectOverrides){
     return true;
 }
 
-bool PrefabManager::revertToPrefab(GameObject* go, ModuleScene* scene){
+bool PrefabManager::revertToPrefab(GameObject* go, SceneGraph* scene){
     PrefabInstanceData* inst = getInstanceDataMutable(go);
     if (!inst || inst->prefabName.empty()){
         const GameObject* root = findPrefabRoot(go);
@@ -349,7 +349,7 @@ std::string PrefabManager::serializeGameObject(const GameObject* go){
     return sb.GetString();
 }
 
-GameObject* PrefabManager::deserializeGameObject(const std::string& data, ModuleScene* scene){
+GameObject* PrefabManager::deserializeGameObject(const std::string& data, SceneGraph* scene){
     if (data.empty() || !scene) return nullptr;
     Document doc;
     doc.Parse(data.c_str());

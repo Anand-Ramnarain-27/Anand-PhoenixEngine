@@ -28,7 +28,7 @@ bool ResourceAnimation::LoadInMemory(){
 
     AnimFileHeader header;
     std::vector<char> raw;
-    if (!ImporterUtils::LoadBuffer(libraryFile, header, raw)) return false;
+    if (!ImporterUtils::LoadBlob(libraryFile, header, raw)) return false;
     if (!ImporterUtils::ValidateHeader(header, 0x414E494D)) return false;
 
     const char* cur = raw.data() + sizeof(AnimFileHeader);

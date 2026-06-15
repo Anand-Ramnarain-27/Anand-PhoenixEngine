@@ -127,7 +127,7 @@ bool MaterialImporter::Import(const tinygltf::Material& gltfMat, const tinygltf:
 bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& outMaterial){
 	MaterialHeader header;
 	std::vector<char> rawBuffer;
-	if (!ImporterUtils::LoadBuffer(file, header, rawBuffer)) return false;
+	if (!ImporterUtils::LoadBlob(file, header, rawBuffer)) return false;
 	if (!ImporterUtils::ValidateHeader(header, 0x4D415452)){
 		LOG("MaterialImporter: Invalid file format: %s", file.c_str());
 		return false;
@@ -224,7 +224,7 @@ bool MaterialImporter::Save(const MaterialHeader& header,
 	append(emissivePath);
 	append(metalRoughPath);
 
-	if (!ImporterUtils::SaveBuffer(file, header, payload)){
+	if (!ImporterUtils::SaveBlob(file, header, payload)){
 		LOG("MaterialImporter: Failed to save %s", file.c_str());
 		return false;
 	}

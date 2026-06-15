@@ -2,16 +2,14 @@
 #include "IBLGenerator.h"
 #include "EnvironmentMap.h"
 #include "IBLSettings.h"
-#include "FaceProjection.h"
+#include "CubemapBakeUtils.h"
 #include "D3D12ResourceFactory.h"
-#include "CubemapPipelineBuilder.h"
 #include "Application.h"
 #include "ModuleD3D12.h"
 #include "ModuleGPUResources.h"
 #include "ModuleRTDescriptors.h"
 #include "ModuleShaderDescriptors.h"
 #include "ModuleSamplerHeap.h"
-#include "CubeGeometry.h"
 #include <algorithm>
 
 using namespace DirectX;

@@ -42,14 +42,14 @@ static bool SaveSkin(uint32_t vertexCount, const std::vector<Mesh::BoneWeight>& 
     SkinDataHeader hdr; hdr.vertexCount = vertexCount;
     std::vector<char> payload(vertexCount * sizeof(Mesh::BoneWeight));
     memcpy(payload.data(), bw.data(), payload.size());
-    return ImporterUtils::SaveBuffer(skinFile, hdr, payload);
+    return ImporterUtils::SaveBlob(skinFile, hdr, payload);
 }
 
 static bool LoadSkin(const std::string& meshFile, std::vector<Mesh::BoneWeight>& outBW){
     std::string skinFile = meshFile.substr(0, meshFile.rfind('.')) + ".skin";
     SkinDataHeader hdr;
     std::vector<char> raw;
-    if (!ImporterUtils::LoadBuffer(skinFile, hdr, raw)) return false;
+    if (!ImporterUtils::LoadBlob(skinFile, hdr, raw)) return false;
     if (hdr.magic != 0x534B494E || hdr.version == 0 || hdr.vertexCount == 0) return false;
     size_t expected = sizeof(SkinDataHeader) + hdr.vertexCount * sizeof(Mesh::BoneWeight);
     if (raw.size() != expected) return false;
@@ -71,7 +71,7 @@ static bool SaveMorph(uint32_t numTargets, uint32_t vertexCount,
     MorphDataHeader hdr; hdr.numTargets = numTargets; hdr.vertexCount = vertexCount;
     std::vector<char> payload(verts.size() * sizeof(Mesh::MorphVertex));
     memcpy(payload.data(), verts.data(), payload.size());
-    return ImporterUtils::SaveBuffer(morphFile, hdr, payload);
+    return ImporterUtils::SaveBlob(morphFile, hdr, payload);
 }
 
 static bool LoadMorph(const std::string& meshFile,
@@ -80,7 +80,7 @@ static bool LoadMorph(const std::string& meshFile,
     std::string morphFile = meshFile.substr(0, meshFile.rfind('.')) + ".morph";
     MorphDataHeader hdr;
     std::vector<char> raw;
-    if (!ImporterUtils::LoadBuffer(morphFile, hdr, raw)) return false;
+    if (!ImporterUtils::LoadBlob(morphFile, hdr, raw)) return false;
     if (hdr.magic != 0x4850524D || hdr.version == 0 || hdr.numTargets == 0 || hdr.vertexCount == 0) return false;
     const size_t expected = sizeof(MorphDataHeader) + hdr.numTargets * hdr.vertexCount * sizeof(Mesh::MorphVertex);
     if (raw.size() != expected) return false;
@@ -184,7 +184,7 @@ bool MeshImporter::Import(const tinygltf::Primitive& primitive, const tinygltf::
 
 static bool LoadRaw(const std::string& file, MeshImporter::MeshHeader& header, std::vector<Mesh::Vertex>& vertices, std::vector<uint32_t>& indices){
     std::vector<char> rawBuffer;
-    if (!ImporterUtils::LoadBuffer(file, header, rawBuffer)) return false;
+    if (!ImporterUtils::LoadBlob(file, header, rawBuffer)) return false;
     if (!ImporterUtils::ValidateHeader(header, 0x4853454D)) return false;
     const uint32_t vertexSize = (header.version >= 2) ? sizeof(Mesh::Vertex) : (sizeof(float) * 8);
     uint32_t expected = sizeof(MeshImporter::MeshHeader) + header.vertexCount * vertexSize + header.indexCount * sizeof(uint32_t);
@@ -248,5 +248,5 @@ bool MeshImporter::Save(const MeshHeader& header, const std::vector<Mesh::Vertex
     memcpy(cursor, vertices.data(), header.vertexCount * sizeof(Mesh::Vertex));
     cursor += header.vertexCount * sizeof(Mesh::Vertex);
     memcpy(cursor, indices.data(), header.indexCount * sizeof(uint32_t));
-    return ImporterUtils::SaveBuffer(file, header, payload);
+    return ImporterUtils::SaveBlob(file, header, payload);
 }

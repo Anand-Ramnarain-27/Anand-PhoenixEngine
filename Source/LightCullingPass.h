@@ -1,6 +1,30 @@
 #pragma once
-#include "LightCullingPipeline.h"
-#include "MeshRenderPass.h"
+#include <d3d12.h>
+#include <wrl.h>
+using Microsoft::WRL::ComPtr;
+
+class LightCullingPipeline {
+public:
+    static constexpr UINT SLOT_CB = 0;
+    static constexpr UINT SLOT_DEPTH = 1;
+    static constexpr UINT SLOT_POINT_LIGHTS= 2;
+    static constexpr UINT SLOT_SPOT_LIGHTS = 3;
+    static constexpr UINT SLOT_POINT_UAV = 4;
+    static constexpr UINT SLOT_SPOT_UAV = 5;
+
+    bool init(ID3D12Device* device);
+
+    ID3D12PipelineState* getPSO() const { return m_pso.Get(); }
+    ID3D12RootSignature* getRootSig() const { return m_rootSig.Get(); }
+
+private:
+    bool createRootSignature(ID3D12Device* device);
+    bool createPSO(ID3D12Device* device);
+
+    ComPtr<ID3D12RootSignature> m_rootSig;
+    ComPtr<ID3D12PipelineState> m_pso;
+};
+#include "ForwardMeshPass.h"
 #include "ShaderTableDesc.h"
 #include "Globals.h"
 #include <d3d12.h>
@@ -73,3 +97,4 @@ private:
     uint32_t m_lastWidth[NUM_VIEWPORTS] = {};
     uint32_t m_lastHeight[NUM_VIEWPORTS] = {};
 };
+

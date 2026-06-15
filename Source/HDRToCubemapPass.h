@@ -5,7 +5,7 @@
 #include <DirectXMath.h>
 #include <string>
 #include "ShaderTableDesc.h"
-#include "FaceCB.h"
+#include "CubemapBakeUtils.h"
 
 using Microsoft::WRL::ComPtr;
 

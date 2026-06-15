@@ -10,7 +10,7 @@ using Microsoft::WRL::ComPtr;
 class Mesh;
 class Material;
 class Model;
-class ModuleScene;
+class SceneGraph;
 class GameObject;
 
 enum class PrimitiveType {
@@ -27,7 +27,7 @@ public:
     static std::unique_ptr<Model> createQuadModel(std::unique_ptr<Material> material);
     static std::unique_ptr<Model> createTexturedQuad(ComPtr<ID3D12Resource> texture,
                                                       D3D12_GPU_DESCRIPTOR_HANDLE srv);
-    static GameObject* createTexturedQuadObject(ModuleScene* scene, const std::string& name,
+    static GameObject* createTexturedQuadObject(SceneGraph* scene, const std::string& name,
                                                  ComPtr<ID3D12Resource> texture,
                                                  D3D12_GPU_DESCRIPTOR_HANDLE srv);
 

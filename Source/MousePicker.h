@@ -2,7 +2,7 @@
 #include "Globals.h"
 
 class GameObject;
-class ModuleScene;
+class SceneGraph;
 
 class MousePicker {
 public:
@@ -10,7 +10,7 @@ public:
         float mx, float my,
         float vpX, float vpY, float vpW, float vpH,
         const Matrix& view, const Matrix& proj,
-        ModuleScene* scene);
+        SceneGraph* scene);
 
 private:
     struct Ray {

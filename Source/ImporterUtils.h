@@ -21,7 +21,7 @@ namespace ImporterUtils {
     }
 
     template<typename THeader>
-    inline bool LoadBuffer(const std::string& file, THeader& outHeader, std::vector<char>& outBuffer){
+    inline bool LoadBlob(const std::string& file, THeader& outHeader, std::vector<char>& outBuffer){
         char* raw = nullptr;
         uint32_t size = app->getFileSystem()->Load(file.c_str(), &raw);
         if (!raw || size < sizeof(THeader)){
@@ -40,7 +40,7 @@ namespace ImporterUtils {
     }
 
     template<typename THeader>
-    inline bool SaveBuffer(const std::string& file, const THeader& header, const std::vector<char>& payload){
+    inline bool SaveBlob(const std::string& file, const THeader& header, const std::vector<char>& payload){
         uint32_t total = sizeof(THeader) + (uint32_t)payload.size();
         std::vector<char> buffer(total);
         memcpy(buffer.data(), &header, sizeof(THeader));
@@ -49,7 +49,7 @@ namespace ImporterUtils {
     }
 
     template<typename THeader>
-    inline bool SaveBuffer(const std::string& file, const THeader& header){
+    inline bool SaveBlob(const std::string& file, const THeader& header){
         return app->getFileSystem()->Save(file.c_str(), &header, sizeof(THeader));
     }
 

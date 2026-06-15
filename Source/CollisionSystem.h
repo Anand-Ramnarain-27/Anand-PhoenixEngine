@@ -1,11 +1,9 @@
 #pragma once
-#include "CollisionTypes.h"
-#include "IBroadPhase.h"
-#include "IMidPhase.h"
+#include "CollisionInterfaces.h"
 #include "NarrowPhase.h"
 #include <memory>
 
-class ModuleScene;
+class SceneGraph;
 
 class CollisionSystem {
 public:
@@ -37,12 +35,12 @@ public:
 
     void drawBroadPhaseDebug();
 
-    void run(ModuleScene* scene, float dt);
+    void run(SceneGraph* scene, float dt);
 
     const CollisionResults& getResults() const { return m_results; }
 
 private:
-    static std::vector<CollisionBody> gatherBodies(ModuleScene* scene, float dt);
+    static std::vector<CollisionBody> gatherBodies(SceneGraph* scene, float dt);
 
     std::unique_ptr<IBroadPhase> m_broadPhase;
     std::unique_ptr<IMidPhase> m_midPhase;

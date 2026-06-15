@@ -1,6 +1,6 @@
 #include "Globals.h"
 #include "HDRToCubemapPass.h"
-#include "FaceProjection.h"
+#include "CubemapBakeUtils.h"
 #include "D3D12ResourceFactory.h"
 #include "Application.h"
 #include "ModuleD3D12.h"
@@ -10,7 +10,6 @@
 #include "ModuleSamplerHeap.h"
 #include "EnvironmentMap.h"
 #include "ShaderTableDesc.h"
-#include "CubeGeometry.h"
 #include "ReadData.h"
 
 #include <DirectXMath.h>

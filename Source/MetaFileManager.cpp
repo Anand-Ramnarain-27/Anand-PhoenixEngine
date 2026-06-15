@@ -1,4 +1,5 @@
 #include "Globals.h"
+#include "MetaFileManager.h"
 #include "ResourceCommon.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"

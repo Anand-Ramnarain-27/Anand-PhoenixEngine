@@ -21,11 +21,5 @@ protected:
 
 private:
     void drawTransform();
-    void drawComponentCamera(ComponentCamera* cam);
-    void drawComponentMesh(ComponentMesh* mesh);
-    void drawComponentAnimation(ComponentAnimation* anim);
     void drawAddComponentMenu();
-    void drawTexturePicker(ComponentMesh* mesh, Material* mat, int submeshIdx,
-        const char* label, bool hasTex, const char* tooltip,
-        std::function<void(ComPtr<ID3D12Resource>, D3D12_GPU_DESCRIPTOR_HANDLE)> onApply);
 };

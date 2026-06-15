@@ -1,6 +1,6 @@
 #include "Globals.h"
-#include "TestSceneSetup.h"
-#include "ModuleScene.h"
+#include "DebugSceneBuilder.h"
+#include "SceneGraph.h"
 #include "GameObject.h"
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
@@ -16,7 +16,7 @@
 #include <functional>
 
 
-void CreateTestScene(ModuleScene* scene,
+void CreateTestScene(SceneGraph* scene,
                      const std::string& charModelPath,
                      const std::string& faceModelPath,
                      const std::string& smPath){
@@ -59,7 +59,7 @@ static void check(bool ok, const char* msg){
     else { LOG("[FAIL] %s", msg); }
 }
 
-void ValidateAnimationSetup(ModuleScene* scene){
+void ValidateAnimationSetup(SceneGraph* scene){
     LOG("=== ValidateAnimationSetup ===");
 
     if (!scene){ LOG("[FAIL] scene is null"); return; }

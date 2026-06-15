@@ -1,11 +1,11 @@
 #pragma once
 #include <string>
 
-class ModuleScene;
+class SceneGraph;
 
-void CreateTestScene(ModuleScene* scene,
+void CreateTestScene(SceneGraph* scene,
                      const std::string& charModelPath,
                      const std::string& faceModelPath,
                      const std::string& smPath);
 
-void ValidateAnimationSetup(ModuleScene* scene);
+void ValidateAnimationSetup(SceneGraph* scene);

@@ -1,12 +1,12 @@
 #include "Globals.h"
-#include "ModuleScene.h"
+#include "SceneGraph.h"
 #include "GameObject.h"
 #include <algorithm>
 
-ModuleScene::ModuleScene(){ root = std::make_unique<GameObject>("Root"); }
-ModuleScene::~ModuleScene() = default;
+SceneGraph::SceneGraph(){ root = std::make_unique<GameObject>("Root"); }
+SceneGraph::~SceneGraph() = default;
 
-GameObject* ModuleScene::createGameObject(const std::string& name, GameObject* parent){
+GameObject* SceneGraph::createGameObject(const std::string& name, GameObject* parent){
     auto go = std::make_unique<GameObject>(name);
     auto* ptr = go.get();
     ptr->setParent(parent ? parent : root.get());
@@ -14,7 +14,7 @@ GameObject* ModuleScene::createGameObject(const std::string& name, GameObject* p
     return ptr;
 }
 
-void ModuleScene::destroyGameObject(GameObject* go){
+void SceneGraph::destroyGameObject(GameObject* go){
     if (!go || go == root.get()) return;
     GameObject* reparentTo = go->getParent() ? go->getParent() : root.get();
     for (auto* child : go->getChildren()) child->setParent(reparentTo);
@@ -24,14 +24,14 @@ void ModuleScene::destroyGameObject(GameObject* go){
     if (it != objects.end()) objects.erase(it);
 }
 
-void ModuleScene::update(float deltaTime){ root->update(deltaTime); }
+void SceneGraph::update(float deltaTime){ root->update(deltaTime); }
 
-void ModuleScene::clear(){
+void SceneGraph::clear(){
     root->clearChildren();
     objects.clear();
 }
 
-GameObject* ModuleScene::findGameObjectByName(const std::string& name){
+GameObject* SceneGraph::findGameObjectByName(const std::string& name){
     std::function<GameObject* (GameObject*)> search = [&](GameObject* node) -> GameObject* {
             if (node->getName() == name) return node;
             for (auto* child : node->getChildren()) if (auto* found = search(child)) return found;

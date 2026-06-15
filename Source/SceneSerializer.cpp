@@ -1,6 +1,6 @@
 #include "Globals.h"
 #include "SceneSerializer.h"
-#include "ModuleScene.h"
+#include "SceneGraph.h"
 #include "GameObject.h"
 #include "Component.h"
 #include "ComponentTransform.h"
@@ -28,7 +28,7 @@ static uint32_t readUID(const Value& node, const char* key){
     return 0;
 }
 
-bool SceneSerializer::SaveScene(const ModuleScene* scene, const std::string& filePath){
+bool SceneSerializer::SaveScene(const SceneGraph* scene, const std::string& filePath){
     if (!scene) return false;
     try{
         Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
@@ -87,7 +87,7 @@ bool SceneSerializer::SaveScene(const ModuleScene* scene, const std::string& fil
     catch (...){ LOG("SceneSerializer: Unknown save exception"); return false; }
 }
 
-bool SceneSerializer::LoadScene(const std::string& filePath, ModuleScene* scene){
+bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene){
     if (!scene) return false;
     auto* fs = app->getFileSystem();
     if (!fs->Exists(filePath.c_str())){ LOG("SceneSerializer: File not found: %s", filePath.c_str()); return false; }
@@ -163,5 +163,5 @@ bool SceneSerializer::LoadScene(const std::string& filePath, ModuleScene* scene)
     return true;
 }
 
-bool SceneSerializer::SaveTempScene(const ModuleScene* scene){ return SaveScene(scene, app->getFileSystem()->GetLibraryPath() + "Scenes/temp_scene.json"); }
-bool SceneSerializer::LoadTempScene(ModuleScene* scene){ return LoadScene(app->getFileSystem()->GetLibraryPath() + "Scenes/temp_scene.json", scene); }
+bool SceneSerializer::SaveTempScene(const SceneGraph* scene){ return SaveScene(scene, app->getFileSystem()->GetLibraryPath() + "Scenes/temp_scene.json"); }
+bool SceneSerializer::LoadTempScene(SceneGraph* scene){ return LoadScene(app->getFileSystem()->GetLibraryPath() + "Scenes/temp_scene.json", scene); }

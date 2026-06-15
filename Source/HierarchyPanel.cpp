@@ -3,7 +3,7 @@
 #include "EditorColors.h"
 #include "ImGuiPass.h"
 #include "ModuleEditor.h"
-#include "ModuleScene.h"
+#include "SceneGraph.h"
 #include "Application.h"
 #include "GameObject.h"
 #include "ComponentCamera.h"
@@ -44,7 +44,7 @@ static const char* goTag(GameObject* go, ImVec4& outColor){
 }
 
 void HierarchyPanel::drawContent(){
-    ModuleScene* scene = m_editor->getActiveModuleScene();
+    SceneGraph* scene = m_editor->getActiveModuleScene();
     if (!scene) return;
     EditorSelection& sel = m_editor->getSelection();
     bool prefabMode = m_editor->getSceneManager() && m_editor->getSceneManager()->isEditingPrefab();

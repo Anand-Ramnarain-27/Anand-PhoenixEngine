@@ -23,7 +23,7 @@ static bool materialsNeedReimport(const std::string& matFolder, uint32_t materia
 
     MaterialImporter::MaterialHeader header;
     std::vector<char> buf;
-    if (!ImporterUtils::LoadBuffer(firstMat, header, buf)) return true;
+    if (!ImporterUtils::LoadBlob(firstMat, header, buf)) return true;
     if (!ImporterUtils::ValidateHeader(header, 0x4D415452)) return true;
 
     return header.version < 7;

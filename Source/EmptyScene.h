@@ -1,6 +1,6 @@
 #pragma once
 #include "IScene.h"
-#include "ModuleScene.h"
+#include "SceneGraph.h"
 #include "GameObject.h"
 #include <memory>
 
@@ -13,7 +13,7 @@ public:
     const char* getDescription() const override { return "A blank scene to start from scratch."; }
 
     bool initialize(ID3D12Device* device) override{
-        scene = std::make_unique<ModuleScene>();
+        scene = std::make_unique<SceneGraph>();
         return true;
     }
 
@@ -25,8 +25,8 @@ public:
 
     void shutdown() override { scene.reset(); }
 
-    ModuleScene* getModuleScene() override { return scene.get(); }
+    SceneGraph* getModuleScene() override { return scene.get(); }
 
 private:
-    std::unique_ptr<ModuleScene> scene;
+    std::unique_ptr<SceneGraph> scene;
 };

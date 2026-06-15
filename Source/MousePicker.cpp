@@ -1,6 +1,6 @@
 #include "Globals.h"
 #include "MousePicker.h"
-#include "ModuleScene.h"
+#include "SceneGraph.h"
 #include "GameObject.h"
 #include "ComponentMesh.h"
 #include "ComponentTransform.h"
@@ -146,7 +146,7 @@ GameObject* MousePicker::pick(
     float mx, float my,
     float vpX, float vpY, float vpW, float vpH,
     const Matrix& view, const Matrix& proj,
-    ModuleScene* scene){
+    SceneGraph* scene){
     if (!scene || vpW <= 0.f || vpH <= 0.f) return nullptr;
 
     Ray ray = buildRay(mx, my, vpX, vpY, vpW, vpH, view, proj);

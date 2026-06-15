@@ -4,7 +4,7 @@
 #include "ComponentMesh.h"
 #include "ComponentTransform.h"
 #include "ComponentAnimation.h"
-#include "ModuleScene.h"
+#include "SceneGraph.h"
 #include "ModuleAssets.h"
 #include "Application.h"
 #include "GameObject.h"
@@ -71,7 +71,7 @@ void ResourceModel::UnloadFromMemory(){
     m_skins.clear();
 }
 
-GameObject* ResourceModel::spawnIntoScene(ModuleScene* scene, GameObject* parent) const{
+GameObject* ResourceModel::spawnIntoScene(SceneGraph* scene, GameObject* parent) const{
     if (!scene || m_nodes.empty()) return nullptr;
 
     std::string modelName = std::filesystem::path(assetsFile).stem().string();

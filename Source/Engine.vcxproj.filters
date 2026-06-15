@@ -88,7 +88,7 @@
     <ClCompile Include="GameObject.cpp">
       <Filter>Engine\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="ModuleScene.cpp">
+    <ClCompile Include="SceneGraph.cpp">
       <Filter>Engine\Scene</Filter>
     </ClCompile>
     <ClCompile Include="SceneManager.cpp">
@@ -140,14 +140,8 @@
     <ClCompile Include="ComponentTrail.cpp">
       <Filter>Engine\Scene\Components</Filter>
     </ClCompile>
-    <ClCompile Include="TrailPipeline.cpp">
-      <Filter>Engine\Rendering\Pipelines</Filter>
-    </ClCompile>
     <ClCompile Include="TrailPass.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
-    </ClCompile>
-    <ClCompile Include="ParticlePipeline.cpp">
-      <Filter>Engine\Rendering\Pipelines</Filter>
     </ClCompile>
     <ClCompile Include="ParticlePass.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
@@ -271,7 +265,7 @@
     <ClCompile Include="DebugDrawPass.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
-    <ClCompile Include="MeshRenderPass.cpp">
+    <ClCompile Include="ForwardMeshPass.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
     <ClCompile Include="SkinningPass.cpp">
@@ -299,21 +293,6 @@
     <ClCompile Include="MeshPipeline.cpp">
       <Filter>Engine\Rendering\Pipelines</Filter>
     </ClCompile>
-    <ClCompile Include="GBufferPipeline.cpp">
-      <Filter>Engine\Rendering\Pipelines</Filter>
-    </ClCompile>
-    <ClCompile Include="DeferredLightingPipeline.cpp">
-      <Filter>Engine\Rendering\Pipelines</Filter>
-    </ClCompile>
-    <ClCompile Include="LightCullingPipeline.cpp">
-      <Filter>Engine\Rendering\Pipelines</Filter>
-    </ClCompile>
-    <ClCompile Include="DecalPipeline.cpp">
-      <Filter>Engine\Rendering\Pipelines</Filter>
-    </ClCompile>
-    <ClCompile Include="BillboardPipeline.cpp">
-      <Filter>Engine\Rendering\Pipelines</Filter>
-    </ClCompile>
     <!-- Engine\Rendering\Materials -->
     <ClCompile Include="Material.cpp">
       <Filter>Engine\Rendering\Materials</Filter>
@@ -326,9 +305,6 @@
       <Filter>Engine\Rendering\Geometry</Filter>
     </ClCompile>
     <!-- Engine\Rendering\Environment -->
-    <ClCompile Include="EnvironmentGenerator.cpp">
-      <Filter>Engine\Rendering\Environment</Filter>
-    </ClCompile>
     <ClCompile Include="EnvironmentSystem.cpp">
       <Filter>Engine\Rendering\Environment</Filter>
     </ClCompile>
@@ -344,14 +320,44 @@
     <ClCompile Include="ModuleEditor.cpp">
       <Filter>Engine\Editor</Filter>
     </ClCompile>
-    <ClCompile Include="TestSceneSetup.cpp">
+    <ClCompile Include="EditorRenderer.cpp">
+      <Filter>Engine\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="EditorSceneGather.cpp">
+      <Filter>Engine\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="EditorMenus.cpp">
+      <Filter>Engine\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="EditorCommands.cpp">
+      <Filter>Engine\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="EditorSpawn.cpp">
+      <Filter>Engine\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="EditorEffects.cpp">
+      <Filter>Engine\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="DebugSceneBuilder.cpp">
       <Filter>Engine\Editor</Filter>
     </ClCompile>
     <!-- Engine\Editor\Panels -->
     <ClCompile Include="EditorPanel.cpp">
       <Filter>Engine\Editor\Panels</Filter>
     </ClCompile>
-    <ClCompile Include="EditorPanels.cpp">
+    <ClCompile Include="ConsolePanel.cpp">
+      <Filter>Engine\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="PerformancePanel.cpp">
+      <Filter>Engine\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="ResourcesPanel.cpp">
+      <Filter>Engine\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="CollisionDebugPanel.cpp">
+      <Filter>Engine\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="GPUMemoryPanel.cpp">
       <Filter>Engine\Editor\Panels</Filter>
     </ClCompile>
     <ClCompile Include="AssetBrowserPanel.cpp">
@@ -552,7 +558,7 @@
     <ClInclude Include="EmptyScene.h">
       <Filter>Engine\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="ModuleScene.h">
+    <ClInclude Include="SceneGraph.h">
       <Filter>Engine\Scene</Filter>
     </ClInclude>
     <ClInclude Include="SceneManager.h">
@@ -610,14 +616,8 @@
     <ClInclude Include="ComponentTrail.h">
       <Filter>Engine\Scene\Components</Filter>
     </ClInclude>
-    <ClInclude Include="TrailPipeline.h">
-      <Filter>Engine\Rendering\Pipelines</Filter>
-    </ClInclude>
     <ClInclude Include="TrailPass.h">
       <Filter>Engine\Rendering\Passes</Filter>
-    </ClInclude>
-    <ClInclude Include="ParticlePipeline.h">
-      <Filter>Engine\Rendering\Pipelines</Filter>
     </ClInclude>
     <ClInclude Include="ParticlePass.h">
       <Filter>Engine\Rendering\Passes</Filter>
@@ -681,6 +681,9 @@
     <!-- Engine\Resources                                              -->
     <!-- ============================================================ -->
     <ClInclude Include="ResourceCommon.h">
+      <Filter>Engine\Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="MetaFileManager.h">
       <Filter>Engine\Resources</Filter>
     </ClInclude>
     <ClInclude Include="MeshEntry.h">
@@ -774,7 +777,7 @@
     <ClInclude Include="DebugDrawPass.h">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
-    <ClInclude Include="MeshRenderPass.h">
+    <ClInclude Include="ForwardMeshPass.h">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
     <ClInclude Include="SkinningPass.h">
@@ -802,21 +805,6 @@
     <ClInclude Include="MeshPipeline.h">
       <Filter>Engine\Rendering\Pipelines</Filter>
     </ClInclude>
-    <ClInclude Include="GBufferPipeline.h">
-      <Filter>Engine\Rendering\Pipelines</Filter>
-    </ClInclude>
-    <ClInclude Include="DeferredLightingPipeline.h">
-      <Filter>Engine\Rendering\Pipelines</Filter>
-    </ClInclude>
-    <ClInclude Include="LightCullingPipeline.h">
-      <Filter>Engine\Rendering\Pipelines</Filter>
-    </ClInclude>
-    <ClInclude Include="DecalPipeline.h">
-      <Filter>Engine\Rendering\Pipelines</Filter>
-    </ClInclude>
-    <ClInclude Include="BillboardPipeline.h">
-      <Filter>Engine\Rendering\Pipelines</Filter>
-    </ClInclude>
     <!-- Engine\Rendering\Materials -->
     <ClInclude Include="Material.h">
       <Filter>Engine\Rendering\Materials</Filter>
@@ -829,9 +817,6 @@
       <Filter>Engine\Rendering\Geometry</Filter>
     </ClInclude>
     <!-- Engine\Rendering\Environment -->
-    <ClInclude Include="EnvironmentGenerator.h">
-      <Filter>Engine\Rendering\Environment</Filter>
-    </ClInclude>
     <ClInclude Include="EnvironmentMap.h">
       <Filter>Engine\Rendering\Environment</Filter>
     </ClInclude>
@@ -850,19 +835,7 @@
     <ClInclude Include="D3D12ResourceFactory.h">
       <Filter>Engine\Rendering\Environment</Filter>
     </ClInclude>
-    <ClInclude Include="CubemapPipelineBuilder.h">
-      <Filter>Engine\Rendering\Environment</Filter>
-    </ClInclude>
-    <ClInclude Include="CubeGeometry.h">
-      <Filter>Engine\Rendering\Environment</Filter>
-    </ClInclude>
-    <ClInclude Include="CubeFaceRenderer.h">
-      <Filter>Engine\Rendering\Environment</Filter>
-    </ClInclude>
-    <ClInclude Include="FaceProjection.h">
-      <Filter>Engine\Rendering\Environment</Filter>
-    </ClInclude>
-    <ClInclude Include="FaceCB.h">
+    <ClInclude Include="CubemapBakeUtils.h">
       <Filter>Engine\Rendering\Environment</Filter>
     </ClInclude>
     <!-- ============================================================ -->
@@ -880,14 +853,26 @@
     <ClInclude Include="EditorColors.h">
       <Filter>Engine\Editor</Filter>
     </ClInclude>
-    <ClInclude Include="TestSceneSetup.h">
+    <ClInclude Include="DebugSceneBuilder.h">
       <Filter>Engine\Editor</Filter>
     </ClInclude>
     <!-- Engine\Editor\Panels -->
     <ClInclude Include="EditorPanel.h">
       <Filter>Engine\Editor\Panels</Filter>
     </ClInclude>
-    <ClInclude Include="EditorPanels.h">
+    <ClInclude Include="ConsolePanel.h">
+      <Filter>Engine\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="PerformancePanel.h">
+      <Filter>Engine\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="ResourcesPanel.h">
+      <Filter>Engine\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="CollisionDebugPanel.h">
+      <Filter>Engine\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="GPUMemoryPanel.h">
       <Filter>Engine\Editor\Panels</Filter>
     </ClInclude>
     <ClInclude Include="AssetBrowserPanel.h">
@@ -940,16 +925,13 @@
       <Filter>Engine\Physics\Volumes</Filter>
     </ClInclude>
     <!-- Engine\Physics\Collision -->
-    <ClInclude Include="CollisionTypes.h">
+    <ClInclude Include="CollisionInterfaces.h">
       <Filter>Engine\Physics\Collision</Filter>
     </ClInclude>
     <ClInclude Include="CollisionSystem.h">
       <Filter>Engine\Physics\Collision</Filter>
     </ClInclude>
     <!-- Engine\Physics\Collision\BroadPhase -->
-    <ClInclude Include="IBroadPhase.h">
-      <Filter>Engine\Physics\Collision\BroadPhase</Filter>
-    </ClInclude>
     <ClInclude Include="BruteForceBroadPhase.h">
       <Filter>Engine\Physics\Collision\BroadPhase</Filter>
     </ClInclude>
@@ -963,9 +945,6 @@
       <Filter>Engine\Camera</Filter>
     </ClInclude>
     <!-- Engine\Physics\Collision\MidPhase -->
-    <ClInclude Include="IMidPhase.h">
-      <Filter>Engine\Physics\Collision\MidPhase</Filter>
-    </ClInclude>
     <!-- Engine\Physics\Collision\NarrowPhase -->
     <ClInclude Include="NarrowPhase.h">
       <Filter>Engine\Physics\Collision\NarrowPhase</Filter>

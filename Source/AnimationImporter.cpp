@@ -229,7 +229,7 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
         append(nm.weights.get(), numTime * numTargets * sizeof(float));
     }
 
-    return ImporterUtils::SaveBuffer(outPath, header, payload);
+    return ImporterUtils::SaveBlob(outPath, header, payload);
 }
 
 }

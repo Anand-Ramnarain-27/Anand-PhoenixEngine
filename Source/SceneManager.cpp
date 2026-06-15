@@ -3,7 +3,7 @@
 #include "Application.h"
 #include "ModuleD3D12.h"
 #include "IScene.h"
-#include "ModuleScene.h"
+#include "SceneGraph.h"
 #include "GameObject.h"
 #include "ComponentMesh.h"
 #include "ComponentAnimation.h"
@@ -27,7 +27,7 @@ void SceneManager::clearScene(){
     hasSerializedState = false;
 }
 
-ModuleScene* SceneManager::getModuleScene() const{
+SceneGraph* SceneManager::getModuleScene() const{
     if (m_editingPrefab && m_prefabScene) return m_prefabScene;
     return activeScene ? activeScene->getModuleScene() : nullptr;
 }
@@ -77,7 +77,7 @@ void SceneManager::updateAnimations(float deltaTime){
     visit(ms->getRoot());
 }
 
-static void renderModuleScene(ModuleScene* ms, ID3D12GraphicsCommandList* cmd){
+static void renderModuleScene(SceneGraph* ms, ID3D12GraphicsCommandList* cmd){
     if (!ms) return;
     std::function<void(GameObject*)> visit = [&](GameObject* node){
         if (!node || !node->isActive()) return;
@@ -114,7 +114,7 @@ bool SceneManager::loadScene(const std::string& filePath){
     return SceneSerializer::LoadScene(filePath, ms);
 }
 
-void SceneManager::enterPrefabEdit(ModuleScene* prefabScene, const std::string& prefabName){
+void SceneManager::enterPrefabEdit(SceneGraph* prefabScene, const std::string& prefabName){
     if (m_editingPrefab) exitPrefabEdit();
     m_savedScene = activeScene ? activeScene->getModuleScene() : nullptr;
     m_prefabScene = prefabScene;

@@ -1,5 +1,5 @@
 #pragma once
-#include "CollisionTypes.h"
+#include "CollisionInterfaces.h"
 #include <vector>
 
 class NarrowPhase {

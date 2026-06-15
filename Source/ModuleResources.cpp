@@ -1,5 +1,6 @@
 #include "Globals.h"
 #include "ModuleResources.h"
+#include "MetaFileManager.h"
 #include "ResourceMesh.h"
 #include "ResourceMaterial.h"
 #include "ResourceTexture.h"

@@ -402,56 +402,75 @@ void ComponentAnimation::applyBlendedAnimation(GameObject* go){
 
 
 void ComponentAnimation::onEditor(){
+    ComponentAnimation* anim = this;
+    const auto& uids = anim->getAnimationUIDs();
+    AnimationController& ctrl = anim->getController();
+
+    ImGui::SeparatorText("Clip");
+
     int currentIdx = -1;
-    for (int i = 0; i < (int)m_animUIDs.size(); ++i){
-        if (m_animUIDs[i] == m_controller.Resource){ currentIdx = i; break; }
+    for (int i = 0; i < (int)uids.size(); ++i)
+        if (uids[i] == ctrl.Resource){ currentIdx = i; break; }
+
+    std::string preview = "None";
+    if (currentIdx >= 0 && ctrl.Resource != 0){
+        auto* r = app->getResources()->RequestAnimation(ctrl.Resource);
+        if (r){ preview = r->getAnimName(); app->getResources()->ReleaseResource(r); }
+        if (preview.empty()) preview = "Anim_" + std::to_string(currentIdx);
     }
-    const char* preview = (currentIdx >= 0 && currentIdx < (int)m_animNames.size())
-                          ? m_animNames[currentIdx].c_str() : "None";
 
     ImGui::SetNextItemWidth(-1);
-    if (ImGui::BeginCombo("##animsel", preview)){
-        for (int i = 0; i < (int)m_animUIDs.size(); ++i){
-            bool selected = (i == currentIdx);
-            if (ImGui::Selectable(m_animNames[i].c_str(), selected))
-                m_controller.Play(m_animUIDs[i], m_controller.Loop);
-            if (selected) ImGui::SetItemDefaultFocus();
+    if (ImGui::BeginCombo("##animclip", preview.c_str())){
+        for (int i = 0; i < (int)uids.size(); ++i){
+            auto* r = app->getResources()->RequestAnimation(uids[i]);
+            std::string name = r ? r->getAnimName() : ("Anim_" + std::to_string(i));
+            if (r) app->getResources()->ReleaseResource(r);
+            bool sel = (i == currentIdx);
+            if (ImGui::Selectable(name.c_str(), sel))
+                ctrl.Play(uids[i], ctrl.Loop);
+            if (sel) ImGui::SetItemDefaultFocus();
         }
-        if (m_animUIDs.empty()){ ImGui::TextDisabled("No animations loaded"); }
+        if (uids.empty()) ImGui::TextDisabled("No animations available");
         ImGui::EndCombo();
     }
-    ImGui::Spacing();
 
-    if (m_controller.isPlaying()){
-        if (ImGui::Button("Stop")) m_controller.Stop();
+    ImGui::SeparatorText("Playback");
+    if (ctrl.isPlaying()){
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.1f, 1.f));
+        if (ImGui::Button("Stop##animstop", ImVec2(60, 0))) ctrl.Stop();
+        ImGui::PopStyleColor();
     } else {
-        if (ImGui::Button("Play")){
-            UID uid = m_controller.Resource;
-            if (uid == 0 && !m_animUIDs.empty()) uid = m_animUIDs[0];
-            if (uid != 0) m_controller.Play(uid, m_controller.Loop);
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.5f, 0.1f, 1.f));
+        if (ImGui::Button("Play##animplay", ImVec2(60, 0))){
+            UID uid = ctrl.Resource;
+            if (uid == 0 && !uids.empty()) uid = uids[0];
+            if (uid != 0) ctrl.Play(uid, ctrl.Loop);
         }
+        ImGui::PopStyleColor();
     }
     ImGui::SameLine();
-    ImGui::Checkbox("Loop", &m_controller.Loop);
+    ImGui::Checkbox("Loop##animloop", &ctrl.Loop);
 
     float duration = 0.f;
-    if (m_controller.Resource != 0){
-        auto* anim = app->getResources()->RequestAnimation(m_controller.Resource);
-        if (anim){ duration = anim->getDuration(); app->getResources()->ReleaseResource(anim); }
+    if (ctrl.Resource != 0){
+        auto* r = app->getResources()->RequestAnimation(ctrl.Resource);
+        if (r){ duration = r->getDuration(); app->getResources()->ReleaseResource(r); }
     }
     if (duration > 0.f){
-        ImGui::SetNextItemWidth(-1);
-        ImGui::SliderFloat("##animtime", &m_controller.CurrentTime, 0.f, duration, "%.2f s");
-        ImGui::SameLine(0, 4); ImGui::TextDisabled("/ %.2f", duration);
+        ImGui::Spacing();
+        ImGui::SetNextItemWidth(-60);
+        if (ImGui::SliderFloat("##animscrub", &ctrl.CurrentTime, 0.f, duration, "%.2f s"))
+            if (!ctrl.isPlaying()){ }
+        ImGui::SameLine();
+        ImGui::TextDisabled("%.1f s", duration);
     }
 
     ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::SliderFloat("Speed", &mSpeed, 0.f, 4.f, "%.2f");
-    ImGui::Checkbox("Draw Bones", &m_drawBones);
-    ImGui::Checkbox("Draw Axis Triads", &m_drawAxisTriads);
+    ImGui::SeparatorText("Debug");
+    ImGui::Checkbox("Draw Bones", &anim->drawBones());
+    ImGui::Checkbox("Draw Axis Triads", &anim->drawAxisTriads());
 
-    drawStateMachineSection();
+    anim->drawStateMachineSection();
 }
 
 void ComponentAnimation::drawStateMachineSection(){

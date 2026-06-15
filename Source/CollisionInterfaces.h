@@ -41,3 +41,32 @@ struct CollisionResults {
     float broadPhaseMs = 0.f;
     std::vector<ContactPoint> contacts;
 };
+
+class IBroadPhase {
+public:
+    virtual ~IBroadPhase() = default;
+
+    virtual std::vector<CollisionPair> query(
+        const std::vector<CollisionBody>& bodies) = 0;
+
+    virtual const char* getName() const = 0;
+
+    virtual void drawDebug(){}
+};
+
+class IMidPhase {
+public:
+    virtual ~IMidPhase() = default;
+    virtual std::vector<CollisionPair> filter(
+        std::vector<CollisionPair> candidates,
+        const std::vector<CollisionBody>& bodies) = 0;
+};
+
+class PassthroughMidPhase : public IMidPhase {
+public:
+    std::vector<CollisionPair> filter(
+        std::vector<CollisionPair> candidates,
+        const std::vector<CollisionBody>& ) override {
+        return candidates;
+    }
+};

@@ -6,7 +6,7 @@
 
 class IScene;
 class ModuleCamera;
-class ModuleScene;
+class SceneGraph;
 
 class SceneManager {
 public:
@@ -31,12 +31,12 @@ public:
     void onViewportResized(uint32_t width, uint32_t height);
 
     IScene* getActiveScene() const { return activeScene.get(); }
-    ModuleScene* getModuleScene() const;
+    SceneGraph* getModuleScene() const;
 
     bool saveCurrentScene(const std::string& filePath);
     bool loadScene(const std::string& filePath);
 
-    void enterPrefabEdit(ModuleScene* prefabScene, const std::string& prefabName);
+    void enterPrefabEdit(SceneGraph* prefabScene, const std::string& prefabName);
     void exitPrefabEdit();
     bool isEditingPrefab() const { return m_editingPrefab; }
     const std::string& getPrefabEditName() const { return m_prefabEditName; }
@@ -52,6 +52,6 @@ private:
 
     bool m_editingPrefab = false;
     std::string m_prefabEditName;
-    ModuleScene* m_savedScene = nullptr;
-    ModuleScene* m_prefabScene = nullptr;
+    SceneGraph* m_savedScene = nullptr;
+    SceneGraph* m_prefabScene = nullptr;
 };

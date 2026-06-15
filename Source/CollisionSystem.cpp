@@ -3,9 +3,9 @@
 #include "BruteForceBroadPhase.h"
 #include "UniformGridBroadPhase.h"
 #include "OctreeBroadPhase.h"
-#include "IMidPhase.h"
+#include "CollisionInterfaces.h"
 #include <chrono>
-#include "ModuleScene.h"
+#include "SceneGraph.h"
 #include "GameObject.h"
 #include "ComponentMesh.h"
 #include "ComponentTransform.h"
@@ -153,7 +153,7 @@ static void applyBVType(CollisionBody& body){
 }
 
 
-std::vector<CollisionBody> CollisionSystem::gatherBodies(ModuleScene* scene, float dt){
+std::vector<CollisionBody> CollisionSystem::gatherBodies(SceneGraph* scene, float dt){
     std::vector<CollisionBody> bodies;
     if (!scene) return bodies;
 
@@ -187,7 +187,7 @@ std::vector<CollisionBody> CollisionSystem::gatherBodies(ModuleScene* scene, flo
     return bodies;
 }
 
-void CollisionSystem::run(ModuleScene* scene, float dt){
+void CollisionSystem::run(SceneGraph* scene, float dt){
     m_results = {};
 
     std::vector<CollisionBody> bodies = gatherBodies(scene, dt);

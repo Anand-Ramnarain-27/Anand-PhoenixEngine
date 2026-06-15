@@ -2,8 +2,12 @@
 #include "Module.h"
 #include "EditorSelection.h"
 #include "PrimitiveFactory.h"
-#include "EditorPanels.h"
-#include "MeshRenderPass.h"
+#include "ConsolePanel.h"
+#include "PerformancePanel.h"
+#include "ResourcesPanel.h"
+#include "CollisionDebugPanel.h"
+#include "GPUMemoryPanel.h"
+#include "ForwardMeshPass.h"
 #include "MeshPipeline.h"
 #include "ShaderTableDesc.h"
 #include "PrefabEditSession.h"
@@ -53,7 +57,7 @@ class AssetBrowserPanel;
 class GameObject;
 class ComponentCamera;
 class ComponentMesh;
-class ModuleScene;
+class SceneGraph;
 class FileDialog;
 class EngineDropTarget;
 
@@ -68,7 +72,7 @@ public:
     void render() override;
 
     SceneManager* getSceneManager() const { return m_sceneManager.get(); }
-    MeshRenderPass* getMeshRenderPass() const { return m_meshRenderPass.get(); }
+    ForwardMeshPass* getMeshRenderPass() const { return m_meshRenderPass.get(); }
     MeshPipeline* getMeshPipeline() const { return m_meshRenderPass ? &m_meshRenderPass->getPipeline() : nullptr; }
     EnvironmentSystem* getEnvSystem() const { return m_envSystem.get(); }
     DebugDrawPass* getDebugDraw() const { return m_debugDraw.get(); }
@@ -80,7 +84,7 @@ public:
     int getFrameDrawCalls() const { return m_frameDrawCalls; }
     int getSamplerType() const { return m_samplerType; }
     void setSamplerType(int t){ m_samplerType = t; }
-    ModuleScene* getActiveModuleScene()const;
+    SceneGraph* getActiveModuleScene()const;
     ImVec2 getSceneViewSize() const;
 
     void renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras, RenderTexture* outputRT = nullptr);
@@ -136,7 +140,7 @@ private:
     std::unique_ptr<CollisionSystem> m_collisionSystem;
     std::unique_ptr<CollisionResponse> m_collisionResponse;
     std::unique_ptr<SceneManager> m_sceneManager;
-    std::unique_ptr<MeshRenderPass> m_meshRenderPass;
+    std::unique_ptr<ForwardMeshPass> m_meshRenderPass;
     std::unique_ptr<GBufferPass> m_gbufferPass;
     std::unique_ptr<DeferredLightingPass> m_deferredLightingPass;
     std::unique_ptr<DecalPass> m_decalPass;
@@ -225,7 +229,7 @@ private:
     void gatherGPUParticles(GameObject* node, std::vector<ParticleDrawRequest>& out,
                             const Vector3& camPos, const Vector3& camRight, const Vector3& camUp,
                             float elapsedTime) const;
-    void debugDrawLights(ModuleScene* scene, float lightSize);
+    void debugDrawLights(SceneGraph* scene, float lightSize);
     void updateMemory();
     void updateEffectsInEditMode(float dt);
     void handleNewScenePopup(ID3D12GraphicsCommandList* cmd);

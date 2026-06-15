@@ -3,7 +3,7 @@
 #include <d3d12.h>
 
 class ModuleCamera;
-class ModuleScene;
+class SceneGraph;
 
 class IScene {
 public:
@@ -22,5 +22,5 @@ public:
     virtual void onExit(){}
     virtual void onViewportResized(uint32_t, uint32_t){}
     virtual bool wantsDebugDraw() const { return true; }
-    virtual ModuleScene* getModuleScene(){ return nullptr; }
+    virtual SceneGraph* getModuleScene(){ return nullptr; }
 };

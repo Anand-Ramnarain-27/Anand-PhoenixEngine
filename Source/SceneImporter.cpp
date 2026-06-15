@@ -173,13 +173,13 @@ bool SceneImporter::SaveSceneMetadata(const std::string& sceneName, const tinygl
     header.materialCount = (uint32_t)gltfModel.materials.size();
     std::vector<char> payload(matIndices.size() * sizeof(int32_t));
     memcpy(payload.data(), matIndices.data(), payload.size());
-    return ImporterUtils::SaveBuffer(app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/scene.meta", header, payload);
+    return ImporterUtils::SaveBlob(app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/scene.meta", header, payload);
 }
 
 bool SceneImporter::LoadSceneMetadata(const std::string& sceneName, SceneHeader& header){
     std::vector<char> rawBuffer;
     std::string path = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/scene.meta";
-    if (!ImporterUtils::LoadBuffer(path, header, rawBuffer)) return false;
+    if (!ImporterUtils::LoadBlob(path, header, rawBuffer)) return false;
     if (!ImporterUtils::ValidateHeader(header, 0x53434E45)){ LOG("SceneImporter: Invalid scene metadata"); return false; }
     return true;
 }
@@ -234,7 +234,7 @@ bool SceneImporter::SaveNodeMetadata(const std::string& sceneName, const tinyglt
     append(nameBlob.data(), nameBlob.size());
 
     std::string path = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/nodes.meta";
-    return ImporterUtils::SaveBuffer(path, header, payload);
+    return ImporterUtils::SaveBlob(path, header, payload);
 }
 
 bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinygltf::Model& gltfModel){
@@ -295,14 +295,14 @@ bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinyglt
     }
 
     std::string path = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/skins.meta";
-    return ImporterUtils::SaveBuffer(path, hdr, payload);
+    return ImporterUtils::SaveBlob(path, hdr, payload);
 }
 
 bool SceneImporter::LoadSkins(const std::string& sceneName, std::vector<SkinInfo>& outSkins){
     std::string path = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/skins.meta";
     SkinFileHeader hdr;
     std::vector<char> raw;
-    if (!ImporterUtils::LoadBuffer(path, hdr, raw)) return false;
+    if (!ImporterUtils::LoadBlob(path, hdr, raw)) return false;
     if (hdr.magic != 0x534B4E53 || hdr.version == 0) return false;
 
     const char* cur = raw.data() + sizeof(SkinFileHeader);
@@ -347,7 +347,7 @@ bool SceneImporter::LoadMaterialIndices(const std::string& sceneName, std::vecto
     SceneHeader header;
     std::vector<char> raw;
     std::string path = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/scene.meta";
-    if (!ImporterUtils::LoadBuffer(path, header, raw)) return false;
+    if (!ImporterUtils::LoadBlob(path, header, raw)) return false;
     if (!ImporterUtils::ValidateHeader(header, 0x53434E45)) return false;
 
     size_t offset = sizeof(SceneHeader);
@@ -363,7 +363,7 @@ bool SceneImporter::LoadNodeTree(const std::string& sceneName, std::vector<NodeI
     std::string path = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/nodes.meta";
     NodeFileHeader header;
     std::vector<char> raw;
-    if (!ImporterUtils::LoadBuffer(path, header, raw)) return false;
+    if (!ImporterUtils::LoadBlob(path, header, raw)) return false;
     if (!ImporterUtils::ValidateHeader(header, 0x4E4F4445) || header.version > 2) return false;
 
     const char* cur = raw.data() + sizeof(NodeFileHeader);

@@ -5,7 +5,7 @@
 #include "ModuleSamplerHeap.h"
 #include "ModuleGPUResources.h"
 #include "ModuleRingBuffer.h"
-#include "CubeGeometry.h"
+#include "CubemapBakeUtils.h"
 #include "ReadData.h"
 
 using namespace DirectX;

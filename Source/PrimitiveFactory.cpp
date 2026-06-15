@@ -4,7 +4,7 @@
 #include "Material.h"
 #include "Model.h"
 #include "ComponentMesh.h"
-#include "ModuleScene.h"
+#include "SceneGraph.h"
 #include "GameObject.h"
 #include <cmath>
 #include <vector>
@@ -46,7 +46,7 @@ std::unique_ptr<Model> PrimitiveFactory::createTexturedQuad(ComPtr<ID3D12Resourc
     return createQuadModel(std::move(mat));
 }
 
-GameObject* PrimitiveFactory::createTexturedQuadObject(ModuleScene* scene, const std::string& name,
+GameObject* PrimitiveFactory::createTexturedQuadObject(SceneGraph* scene, const std::string& name,
                                                          ComPtr<ID3D12Resource> texture,
                                                          D3D12_GPU_DESCRIPTOR_HANDLE srv){
     GameObject* go = scene->createGameObject(name);
