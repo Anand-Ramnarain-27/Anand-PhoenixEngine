@@ -39,12 +39,17 @@ void ModuleD3D12::preRender(){
     m_currentBackBufferIdx = m_swapChain->GetCurrentBackBufferIndex();
     waitForFrameFence(m_drawFenceValues[m_currentBackBufferIdx]);
 
-    m_frameValues[m_currentBackBufferIdx] = ++m_frameIndex;
-
+    // Advance m_lastCompletedFrame using the *previous* slot assignments. This must
+    // happen before reassigning the current slot below: the current slot still holds
+    // an already-completed fence value from FRAMES_IN_FLIGHT frames ago, so stamping
+    // it with this frame's index first would make the scan report the not-yet-submitted
+    // current frame as complete, defeating deferred resource releases.
     const UINT64 completed = m_drawFence->GetCompletedValue();
     for (unsigned i = 0; i < FRAMES_IN_FLIGHT; ++i)
         if (m_frameValues[i] > m_lastCompletedFrame && m_drawFenceValues[i] <= completed)
             m_lastCompletedFrame = m_frameValues[i];
+
+    m_frameValues[m_currentBackBufferIdx] = ++m_frameIndex;
 
     m_commandAllocators[m_currentBackBufferIdx]->Reset();
 }
