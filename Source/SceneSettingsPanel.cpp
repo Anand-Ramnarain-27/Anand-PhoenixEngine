@@ -6,6 +6,7 @@
 #include "EditorSceneSettings.h"
 #include "EnvironmentSystem.h"
 #include "CollisionSystem.h"
+#include "ModuleCamera.h"
 #include <filesystem>
 #include <algorithm>
 
@@ -17,6 +18,7 @@ void SceneSettingsPanel::drawContent(){
     drawLightingSection();
     drawPhysicsSection();
     drawBroadphaseSection();
+    if (ModuleCamera* cam = app->getCamera()) cam->onEditorDebugPanel();
 }
 
 void SceneSettingsPanel::drawEnvironmentSection(){

@@ -40,10 +40,12 @@ struct Frustum {
 
         f.buildPlane(Near, nc, fwd);
         f.buildPlane(Far, fc, -fwd);
-        f.buildPlaneFromPoints(Left, pos, f.corners[NTL], f.corners[FTL]);
-        f.buildPlaneFromPoints(Right, pos, f.corners[FTR], f.corners[NTR]);
-        f.buildPlaneFromPoints(Top, pos, f.corners[NTR], f.corners[FTR]);
-        f.buildPlaneFromPoints(Bottom, pos, f.corners[FBL], f.corners[NBL]);
+        // Side planes: apex + two adjacent near corners (non-collinear), oriented inward.
+        const Vector3 interior = pos + fwd * ((nearDist + farDist) * 0.5f);
+        f.buildSidePlane(Left,   pos, f.corners[NTL], f.corners[NBL], interior);
+        f.buildSidePlane(Right,  pos, f.corners[NTR], f.corners[NBR], interior);
+        f.buildSidePlane(Top,    pos, f.corners[NTL], f.corners[NTR], interior);
+        f.buildSidePlane(Bottom, pos, f.corners[NBL], f.corners[NBR], interior);
         return f;
     }
 
@@ -89,10 +91,12 @@ private:
         planes[idx].d = inwardNormal.Dot(pointOnPlane);
     }
 
-    void buildPlaneFromPoints(int idx, const Vector3& A, const Vector3& B, const Vector3& C){
+    void buildSidePlane(int idx, const Vector3& A, const Vector3& B, const Vector3& C, const Vector3& interior){
         Vector3 n = (B - A).Cross(C - A);
         n.Normalize();
+        float d = n.Dot(A);
+        if (n.Dot(interior) - d < 0.0f){ n = -n; d = -d; } // ensure normal points into the frustum
         planes[idx].normal = n;
-        planes[idx].d = n.Dot(A);
+        planes[idx].d = d;
     }
 };

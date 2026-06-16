@@ -101,6 +101,13 @@ void ModuleEditor::preRender(){
     handleShortcuts();
     const float dt = static_cast<float>(app->getElapsedMilis()) * 0.001f;
 
+    // Keep the cull frustum's aspect ratio matched to the Game view so culling,
+    // the debug frustum, and the actual Game render all agree.
+    if (ModuleCamera* cam = app->getCamera()){
+        const ImVec2 gv = m_gameView->viewport.size;
+        if (gv.x > 0.f && gv.y > 0.f) cam->aspectRatio = gv.x / gv.y;
+    }
+
     if (m_sceneManager){
         m_sceneManager->update(dt);
         m_sceneManager->updateAnimations(dt);
@@ -141,7 +148,10 @@ void ModuleEditor::preRender(){
                     m_renderOctree.query(cam->getGameFrustum(), visibleSet);
                     std::unordered_set<GameObject*> visibleLookup(visibleSet.begin(), visibleSet.end());
                     for (const auto& e : entries){
-                        bool vis = visibleLookup.count(e.go) != 0;
+                        // Octree query is a conservative broad phase (tests node regions,
+                        // not entries). Confirm each candidate with an exact AABB test.
+                        bool vis = visibleLookup.count(e.go) != 0 &&
+                                   cam->getGameFrustum().intersectsAABB(e.worldAABB.min, e.worldAABB.max);
                         e.go->getComponent<ComponentMesh>()->setVisible(vis);
                         if (vis) ++visible;
                     }

@@ -44,7 +44,7 @@ void ComponentCamera::rebuildFrustum(){
     const Matrix& world = t->getGlobalMatrix();
     Vector3 right(world._11, world._12, world._13);
     Vector3 up(world._21, world._22, world._23);
-    Vector3 forward(world._31, world._32, world._33);
+    Vector3 forward(-world._31, -world._32, -world._33); // camera looks down -Z
     right.Normalize(); up.Normalize(); forward.Normalize();
     m_frustum = Frustum::fromCamera(world.Translation(), forward, right, up, m_fov, app->getCamera()->aspectRatio, m_nearPlane, m_farPlane);
 }

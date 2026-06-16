@@ -60,7 +60,9 @@ bool SceneViewPanel::buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView
     outProj = ModuleCamera::getPerspectiveProj(float(w) / float(h));
     camera->clearGameCameraFrustum();
     if (SceneGraph* ms = m_editor->getActiveModuleScene()){
-        float aspect = float(w) / float(h);
+        // Match the cull/Game-view aspect (driven by the Game viewport) so the drawn
+        // frustum lines up with what actually gets culled and rendered.
+        float aspect = camera->aspectRatio;
         std::function<void(GameObject*)> findMainCam = [&](GameObject* go){
             if (auto* cam = go->getComponent<ComponentCamera>(); cam && cam->isMainCamera())
                 if (auto* t = go->getTransform()){
