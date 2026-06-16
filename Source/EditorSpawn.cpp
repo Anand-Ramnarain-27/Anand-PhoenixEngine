@@ -62,6 +62,7 @@
 #include "ResourceMesh.h"
 #include <d3dx12.h>
 #include "ModuleStaticBuffer.h"
+#include "ModuleFileSystem.h"
 #include <filesystem>
 #include <algorithm>
 #include <functional>
@@ -69,6 +70,33 @@
 #include <cfloat>
 
 namespace fs = std::filesystem;
+
+void ModuleEditor::setupDefaultScene(){
+    SceneGraph* scene = getActiveModuleScene();
+    if (!scene) return;
+
+    // Angled overhead camera (Diablo / Torchlight ARPG style): up and back, ~55 deg
+    // down from horizontal, aimed at the origin. Set as the rendering camera.
+    GameObject* camGO = scene->createGameObject("Main Camera");
+    if (auto* t = camGO->getTransform()){
+        t->position = { 0.f, 20.f, 14.f };
+        t->rotation = Quaternion::CreateFromAxisAngle(Vector3::UnitX, -0.9599f); // pitch ~-55 deg
+        t->markDirty();
+    }
+    auto camComp = ComponentFactory::CreateComponent(Component::Type::Camera, camGO);
+    ComponentCamera* cc = static_cast<ComponentCamera*>(camComp.get());
+    camGO->addComponent(std::move(camComp));
+    if (cc) cc->setMainCamera(true);
+
+    // Default skybox.
+    if (m_sceneManager){
+        EditorSceneSettings& s = m_sceneManager->getSettings();
+        std::string hdr = app->getFileSystem()->GetAssetsPath() + "Skybox/footprint_court.hdr";
+        s.skybox.enabled = true;
+        s.skybox.cubemapPath = hdr;
+        if (m_envSystem) m_envSystem->loadHDR(hdr);
+    }
+}
 
 GameObject* ModuleEditor::createEmptyGameObject(const char* name, GameObject* parent){
     SceneGraph* scene = getActiveModuleScene();

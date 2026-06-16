@@ -159,6 +159,7 @@ bool ModuleEditor::init(){
     if (!m_envSystem->init(device, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT, false)) return false;
 
     m_sceneManager->setScene(std::make_unique<EmptyScene>(), device);
+    setupDefaultScene();
 
     D3D12_QUERY_HEAP_DESC qd = { D3D12_QUERY_HEAP_TYPE_TIMESTAMP, 2, 0 };
     device->CreateQueryHeap(&qd, IID_PPV_ARGS(&m_gpuQueryHeap));

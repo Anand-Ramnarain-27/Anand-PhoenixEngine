@@ -94,6 +94,7 @@ public:
 
     void log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
     GameObject* createEmptyGameObject(const char* name = "Empty", GameObject* parent = nullptr);
+    void setupDefaultScene();
     void deleteGameObject(GameObject* go);
     void spawnAssetAtPath(const std::string& path);
     GameObject* spawnModel(const std::string& path);

@@ -466,12 +466,13 @@ void ModuleEditor::handleNewScenePopup(ID3D12GraphicsCommandList*){
     if (ImGui::Button("Create New Scene", ImVec2(160, 0))){
         app->getD3D12()->flush();
         m_sceneManager->setScene(std::make_unique<EmptyScene>(), app->getD3D12()->getDevice());
+        setupDefaultScene();
         m_selection.clear();
         m_currentScenePath.clear();
         m_undoStack.clear();
         m_redoStack.clear();
         m_savePointIndex = 0;
-        log("New scene created.", EditorColors::Success);
+        log("New scene created (top-down camera + skybox).", EditorColors::Success);
         ImGui::CloseCurrentPopup();
     }
     ImGui::SameLine();
