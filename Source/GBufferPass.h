@@ -66,7 +66,12 @@ private:
     int m_activeIndex = 0;
     GBufferPipeline m_pipeline;
 
-    static constexpr UINT MAX_INSTANCES = 512;
+    // Per-frame draw cap for the geometry pass. Each slot consumes one MVP CB,
+    // one instance CB, and one descriptor table from ModuleShaderDescriptors
+    // (MAX_INSTANCES * NUM_VIEWPORTS tables total — keep ModuleShaderDescriptors::
+    // MAX_TABLES comfortably above that). The editor/scene view draws every mesh
+    // unculled, so this needs headroom for large environment scenes.
+    static constexpr UINT MAX_INSTANCES = 4096;
 
     ComPtr<ID3D12Resource> m_mvpRing[NUM_VIEWPORTS];
     void* m_mvpMapped[NUM_VIEWPORTS] = {};

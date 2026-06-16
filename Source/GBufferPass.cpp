@@ -207,7 +207,13 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
             Mesh* mesh = entry->meshRes ? entry->meshRes->getMesh() : entry->mesh;
             if (!mesh) continue;
             if (slot >= MAX_INSTANCES){
-                LOG("GBufferPass: MAX_INSTANCES exceeded");
+                // One-shot warning: this used to log every frame per viewport,
+                // which floods OutputDebugString and tanks the frame rate.
+                static bool warned = false;
+                if (!warned){
+                    LOG("GBufferPass: MAX_INSTANCES (%u) exceeded — extra meshes skipped this frame.", MAX_INSTANCES);
+                    warned = true;
+                }
                 break;
             }
 
