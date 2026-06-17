@@ -1,5 +1,6 @@
 #include "Globals.h"
 #include "AssetBrowserPanel.h"
+#include "ScriptCreator.h"
 #include "ModuleEditor.h"
 #include "ModuleAssets.h"
 #include "Application.h"
@@ -30,7 +31,7 @@ static bool isDirSkipped(const std::string& name){
 }
 
 bool AssetBrowserPanel::isAssetFile(const std::string& ext) const{
-    static const char* kAllowed[] = { ".gltf",".fbx",".obj",".dds",".png",".jpg",".jpeg",".json",".prefab",".wav",".mp3",".ogg" };
+    static const char* kAllowed[] = { ".gltf",".fbx",".obj",".dds",".png",".jpg",".jpeg",".json",".prefab",".wav",".mp3",".ogg",".h",".cpp" };
     for (auto* e : kAllowed) if (ext == e) return true;
     return false;
 }
@@ -41,6 +42,7 @@ ImVec4 AssetBrowserPanel::typeColor(const std::string& ext) const{
     if (ext == ".json") return { 1.00f, 0.80f, 0.35f, 1.f };
     if (ext == ".prefab") return { 0.35f, 0.90f, 0.45f, 1.f };
     if (ext == ".wav" || ext == ".mp3" || ext == ".ogg") return { 1.00f, 0.55f, 0.35f, 1.f };
+    if (ext == ".h" || ext == ".cpp") return { 0.40f, 0.90f, 0.60f, 1.f };
     return EditorColors::Muted;
 }
 
@@ -50,6 +52,7 @@ const char* AssetBrowserPanel::typeIcon(const std::string& ext) const{
     if (ext == ".json") return "[S]";
     if (ext == ".prefab") return "[P]";
     if (ext == ".wav" || ext == ".mp3" || ext == ".ogg") return "[A]";
+    if (ext == ".h" || ext == ".cpp") return "[C]";
     return "[?]";
 }
 
@@ -91,6 +94,15 @@ void AssetBrowserPanel::drawContent(){
         for (auto& [rel, label] : std::vector<std::pair<std::string, std::string>>{ {"Assets","Assets"}, {"Library","Library"} }){
             std::string full = (projectRoot / rel).string();
             if (fs::exists(full)) m_roots.push_back({ full, label });
+        }
+        // Walk upward to find Source/GameScript and add it as a Scripts root
+        fs::path search = fs::path(lib).parent_path();
+        for (int i = 0; i < 8; ++i){
+            fs::path candidate = search / "Source" / "GameScript";
+            if (fs::exists(candidate)){ m_roots.push_back({ candidate.string(), "Scripts" }); break; }
+            fs::path parent = search.parent_path();
+            if (parent == search) break;
+            search = parent;
         }
         if (!m_roots.empty()) navigateTo(m_roots[0].path);
     }
@@ -238,6 +250,7 @@ void AssetBrowserPanel::drawThumbnailGrid(){
                 if (ImGui::IsMouseDoubleClicked(0)){
                     if (e.isDir) navigateTo(e.path);
                     else if (e.ext == ".prefab") m_editor->enterPrefabEdit(fs::path(e.name).stem().string());
+                    else if (e.ext == ".h" || e.ext == ".cpp") ShellExecuteA(nullptr, "open", e.path.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
                     else spawnAsset(e.path);
                 }
             }
@@ -306,6 +319,21 @@ void AssetBrowserPanel::drawItemContextMenu(int idx){
         if (ImGui::MenuItem("Open Folder")) navigateTo(e.path);
     }
     else {
+        if (e.ext == ".h" || e.ext == ".cpp"){
+            if (ImGui::MenuItem("Open in Visual Studio")) ShellExecuteA(nullptr, "open", e.path.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+            if (ImGui::MenuItem("Show in Explorer")) ShellExecuteA(nullptr, "explore", fs::path(e.path).parent_path().string().c_str(), nullptr, nullptr, SW_SHOWDEFAULT);
+            ImGui::Separator();
+            ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Danger);
+            if (ImGui::MenuItem("Delete")){
+                app->getFileSystem()->Delete(e.path.c_str());
+                m_editor->log(("Deleted: " + e.name).c_str(), EditorColors::Warning);
+                if (m_selectedPath == e.path) m_selectedPath.clear();
+                m_dirty = true;
+            }
+            ImGui::PopStyleColor();
+            ImGui::EndPopup();
+            return;
+        }
         if (ImGui::MenuItem("Add to Scene")) spawnAsset(e.path);
         if (ImGui::MenuItem("Show in Explorer")) ShellExecuteA(nullptr, "explore", fs::path(e.path).parent_path().string().c_str(), nullptr, nullptr, SW_SHOWDEFAULT);
         ImGui::Separator();
@@ -376,6 +404,12 @@ void AssetBrowserPanel::drawEmptyAreaContextMenu(){
     ImGui::Separator();
     if (ImGui::MenuItem("Refresh")) m_dirty = true;
     if (ImGui::MenuItem("Show in Explorer")) ShellExecuteA(nullptr, "explore", m_currentPath.c_str(), nullptr, nullptr, SW_SHOWDEFAULT);
+    ImGui::Separator();
+    if (ImGui::MenuItem("Create Script...")){
+        m_showCreateScriptModal = true;
+        memset(m_createScriptNameBuf, 0, sizeof(m_createScriptNameBuf));
+        strncpy_s(m_createScriptNameBuf, "NewScript", sizeof(m_createScriptNameBuf) - 1);
+    }
     ImGui::Separator();
     EditorSelection& sel = m_editor->getSelection();
     if (sel.has()){
@@ -530,6 +564,27 @@ void AssetBrowserPanel::drawModals(){
         if (ImGui::Button("Cancel", { 80, 0 })) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
+
+    openModal(m_showCreateScriptModal, "##createScriptModal");
+    ImGui::SetNextWindowSize({ 340, 0 });
+    if (ImGui::BeginPopupModal("##createScriptModal", nullptr, ImGuiWindowFlags_AlwaysAutoResize)){
+        ImGui::Text("Create new script:");
+        ImGui::Separator();
+        ImGui::SetNextItemWidth(-1);
+        bool enter = ImGui::InputText("Script name##csn", m_createScriptNameBuf, sizeof(m_createScriptNameBuf), ImGuiInputTextFlags_EnterReturnsTrue);
+        textMuted("  Creates %s.h and %s.cpp in GameScript/", m_createScriptNameBuf, m_createScriptNameBuf);
+        ImGui::Spacing();
+        bool nameOk = strlen(m_createScriptNameBuf) > 0;
+        if (!nameOk) ImGui::BeginDisabled();
+        if ((ImGui::Button("Create", { 100, 0 }) || enter) && nameOk){
+            createScript(m_createScriptNameBuf);
+            ImGui::CloseCurrentPopup();
+        }
+        if (!nameOk) ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", { 80, 0 })) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
 }
 
 void AssetBrowserPanel::drawColoredBox(ImVec2 lp, ImVec4 col, const char* label){
@@ -629,6 +684,41 @@ void AssetBrowserPanel::prefabRename(const std::string& oldName, const std::stri
     app->getFileSystem()->Delete(oldPath.c_str());
     m_editor->log(("Renamed: " + oldName + " -> " + newName).c_str(), EditorColors::Success);
     m_dirty = true;
+}
+
+void AssetBrowserPanel::createScript(const char* name){
+    if (!name || name[0] == '\0') return;
+
+    // GetLibraryPath() is exe-relative (build/PhoenixEngine/Debug/x64/Library/).
+    // Walk upward until we find the repo root that contains Source/GameScript.
+    std::string lib = app->getFileSystem()->GetLibraryPath();
+    while (!lib.empty() && (lib.back() == '/' || lib.back() == '\\')) lib.pop_back();
+
+    fs::path gsDir;
+    fs::path search = fs::path(lib).parent_path();
+    for (int i = 0; i < 8; ++i){
+        fs::path candidate = search / "Source" / "GameScript";
+        if (fs::exists(candidate)){ gsDir = candidate; break; }
+        fs::path parent = search.parent_path();
+        if (parent == search) break;
+        search = parent;
+    }
+
+    if (gsDir.empty()){
+        m_editor->log("Could not locate Source/GameScript folder.", EditorColors::Danger);
+        return;
+    }
+
+    auto r = ScriptCreator::create(name, gsDir.string());
+
+    if (r.existed)
+        m_editor->log(r.message.c_str(), EditorColors::Warning);
+    else if (r.ok){
+        m_editor->log(r.message.c_str(), EditorColors::Success);
+        ShellExecuteA(nullptr, "open", r.cppPath.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    }
+    else
+        m_editor->log(r.message.c_str(), EditorColors::Danger);
 }
 
 void AssetBrowserPanel::reimportTextureAs(const std::string& ddsPath, int typeIndex){

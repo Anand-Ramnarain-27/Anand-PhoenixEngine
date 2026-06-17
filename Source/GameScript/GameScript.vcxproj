@@ -161,7 +161,9 @@ xcopy "$(OutDir)GameScript.pdb" "$(SolutionDir)..\build\PhoenixEngine\$(Configur
   <ItemGroup>
     <ClInclude Include="EnemyScript.h" />
     <ClInclude Include="PlayerScript.h" />
-  </ItemGroup>
+      <ClInclude Include="Test.h" />
+    <ClCompile Include="Test.cpp" />
+</ItemGroup>
   <ItemGroup>
     <ClCompile Include="EnemyScript.cpp" />
     <ClCompile Include="PlayerScript.cpp" />

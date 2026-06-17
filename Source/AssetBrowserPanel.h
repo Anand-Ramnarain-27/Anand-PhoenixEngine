@@ -49,6 +49,7 @@ private:
     void prefabCreateVariant(const std::string& src, const std::string& dst);
     void prefabRename(const std::string& oldName, const std::string& newName);
     void reimportTextureAs(const std::string& ddsPath, int typeIndex);
+    void createScript(const char* name);
 
     struct RootFolder { std::string path; std::string label; };
     std::vector<RootFolder> m_roots;
@@ -72,11 +73,13 @@ private:
     bool m_showVariantModal = false;
     bool m_showSavePrefabModal = false;
     bool m_renamingPrefab = false;
+    bool m_showCreateScriptModal = false;
     char m_variantSrcBuf[128] = {};
     char m_variantDstBuf[128] = {};
     char m_savePrefabNameBuf[128] = {};
     char m_renameSrcBuf[128] = {};
     char m_renameDstBuf[128] = {};
+    char m_createScriptNameBuf[128] = {};
 
     static constexpr float kThumbSize = 72.0f;
     static constexpr float kTreeW = 180.0f;

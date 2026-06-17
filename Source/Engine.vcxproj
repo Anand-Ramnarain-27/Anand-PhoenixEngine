@@ -186,6 +186,7 @@
     <ClInclude Include="CollisionSystem.h" />
     <ClInclude Include="Application.h" />
     <ClInclude Include="AssetBrowserPanel.h" />
+    <ClInclude Include="ScriptCreator.h" />
     <ClInclude Include="AssetPickerWidget.h" />
     <ClInclude Include="CurveWidget.h" />
     <ClInclude Include="DragDropManager.h" />
@@ -381,6 +382,7 @@
     </ClCompile>
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="AssetBrowserPanel.cpp" />
+    <ClCompile Include="ScriptCreator.cpp" />
     <ClCompile Include="CurveWidget.cpp" />
     <ClCompile Include="DragDropManager.cpp" />
     <ClCompile Include="EngineDropTarget.cpp" />
