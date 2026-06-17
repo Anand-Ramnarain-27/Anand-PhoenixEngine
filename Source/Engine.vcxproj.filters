@@ -82,6 +82,19 @@
     <ClCompile Include="HotReloadManager.cpp">
       <Filter>Engine\Scripting</Filter>
     </ClCompile>
+    <ClCompile Include="ScriptCreator.cpp">
+      <Filter>Engine\Scripting</Filter>
+    </ClCompile>
+    <!-- Engine\Scripting\API -->
+    <ClCompile Include="API\Phoenix_Time.cpp">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClCompile>
+    <ClCompile Include="API\Phoenix_Input.cpp">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClCompile>
+    <ClCompile Include="API\Phoenix_Scene.cpp">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClCompile>
     <!-- ============================================================ -->
     <!-- Engine\Scene                                                  -->
     <!-- ============================================================ -->
@@ -542,6 +555,34 @@
     </ClInclude>
     <ClInclude Include="HotReloadManager.h">
       <Filter>Engine\Scripting</Filter>
+    </ClInclude>
+    <ClInclude Include="ScriptCreator.h">
+      <Filter>Engine\Scripting</Filter>
+    </ClInclude>
+    <!-- Engine\Scripting\API -->
+    <ClInclude Include="API\PhoenixAPI.h">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClInclude>
+    <ClInclude Include="API\Phoenix_Keys.h">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClInclude>
+    <ClInclude Include="API\Phoenix_Types.h">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClInclude>
+    <ClInclude Include="API\Phoenix_Debug.h">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClInclude>
+    <ClInclude Include="API\Phoenix_Time.h">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClInclude>
+    <ClInclude Include="API\Phoenix_Input.h">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClInclude>
+    <ClInclude Include="API\Phoenix_Scene.h">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClInclude>
+    <ClInclude Include="API\Phoenix_GameObject.h">
+      <Filter>Engine\Scripting\API</Filter>
     </ClInclude>
     <!-- ============================================================ -->
     <!-- Engine\Scene                                                  -->
@@ -1126,6 +1167,9 @@
     </Filter>
     <Filter Include="Engine\Scripting">
       <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000006}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Scripting\API">
+      <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000050}</UniqueIdentifier>
     </Filter>
     <Filter Include="Engine\Scene">
       <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000007}</UniqueIdentifier>
