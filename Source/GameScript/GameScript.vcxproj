@@ -119,7 +119,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)3rdParty/WinPixEventRunTime/Include;$(SolutionDir)3rdParty/ImGuizmo;$(SolutionDir)3rdParty/DirectXTex;$(SolutionDir)3rdParty/tinygltf;$(SolutionDir)3rdParty/mikktspace;$(SolutionDir)3rdParty/imgui-docking;$(SolutionDir)3rdParty/directX;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)API;$(SolutionDir)3rdParty/WinPixEventRunTime/Include;$(SolutionDir)3rdParty/ImGuizmo;$(SolutionDir)3rdParty/DirectXTex;$(SolutionDir)3rdParty/tinygltf;$(SolutionDir)3rdParty/mikktspace;$(SolutionDir)3rdParty/imgui-docking;$(SolutionDir)3rdParty/directX;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -144,7 +144,7 @@ xcopy "$(OutDir)GameScript.pdb" "$(SolutionDir)..\build\PhoenixEngine\$(Configur
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)3rdParty/WinPixEventRunTime/Include;$(SolutionDir)3rdParty/ImGuizmo;$(SolutionDir)3rdParty/DirectXTex;$(SolutionDir)3rdParty/tinygltf;$(SolutionDir)3rdParty/mikktspace;$(SolutionDir)3rdParty/imgui-docking;$(SolutionDir)3rdParty/directX;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)API;$(SolutionDir)3rdParty/WinPixEventRunTime/Include;$(SolutionDir)3rdParty/ImGuizmo;$(SolutionDir)3rdParty/DirectXTex;$(SolutionDir)3rdParty/tinygltf;$(SolutionDir)3rdParty/mikktspace;$(SolutionDir)3rdParty/imgui-docking;$(SolutionDir)3rdParty/directX;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

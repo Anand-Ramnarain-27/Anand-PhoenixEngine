@@ -187,6 +187,14 @@
     <ClInclude Include="Application.h" />
     <ClInclude Include="AssetBrowserPanel.h" />
     <ClInclude Include="ScriptCreator.h" />
+    <ClInclude Include="API\PhoenixAPI.h" />
+    <ClInclude Include="API\Phoenix_Keys.h" />
+    <ClInclude Include="API\Phoenix_Types.h" />
+    <ClInclude Include="API\Phoenix_Debug.h" />
+    <ClInclude Include="API\Phoenix_Time.h" />
+    <ClInclude Include="API\Phoenix_Input.h" />
+    <ClInclude Include="API\Phoenix_Scene.h" />
+    <ClInclude Include="API\Phoenix_GameObject.h" />
     <ClInclude Include="AssetPickerWidget.h" />
     <ClInclude Include="CurveWidget.h" />
     <ClInclude Include="DragDropManager.h" />
@@ -383,6 +391,9 @@
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="AssetBrowserPanel.cpp" />
     <ClCompile Include="ScriptCreator.cpp" />
+    <ClCompile Include="API\Phoenix_Time.cpp" />
+    <ClCompile Include="API\Phoenix_Input.cpp" />
+    <ClCompile Include="API\Phoenix_Scene.cpp" />
     <ClCompile Include="CurveWidget.cpp" />
     <ClCompile Include="DragDropManager.cpp" />
     <ClCompile Include="EngineDropTarget.cpp" />

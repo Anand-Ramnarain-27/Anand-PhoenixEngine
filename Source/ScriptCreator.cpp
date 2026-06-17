@@ -12,8 +12,7 @@ namespace fs = std::filesystem;
 bool ScriptCreator::writeHeader(const std::string& name, const std::string& path){
     std::string h =
         "#pragma once\n"
-        "#include \"IScript.h\"\n"
-        "#include \"ScriptExport.h\"\n"
+        "#include \"PhoenixAPI.h\"\n"
         "\n"
         "class SCRIPT_API " + name + " : public IScript {\n"
         "public:\n"
@@ -42,7 +41,6 @@ bool ScriptCreator::writeHeader(const std::string& name, const std::string& path
 bool ScriptCreator::writeSource(const std::string& name, const std::string& path){
     std::string cpp =
         "#include \"" + name + ".h\"\n"
-        "#include \"Globals.h\"\n"
         "\n"
         "void " + name + "::Start(GameObject* owner){\n"
         "    m_owner = owner;\n"

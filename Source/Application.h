@@ -2,6 +2,7 @@
 
 #include "Globals.h"
 #include "ModuleFileSystem.h"
+#include "ModuleInput.h"
 
 #include <array>
 #include <vector>
@@ -30,6 +31,7 @@ public:
     void update();
     bool cleanUp();
 
+    ModuleInput* getInput(){ return input; }
     ModuleD3D12* getD3D12(){ return d3d12Module; }
     ModuleGPUResources* getGPUResources(){ return gpuresources; }
     ModuleResources* getResources(){ return resources; }
@@ -60,6 +62,7 @@ private:
     std::vector<Module*> modules;
     std::vector<std::pair<Module*, Module*>> swapModules;
 
+    ModuleInput* input = nullptr;
     ModuleD3D12* d3d12Module = nullptr;
     ModuleGPUResources* gpuresources = nullptr;
     ModuleResources* resources = nullptr;

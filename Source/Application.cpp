@@ -1,6 +1,7 @@
 #include "Globals.h"
 #include "Application.h"
 #include "ModuleInput.h"
+#include "API/Phoenix_Time.h"
 #include "ModuleD3D12.h"
 #include "ModuleFileSystem.h"
 #include "ModuleGPUResources.h"
@@ -18,7 +19,7 @@
 
 Application::Application(int argc, wchar_t** argv, void* hWnd){
     modules.push_back(fileSystem = new ModuleFileSystem());
-    modules.push_back(new ModuleInput((HWND)hWnd));
+    modules.push_back(input = new ModuleInput((HWND)hWnd));
     modules.push_back(d3d12Module = new ModuleD3D12((HWND)hWnd));
     modules.push_back(gpuresources = new ModuleGPUResources());
     modules.push_back(resources = new ModuleResources());
@@ -67,6 +68,12 @@ void Application::update(){
         tickSum += elapsedMilis;
         tickList[tickIndex] = elapsedMilis;
         tickIndex = (tickIndex + 1) % MAX_FPS_TICKS;
+
+        // Update scripting API time values
+        Phoenix::Time::deltaTime      = elapsedMilis * 0.001f;
+        Phoenix::Time::timeSinceStart = currentMilis * 0.001f;
+        Phoenix::Time::fps            = getFPS();
+        Phoenix::Time::frameCount    += 1;
 
         if (!app->paused){
             for (auto it = swapModules.begin(); it != swapModules.end(); ++it){
