@@ -1,10 +1,5 @@
 
-cbuffer cbNoisePerFrame : register(b0){
-    float4x4 matVP;
-    float4x4 matGeo;
-    float uTime;
-    float3 _pad;
-};
+#include "Noise3d.hlsli"
 
 struct VSInput {
     float3 position : POSITION;
