@@ -90,17 +90,12 @@ void SampleMetallicRoughness(
         baseColor *= albedo;
     }
 
-    metallic = material.MetallicFactor;
+    metallic = 1.0f;
     roughness = material.RoughnessFactor;
 
     if (material.Flags & HAS_METALLICROUGHNESS_TEX){
         float3 mrSample = metallicRoughnessTex.Sample(BilinearWrap, uv).rgb;
-
-        float texRoughness = mrSample.g;
-        float texMetallic = mrSample.b;
-
-        roughness *= texRoughness;
-        metallic *= texMetallic;
+        roughness *= mrSample.g;
     }
 
     roughness = saturate(roughness);

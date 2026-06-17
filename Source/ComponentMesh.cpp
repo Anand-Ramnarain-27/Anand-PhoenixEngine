@@ -485,10 +485,6 @@ void ComponentMesh::onEditor(){
             ImGui::TableSetupColumn("##l", ImGuiTableColumnFlags_WidthFixed, 80.f);
             ImGui::TableSetupColumn("##v", ImGuiTableColumnFlags_WidthStretch);
 
-            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); textMuted("Metallic");
-            ImGui::TableSetColumnIndex(1); ImGui::SetNextItemWidth(-1);
-            if (ImGui::SliderFloat("##metal", &data.metallic, 0.f, 1.f)){ app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
-
             ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); textMuted("Roughness");
             ImGui::TableSetColumnIndex(1); ImGui::SetNextItemWidth(-1);
             if (ImGui::SliderFloat("##rough", &data.roughness, 0.f, 1.f)){ app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
