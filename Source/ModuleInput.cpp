@@ -2,42 +2,25 @@
 #include "Application.h"
 #include "ModuleInput.h"
 
-#include "Keyboard.h"
-#include "Mouse.h"
-#include "GamePad.h"
-
 using namespace DirectX;
 using namespace Phoenix;
-
-static constexpr int kMaxPlayers = 4;
-
-struct ModuleInput::Impl {
-    Keyboard::KeyboardStateTracker  kbTracker;
-    Mouse::ButtonStateTracker       mouseTracker;
-    Mouse::State                    mousePrev{};
-    Mouse::State                    mouseCurr{};
-    GamePad::ButtonStateTracker     padTracker[kMaxPlayers];
-    GamePad::State                  padState  [kMaxPlayers]{};
-};
 
 ModuleInput::ModuleInput(HWND hWnd){
     keyboard = std::make_unique<Keyboard>();
     mouse    = std::make_unique<Mouse>();
     gamePad  = std::make_unique<GamePad>();
     mouse->SetWindow(hWnd);
-    m_impl   = std::make_unique<Impl>();
 }
 
-bool ModuleInput::update(){
-    m_impl->mousePrev = m_impl->mouseCurr;
-    m_impl->mouseCurr = mouse->GetState();
-    m_impl->kbTracker.Update(keyboard->GetState());
-    m_impl->mouseTracker.Update(m_impl->mouseCurr);
+void ModuleInput::update(){
+    mousePrev = mouseCurr;
+    mouseCurr = mouse->GetState();
+    kbTracker.Update(keyboard->GetState());
+    mouseTracker.Update(mouseCurr);
     for (int i = 0; i < kMaxPlayers; ++i){
-        m_impl->padState[i] = gamePad->GetState(i, GamePad::DEAD_ZONE_CIRCULAR);
-        m_impl->padTracker[i].Update(m_impl->padState[i]);
+        padState[i] = gamePad->GetState(i, GamePad::DEAD_ZONE_CIRCULAR);
+        padTracker[i].Update(padState[i]);
     }
-    return true;
 }
 
 // ----- Keyboard -----
@@ -47,83 +30,84 @@ bool ModuleInput::isKeyDown(Key k) const {
 }
 
 bool ModuleInput::isKeyPressed(Key k) const {
-    return m_impl->kbTracker.IsKeyPressed(static_cast<Keyboard::Keys>(k));
+    return kbTracker.IsKeyPressed(static_cast<Keyboard::Keys>(k));
 }
 
 bool ModuleInput::isKeyReleased(Key k) const {
-    return m_impl->kbTracker.IsKeyReleased(static_cast<Keyboard::Keys>(k));
+    return kbTracker.IsKeyReleased(static_cast<Keyboard::Keys>(k));
 }
 
 // ----- Mouse -----
 
 bool ModuleInput::isMouseDown(MouseButton btn) const {
     switch (btn){
-    case MouseButton::Left:   return m_impl->mouseCurr.leftButton;
-    case MouseButton::Right:  return m_impl->mouseCurr.rightButton;
-    case MouseButton::Middle: return m_impl->mouseCurr.middleButton;
+    case MouseButton::Left:   return mouseCurr.leftButton;
+    case MouseButton::Right:  return mouseCurr.rightButton;
+    case MouseButton::Middle: return mouseCurr.middleButton;
     }
     return false;
 }
 
 bool ModuleInput::isMousePressed(MouseButton btn) const {
+    using BS = Mouse::ButtonStateTracker;
     switch (btn){
-    case MouseButton::Left:   return m_impl->mouseTracker.leftButton   == Mouse::ButtonStateTracker::PRESSED;
-    case MouseButton::Right:  return m_impl->mouseTracker.rightButton  == Mouse::ButtonStateTracker::PRESSED;
-    case MouseButton::Middle: return m_impl->mouseTracker.middleButton == Mouse::ButtonStateTracker::PRESSED;
+    case MouseButton::Left:   return mouseTracker.leftButton   == BS::PRESSED;
+    case MouseButton::Right:  return mouseTracker.rightButton  == BS::PRESSED;
+    case MouseButton::Middle: return mouseTracker.middleButton == BS::PRESSED;
     }
     return false;
 }
 
 bool ModuleInput::isMouseReleased(MouseButton btn) const {
+    using BS = Mouse::ButtonStateTracker;
     switch (btn){
-    case MouseButton::Left:   return m_impl->mouseTracker.leftButton   == Mouse::ButtonStateTracker::RELEASED;
-    case MouseButton::Right:  return m_impl->mouseTracker.rightButton  == Mouse::ButtonStateTracker::RELEASED;
-    case MouseButton::Middle: return m_impl->mouseTracker.middleButton == Mouse::ButtonStateTracker::RELEASED;
+    case MouseButton::Left:   return mouseTracker.leftButton   == BS::RELEASED;
+    case MouseButton::Right:  return mouseTracker.rightButton  == BS::RELEASED;
+    case MouseButton::Middle: return mouseTracker.middleButton == BS::RELEASED;
     }
     return false;
 }
 
 Vec2 ModuleInput::getMousePosition() const {
-    return Vec2{ static_cast<float>(m_impl->mouseCurr.x),
-                 static_cast<float>(m_impl->mouseCurr.y) };
+    return Vec2{ static_cast<float>(mouseCurr.x), static_cast<float>(mouseCurr.y) };
 }
 
 Vec2 ModuleInput::getMouseDelta() const {
-    return Vec2{ static_cast<float>(m_impl->mouseCurr.x - m_impl->mousePrev.x),
-                 static_cast<float>(m_impl->mouseCurr.y - m_impl->mousePrev.y) };
+    return Vec2{ static_cast<float>(mouseCurr.x - mousePrev.x),
+                 static_cast<float>(mouseCurr.y - mousePrev.y) };
 }
 
 // ----- Gamepad -----
 
-static int clampPlayer(int p){ return (p < 0 || p >= kMaxPlayers) ? 0 : p; }
+static int clampPlayer(int p, int max){ return (p < 0 || p >= max) ? 0 : p; }
 
 bool ModuleInput::isGamepadConnected(int player) const {
-    return m_impl->padState[clampPlayer(player)].IsConnected();
+    return padState[clampPlayer(player, kMaxPlayers)].IsConnected();
 }
 
 bool ModuleInput::isButtonDown(GamepadButton btn, int player) const {
-    const auto& s = m_impl->padState[clampPlayer(player)].buttons;
+    const auto& s = padState[clampPlayer(player, kMaxPlayers)];
     switch (btn){
-    case GamepadButton::A:             return s.a;
-    case GamepadButton::B:             return s.b;
-    case GamepadButton::X:             return s.x;
-    case GamepadButton::Y:             return s.y;
-    case GamepadButton::LeftShoulder:  return s.leftShoulder;
-    case GamepadButton::RightShoulder: return s.rightShoulder;
-    case GamepadButton::LeftStick:     return s.leftStick;
-    case GamepadButton::RightStick:    return s.rightStick;
-    case GamepadButton::DPadUp:        return m_impl->padState[clampPlayer(player)].dpad.up;
-    case GamepadButton::DPadDown:      return m_impl->padState[clampPlayer(player)].dpad.down;
-    case GamepadButton::DPadLeft:      return m_impl->padState[clampPlayer(player)].dpad.left;
-    case GamepadButton::DPadRight:     return m_impl->padState[clampPlayer(player)].dpad.right;
-    case GamepadButton::Start:         return s.start;
-    case GamepadButton::Back:          return s.back;
+    case GamepadButton::A:             return s.buttons.a;
+    case GamepadButton::B:             return s.buttons.b;
+    case GamepadButton::X:             return s.buttons.x;
+    case GamepadButton::Y:             return s.buttons.y;
+    case GamepadButton::LeftShoulder:  return s.buttons.leftShoulder;
+    case GamepadButton::RightShoulder: return s.buttons.rightShoulder;
+    case GamepadButton::LeftStick:     return s.buttons.leftStick;
+    case GamepadButton::RightStick:    return s.buttons.rightStick;
+    case GamepadButton::DPadUp:        return s.dpad.up;
+    case GamepadButton::DPadDown:      return s.dpad.down;
+    case GamepadButton::DPadLeft:      return s.dpad.left;
+    case GamepadButton::DPadRight:     return s.dpad.right;
+    case GamepadButton::Start:         return s.buttons.start;
+    case GamepadButton::Back:          return s.buttons.back;
     }
     return false;
 }
 
 bool ModuleInput::isButtonPressed(GamepadButton btn, int player) const {
-    const auto& t = m_impl->padTracker[clampPlayer(player)];
+    const auto& t = padTracker[clampPlayer(player, kMaxPlayers)];
     using BS = GamePad::ButtonStateTracker;
     switch (btn){
     case GamepadButton::A:             return t.a             == BS::PRESSED;
@@ -145,7 +129,7 @@ bool ModuleInput::isButtonPressed(GamepadButton btn, int player) const {
 }
 
 bool ModuleInput::isButtonReleased(GamepadButton btn, int player) const {
-    const auto& t = m_impl->padTracker[clampPlayer(player)];
+    const auto& t = padTracker[clampPlayer(player, kMaxPlayers)];
     using BS = GamePad::ButtonStateTracker;
     switch (btn){
     case GamepadButton::A:             return t.a             == BS::RELEASED;
@@ -167,7 +151,7 @@ bool ModuleInput::isButtonReleased(GamepadButton btn, int player) const {
 }
 
 float ModuleInput::getGamepadAxis(GamepadAxis axis, int player) const {
-    const auto& s = m_impl->padState[clampPlayer(player)];
+    const auto& s = padState[clampPlayer(player, kMaxPlayers)];
     switch (axis){
     case GamepadAxis::LeftStickX:   return s.thumbSticks.leftX;
     case GamepadAxis::LeftStickY:   return s.thumbSticks.leftY;
@@ -180,5 +164,5 @@ float ModuleInput::getGamepadAxis(GamepadAxis axis, int player) const {
 }
 
 void ModuleInput::setVibration(float leftMotor, float rightMotor, int player){
-    gamePad->SetVibration(clampPlayer(player), leftMotor, rightMotor);
+    gamePad->SetVibration(clampPlayer(player, kMaxPlayers), leftMotor, rightMotor);
 }

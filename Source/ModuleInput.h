@@ -2,14 +2,15 @@
 #include "Module.h"
 #include "API/Phoenix_Keys.h"
 #include "API/Phoenix_Types.h"
-
-namespace DirectX { class Keyboard; class Mouse; class GamePad; }
+#include "Keyboard.h"
+#include "Mouse.h"
+#include "GamePad.h"
 
 class ModuleInput : public Module {
 public:
     ModuleInput(HWND hWnd);
 
-    bool update() override;
+    void update() override;
 
     // ----- Keyboard -----
     bool isKeyDown    (Phoenix::Key k) const;
@@ -33,11 +34,17 @@ public:
     void  setVibration       (float leftMotor, float rightMotor, int player);
 
 private:
-    std::unique_ptr<Keyboard> keyboard;
-    std::unique_ptr<Mouse>    mouse;
-    std::unique_ptr<GamePad>  gamePad;
+    static constexpr int kMaxPlayers = 4;
 
-    // Per-frame state trackers (forward-declared via void* to avoid leaking DirectXTK types)
-    struct Impl;
-    std::unique_ptr<Impl> m_impl;
+    std::unique_ptr<DirectX::Keyboard> keyboard;
+    std::unique_ptr<DirectX::Mouse>    mouse;
+    std::unique_ptr<DirectX::GamePad>  gamePad;
+
+    DirectX::Keyboard::KeyboardStateTracker kbTracker;
+    DirectX::Mouse::ButtonStateTracker      mouseTracker;
+    DirectX::Mouse::State                   mousePrev{};
+    DirectX::Mouse::State                   mouseCurr{};
+
+    DirectX::GamePad::ButtonStateTracker padTracker[kMaxPlayers];
+    DirectX::GamePad::State              padState  [kMaxPlayers]{};
 };
