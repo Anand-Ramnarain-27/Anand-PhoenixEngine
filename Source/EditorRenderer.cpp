@@ -663,69 +663,227 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                 BVType type;
                 AABB box;
                 Sphere sphere;
+                int colorIdx = 0;   // which palette color this part uses
             };
             std::vector<BoundsEntry> boundsEntries;
 
             std::function<void(GameObject*)> collectBounds = [&](GameObject* node){
                 if (!node || !node->isActive()) return;
                 if (auto* cm = node->getComponent<ComponentMesh>()){
-                    if (cm->hasAABB()){
-                        BoundsEntry e;
-                        const ComponentBounds* cb = node->getComponent<ComponentBounds>();
+                    BoundsEntry e;
+                    bool hasEntry = false;
+                    const ComponentBounds* cb = node->getComponent<ComponentBounds>();
 
-                        if (cb && cb->bvType == BVType::Sphere){
-                            const Matrix& W = node->getTransform()->getGlobalMatrix();
-                            const Vector3 lMin = cm->getLocalAABBMin();
-                            const Vector3 lMax = cm->getLocalAABBMax();
-                            const Vector3 lHalf = (lMax - lMin) * 0.5f;
-                            const Vector3 lCtr = (lMin + lMax) * 0.5f;
-                            Vector3 center = Vector3::Transform(lCtr, W);
+                    if (cm->hasSkinData()){
+                        const auto& joints = cm->getSkinJoints();
+                        const int jn = (int)joints.size();
+                        constexpr float kBig = FLT_MAX;
 
-                            Vector3 cx(W._11,W._12,W._13), cy(W._21,W._22,W._23), cz(W._31,W._32,W._33);
-                            float hx = lHalf.x * cx.Length();
-                            float hy = lHalf.y * cy.Length();
-                            float hz = lHalf.z * cz.Length();
-                            float radius = (cb->radiusOverride >= 0.f)
-                                ? cb->radiusOverride
-                                : sqrtf(hx*hx + hy*hy + hz*hz);
+                        // Measure skeleton span and mesh span to decide strategy:
+                        // A weapon/accessory mesh is much smaller than the full skeleton it
+                        // references (GLTF exporters often put all bones in every skin).
+                        // Detect this by comparing local AABB diagonal to joint span diagonal.
+                        if (!cm->hasAABB()) cm->computeLocalAABB();
+                        const bool localOK = cm->hasAABB();
 
-                            e.type = BVType::Sphere;
-                            e.sphere = { center, radius };
-                        } else {
-                            Vector3 mn, mx;
-                            cm->getWorldAABB(mn, mx);
-                            e.type = BVType::AABB;
-                            e.box = { mn, mx };
+                        Vector3 allJMin(kBig,kBig,kBig), allJMax(-kBig,-kBig,-kBig);
+                        int rootJoint = -1;
+                        for (int i = 0; i < jn; ++i){
+                            if (!joints[i] || !joints[i]->getTransform()) continue;
+                            Vector3 wp = joints[i]->getTransform()->getGlobalMatrix().Translation();
+                            allJMin = Vector3::Min(allJMin, wp);
+                            allJMax = Vector3::Max(allJMax, wp);
                         }
-                        boundsEntries.push_back(e);
+                        // Find root joint (first with no parent in joint list) for weapon transform
+                        {
+                            std::vector<bool> hasParent(jn, false);
+                            for (int i = 0; i < jn; ++i){
+                                if (!joints[i]) continue;
+                                GameObject* p = joints[i]->getParent();
+                                for (int j = 0; j < jn; ++j)
+                                    if (i != j && joints[j] == p){ hasParent[i] = true; break; }
+                            }
+                            for (int i = 0; i < jn; ++i)
+                                if (!hasParent[i] && joints[i]){ rootJoint = i; break; }
+                        }
+
+                        float jointSpan = (allJMax - allJMin).Length();
+                        float meshSpan  = localOK ? (cm->getLocalAABBMax() - cm->getLocalAABBMin()).Length() : -1.f;
+
+                        // Treat as weapon/accessory (one tight box from local AABB × root joint):
+                        //  - mesh geometry is much smaller than the skeleton it references
+                        //    (GLTF exporters sometimes bake all bones into every skin)
+                        //  - OR joints are very tightly clustered (1-3 weapon/prop bones)
+                        //  - OR very few joints total
+                        const bool jointsAreTight = (jointSpan < 0.4f);
+                        const bool fewJoints      = (jn <= 3);
+                        const bool meshSmall      = localOK && meshSpan > 0.f && (meshSpan < jointSpan * 0.45f);
+                        const bool isAccessory    = localOK && rootJoint >= 0 && (fewJoints || jointsAreTight || meshSmall);
+
+                        if (isAccessory){
+                            // Weapon/prop: use the proper skinning transform
+                            // (joint_current_world × inverseBindMatrix) to map the
+                            // rest-pose local AABB into world space correctly.
+                            const auto& ibms = cm->getLocalSkin().inverseBindMatrices;
+                            Matrix skinTransform = joints[rootJoint]->getTransform()->getGlobalMatrix();
+                            if (rootJoint < (int)ibms.size())
+                                skinTransform = ibms[rootJoint] * skinTransform;
+                            Vector3 lMin = cm->getLocalAABBMin(), lMax = cm->getLocalAABBMax();
+                            Vector3 corners[8] = {
+                                {lMin.x,lMin.y,lMin.z},{lMax.x,lMin.y,lMin.z},
+                                {lMin.x,lMax.y,lMin.z},{lMax.x,lMax.y,lMin.z},
+                                {lMin.x,lMin.y,lMax.z},{lMax.x,lMin.y,lMax.z},
+                                {lMin.x,lMax.y,lMax.z},{lMax.x,lMax.y,lMax.z},
+                            };
+                            Vector3 wMin(kBig,kBig,kBig), wMax(-kBig,-kBig,-kBig);
+                            for (auto& c : corners){
+                                Vector3 wc = Vector3::Transform(c, skinTransform);
+                                wMin = Vector3::Min(wMin, wc); wMax = Vector3::Max(wMax, wc);
+                            }
+                            BoundsEntry be;
+                            be.colorIdx = 0; // weapons/props -> palette slot 0
+                            if (cb && cb->bvType == BVType::Sphere){
+                                Vector3 center = (wMin + wMax) * 0.5f;
+                                float radius = (cb->radiusOverride >= 0.f)
+                                    ? cb->radiusOverride : (wMax - center).Length();
+                                be.type = BVType::Sphere; be.sphere = { center, radius };
+                            } else {
+                                be.type = BVType::AABB; be.box = { wMin, wMax };
+                            }
+                            boundsEntries.push_back(be);
+                        } else {
+                            // Body/full-skeleton mesh: one box per major limb branch.
+                            // Build parent + children maps within this joint list.
+                            std::vector<int> jpar(jn, -1);
+                            std::vector<std::vector<int>> jchildren(jn);
+                            for (int i = 0; i < jn; ++i){
+                                if (!joints[i]) continue;
+                                GameObject* p = joints[i]->getParent();
+                                for (int j = 0; j < jn; ++j)
+                                    if (i != j && joints[j] == p){ jpar[i] = j; jchildren[j].push_back(i); break; }
+                            }
+                            std::function<void(int, std::vector<int>&)> collectDesc;
+                            collectDesc = [&](int idx, std::vector<int>& out){
+                                out.push_back(idx);
+                                for (int c : jchildren[idx]) collectDesc(c, out);
+                            };
+
+                            // Single-pass split: walk each root down its chain to the first
+                            // branch point, then collect each child sub-tree as its own group.
+                            // This gives ~4-6 boxes (pelvis+spine, head+neck, L-arm, R-arm,
+                            // L-leg, R-leg) without deep nesting.
+                            std::vector<std::vector<int>> groups;
+                            auto splitOnce = [&](int startIdx){
+                                // Walk straight chain from startIdx to first branch/leaf
+                                std::vector<int> chain;
+                                int cur = startIdx;
+                                while (true){
+                                    chain.push_back(cur);
+                                    if (jchildren[cur].size() == 1) cur = jchildren[cur][0];
+                                    else break;
+                                }
+                                if (jchildren[cur].empty()){
+                                    groups.push_back(chain); // leaf chain
+                                } else {
+                                    groups.push_back(chain); // connector (spine/pelvis)
+                                    for (int c : jchildren[cur]){
+                                        std::vector<int> g;
+                                        collectDesc(c, g);
+                                        groups.push_back(g);
+                                    }
+                                }
+                            };
+
+                            for (int i = 0; i < jn; ++i)
+                                if (jpar[i] == -1 && joints[i]) splitOnce(i);
+
+                            if (groups.empty()){
+                                std::vector<int> g;
+                                for (int i = 0; i < jn; ++i) if (joints[i]) g.push_back(i);
+                                if (!g.empty()) groups.push_back(g);
+                            }
+
+                            constexpr float kPad = 0.12f;
+                            int groupColor = 1; // body parts start at palette slot 1
+                            for (const auto& group : groups){
+                                Vector3 wMin(kBig,kBig,kBig), wMax(-kBig,-kBig,-kBig);
+                                bool any = false;
+                                for (int idx : group){
+                                    if (!joints[idx] || !joints[idx]->getTransform()) continue;
+                                    Vector3 wp = joints[idx]->getTransform()->getGlobalMatrix().Translation();
+                                    wMin = Vector3::Min(wMin, wp); wMax = Vector3::Max(wMax, wp);
+                                    any = true;
+                                }
+                                if (!any) continue;
+                                const Vector3 pad(kPad, kPad, kPad);
+                                wMin -= pad; wMax += pad;
+                                BoundsEntry be;
+                                be.colorIdx = groupColor++; // each limb a distinct color
+                                if (cb && cb->bvType == BVType::Sphere){
+                                    Vector3 center = (wMin + wMax) * 0.5f;
+                                    float radius = (cb->radiusOverride >= 0.f)
+                                        ? cb->radiusOverride : (wMax - center).Length();
+                                    be.type = BVType::Sphere; be.sphere = { center, radius };
+                                } else {
+                                    be.type = BVType::AABB; be.box = { wMin, wMax };
+                                }
+                                boundsEntries.push_back(be);
+                            }
+                        }
+                        hasEntry = false; // entries already pushed directly above
+                    } else {
+                        e.colorIdx = 3; // plain static meshes -> green
+                        if (!cm->hasAABB()) cm->computeLocalAABB();
+                        if (cm->hasAABB()){
+                            if (cb && cb->bvType == BVType::Sphere){
+                                const Matrix& W = node->getTransform()->getGlobalMatrix();
+                                const Vector3 lMin = cm->getLocalAABBMin();
+                                const Vector3 lMax = cm->getLocalAABBMax();
+                                const Vector3 lHalf = (lMax - lMin) * 0.5f;
+                                const Vector3 lCtr = (lMin + lMax) * 0.5f;
+                                Vector3 center = Vector3::Transform(lCtr, W);
+                                Vector3 cx(W._11,W._12,W._13), cy(W._21,W._22,W._23), cz(W._31,W._32,W._33);
+                                float hx = lHalf.x * cx.Length();
+                                float hy = lHalf.y * cy.Length();
+                                float hz = lHalf.z * cz.Length();
+                                float radius = (cb->radiusOverride >= 0.f)
+                                    ? cb->radiusOverride
+                                    : sqrtf(hx*hx + hy*hy + hz*hz);
+                                e.type = BVType::Sphere;
+                                e.sphere = { center, radius };
+                            } else {
+                                Vector3 mn, mx;
+                                cm->getWorldAABB(mn, mx);
+                                e.type = BVType::AABB;
+                                e.box = { mn, mx };
+                            }
+                            hasEntry = true;
+                        }
                     }
+                    if (hasEntry) boundsEntries.push_back(e);
                 }
                 for (auto* child : node->getChildren()) collectBounds(child);
             };
             collectBounds(moduleScene->getRoot());
 
-            const size_t N = boundsEntries.size();
-            std::vector<bool> colliding(N, false);
-            for (size_t i = 0; i < N; ++i){
-                for (size_t j = i + 1; j < N; ++j){
-                    bool hit = false;
-                    const BoundsEntry& ei = boundsEntries[i];
-                    const BoundsEntry& ej = boundsEntries[j];
-                    if (ei.type == BVType::AABB && ej.type == BVType::AABB)
-                        hit = ei.box.intersects(ej.box);
-                    else if (ei.type == BVType::Sphere && ej.type == BVType::Sphere)
-                        hit = ei.sphere.intersects(ej.sphere);
-                    else if (ei.type == BVType::Sphere)
-                        hit = ei.sphere.intersects(ej.box);
-                    else
-                        hit = ej.sphere.intersects(ei.box);
-                    if (hit){ colliding[i] = true; colliding[j] = true; }
-                }
-            }
+            // Distinct color palette so each body part / weapon is easy to tell apart.
+            // Slot 0 is reserved for weapons/props; 1+ cycle through the limb colors.
+            static const float kPartPalette[][3] = {
+                { 1.00f, 0.20f, 0.90f }, // 0 weapon/prop   - magenta
+                { 0.95f, 0.25f, 0.25f }, // 1 - red
+                { 0.30f, 0.65f, 1.00f }, // 2 - blue
+                { 0.30f, 0.95f, 0.40f }, // 3 - green
+                { 1.00f, 0.80f, 0.15f }, // 4 - yellow
+                { 0.20f, 0.95f, 0.95f }, // 5 - cyan
+                { 1.00f, 0.55f, 0.10f }, // 6 - orange
+                { 0.70f, 0.45f, 1.00f }, // 7 - purple
+            };
+            constexpr int kPaletteSize = (int)(sizeof(kPartPalette) / sizeof(kPartPalette[0]));
 
+            const size_t N = boundsEntries.size();
             for (size_t i = 0; i < N; ++i){
-                const float* color = colliding[i] ? dd::colors::Red : dd::colors::Green;
                 const BoundsEntry& e = boundsEntries[i];
+                const float* color = kPartPalette[((e.colorIdx % kPaletteSize) + kPaletteSize) % kPaletteSize];
                 if (e.type == BVType::Sphere)
                     dd::sphere(ddConvert(e.sphere.center), color, e.sphere.radius);
                 else

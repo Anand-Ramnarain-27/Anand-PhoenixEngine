@@ -16,6 +16,8 @@
 #include "RenderTexture.h"
 #include "PrefabManager.h"
 #include "MousePicker.h"
+#include "ComponentMesh.h"
+#include "ComponentAnimation.h"
 #include <functional>
 
 static constexpr float kDeg2Rad = 0.0174532925f;
@@ -108,6 +110,19 @@ void SceneViewPanel::onImageDrawn(){
                 mousePos.x, mousePos.y,
                 viewport.pos.x, viewport.pos.y, w, h,
                 view, proj, ms);
+
+            // For skinned mesh hits, select the animation root rather than
+            // the internal mesh node so the gizmo lands on the character root.
+            if (hit) {
+                ComponentMesh* cm = hit->getComponent<ComponentMesh>();
+                if (cm && cm->hasSkinData()) {
+                    GameObject* cur = hit->getParent();
+                    while (cur && cur->getParent()) {
+                        if (cur->getComponent<ComponentAnimation>()) { hit = cur; break; }
+                        cur = cur->getParent();
+                    }
+                }
+            }
 
             m_editor->getSelection().object = hit;
         }
