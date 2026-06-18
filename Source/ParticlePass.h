@@ -91,6 +91,9 @@ public:
 
     bool init(ID3D12Device* device);
 
+    // Call once per frame before any render() calls to reset the ring-buffer cursor.
+    void beginFrame() { m_frameCBCursor = 0; }
+
     void render(ID3D12GraphicsCommandList* cmd,
                 const std::vector<ParticleDrawRequest>& requests,
                 const Matrix& viewProj,
@@ -133,5 +136,8 @@ private:
     };
     std::unordered_map<std::string, CachedTexture> m_textureCache;
     std::unordered_map<size_t, EmitterBuffers> m_emitterBuffers;
+
+    // Frame-persistent cursor — advanced by render(), reset by beginFrame().
+    UINT m_frameCBCursor = 0;
 };
 

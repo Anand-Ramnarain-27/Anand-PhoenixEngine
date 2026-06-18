@@ -32,7 +32,7 @@ bool BillboardPass::init(ID3D12Device* device){
 
 bool BillboardPass::createUploadBuffer(ID3D12Device* device){
     const UINT stride = cbAlign(sizeof(BillboardInstanceCB));
-    const UINT64 total = stride * MAX_BILLBOARDS;
+    const UINT64 total = stride * MAX_BILLBOARDS * 2; // *2 for Scene View + Game View in same frame
     auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     auto bd = CD3DX12_RESOURCE_DESC::Buffer(total);
     HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
@@ -146,7 +146,8 @@ void BillboardPass::render(ID3D12GraphicsCommandList* cmd,
     cmd->IASetIndexBuffer(nullptr);
 
     const UINT cbStride = cbAlign(sizeof(BillboardInstanceCB));
-    const UINT count = std::min((UINT)billboards.size(), MAX_BILLBOARDS);
+    const UINT remaining = (m_frameCBCursor < MAX_BILLBOARDS) ? MAX_BILLBOARDS - m_frameCBCursor : 0u;
+    const UINT count = std::min((UINT)billboards.size(), remaining);
 
     bool additiveBound = false;
     cmd->SetPipelineState(m_pipeline.getPSO());
@@ -159,16 +160,19 @@ void BillboardPass::render(ID3D12GraphicsCommandList* cmd,
             cmd->SetPipelineState(additiveBound ? m_pipeline.getAdditivePSO() : m_pipeline.getPSO());
         }
 
-        void* dst = reinterpret_cast<uint8_t*>(m_cbMapped) + i * cbStride;
+        const UINT slot = m_frameCBCursor + i;
+        void* dst = reinterpret_cast<uint8_t*>(m_cbMapped) + slot * cbStride;
         memcpy(dst, &bb.cb, sizeof(BillboardInstanceCB));
 
-        D3D12_GPU_VIRTUAL_ADDRESS cbVA = m_cbRing->GetGPUVirtualAddress() + i * cbStride;
+        D3D12_GPU_VIRTUAL_ADDRESS cbVA = m_cbRing->GetGPUVirtualAddress() + slot * cbStride;
         cmd->SetGraphicsRootConstantBufferView(BillboardPipeline::SLOT_CB, cbVA);
         cmd->SetGraphicsRootDescriptorTable(BillboardPipeline::SLOT_TEXTURE,
                                              getOrLoadTexture(bb.texturePath));
 
         cmd->DrawInstanced(4, 1, 0, 0);
     }
+
+    m_frameCBCursor += count;
 
     END_EVENT(cmd);
 }

@@ -197,6 +197,11 @@ void ModuleEditor::preRender(){
     drawStatusBar();
 
     drawDragDropOverlay();
+
+    // Reset per-frame ring-buffer cursors before Scene View and Game View render.
+    if (m_billboardPass) m_billboardPass->beginFrame();
+    if (m_trailPass) m_trailPass->beginFrame();
+    if (m_particlePass) m_particlePass->beginFrame();
 }
 
 void ModuleEditor::render(){

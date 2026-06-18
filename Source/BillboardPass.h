@@ -58,6 +58,8 @@ public:
 
     bool init(ID3D12Device* device);
 
+    void beginFrame() { m_frameCBCursor = 0; }
+
     void render(ID3D12GraphicsCommandList* cmd,
                 const std::vector<BillboardInstance>& billboards,
                 uint32_t width, uint32_t height);
@@ -80,5 +82,7 @@ private:
         ShaderTableDesc srv;
     };
     std::unordered_map<std::string, CachedTexture> m_textureCache;
+
+    UINT m_frameCBCursor = 0;
 };
 

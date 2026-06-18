@@ -185,7 +185,7 @@ void ParticlePass::render(ID3D12GraphicsCommandList* cmd,
     ID3D12DescriptorHeap* heaps[] = { sd->getHeap(), sh->getHeap() };
 
     const UINT cbStride = cbAlign(sizeof(CbParticle));
-    UINT cbSlot = 0;
+    UINT cbSlot = m_frameCBCursor;
     UINT drawCount = 0;
 
 
@@ -267,6 +267,7 @@ void ParticlePass::render(ID3D12GraphicsCommandList* cmd,
         cmd->DrawInstanced(4, liveCount, 0, 0);
         ++cbSlot;
         ++drawCount;
+        m_frameCBCursor = cbSlot; // advance frame cursor after each draw
 
         if (req.gpuTurbulence && eb.uavBuf){
             D3D12_RESOURCE_BARRIER toUAV = CD3DX12_RESOURCE_BARRIER::Transition(

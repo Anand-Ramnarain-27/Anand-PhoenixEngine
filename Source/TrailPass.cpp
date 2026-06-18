@@ -44,7 +44,7 @@ bool TrailPass::createBuffers(ID3D12Device* device){
     }
     {
         const UINT stride = cbAlign(sizeof(TrailInstanceCB));
-        const UINT64 total = (UINT64)stride * MAX_TRAILS;
+        const UINT64 total = (UINT64)stride * MAX_TRAILS * 2; // *2 for Scene View + Game View in same frame
         auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         auto bd = CD3DX12_RESOURCE_DESC::Buffer(total);
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
@@ -134,12 +134,15 @@ void TrailPass::render(ID3D12GraphicsCommandList* cmd,
     cmd->IASetIndexBuffer(nullptr);
 
     const UINT cbStride = cbAlign(sizeof(TrailInstanceCB));
-    const UINT maxDraws = std::min((UINT)trails.size(), MAX_TRAILS);
+    // Remaining CB slots this frame (other viewports may have already consumed some)
+    const UINT remainingSlots = (m_frameCBCursor < MAX_TRAILS) ? MAX_TRAILS - m_frameCBCursor : 0u;
+    const UINT maxDraws = std::min((UINT)trails.size(), remainingSlots);
 
     bool additiveBound = false;
     cmd->SetPipelineState(m_pipeline.getPSO());
 
-    UINT vertexCursor = 0;
+    UINT vertexCursor = m_frameVertexCursor;
+    UINT drawnCount = 0;
     for (UINT i = 0; i < maxDraws; ++i){
         const TrailInstance& tr = trails[i];
         const UINT vCount = (UINT)tr.vertices.size();
@@ -160,20 +163,26 @@ void TrailPass::render(ID3D12GraphicsCommandList* cmd,
         vbv.StrideInBytes = m_vbStride;
         cmd->IASetVertexBuffers(0, 1, &vbv);
 
+        const UINT cbSlot = m_frameCBCursor + drawnCount;
         TrailInstanceCB cb{};
         cb.viewProj = viewProj.Transpose();
         cb.tint = tr.tint;
-        void* dstCb = reinterpret_cast<uint8_t*>(m_cbMapped) + i * cbStride;
+        void* dstCb = reinterpret_cast<uint8_t*>(m_cbMapped) + cbSlot * cbStride;
         memcpy(dstCb, &cb, sizeof(TrailInstanceCB));
 
-        D3D12_GPU_VIRTUAL_ADDRESS cbVA = m_cbRing->GetGPUVirtualAddress() + i * cbStride;
+        D3D12_GPU_VIRTUAL_ADDRESS cbVA = m_cbRing->GetGPUVirtualAddress() + cbSlot * cbStride;
         cmd->SetGraphicsRootConstantBufferView(TrailPipeline::SLOT_CB, cbVA);
         cmd->SetGraphicsRootDescriptorTable(TrailPipeline::SLOT_TEXTURE, getOrLoadTexture(tr.texturePath));
 
         cmd->DrawInstanced(vCount, 1, 0, 0);
 
         vertexCursor += vCount;
+        ++drawnCount;
     }
+
+    // Advance frame-persistent cursors so the next viewport's render() doesn't overwrite our data.
+    m_frameVertexCursor = vertexCursor;
+    m_frameCBCursor += drawnCount;
 
     END_EVENT(cmd);
 }

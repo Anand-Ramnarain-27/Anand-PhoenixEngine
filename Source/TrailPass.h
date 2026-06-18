@@ -54,6 +54,11 @@ public:
 
     bool init(ID3D12Device* device);
 
+    // Call once per frame before any render() calls to reset the ring-buffer
+    // cursors. Prevents Scene View and Game View from overwriting each other's
+    // upload data within the same frame.
+    void beginFrame() { m_frameVertexCursor = 0; m_frameCBCursor = 0; }
+
     void render(ID3D12GraphicsCommandList* cmd,
                 const std::vector<TrailInstance>& trails,
                 const Matrix& viewProj,
@@ -74,6 +79,10 @@ private:
 
     ComPtr<ID3D12Resource> m_cbRing;
     void* m_cbMapped = nullptr;
+
+    // Frame-persistent cursors — advanced by render(), reset by beginFrame().
+    UINT m_frameVertexCursor = 0;
+    UINT m_frameCBCursor = 0;
 
     ComPtr<ID3D12Resource> m_fallbackTex;
     ShaderTableDesc m_fallbackSRV;
