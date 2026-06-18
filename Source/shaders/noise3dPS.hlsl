@@ -1,11 +1,28 @@
 
-#include "Noise3d.hlsli"
-#include "Noise.hlsli"
+cbuffer cbNoisePerFrame : register(b0){
+    float4x4 matVP;
+    float4x4 matGeo;
+    float uTime;
+    float3 _pad;
+};
 
 struct PSInput {
     float4 svPos : SV_POSITION;
     float3 WorldPos : TEXCOORD0;
 };
+
+
+uint hashU(uint x){
+    x = (x ^ (x >> 16)) * 0x21f0aaadU;
+    x = (x ^ (x >> 15)) * 0x735a2d97U;
+    return x ^ (x >> 15);
+}
+uint hash2U(uint2 v){ return hashU(v.x ^ hashU(v.y)); }
+uint hash3U(uint3 v){ return hashU(v.x ^ hash2U(v.yz)); }
+
+float hash2Float(uint h){
+    return (float)(h >> 8) * asfloat(0x33800000);
+}
 
 float3 grad(uint3 cell){
     uint h0 = hash3U(cell);

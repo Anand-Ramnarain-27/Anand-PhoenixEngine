@@ -2,6 +2,7 @@
 #define _MATERIAL_HLSLI_
 
 #include "Samplers.hlsli"
+#include "Tonemap.hlsli"
 
 #define HAS_BASECOLOUR_TEX        0x1
 #define HAS_METALLICROUGHNESS_TEX 0x2

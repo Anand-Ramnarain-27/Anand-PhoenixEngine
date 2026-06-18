@@ -1,5 +1,12 @@
 
-#include "Particle.hlsli"
+struct GpuParticle {
+    float3 position;
+    float size;
+    float4 color;
+    float rotation;
+    float2 uvMin;
+    float2 uvMax;
+};
 
 StructuredBuffer<GpuParticle> InputParticles : register(t0);
 RWStructuredBuffer<GpuParticle> OutputParticles : register(u0);
@@ -14,7 +21,15 @@ cbuffer CbUpdate : register(b0){
     float2 _pad;
 };
 
-#include "Noise.hlsli"
+uint hashU(uint x){
+    x = (x ^ (x >> 16)) * 0x21f0aaadU;
+    x = (x ^ (x >> 15)) * 0x735a2d97U;
+    return x ^ (x >> 15);
+}
+uint hash2U(uint2 v){ return hashU(v.x ^ hashU(v.y)); }
+uint hash3U(uint3 v){ return hashU(v.x ^ hash2U(v.yz)); }
+
+float hash2Float(uint h){ return (float)(h >> 8) * asfloat(0x33800000); }
 
 float3 grad3(int3 cell){
     uint h0 = hash3U(uint3(cell));

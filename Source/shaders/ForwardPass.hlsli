@@ -38,16 +38,4 @@ Texture2D NormalTex : register(t8);
 Texture2D OcclusionTex : register(t9);
 Texture2D EmissiveTex : register(t10);
 
-#define VARIANCE  0.3
-#define THRESHOLD 0.2
-
-float getGeometricSpecularAA(float3 N, float roughness){
-    float3 ndx = ddx(N);
-    float3 ndy = ddy(N);
-    float curvature = max(dot(ndx, ndx), dot(ndy, ndy));
-    float geomRoughnessOffset = pow(curvature, 0.333) * VARIANCE;
-    geomRoughnessOffset = min(geomRoughnessOffset, THRESHOLD);
-    return saturate(roughness + geomRoughnessOffset);
-}
-
 #endif

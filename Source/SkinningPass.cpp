@@ -117,7 +117,7 @@ bool SkinningPass::createPipeline(ID3D12Device* device){
     }
 
     {
-        auto cs = DX::ReadData(L"MorphSkinningCS.cso");
+        auto cs = DX::ReadData(L"Skinning.cso");
         D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
         desc.pRootSignature = m_rootSig.Get();
         desc.CS = { cs.data(), cs.size() };

@@ -1,5 +1,15 @@
 
-#include "SkinVertex.hlsli"
+struct Vertex {
+    float3 position;
+    float2 texCoord;
+    float3 normal;
+    float4 tangent;
+};
+
+struct BoneWeight {
+    int4 indices;
+    float4 weights;
+};
 
 cbuffer SkinCB : register(b0){
     uint g_vertexCount;

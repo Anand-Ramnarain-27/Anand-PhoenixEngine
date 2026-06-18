@@ -1,5 +1,12 @@
 
-#include "Particle.hlsli"
+struct GpuParticle {
+    float3 position;
+    float size;
+    float4 color;
+    float rotation;
+    float2 uvMin;
+    float2 uvMax;
+};
 
 StructuredBuffer<GpuParticle> Particles : register(t0);
 
