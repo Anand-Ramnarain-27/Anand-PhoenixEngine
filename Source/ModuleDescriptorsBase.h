@@ -91,10 +91,6 @@ public:
         return handles.indexFromHandle(handle);
     }
 
-    // Live descriptor-heap occupancy.
-    size_t getUsedDescriptors() const { return handles.getSize() - handles.getFreeCount(); }
-    size_t getTotalDescriptors() const { return handles.getSize(); }
-
 protected:
     virtual void createViewInternal(ID3D12Resource* resource, const void* pDesc, D3D12_CPU_DESCRIPTOR_HANDLE destHandle) = 0;
 };

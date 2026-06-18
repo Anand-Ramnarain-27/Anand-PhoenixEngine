@@ -19,19 +19,6 @@ public:
 
     D3D12_GPU_VIRTUAL_ADDRESS allocateConstantBuffer(const void* data, size_t size);
 
-    // Live ring-buffer stats for the GPU memory panel.
-    size_t getCapacity() const { return m_capacity; }
-    size_t getHead() const { return m_head; }
-    size_t getTail() const { return m_tail; }
-    size_t getUsedBytes() const {
-        return (m_head >= m_tail) ? (m_head - m_tail) : (m_capacity - m_tail + m_head);
-    }
-    size_t getFrameBytes(uint32_t frame) const {
-        return frame < MAX_FRAMES ? m_frameData[frame].allocationSize : 0;
-    }
-    uint32_t getCurrentFrame() const { return m_currentFrame; }
-    static constexpr uint32_t getFrameCount() { return MAX_FRAMES; }
-
 private:
     D3D12_GPU_VIRTUAL_ADDRESS allocateRaw(const void* data, size_t size);
     static size_t alignUp(size_t size, size_t alignment);

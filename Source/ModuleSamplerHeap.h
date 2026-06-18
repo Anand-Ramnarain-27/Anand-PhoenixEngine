@@ -35,10 +35,6 @@ public:
 
     ID3D12DescriptorHeap* getHeap(){ return heap.Get(); }
 
-    // All COUNT static samplers are created up front and always resident.
-    UINT getUsedSamplers() const { return COUNT; }
-    UINT getTotalSamplers() const { return COUNT; }
-
 private:
 
     ComPtr<ID3D12DescriptorHeap> heap;
