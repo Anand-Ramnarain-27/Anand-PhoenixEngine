@@ -96,7 +96,7 @@ public:
 
     void play(){ playing = true; }
     void stop(){ playing = false; }
-    void clear(){ m_particles.clear(); m_spawnAccumulator = 0.f; m_age = 0.f; }
+    void clear(){ m_particles.clear(); m_spawnAccumulator = 0.f; m_age = 0.f; m_lastOwnerWorld = Matrix::Identity; }
 
 private:
     void spawnParticle();
@@ -109,6 +109,7 @@ private:
     float m_spawnAccumulator = 0.f;
     float m_age = 0.f;
     mutable std::mt19937 m_rng{ std::random_device{}() };
+    Matrix m_lastOwnerWorld = Matrix::Identity; // used by worldSpace=false to track emitter movement
 
     Microsoft::WRL::ComPtr<ID3D12Resource> m_noisePreviewTex;
     ShaderTableDesc m_noisePreviewSRV;

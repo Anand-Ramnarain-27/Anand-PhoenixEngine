@@ -251,7 +251,7 @@ void ParticlePass::render(ID3D12GraphicsCommandList* cmd,
         cmd->IASetIndexBuffer(nullptr);
 
         CbParticle cb = {};
-        cb.viewProj = viewProj;
+        cb.viewProj = viewProj.Transpose();
         cb.camRight = Vector4(camRight.x, camRight.y, camRight.z, 0.f);
         cb.camUp = Vector4(camUp.x, camUp.y, camUp.z, 0.f);
         void* cbDst = reinterpret_cast<uint8_t*>(m_cbMapped) + cbSlot * cbStride;

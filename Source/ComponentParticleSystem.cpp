@@ -132,6 +132,27 @@ void ComponentParticleSystem::spawnParticle(){
 void ComponentParticleSystem::update(float dt){
     if (!enabled) return;
 
+    // Local-space mode: apply the emitter's world-space delta to all live
+    // particles so they move/rotate with the owner transform each frame.
+    if (!worldSpace && owner){
+        const Matrix& cur = owner->getTransform()->getGlobalMatrix();
+        Matrix invLast = Matrix::Identity;
+        m_lastOwnerWorld.Invert(invLast);
+        Matrix delta = invLast * cur; // transform from last frame's space into this frame's space
+
+        for (auto& p : m_particles){
+            if (!p.alive) continue;
+            p.position = Vector3::Transform(p.position, delta);
+            // Rotate velocity with the emitter (ignore translation component).
+            p.velocity = Vector3::TransformNormal(p.velocity, delta);
+        }
+        m_lastOwnerWorld = cur;
+    } else if (owner){
+        // Keep the last-world in sync even in world-space mode so switching
+        // modes mid-play doesn't cause a jump.
+        m_lastOwnerWorld = owner->getTransform()->getGlobalMatrix();
+    }
+
     if (playing){
         m_age += dt;
         if (looping || m_age <= duration){
