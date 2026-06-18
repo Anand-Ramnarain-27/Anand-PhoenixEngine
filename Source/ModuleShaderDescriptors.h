@@ -26,6 +26,10 @@ public:
     ShaderTableDesc allocTable(const char* name = nullptr);
     ID3D12DescriptorHeap* getHeap() const { return m_heap.Get(); }
 
+    // Live descriptor-heap stats (in allocation units of one 8-slot table).
+    size_t getUsedTables() const { return MAX_TABLES - m_freeHandles.size(); }
+    size_t getTotalTables() const { return MAX_TABLES; }
+
 private:
     struct Table {
         UINT refCount = 0;

@@ -58,6 +58,12 @@ public:
         m_adapter->GetDesc3(&desc);
         return desc.Description;
     }
+    // Live driver-reported local (device-local/VRAM) memory usage and budget in bytes.
+    DXGI_QUERY_VIDEO_MEMORY_INFO getLocalVideoMemoryInfo() const{
+        DXGI_QUERY_VIDEO_MEMORY_INFO info = {};
+        if (m_adapter) m_adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info);
+        return info;
+    }
 
 private:
     void enableDebugLayer();
