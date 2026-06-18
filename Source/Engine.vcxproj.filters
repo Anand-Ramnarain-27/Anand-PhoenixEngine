@@ -1043,6 +1043,21 @@
     <None Include="shaders\Tonemap.hlsli">
       <Filter>Shaders\Common</Filter>
     </None>
+    <None Include="shaders\Particle.hlsli">
+      <Filter>Shaders\Common</Filter>
+    </None>
+    <None Include="shaders\SkinVertex.hlsli">
+      <Filter>Shaders\Common</Filter>
+    </None>
+    <None Include="shaders\Noise3d.hlsli">
+      <Filter>Shaders\Common</Filter>
+    </None>
+    <None Include="shaders\Noise.hlsli">
+      <Filter>Shaders\Common</Filter>
+    </None>
+    <None Include="shaders\Decal.hlsli">
+      <Filter>Shaders\Common</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Engine.rc">
@@ -1113,10 +1128,10 @@
     <FxCompile Include="shaders\ParticleUpdateCS.hlsl">
       <Filter>Shaders\Compute</Filter>
     </FxCompile>
-    <FxCompile Include="shaders\noise3dVS.hlsl">
+    <FxCompile Include="shaders\Noise3dVS.hlsl">
       <Filter>Shaders\Forward</Filter>
     </FxCompile>
-    <FxCompile Include="shaders\noise3dPS.hlsl">
+    <FxCompile Include="shaders\Noise3dPS.hlsl">
       <Filter>Shaders\Forward</Filter>
     </FxCompile>
     <!-- Shaders\Environment -->
@@ -1142,7 +1157,7 @@
       <Filter>Shaders\Environment</Filter>
     </FxCompile>
     <!-- Shaders\Skinning -->
-    <FxCompile Include="shaders\Skinning.hlsl">
+    <FxCompile Include="shaders\MorphSkinningCS.hlsl">
       <Filter>Shaders\Skinning</Filter>
     </FxCompile>
     <FxCompile Include="shaders\SkinningCS.hlsl">
@@ -1293,6 +1308,9 @@
     </Filter>
     <Filter Include="Shaders\Skinning">
       <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000034}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Compute">
+      <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000044}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

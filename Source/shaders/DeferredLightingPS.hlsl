@@ -1,3 +1,4 @@
+#include "GBufferPass.hlsli"
 #include "Lights.hlsli"
 #include "Lighting.hlsli"
 #include "ImageBasedLighting.hlsli"
@@ -35,14 +36,6 @@ Texture2D GBufferAlbedo : register(t6);
 Texture2D GBufferNormalMR : register(t7);
 Texture2D GBufferEmissiveAO : register(t8);
 Texture2D GBufferDepth : register(t9);
-
-float3 OctDecode(float2 e){
-    e = e * 2.0f - 1.0f;
-    float3 v = float3(e.x, e.y, 1.0f - abs(e.x) - abs(e.y));
-    if (v.z < 0.0f)
-        v.xy = (1.0f - abs(v.yx)) * sign(v.xy);
-    return normalize(v);
-}
 
 float3 ReconstructWorldPos(float2 uv, float depth){
     float2 ndc = uv * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f);

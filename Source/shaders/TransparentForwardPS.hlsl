@@ -3,18 +3,6 @@
 #include "Tonemap.hlsli"
 #include "ImageBasedLighting.hlsli"
 
-#define VARIANCE  0.3
-#define THRESHOLD 0.2
-
-float getGeometricSpecularAA(float3 N, float roughness){
-    float3 ndx = ddx(N);
-    float3 ndy = ddy(N);
-    float curvature = max(dot(ndx, ndx), dot(ndy, ndy));
-    float geomRoughnessOffset = pow(curvature, 0.333) * VARIANCE;
-    geomRoughnessOffset = min(geomRoughnessOffset, THRESHOLD);
-    return saturate(roughness + geomRoughnessOffset);
-}
-
 float4 main(
     float3 worldPos : POSITION,
     float2 texCoord : TEXCOORD,

@@ -1,5 +1,5 @@
 #include "GgxBrdf.hlsli"
-#include "sampling.hlsli"
+#include "Sampling.hlsli"
 #include "ImageBasedLighting.hlsli"
 
 cbuffer Constants : register(b2){

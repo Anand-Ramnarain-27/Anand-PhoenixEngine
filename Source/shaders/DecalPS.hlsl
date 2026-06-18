@@ -1,12 +1,6 @@
 
 #include "Samplers.hlsli"
-
-cbuffer CbDecal : register(b0){
-    float4x4 MVP;
-    float4x4 InvModel;
-    float4x4 InvViewProj;
-    float4 ColourOpacity;
-};
+#include "Decal.hlsli"
 
 Texture2D DepthMap : register(t0);
 Texture2D DecalAlbedo : register(t1);
