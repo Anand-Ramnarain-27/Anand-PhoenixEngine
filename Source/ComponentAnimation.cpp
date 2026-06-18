@@ -600,7 +600,7 @@ void ComponentAnimation::onDrawGizmos(){
 
         if (m_drawAxisTriads){
             Matrix world = t->getGlobalMatrix();
-            dd::axisTriad(world.m[0], 0.f, 0.5f);
+            dd::axisTriad(world.m[0], 0.f, 0.1f);
         }
 
         for (auto* child : go->getChildren())
