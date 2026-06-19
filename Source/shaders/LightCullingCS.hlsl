@@ -26,7 +26,7 @@ groupshared uint gsSpotCount;
 
 float depthToViewZ(float depth){
     float c = Projection[2][2];
-    float d = Projection[2][3];
+    float d = Projection[3][2];
     return -d / (depth + c);
 }
 
