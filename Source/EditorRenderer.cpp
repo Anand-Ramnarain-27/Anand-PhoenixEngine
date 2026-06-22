@@ -15,6 +15,8 @@
 #include "ForwardMeshPass.h"
 #include "GBufferPass.h"
 #include "DeferredLightingPass.h"
+#include "ShadowMapPass.h"
+#include "ShadowMath.h"
 #include "DecalPass.h"
 #include "ComponentDecal.h"
 #include "ComponentBillboard.h"
@@ -199,6 +201,7 @@ void ModuleEditor::preRender(){
     drawDragDropOverlay();
 
     // Reset per-frame ring-buffer cursors before Scene View and Game View render.
+    if (m_shadowMapPass) m_shadowMapPass->beginFrame();
     if (m_billboardPass) m_billboardPass->beginFrame();
     if (m_trailPass) m_trailPass->beginFrame();
     if (m_particlePass) m_particlePass->beginFrame();
@@ -474,6 +477,152 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                            (float)app->getElapsedMilis() / 1000.f);
     }
 
+    ShadowRenderData shadowData;
+    if (m_shadowMapPass && !opaqueMeshes.empty()){
+        ComponentDirectionalLight* caster = nullptr;
+        if (moduleScene){
+            std::function<void(GameObject*)> findCaster = [&](GameObject* n){
+                if (!n || !n->isActive() || caster) return;
+                if (auto* dl = n->getComponent<ComponentDirectionalLight>(); dl && dl->enabled){
+                    caster = dl; return;
+                }
+                for (auto* c : n->getChildren()) findCaster(c);
+            };
+            findCaster(moduleScene->getRoot());
+        }
+
+        if (caster && caster->castShadows){
+            float camNear, camFar;
+            ShadowMath::ExtractNearFar(proj, camNear, camFar);
+            const float farLimit = std::min(camFar, caster->shadowDistance);
+            const uint32_t res = (uint32_t)caster->shadowResolution;
+
+            bool didGpu = false;
+            if (caster->shadowGpuFrustum && m_gbufferPass){
+                Matrix ivp; (view * proj).Invert(ivp);
+                Vector3 ld = caster->direction; ld.Normalize();
+                if (m_shadowMapPass->computeGpuLightMatrix(cmd, m_gbufferPass->getGBuffer(),
+                                                           ivp, ld, caster->shadowSunDistance)){
+                    m_shadowMapPass->renderDirectionalGpu(cmd, opaqueMeshes, res);
+                    shadowData.enabled = true;
+                    shadowData.cascadeCount = 1;
+                    shadowData.gpuMode = true;
+                    shadowData.gpuVpVA = m_shadowMapPass->getGpuVpVA();
+                    shadowData.lightDir = ld;
+                    shadowData.bias = caster->shadowBias;
+                    shadowData.pcfRadius = caster->shadowPcfRadius;
+                    shadowData.mode = 0;
+                    shadowData.ambientStrength = caster->shadowAmbientStrength;
+                    shadowData.resolution = m_shadowMapPass->getResolution();
+                    shadowData.srv = m_shadowMapPass->getSrvHandle();
+                    didGpu = true;
+                }
+            }
+
+            const int count = std::max(1, std::min(caster->shadowCascadeCount,
+                                                   ShadowMath::kMaxCascades));
+            if (!didGpu){
+
+            float splits[ShadowMath::kMaxCascades];
+            ShadowMath::CascadeSplits(camNear, farLimit, count,
+                                      caster->shadowCascadeLambda, splits);
+
+            static const float kCascadeColors[4][3] = {
+                { 1.f, 0.4f, 0.4f }, { 0.4f, 1.f, 0.4f },
+                { 0.4f, 0.5f, 1.f }, { 1.f, 1.f, 0.4f },
+            };
+
+            Matrix cascadeVP[ShadowMath::kMaxCascades];
+            float prevFar = camNear;
+            for (int c = 0; c < count; ++c){
+                ShadowMath::DirShadowResult sm = ShadowMath::DirectionalLightViewProj(
+                    view, proj, caster->direction, prevFar, splits[c],
+                    caster->shadowSunDistance, res);
+                cascadeVP[c] = sm.viewProj;
+                shadowData.lightViewProj[c] = sm.viewProj;
+                shadowData.cascadeSplit[c] = splits[c];
+                prevFar = splits[c];
+
+                if (editorExtras && caster->shadowDebugCascades)
+                    dd::sphere(ddConvert(sm.center), kCascadeColors[c % 4], sm.radius);
+            }
+
+            m_shadowMapPass->render(cmd, opaqueMeshes, cascadeVP, count, res,
+                                    caster->shadowMode, caster->shadowExpK,
+                                    caster->shadowLightBleed);
+
+            shadowData.enabled = true;
+            shadowData.cascadeCount = count;
+            shadowData.lightDir = caster->direction;
+            shadowData.lightDir.Normalize();
+            shadowData.bias = caster->shadowBias;
+            shadowData.pcfRadius = caster->shadowPcfRadius;
+            shadowData.mode = caster->shadowMode;
+            shadowData.expK = caster->shadowExpK;
+            shadowData.lightBleed = caster->shadowLightBleed;
+            shadowData.ambientStrength = caster->shadowAmbientStrength;
+            shadowData.debugTint = caster->shadowDebugCascades;
+            shadowData.resolution = m_shadowMapPass->getResolution();
+            shadowData.srv = m_shadowMapPass->getSrvHandle();
+            if (m_shadowMapPass->hasMoments())
+                shadowData.momentSrv = m_shadowMapPass->getMomentsSrvHandle();
+            }
+        }
+
+        {
+            ComponentSpotLight* spot = nullptr; GameObject* spotGO = nullptr;
+            std::function<void(GameObject*)> find = [&](GameObject* n){
+                if (!n || !n->isActive() || spot) return;
+                if (auto* sl = n->getComponent<ComponentSpotLight>(); sl && sl->enabled && sl->castShadows){
+                    spot = sl; spotGO = n; return;
+                }
+                for (auto* c : n->getChildren()) find(c);
+            };
+            if (moduleScene) find(moduleScene->getRoot());
+            if (spot && spotGO){
+                Vector3 pos = spotGO->getTransform()->getGlobalMatrix().Translation();
+                Matrix vp = ShadowMath::SpotLightViewProj(pos, spot->direction,
+                                spot->outerAngle * 3.14159265f / 180.f, spot->radius);
+                m_shadowMapPass->renderSpot(cmd, opaqueMeshes, vp, (uint32_t)spot->shadowResolution);
+                shadowData.spotEnabled = true;
+                shadowData.spotViewProj = vp;
+                shadowData.spotPos = pos;
+                shadowData.spotBias = spot->shadowBias;
+                shadowData.spotPcfRadius = spot->shadowPcfRadius;
+                shadowData.spotResolution = m_shadowMapPass->getSpotResolution();
+                shadowData.spotSrv = m_shadowMapPass->getSpotSrvHandle();
+            }
+        }
+
+        {
+            ComponentPointLight* pt = nullptr; GameObject* ptGO = nullptr;
+            std::function<void(GameObject*)> find = [&](GameObject* n){
+                if (!n || !n->isActive() || pt) return;
+                if (auto* pl = n->getComponent<ComponentPointLight>(); pl && pl->enabled && pl->castShadows){
+                    pt = pl; ptGO = n; return;
+                }
+                for (auto* c : n->getChildren()) find(c);
+            };
+            if (moduleScene) find(moduleScene->getRoot());
+            if (pt && ptGO){
+                Vector3 pos = ptGO->getTransform()->getGlobalMatrix().Translation();
+                Matrix faces[6];
+                ShadowMath::PointLightFaceViewProj(pos, 0.05f, pt->radius, faces);
+                m_shadowMapPass->renderPoint(cmd, opaqueMeshes, faces, pos, pt->radius,
+                                             (uint32_t)pt->shadowResolution);
+                shadowData.pointEnabled = true;
+                shadowData.pointPos = pos;
+                shadowData.pointRange = pt->radius;
+                shadowData.pointBias = pt->shadowBias;
+                shadowData.pointSrv = m_shadowMapPass->getPointSrvHandle();
+            }
+        }
+
+        ID3D12DescriptorHeap* shHeaps[] = { app->getShaderDescriptors()->getHeap(),
+                                            app->getSamplerHeap()->getHeap() };
+        cmd->SetDescriptorHeaps(2, shHeaps);
+    }
+
     if (m_gbufferPass && (!opaqueMeshes.empty() || !translucentMeshes.empty() || !billboards.empty())){
         const int gbufferViewportIndex = editorExtras ? 0 : 1;
         m_gbufferPass->render(cmd, opaqueMeshes, viewProj, w, h, gbufferViewportIndex);
@@ -519,12 +668,12 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                 m_deferredLightingPass->render(cmd, *m_gbufferPass, culledLights,
                                                 viewCamPos, view, proj,
                                                 invViewProj, envForIBL, w, h,
-                                                gbufferViewportIndex);
+                                                gbufferViewportIndex, shadowData);
             } else {
                 m_deferredLightingPass->render(cmd, *m_gbufferPass, m_frameLights,
                                                 viewCamPos, view, proj,
                                                 invViewProj, envForIBL, w, h,
-                                                gbufferViewportIndex);
+                                                gbufferViewportIndex, shadowData);
             }
         }
 

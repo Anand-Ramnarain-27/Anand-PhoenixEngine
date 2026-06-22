@@ -10,6 +10,7 @@ public:
         POINT_WRAP,
         LINEAR_CLAMP,
         POINT_CLAMP,
+        SHADOW_CMP,
         COUNT
     };
 public:

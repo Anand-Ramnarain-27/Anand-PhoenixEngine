@@ -5,5 +5,6 @@ SamplerState BilinearWrap : register(s0);
 SamplerState PointWrap : register(s1);
 SamplerState BilinearClamp : register(s2);
 SamplerState PointClamp : register(s3);
+SamplerComparisonState ShadowCmp : register(s4);
 
 #endif

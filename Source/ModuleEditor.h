@@ -144,6 +144,7 @@ private:
     std::unique_ptr<ForwardMeshPass> m_meshRenderPass;
     std::unique_ptr<GBufferPass> m_gbufferPass;
     std::unique_ptr<DeferredLightingPass> m_deferredLightingPass;
+    std::unique_ptr<ShadowMapPass> m_shadowMapPass;
     std::unique_ptr<DecalPass> m_decalPass;
     std::unique_ptr<BillboardPass> m_billboardPass;
     std::unique_ptr<TrailPass> m_trailPass;

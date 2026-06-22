@@ -165,9 +165,25 @@ bool DeferredLightingPass::createFallbackIBL(ID3D12Device* device){
         LOG("DeferredLightingPass: fallback IBL SRV alloc failed");
         return false;
     }
+    m_fallbackShadowSRV = sd->allocTable("DeferredLight_FallbackShadow");
+    if (!m_fallbackShadowSRV.isValid()){
+        LOG("DeferredLightingPass: fallback shadow SRV alloc failed");
+        return false;
+    }
+
     writeFallbackCubeSRV(m_fallbackIrradianceSRV, 0, m_fallbackCube.Get());
     writeFallbackCubeSRV(m_fallbackPrefilterSRV, 0, m_fallbackCube.Get());
     writeFallbackTex2DSRV(m_fallbackBRDFSRV, 0, m_fallbackTex2D.Get());
+
+    {
+        D3D12_SHADER_RESOURCE_VIEW_DESC sv = {};
+        sv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        sv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+        sv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        sv.Texture2DArray.MipLevels = 1;
+        sv.Texture2DArray.ArraySize = 1;
+        m_fallbackShadowSRV.createSRV(m_fallbackTex2D.Get(), 0, &sv);
+    }
     return true;
 }
 
@@ -189,7 +205,8 @@ void DeferredLightingPass::uploadPerFrameCB(const FrameLightData& lights,
                                              const Matrix& invViewProj,
                                              uint32_t envRoughLevels,
                                              uint32_t width, uint32_t height,
-                                             int viewportIndex){
+                                             int viewportIndex,
+                                             const ShadowRenderData& shadow){
     CbPerFrame cb = {};
     cb.dirLightCount = static_cast<uint32_t>(std::min(lights.dirLights.size(), (size_t)MeshPipeline::MAX_DIR_LIGHTS));
     cb.pointLightCount = static_cast<uint32_t>(std::min(lights.pointLights.size(), (size_t)MeshPipeline::MAX_POINT_LIGHTS));
@@ -201,6 +218,30 @@ void DeferredLightingPass::uploadPerFrameCB(const FrameLightData& lights,
     cb.viewportWidth = width;
     cb.viewportHeight = height;
     cb.pad0 = cb.pad1 = 0;
+
+    const int cascadeCount = std::max(1, std::min(shadow.cascadeCount, ShadowMath::kMaxCascades));
+    for (int c = 0; c < ShadowMath::kMaxCascades; ++c)
+        cb.lightViewProj[c] = shadow.lightViewProj[c].Transpose();
+    const float texel = shadow.resolution ? 1.0f / float(shadow.resolution) : 0.0f;
+    cb.shadowParams0 = Vector4(shadow.bias, shadow.normalBias, shadow.pcfRadius, texel);
+    cb.shadowParams1 = Vector4(shadow.enabled ? 1.0f : 0.0f, float(shadow.mode),
+                               float(cascadeCount), shadow.debugTint ? 1.0f : 0.0f);
+    cb.shadowParams2 = Vector4(shadow.expK, shadow.lightBleed,
+                               shadow.gpuMode ? 1.0f : 0.0f, shadow.ambientStrength);
+    cb.shadowLightDir = shadow.lightDir;
+    cb.shadowPad = 0.0f;
+
+    cb.spotViewProj = shadow.spotViewProj.Transpose();
+    const float spotTexel = shadow.spotResolution ? 1.0f / float(shadow.spotResolution) : 0.0f;
+    cb.spotShadowParams = Vector4(shadow.spotEnabled ? 1.0f : 0.0f, shadow.spotBias,
+                                  shadow.spotPcfRadius, spotTexel);
+    cb.spotShadowPos = Vector4(shadow.spotPos.x, shadow.spotPos.y, shadow.spotPos.z, 0.0f);
+
+    const float invRange = shadow.pointRange > 1e-4f ? 1.0f / shadow.pointRange : 1.0f;
+    cb.pointShadowParams = Vector4(shadow.pointEnabled ? 1.0f : 0.0f, shadow.pointBias,
+                                   invRange, 0.0f);
+    cb.pointShadowPos = Vector4(shadow.pointPos.x, shadow.pointPos.y, shadow.pointPos.z, 0.0f);
+
     memcpy(m_perFrameMapped[viewportIndex], &cb, sizeof(cb));
 }
 
@@ -213,7 +254,8 @@ void DeferredLightingPass::render(ID3D12GraphicsCommandList* cmd,
                                    const Matrix& invViewProj,
                                    const EnvironmentSystem* env,
                                    uint32_t width, uint32_t height,
-                                   int viewportIndex){
+                                   int viewportIndex,
+                                   const ShadowRenderData& shadow){
     if (width == 0 || height == 0) return;
     if (!gbufferPass.getGBuffer().isValid()) return;
 
@@ -225,7 +267,7 @@ void DeferredLightingPass::render(ID3D12GraphicsCommandList* cmd,
     m_lightCulling.cull(cmd, gbufferPass, lights, view, projection, width, height, viewportIndex);
 
     uploadLights(lights, viewportIndex);
-    uploadPerFrameCB(lights, cameraPos, invViewProj, roughLevels, width, height, viewportIndex);
+    uploadPerFrameCB(lights, cameraPos, invViewProj, roughLevels, width, height, viewportIndex, shadow);
 
     BEGIN_EVENT(cmd, L"Deferred Lighting Pass");
 
@@ -281,6 +323,27 @@ void DeferredLightingPass::render(ID3D12GraphicsCommandList* cmd,
     cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_SPOT_INDICES,
                                          m_lightCulling.getSpotListSRV(viewportIndex));
 
+    cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_SHADOW_MAP,
+                                         (shadow.enabled && shadow.srv.ptr) ? shadow.srv
+                                                        : m_fallbackShadowSRV.getGPUHandle(0));
+
+    const bool useMoments = shadow.enabled && shadow.mode != 0 && shadow.momentSrv.ptr;
+    cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_SHADOW_MOMENTS,
+                                         useMoments ? shadow.momentSrv
+                                                    : m_fallbackShadowSRV.getGPUHandle(0));
+
+    cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_SPOT_SHADOW,
+                                         (shadow.spotEnabled && shadow.spotSrv.ptr)
+                                             ? shadow.spotSrv : m_fallbackBRDFSRV.getGPUHandle(0));
+    cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_POINT_SHADOW,
+                                         (shadow.pointEnabled && shadow.pointSrv.ptr)
+                                             ? shadow.pointSrv : m_fallbackPrefilterSRV.getGPUHandle(0));
+
+    cmd->SetGraphicsRootConstantBufferView(DeferredLightingPipeline::SLOT_GPU_VP,
+                                           (shadow.gpuMode && shadow.gpuVpVA)
+                                               ? shadow.gpuVpVA
+                                               : m_perFrameCB[viewportIndex]->GetGPUVirtualAddress());
+
     cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_SAMPLER,
                                          samplerHeap->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));
 
@@ -317,10 +380,14 @@ bool DeferredLightingPipeline::createRootSignature(ID3D12Device* device){
     CD3DX12_DESCRIPTOR_RANGE depthRange; depthRange .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 9);
     CD3DX12_DESCRIPTOR_RANGE pointIdxRange; pointIdxRange .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 10);
     CD3DX12_DESCRIPTOR_RANGE spotIdxRange; spotIdxRange .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 11);
+    CD3DX12_DESCRIPTOR_RANGE shadowRange; shadowRange .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 12);
+    CD3DX12_DESCRIPTOR_RANGE momentRange; momentRange .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 13);
+    CD3DX12_DESCRIPTOR_RANGE spotRange2; spotRange2 .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 14);
+    CD3DX12_DESCRIPTOR_RANGE pointShRange; pointShRange .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 15);
     CD3DX12_DESCRIPTOR_RANGE samplerRange; samplerRange .Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,
                                                                   ModuleSamplerHeap::COUNT, 0);
 
-    CD3DX12_ROOT_PARAMETER params[14];
+    CD3DX12_ROOT_PARAMETER params[19];
     params[SLOT_PERFRAME_CB ].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
     params[SLOT_DIR_LIGHTS ].InitAsDescriptorTable(1, &dirRange, D3D12_SHADER_VISIBILITY_PIXEL);
     params[SLOT_POINT_LIGHTS ].InitAsDescriptorTable(1, &pointRange, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -334,6 +401,11 @@ bool DeferredLightingPipeline::createRootSignature(ID3D12Device* device){
     params[SLOT_GBUF_DEPTH ].InitAsDescriptorTable(1, &depthRange, D3D12_SHADER_VISIBILITY_PIXEL);
     params[SLOT_POINT_INDICES ].InitAsDescriptorTable(1, &pointIdxRange, D3D12_SHADER_VISIBILITY_PIXEL);
     params[SLOT_SPOT_INDICES ].InitAsDescriptorTable(1, &spotIdxRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_SHADOW_MAP ].InitAsDescriptorTable(1, &shadowRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_SHADOW_MOMENTS ].InitAsDescriptorTable(1, &momentRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_SPOT_SHADOW ].InitAsDescriptorTable(1, &spotRange2, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_POINT_SHADOW ].InitAsDescriptorTable(1, &pointShRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_GPU_VP ].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_PIXEL);
     params[SLOT_SAMPLER ].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
     CD3DX12_ROOT_SIGNATURE_DESC desc;

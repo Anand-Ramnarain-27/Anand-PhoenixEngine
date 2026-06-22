@@ -18,7 +18,12 @@ public:
     static constexpr UINT SLOT_GBUF_DEPTH = 10;
     static constexpr UINT SLOT_POINT_INDICES = 11;
     static constexpr UINT SLOT_SPOT_INDICES = 12;
-    static constexpr UINT SLOT_SAMPLER = 13;
+    static constexpr UINT SLOT_SHADOW_MAP = 13;
+    static constexpr UINT SLOT_SHADOW_MOMENTS = 14;
+    static constexpr UINT SLOT_SPOT_SHADOW = 15;
+    static constexpr UINT SLOT_POINT_SHADOW = 16;
+    static constexpr UINT SLOT_GPU_VP = 17;
+    static constexpr UINT SLOT_SAMPLER = 18;
 
     bool init(ID3D12Device* device);
 
@@ -35,6 +40,7 @@ private:
 #include "LightCullingPass.h"
 #include "MeshPipeline.h"
 #include "ShaderTableDesc.h"
+#include "ShadowMapPass.h"
 #include <d3d12.h>
 #include <wrl.h>
 #include <vector>
@@ -57,6 +63,17 @@ public:
         uint32_t viewportWidth;
         uint32_t viewportHeight;
         uint32_t pad0, pad1;
+        Matrix lightViewProj[ShadowMath::kMaxCascades];
+        Vector4 shadowParams0;
+        Vector4 shadowParams1;
+        Vector4 shadowParams2;
+        Vector3 shadowLightDir;
+        float shadowPad;
+        Matrix spotViewProj;
+        Vector4 spotShadowParams;
+        Vector4 spotShadowPos;
+        Vector4 pointShadowParams;
+        Vector4 pointShadowPos;
     };
 
     static constexpr int NUM_VIEWPORTS = 2;
@@ -72,7 +89,8 @@ public:
                 const Matrix& invViewProj,
                 const EnvironmentSystem* env,
                 uint32_t width, uint32_t height,
-                int viewportIndex);
+                int viewportIndex,
+                const ShadowRenderData& shadow);
 
 private:
     bool createUploadBuffers(ID3D12Device* device);
@@ -82,7 +100,8 @@ private:
     void uploadLights(const FrameLightData& lights, int viewportIndex);
     void uploadPerFrameCB(const FrameLightData& lights, const Vector3& cameraPos,
                           const Matrix& invViewProj, uint32_t envRoughLevels,
-                          uint32_t width, uint32_t height, int viewportIndex);
+                          uint32_t width, uint32_t height, int viewportIndex,
+                          const ShadowRenderData& shadow);
 
     DeferredLightingPipeline m_pipeline;
     LightCullingPass m_lightCulling;
@@ -106,5 +125,6 @@ private:
     ShaderTableDesc m_fallbackIrradianceSRV;
     ShaderTableDesc m_fallbackPrefilterSRV;
     ShaderTableDesc m_fallbackBRDFSRV;
+    ShaderTableDesc m_fallbackShadowSRV;
 };
 

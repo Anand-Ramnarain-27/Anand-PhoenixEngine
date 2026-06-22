@@ -16,6 +16,21 @@ public:
     Vector3 color = Vector3(1.0f, 1.0f, 1.0f);
     float intensity = 1.0f;
     bool enabled = true;
+
+    bool castShadows = false;
+    int shadowResolution = 2048;
+    float shadowBias = 0.0015f;
+    float shadowPcfRadius = 1.0f;
+    float shadowDistance = 60.0f;
+    float shadowSunDistance = 50.0f;
+    int shadowMode = 0;
+    float shadowExpK = 16.0f;
+    float shadowLightBleed = 0.2f;
+    int shadowCascadeCount = 4;
+    float shadowCascadeLambda = 0.6f;
+    bool shadowDebugCascades = false;
+    bool shadowGpuFrustum = false;
+    float shadowAmbientStrength = 0.5f;
 };
 
 class ComponentPointLight : public Component {
@@ -32,6 +47,10 @@ public:
     float intensity = 1.0f;
     float radius = 5.0f;
     bool enabled = true;
+
+    bool castShadows = false;
+    int shadowResolution = 1024;
+    float shadowBias = 0.01f;
 };
 
 class ComponentSpotLight : public Component {
@@ -51,4 +70,9 @@ public:
     float outerAngle = 30.0f;
     float radius = 10.0f;
     bool enabled = true;
+
+    bool castShadows = false;
+    int shadowResolution = 1024;
+    float shadowBias = 0.0020f;
+    float shadowPcfRadius = 1.0f;
 };

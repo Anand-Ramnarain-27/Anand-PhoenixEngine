@@ -287,6 +287,12 @@
     <ClCompile Include="GBufferPass.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
+    <ClCompile Include="ShadowMapPass.cpp">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClCompile>
+    <ClCompile Include="ShadowMath.cpp">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClCompile>
     <ClCompile Include="DeferredLightingPass.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
@@ -827,6 +833,12 @@
     <ClInclude Include="GBufferPass.h">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
+    <ClInclude Include="ShadowMapPass.h">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClInclude>
+    <ClInclude Include="ShadowMath.h">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClInclude>
     <ClInclude Include="DeferredLightingPass.h">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
@@ -1019,6 +1031,9 @@
     <None Include="shaders\GBufferPass.hlsli">
       <Filter>Shaders\Common</Filter>
     </None>
+    <None Include="shaders\Shadows.hlsli">
+      <Filter>Shaders\Common</Filter>
+    </None>
     <None Include="shaders\GgxBrdf.hlsli">
       <Filter>Shaders\Common</Filter>
     </None>
@@ -1096,6 +1111,36 @@
       <Filter>Shaders\Deferred</Filter>
     </FxCompile>
     <FxCompile Include="shaders\DeferredLightingVS.hlsl">
+      <Filter>Shaders\Deferred</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ShadowDepthVS.hlsl">
+      <Filter>Shaders\Deferred</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ShadowDepthPS.hlsl">
+      <Filter>Shaders\Deferred</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ShadowMomentsPS.hlsl">
+      <Filter>Shaders\Deferred</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ShadowBlurCS.hlsl">
+      <Filter>Shaders\Deferred</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ShadowCubeVS.hlsl">
+      <Filter>Shaders\Deferred</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ShadowCubePS.hlsl">
+      <Filter>Shaders\Deferred</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ShadowReduceInitCS.hlsl">
+      <Filter>Shaders\Deferred</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ShadowReduceCS.hlsl">
+      <Filter>Shaders\Deferred</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ShadowLightMatrixCS.hlsl">
+      <Filter>Shaders\Deferred</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ShadowDepthGpuVS.hlsl">
       <Filter>Shaders\Deferred</Filter>
     </FxCompile>
     <FxCompile Include="shaders\LightCullingCS.hlsl">

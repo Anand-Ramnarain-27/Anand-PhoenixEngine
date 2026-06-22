@@ -128,6 +128,9 @@ bool ModuleEditor::init(){
     m_gbufferPass = std::make_unique<GBufferPass>();
     if (!m_gbufferPass->init(device)) return false;
 
+    m_shadowMapPass = std::make_unique<ShadowMapPass>();
+    if (!m_shadowMapPass->init(device)) return false;
+
     m_deferredLightingPass = std::make_unique<DeferredLightingPass>();
     if (!m_deferredLightingPass->init(device)) return false;
 
