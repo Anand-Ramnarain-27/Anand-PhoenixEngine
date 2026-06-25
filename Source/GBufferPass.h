@@ -29,8 +29,11 @@ private:
 #include "MeshPipeline.h"
 #include "ShaderTableDesc.h"
 #include <vector>
+#include <unordered_map>
 #include <d3d12.h>
 #include <wrl.h>
+
+class Material;
 
 using Microsoft::WRL::ComPtr;
 
@@ -55,7 +58,13 @@ public:
 private:
     bool createUploadBuffers(ID3D12Device* device);
     bool createFallbackTexture(ID3D12Device* device);
-    bool createMatTableRing();
+    bool createFallbackTable();
+
+    // Returns a GPU descriptor handle for the material's 5 textures. The table is
+    // built once per unique material and reused every frame; SRVs are only
+    // recreated when the material's bound textures actually change. This replaces
+    // the old per-draw, per-frame SRV churn that scaled with submesh count.
+    D3D12_GPU_DESCRIPTOR_HANDLE getMaterialTableHandle(const Material* mat);
 
     void writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj, UINT slot,
                          int viewportIndex,
@@ -80,6 +89,18 @@ private:
     void* m_instanceMapped[NUM_VIEWPORTS] = {};
 
     ComPtr<ID3D12Resource> m_fallbackTex;
-    std::vector<ShaderTableDesc> m_matRing[NUM_VIEWPORTS];
+
+    // One descriptor table shared by every material that has no textures bound.
+    ShaderTableDesc m_fallbackTable;
+
+    // Per-material descriptor-table cache. Keyed by the resolved Material*; the
+    // stored resource pointers let us detect when a material's textures change
+    // (e.g. hot reload) and rewrite only that table.
+    struct MatCacheEntry {
+        ShaderTableDesc table;
+        ID3D12Resource* srcs[5] = {};
+    };
+    std::unordered_map<const Material*, MatCacheEntry> m_matTableCache;
+    static constexpr size_t kMatCacheCap = 4096;
 };
 

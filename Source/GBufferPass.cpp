@@ -73,7 +73,7 @@ bool GBufferPass::init(ID3D12Device* device){
     }
     if (!createUploadBuffers(device)) return false;
     if (!createFallbackTexture(device)) return false;
-    if (!createMatTableRing()) return false;
+    if (!createFallbackTable()) return false;
     LOG("GBufferPass: init OK");
     return true;
 }
@@ -115,25 +115,54 @@ bool GBufferPass::createFallbackTexture(ID3D12Device* device){
     return true;
 }
 
-bool GBufferPass::createMatTableRing(){
+bool GBufferPass::createFallbackTable(){
     auto* sd = app->getShaderDescriptors();
-    for (int v = 0; v < NUM_VIEWPORTS; ++v){
-        m_matRing[v].reserve(MAX_INSTANCES);
-        for (UINT i = 0; i < MAX_INSTANCES; ++i){
-            ShaderTableDesc t = sd->allocTable("GBufferPass_MatTex");
-            if (!t.isValid()){
-                LOG("GBufferPass: mat ring alloc failed at %u", i);
-                return false;
-            }
-            writeFallbackSRV(t, 0, m_fallbackTex.Get());
-            writeFallbackSRV(t, 1, m_fallbackTex.Get());
-            writeFallbackSRV(t, 2, m_fallbackTex.Get());
-            writeFallbackSRV(t, 3, m_fallbackTex.Get());
-            writeFallbackSRV(t, 4, m_fallbackTex.Get());
-            m_matRing[v].push_back(std::move(t));
-        }
+    m_fallbackTable = sd->allocTable("GBufferPass_MatFallback");
+    if (!m_fallbackTable.isValid()){
+        LOG("GBufferPass: fallback table alloc failed");
+        return false;
     }
+    for (UINT i = 0; i < 5; ++i)
+        writeFallbackSRV(m_fallbackTable, i, m_fallbackTex.Get());
     return true;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE GBufferPass::getMaterialTableHandle(const Material* mat){
+    if (!mat) return m_fallbackTable.getGPUHandle(0);
+
+    // Resolve the 5 textures this material binds, substituting the 1x1 fallback
+    // wherever a map is absent. These pointers double as the cache-invalidation key.
+    ID3D12Resource* fb = m_fallbackTex.Get();
+    ID3D12Resource* srcs[5] = { fb, fb, fb, fb, fb };
+    if (mat->hasTexture()       && mat->getBaseColorResource())  srcs[0] = mat->getBaseColorResource();
+    if (mat->hasMetalRoughMap() && mat->getMetalRoughResource()) srcs[1] = mat->getMetalRoughResource();
+    if (mat->hasNormalMap()     && mat->getNormalMapResource())  srcs[2] = mat->getNormalMapResource();
+    if (mat->hasAOMap()         && mat->getAOMapResource())       srcs[3] = mat->getAOMapResource();
+    if (mat->hasEmissive()      && mat->getEmissiveResource())    srcs[4] = mat->getEmissiveResource();
+
+    auto it = m_matTableCache.find(mat);
+    if (it == m_matTableCache.end()){
+        // Bound growth across scene reloads / churn of per-instance materials.
+        if (m_matTableCache.size() >= kMatCacheCap) m_matTableCache.clear();
+        MatCacheEntry e;
+        e.table = app->getShaderDescriptors()->allocTable("GBufferPass_MatTex");
+        it = m_matTableCache.emplace(mat, std::move(e)).first;
+    } else {
+        bool same = true;
+        for (int i = 0; i < 5; ++i) if (it->second.srcs[i] != srcs[i]){ same = false; break; }
+        if (same) return it->second.table.getGPUHandle(0);
+    }
+
+    ShaderTableDesc& table = it->second.table;
+    if (!table.isValid()) return m_fallbackTable.getGPUHandle(0);
+
+    // First build for this material, or its texture set changed — (re)write SRVs.
+    for (int i = 0; i < 5; ++i){
+        if (srcs[i] == fb) writeFallbackSRV(table, i, fb);
+        else               writeTex2DSRV(table, i, srcs[i]);
+        it->second.srcs[i] = srcs[i];
+    }
+    return table.getGPUHandle(0);
 }
 
 void GBufferPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj,
@@ -223,27 +252,12 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
             cmd->SetGraphicsRootConstantBufferView(GBufferPipeline::SLOT_MVP_CB, mvpVA);
             cmd->SetGraphicsRootConstantBufferView(GBufferPipeline::SLOT_INSTANCE_CB, instVA);
 
-            ShaderTableDesc& matTable = m_matRing[viewportIndex][slot];
             const Material* mat = entry->instanceMaterial.get();
             if (!mat) mat = entry->material;
             if (!mat && entry->materialRes) mat = entry->materialRes->getMaterial();
 
-            writeFallbackSRV(matTable, 0, m_fallbackTex.Get());
-            writeFallbackSRV(matTable, 1, m_fallbackTex.Get());
-            writeFallbackSRV(matTable, 2, m_fallbackTex.Get());
-            writeFallbackSRV(matTable, 3, m_fallbackTex.Get());
-            writeFallbackSRV(matTable, 4, m_fallbackTex.Get());
-
-            if (mat){
-                if (mat->hasTexture() && mat->getBaseColorResource()) writeTex2DSRV(matTable, 0, mat->getBaseColorResource());
-                if (mat->hasMetalRoughMap()&& mat->getMetalRoughResource()) writeTex2DSRV(matTable, 1, mat->getMetalRoughResource());
-                if (mat->hasNormalMap() && mat->getNormalMapResource()) writeTex2DSRV(matTable, 2, mat->getNormalMapResource());
-                if (mat->hasAOMap() && mat->getAOMapResource()) writeTex2DSRV(matTable, 3, mat->getAOMapResource());
-                if (mat->hasEmissive() && mat->getEmissiveResource()) writeTex2DSRV(matTable, 4, mat->getEmissiveResource());
-            }
-
             cmd->SetGraphicsRootDescriptorTable(GBufferPipeline::SLOT_MAT_TEXTURES,
-                                                 matTable.getGPUHandle(0));
+                                                 getMaterialTableHandle(mat));
             if (entry->skinnedVA != 0)
                 mesh->drawSkinned(cmd, entry->skinnedVA);
             else
