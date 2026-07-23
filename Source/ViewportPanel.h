@@ -11,6 +11,7 @@ public:
     void handleResize();
 
     EditorViewport viewport;
+    bool visibleThisFrame = false;
 
 protected:
     void drawContent() override;

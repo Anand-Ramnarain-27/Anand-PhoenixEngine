@@ -49,6 +49,31 @@ struct Frustum {
         return f;
     }
 
+    static Frustum fromViewProj(const Matrix& viewProj){
+        Matrix inv = viewProj.Invert();
+        static const Vector3 ndc[CORNER_COUNT] = {
+            {-1.f, +1.f, 0.f}, {+1.f, +1.f, 0.f}, {-1.f, -1.f, 0.f}, {+1.f, -1.f, 0.f},
+            {-1.f, +1.f, 1.f}, {+1.f, +1.f, 1.f}, {-1.f, -1.f, 1.f}, {+1.f, -1.f, 1.f}
+        };
+        Frustum f;
+        Vector3 centroid(0.f, 0.f, 0.f);
+        for (int i = 0; i < CORNER_COUNT; ++i){
+            Vector4 p = Vector4::Transform(Vector4(ndc[i].x, ndc[i].y, ndc[i].z, 1.f), inv);
+            const float invw = (fabsf(p.w) > 1e-8f) ? 1.f / p.w : 1.f;
+            f.corners[i] = Vector3(p.x * invw, p.y * invw, p.z * invw);
+            centroid += f.corners[i];
+        }
+        centroid *= (1.f / float(CORNER_COUNT));
+        f.cornersValid = true;
+        f.buildSidePlane(Near,   f.corners[NTL], f.corners[NTR], f.corners[NBL], centroid);
+        f.buildSidePlane(Far,    f.corners[FTL], f.corners[FTR], f.corners[FBL], centroid);
+        f.buildSidePlane(Left,   f.corners[NTL], f.corners[NBL], f.corners[FTL], centroid);
+        f.buildSidePlane(Right,  f.corners[NTR], f.corners[NBR], f.corners[FTR], centroid);
+        f.buildSidePlane(Top,    f.corners[NTL], f.corners[NTR], f.corners[FTL], centroid);
+        f.buildSidePlane(Bottom, f.corners[NBL], f.corners[NBR], f.corners[FBL], centroid);
+        return f;
+    }
+
     bool testVertsAgainstPlanes(const Vector3 verts[8]) const{
         for (const FrustumPlane& plane : planes){
             int outCount = 0;

@@ -130,8 +130,6 @@ bool GBufferPass::createFallbackTable(){
 D3D12_GPU_DESCRIPTOR_HANDLE GBufferPass::getMaterialTableHandle(const Material* mat){
     if (!mat) return m_fallbackTable.getGPUHandle(0);
 
-    // Resolve the 5 textures this material binds, substituting the 1x1 fallback
-    // wherever a map is absent. These pointers double as the cache-invalidation key.
     ID3D12Resource* fb = m_fallbackTex.Get();
     ID3D12Resource* srcs[5] = { fb, fb, fb, fb, fb };
     if (mat->hasTexture()       && mat->getBaseColorResource())  srcs[0] = mat->getBaseColorResource();
@@ -142,7 +140,6 @@ D3D12_GPU_DESCRIPTOR_HANDLE GBufferPass::getMaterialTableHandle(const Material* 
 
     auto it = m_matTableCache.find(mat);
     if (it == m_matTableCache.end()){
-        // Bound growth across scene reloads / churn of per-instance materials.
         if (m_matTableCache.size() >= kMatCacheCap) m_matTableCache.clear();
         MatCacheEntry e;
         e.table = app->getShaderDescriptors()->allocTable("GBufferPass_MatTex");
@@ -156,7 +153,6 @@ D3D12_GPU_DESCRIPTOR_HANDLE GBufferPass::getMaterialTableHandle(const Material* 
     ShaderTableDesc& table = it->second.table;
     if (!table.isValid()) return m_fallbackTable.getGPUHandle(0);
 
-    // First build for this material, or its texture set changed — (re)write SRVs.
     for (int i = 0; i < 5; ++i){
         if (srcs[i] == fb) writeFallbackSRV(table, i, fb);
         else               writeTex2DSRV(table, i, srcs[i]);

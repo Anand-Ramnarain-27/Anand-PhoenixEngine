@@ -11,9 +11,6 @@ class ModuleShaderDescriptors : public Module {
     friend class ShaderTableDesc;
 
 public:
-    // GBufferPass alone reserves MAX_INSTANCES * NUM_VIEWPORTS tables for its
-    // per-draw material descriptor ring (4096 * 2 = 8192). Keep headroom above
-    // that for material resources and the other render passes.
     static constexpr size_t MAX_TABLES = 16384;
     static constexpr size_t SLOTS_PER_TABLE = 8;
 

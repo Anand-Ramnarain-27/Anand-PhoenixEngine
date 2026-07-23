@@ -9,6 +9,7 @@
 #include "GBuffer.h"
 #include "ResourceMesh.h"
 #include "Mesh.h"
+#include "Frustum.h"
 #include "ReadData.h"
 #include <d3dx12.h>
 
@@ -27,6 +28,21 @@ namespace {
         Vector3 lightDir;
         float sunDistance;
     };
+
+    inline bool entryVisible(const MeshEntry* e, const Frustum& fr){
+        return !e->hasWorldAABB || fr.intersectsAABB(e->aabbMin, e->aabbMax);
+    }
+
+    inline float distSqPointAABB(const Vector3& p, const Vector3& mn, const Vector3& mx){
+        float d = 0.f;
+        for (int i = 0; i < 3; ++i){
+            const float v = (&p.x)[i];
+            const float lo = (&mn.x)[i], hi = (&mx.x)[i];
+            if (v < lo) d += (lo - v) * (lo - v);
+            else if (v > hi) d += (v - hi) * (v - hi);
+        }
+        return d;
+    }
 }
 
 bool ShadowMapPipeline::init(ID3D12Device* device){
@@ -507,10 +523,12 @@ void ShadowMapPass::renderDepth(ID3D12GraphicsCommandList* cmd,
         cmd->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
         const Matrix& lightViewProj = viewProjs[c];
+        const Frustum lightFr = Frustum::fromViewProj(lightViewProj);
         for (MeshEntry* entry : meshes){
             if (!entry) continue;
             Mesh* mesh = entry->meshRes ? entry->meshRes->getMesh() : entry->mesh;
             if (!mesh) continue;
+            if (!entryVisible(entry, lightFr)) continue;
             if (m_ringCursor >= MAX_DRAWS) m_ringCursor = 0;
             const UINT slot = m_ringCursor++;
 
@@ -643,10 +661,12 @@ void ShadowMapPass::renderMoments(ID3D12GraphicsCommandList* cmd,
         cmd->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
         const Matrix& lightViewProj = viewProjs[c];
+        const Frustum lightFr = Frustum::fromViewProj(lightViewProj);
         for (MeshEntry* entry : meshes){
             if (!entry) continue;
             Mesh* mesh = entry->meshRes ? entry->meshRes->getMesh() : entry->mesh;
             if (!mesh) continue;
+            if (!entryVisible(entry, lightFr)) continue;
             if (m_ringCursor >= MAX_DRAWS) m_ringCursor = 0;
             const UINT slot = m_ringCursor++;
 
@@ -764,11 +784,13 @@ void ShadowMapPass::renderSpot(ID3D12GraphicsCommandList* cmd,
     cmd->SetPipelineState(m_pipeline.getPSO());
     cmd->SetGraphicsRootSignature(m_pipeline.getRootSig());
 
+    const Frustum spotFr = Frustum::fromViewProj(spotViewProj);
     const UINT mvpSz = cbAlign(sizeof(Matrix));
     for (MeshEntry* entry : meshes){
         if (!entry) continue;
         Mesh* mesh = entry->meshRes ? entry->meshRes->getMesh() : entry->mesh;
         if (!mesh) continue;
+        if (!entryVisible(entry, spotFr)) continue;
         if (m_ringCursor >= MAX_DRAWS) m_ringCursor = 0;
         const UINT slot = m_ringCursor++;
 
@@ -885,10 +907,16 @@ void ShadowMapPass::renderPoint(ID3D12GraphicsCommandList* cmd,
         cmd->ClearRenderTargetView(rtv, farClear, 0, nullptr);
         cmd->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
+        const Frustum faceFr = Frustum::fromViewProj(faceViewProj[f]);
+        const float rangeSq = range * range;
         for (MeshEntry* entry : meshes){
             if (!entry) continue;
             Mesh* mesh = entry->meshRes ? entry->meshRes->getMesh() : entry->mesh;
             if (!mesh) continue;
+            if (entry->hasWorldAABB){
+                if (distSqPointAABB(lightPos, entry->aabbMin, entry->aabbMax) > rangeSq) continue;
+                if (!faceFr.intersectsAABB(entry->aabbMin, entry->aabbMax)) continue;
+            }
             if (m_cubeCursor >= MAX_DRAWS) m_cubeCursor = 0;
             const UINT slot = m_cubeCursor++;
 

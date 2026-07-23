@@ -60,10 +60,6 @@ private:
     bool createFallbackTexture(ID3D12Device* device);
     bool createFallbackTable();
 
-    // Returns a GPU descriptor handle for the material's 5 textures. The table is
-    // built once per unique material and reused every frame; SRVs are only
-    // recreated when the material's bound textures actually change. This replaces
-    // the old per-draw, per-frame SRV churn that scaled with submesh count.
     D3D12_GPU_DESCRIPTOR_HANDLE getMaterialTableHandle(const Material* mat);
 
     void writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj, UINT slot,
@@ -75,11 +71,7 @@ private:
     int m_activeIndex = 0;
     GBufferPipeline m_pipeline;
 
-    // Per-frame draw cap for the geometry pass. Each slot consumes one MVP CB,
-    // one instance CB, and one descriptor table from ModuleShaderDescriptors
-    // (MAX_INSTANCES * NUM_VIEWPORTS tables total — keep ModuleShaderDescriptors::
-    // MAX_TABLES comfortably above that). The editor/scene view draws every mesh
-    // unculled, so this needs headroom for large environment scenes.
+    // Per-frame draw cap for the geometry pass (one MVP CB + one instance CB per slot).
     static constexpr UINT MAX_INSTANCES = 4096;
 
     ComPtr<ID3D12Resource> m_mvpRing[NUM_VIEWPORTS];
@@ -89,13 +81,8 @@ private:
     void* m_instanceMapped[NUM_VIEWPORTS] = {};
 
     ComPtr<ID3D12Resource> m_fallbackTex;
-
-    // One descriptor table shared by every material that has no textures bound.
     ShaderTableDesc m_fallbackTable;
 
-    // Per-material descriptor-table cache. Keyed by the resolved Material*; the
-    // stored resource pointers let us detect when a material's textures change
-    // (e.g. hot reload) and rewrite only that table.
     struct MatCacheEntry {
         ShaderTableDesc table;
         ID3D12Resource* srcs[5] = {};

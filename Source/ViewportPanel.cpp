@@ -36,6 +36,7 @@ void ViewportPanel::handleResize(){
 }
 
 void ViewportPanel::drawContent(){
+    visibleThisFrame = true;
     viewport.size = ImGui::GetContentRegionAvail();
     viewport.checkResize();
     if (viewport.isReady()){

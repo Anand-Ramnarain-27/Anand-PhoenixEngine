@@ -1,11 +1,13 @@
 #pragma once
 #include "ResourceCommon.h"
 #include "Material.h"
+#include <SimpleMath.h>
 #include <d3d12.h>
 #include <wrl/client.h>
 #include <memory>
 
 using Microsoft::WRL::ComPtr;
+using DirectX::SimpleMath::Vector3;
 
 class Mesh;
 class ResourceMesh;
@@ -23,4 +25,8 @@ struct MeshEntry {
     bool isSkinned = false;
     D3D12_GPU_VIRTUAL_ADDRESS skinnedVA = 0;
     ComPtr<ID3D12Resource> materialCB;
+
+    Vector3 aabbMin = {};
+    Vector3 aabbMax = {};
+    bool hasWorldAABB = false;
 };

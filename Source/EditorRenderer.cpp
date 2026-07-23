@@ -191,6 +191,8 @@ void ModuleEditor::preRender(){
 
     drawDockspace();
     drawMenuBar();
+    if (m_sceneView) m_sceneView->visibleThisFrame = false;
+    if (m_gameView)  m_gameView->visibleThisFrame = false;
     for (EditorPanel* p : m_panels) if (p->open) p->draw();
 
 
@@ -223,8 +225,8 @@ void ModuleEditor::render(){
     cmd->SetDescriptorHeaps(2, heaps);
     handleNewScenePopup(cmd);
 
-    if (m_sceneView->viewport.isReady()) m_sceneView->renderToTexture(cmd);
-    if (m_gameView->viewport.isReady()) m_gameView->renderToTexture(cmd);
+    if (m_sceneView->viewport.isReady() && m_sceneView->visibleThisFrame) m_sceneView->renderToTexture(cmd);
+    if (m_gameView->viewport.isReady() && m_gameView->visibleThisFrame) m_gameView->renderToTexture(cmd);
 
     auto toRT = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     cmd->ResourceBarrier(1, &toRT);
@@ -422,6 +424,26 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
             for (auto* child : node->getChildren()) collectMeshes(child);
             };
         collectMeshes(moduleScene->getRoot());
+
+        for (auto& e : ownedEntries){
+            Mesh* m = e.meshRes ? e.meshRes->getMesh() : e.mesh;
+            if (e.isSkinned || !m || !m->hasAABB()){ e.hasWorldAABB = false; continue; }
+            Matrix wm; memcpy(&wm, e.worldMatrix, sizeof(float) * 16);
+            const Vector3 lmn = m->getAABBMin();
+            const Vector3 lmx = m->getAABBMax();
+            Vector3 mn(FLT_MAX, FLT_MAX, FLT_MAX);
+            Vector3 mx(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+            for (int c = 0; c < 8; ++c){
+                Vector3 corner((c & 1) ? lmx.x : lmn.x,
+                               (c & 2) ? lmx.y : lmn.y,
+                               (c & 4) ? lmx.z : lmn.z);
+                Vector3 wc = Vector3::Transform(corner, wm);
+                mn = Vector3::Min(mn, wc);
+                mx = Vector3::Max(mx, wc);
+            }
+            e.aabbMin = mn; e.aabbMax = mx; e.hasWorldAABB = true;
+        }
+
         visibleMeshes.reserve(ownedEntries.size());
         for (auto& e : ownedEntries) visibleMeshes.push_back(&e);
     }

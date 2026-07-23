@@ -70,10 +70,30 @@ void GameObject::addComponent(std::unique_ptr<Component> component){
     if (component) components.push_back(std::move(component));
 }
 
+namespace {
+    template<typename T> struct CompTag;
+    template<> struct CompTag<ComponentTransform>                { static constexpr Component::Type v = Component::Type::Transform; };
+    template<> struct CompTag<ComponentMesh>                     { static constexpr Component::Type v = Component::Type::Mesh; };
+    template<> struct CompTag<ComponentCamera>                   { static constexpr Component::Type v = Component::Type::Camera; };
+    template<> struct CompTag<ComponentDirectionalLight>         { static constexpr Component::Type v = Component::Type::DirectionalLight; };
+    template<> struct CompTag<ComponentPointLight>               { static constexpr Component::Type v = Component::Type::PointLight; };
+    template<> struct CompTag<ComponentSpotLight>                { static constexpr Component::Type v = Component::Type::SpotLight; };
+    template<> struct CompTag<ComponentAnimation>               { static constexpr Component::Type v = Component::Type::Animation; };
+    template<> struct CompTag<ComponentCharacterMotion>         { static constexpr Component::Type v = Component::Type::CharacterMotion; };
+    template<> struct CompTag<ComponentSimpleCharacterController>{ static constexpr Component::Type v = Component::Type::SimpleCharacterController; };
+    template<> struct CompTag<ComponentRigidbody>               { static constexpr Component::Type v = Component::Type::Rigidbody; };
+    template<> struct CompTag<ComponentBounds>                  { static constexpr Component::Type v = Component::Type::Bounds; };
+    template<> struct CompTag<ComponentDecal>                   { static constexpr Component::Type v = Component::Type::Decal; };
+    template<> struct CompTag<ComponentBillboard>              { static constexpr Component::Type v = Component::Type::Billboard; };
+    template<> struct CompTag<ComponentParticleSystem>        { static constexpr Component::Type v = Component::Type::ParticleSystem; };
+    template<> struct CompTag<ComponentTrail>                  { static constexpr Component::Type v = Component::Type::Trail; };
+}
+
 template<typename T>
 T* GameObject::getComponent() const{
+    constexpr Component::Type want = CompTag<T>::v;
     for (const auto& c : components)
-        if (auto* p = dynamic_cast<T*>(c.get())) return p;
+        if (c->getType() == want) return static_cast<T*>(c.get());
     return nullptr;
 }
 
