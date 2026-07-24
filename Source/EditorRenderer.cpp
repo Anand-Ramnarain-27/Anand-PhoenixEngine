@@ -199,6 +199,7 @@ void ModuleEditor::preRender(){
 
     handleDialogs();
     drawStatusBar();
+    drawShadowMapPreview();
 
     drawDragDropOverlay();
 
@@ -257,6 +258,35 @@ void ModuleEditor::render(){
 
     m_memoryUpdateTimer += (float)app->getElapsedMilis();
     if (m_memoryUpdateTimer >= 1000.0f){ m_memoryUpdateTimer = 0.0f; updateMemory(); }
+}
+
+void ModuleEditor::drawShadowMapPreview(){
+    if (!m_shadowMapPass || !m_shadowMapPass->hasPreview()) return;
+    SceneGraph* scene = getActiveModuleScene();
+    if (!scene) return;
+
+    ComponentDirectionalLight* caster = nullptr;
+    std::function<void(GameObject*)> find = [&](GameObject* n){
+        if (!n || !n->isActive() || caster) return;
+        if (auto* dl = n->getComponent<ComponentDirectionalLight>(); dl && dl->enabled){
+            caster = dl; return;
+        }
+        for (auto* c : n->getChildren()) find(c);
+    };
+    find(scene->getRoot());
+    if (!caster || !caster->castShadows || !caster->shadowShowPreview) return;
+
+    ImGui::SetNextWindowSize(ImVec2(360.f, 420.f), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Shadow Map", &caster->shadowShowPreview)){
+        const int maxSlice = std::max(0, caster->shadowCascadeCount - 1);
+        ImGui::SliderInt("Cascade", &caster->shadowPreviewCascade, 0, maxSlice);
+        float size = std::min(ImGui::GetContentRegionAvail().x,
+                              ImGui::GetContentRegionAvail().y);
+        if (size > 16.f)
+            ImGui::Image((ImTextureID)m_shadowMapPass->getPreviewSrvHandle().ptr,
+                         ImVec2(size, size));
+    }
+    ImGui::End();
 }
 
 void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras, RenderTexture* outputRT){
@@ -545,8 +575,39 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
                                                    ShadowMath::kMaxCascades));
             if (!didGpu){
 
+            float rangeNear = camNear;
+            float rangeFar = farLimit;
+            if (caster->shadowTightFrustum){
+                float minDistance = FLT_MAX;
+                float maxDistance = -FLT_MAX;
+                for (MeshEntry* entry : opaqueMeshes){
+                    if (!entry) continue;
+                    Mesh* mesh = entry->meshRes ? entry->meshRes->getMesh() : entry->mesh;
+                    if (!mesh || !mesh->hasAABB()) continue;
+                    const Vector3 mn = mesh->getAABBMin();
+                    const Vector3 mx = mesh->getAABBMax();
+                    Matrix world;
+                    memcpy(&world, entry->worldMatrix, sizeof(float) * 16);
+                    const Vector3 localCenter = (mn + mx) * 0.5f;
+                    const float localRadius = ((mx - mn) * 0.5f).Length();
+                    const float sx = Vector3(world._11, world._12, world._13).Length();
+                    const float sy = Vector3(world._21, world._22, world._23).Length();
+                    const float sz = Vector3(world._31, world._32, world._33).Length();
+                    const float radius = localRadius * std::max(sx, std::max(sy, sz));
+                    const Vector3 worldCenter = Vector3::Transform(localCenter, world);
+                    const Vector3 viewCenter = Vector3::Transform(worldCenter, view);
+                    minDistance = std::min(minDistance, -viewCenter.z - radius);
+                    maxDistance = std::max(maxDistance, -viewCenter.z + radius);
+                }
+                if (minDistance < maxDistance){
+                    rangeNear = std::max(rangeNear, minDistance);
+                    rangeFar = std::min(rangeFar, maxDistance);
+                    if (rangeFar <= rangeNear + 0.01f){ rangeNear = camNear; rangeFar = farLimit; }
+                }
+            }
+
             float splits[ShadowMath::kMaxCascades];
-            ShadowMath::CascadeSplits(camNear, farLimit, count,
+            ShadowMath::CascadeSplits(rangeNear, rangeFar, count,
                                       caster->shadowCascadeLambda, splits);
 
             static const float kCascadeColors[4][3] = {
@@ -555,13 +616,12 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
             };
 
             Matrix cascadeVP[ShadowMath::kMaxCascades];
-            float prevFar = camNear;
+            float prevFar = rangeNear;
             for (int c = 0; c < count; ++c){
                 ShadowMath::DirShadowResult sm = ShadowMath::DirectionalLightViewProj(
                     view, proj, caster->direction, prevFar, splits[c],
                     caster->shadowSunDistance, res);
                 cascadeVP[c] = sm.viewProj;
-                shadowData.lightViewProj[c] = sm.viewProj;
                 shadowData.cascadeSplit[c] = splits[c];
                 prevFar = splits[c];
 
@@ -571,7 +631,11 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
 
             m_shadowMapPass->render(cmd, opaqueMeshes, cascadeVP, count, res,
                                     caster->shadowMode, caster->shadowExpK,
-                                    caster->shadowLightBleed);
+                                    caster->shadowLightBleed,
+                                    caster->shadowStaggerCascades);
+
+            for (int c = 0; c < count; ++c)
+                shadowData.lightViewProj[c] = cascadeVP[c];
 
             shadowData.enabled = true;
             shadowData.cascadeCount = count;
@@ -589,6 +653,9 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
             if (m_shadowMapPass->hasMoments())
                 shadowData.momentSrv = m_shadowMapPass->getMomentsSrvHandle();
             }
+
+            if (editorExtras && caster->shadowShowPreview)
+                m_shadowMapPass->copyPreview(cmd, caster->shadowPreviewCascade);
         }
 
         {
@@ -721,7 +788,7 @@ void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const M
 
             BEGIN_EVENT(cmd, L"Forward Transparent Pass");
             m_meshRenderPass->renderTransparent(cmd, translucentMeshes, m_frameLights,
-                                                 camPos, viewProj, envForIBL);
+                                                 camPos, viewProj, envForIBL, shadowData);
             END_EVENT(cmd);
         }
 

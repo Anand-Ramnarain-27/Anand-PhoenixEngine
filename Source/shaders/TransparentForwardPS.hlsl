@@ -44,9 +44,13 @@ float4 main(
     if (DirLightCount == 0 && PointLightCount == 0 && SpotLightCount == 0 && EnvRoughnessLevels == 0)
         colour = baseColour * 0.03;
 
-    for (uint i = 0; i < DirLightCount; i++)
-        colour += EvaluateDirectionalLight(V, N, DirLights[i],
-                                           baseColour, alphaRoughness, metallic);
+    float shadowFactor = ComputeForwardDirShadow(worldPos);
+    for (uint i = 0; i < DirLightCount; i++){
+        float3 dirC = EvaluateDirectionalLight(V, N, DirLights[i],
+                                               baseColour, alphaRoughness, metallic);
+        if (i == 0) dirC *= shadowFactor;
+        colour += dirC;
+    }
 
     for (uint i = 0; i < PointLightCount; i++)
         colour += EvaluatePointLight(V, N, PointLights[i], worldPos,

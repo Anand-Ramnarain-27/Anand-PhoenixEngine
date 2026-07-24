@@ -4,6 +4,8 @@
 #include "Common.hlsli"
 #include "Lights.hlsli"
 #include "Material.hlsli"
+#include "Samplers.hlsli"
+#include "Shadows.hlsli"
 
 cbuffer CbMVP : register(b0){
     float4x4 MVP;
@@ -16,6 +18,9 @@ cbuffer CbPerFrame : register(b1){
     uint EnvRoughnessLevels;
     float3 CameraPosition;
     uint FramePad;
+    float4x4 DirLightViewProj[MAX_CASCADES];
+    float4 DirShadowParams0;
+    float4 DirShadowParams1;
 };
 
 cbuffer CbPerInstance : register(b2){
@@ -37,6 +42,15 @@ Texture2D MetallicRoughnessTex : register(t7);
 Texture2D NormalTex : register(t8);
 Texture2D OcclusionTex : register(t9);
 Texture2D EmissiveTex : register(t10);
+Texture2DArray DirShadowMap : register(t11);
+
+float ComputeForwardDirShadow(float3 worldPos){
+    if (DirShadowParams1.x < 0.5f) return 1.0f;
+    int cascade;
+    return ComputeCascadeShadow(DirShadowMap, ShadowCmp, worldPos, DirLightViewProj,
+                                (int)DirShadowParams1.z, DirShadowParams0.x,
+                                DirShadowParams0.z, DirShadowParams0.w, cascade);
+}
 
 #define VARIANCE  0.3
 #define THRESHOLD 0.2

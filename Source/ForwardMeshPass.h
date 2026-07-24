@@ -3,6 +3,7 @@
 #include "MeshPipeline.h"
 #include "MeshEntry.h"
 #include "ShaderTableDesc.h"
+#include "ShadowMapPass.h"
 #include <vector>
 #include <d3d12.h>
 #include <wrl.h>
@@ -26,11 +27,13 @@ public:
 
 	void render(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
 	            const FrameLightData& lights, const Vector3& cameraPos,
-	            const Matrix& viewProj, const EnvironmentSystem* env, int samplerType = 0);
+	            const Matrix& viewProj, const EnvironmentSystem* env,
+	            const ShadowRenderData& shadow = ShadowRenderData{}, int samplerType = 0);
 
 	void renderTransparent(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
 	                       const FrameLightData& lights, const Vector3& cameraPos,
-	                       const Matrix& viewProj, const EnvironmentSystem* env, int samplerType = 0);
+	                       const Matrix& viewProj, const EnvironmentSystem* env,
+	                       const ShadowRenderData& shadow = ShadowRenderData{}, int samplerType = 0);
 
 	MeshPipeline& getPipeline(){
 		return m_pipeline;
@@ -43,13 +46,15 @@ private:
 	bool createMatTableRing();
 
 	void uploadLights(const FrameLightData& lights);
-	void uploadPerFrameCB(const FrameLightData& lights, const Vector3& cameraPos, uint32_t envRoughLevels);
+	void uploadPerFrameCB(const FrameLightData& lights, const Vector3& cameraPos,
+	                      uint32_t envRoughLevels, const ShadowRenderData& shadow);
 	void writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj, UINT slot, D3D12_GPU_VIRTUAL_ADDRESS& outMvpVA, D3D12_GPU_VIRTUAL_ADDRESS& outInstVA);
 
 	void renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pso,
 	                   const std::vector<MeshEntry*>& meshes,
 	                   const FrameLightData& lights, const Vector3& cameraPos,
 	                   const Matrix& viewProj, const EnvironmentSystem* env,
+	                   const ShadowRenderData& shadow,
 	                   int samplerType, UINT slotBase, UINT maxSlots);
 
 	MeshPipeline m_pipeline;
@@ -84,6 +89,7 @@ private:
 	ShaderTableDesc m_fallbackIrradianceSRV;
 	ShaderTableDesc m_fallbackPrefilterSRV;
 	ShaderTableDesc m_fallbackBRDFSRV;
+	ShaderTableDesc m_fallbackShadowSRV;
 
 	std::vector<ShaderTableDesc> m_matRing;
 };

@@ -36,7 +36,10 @@ bool MeshPipeline::createRootSignature(ID3D12Device* device){
 	CD3DX12_DESCRIPTOR_RANGE samplerRange;
 	samplerRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, ModuleSamplerHeap::COUNT, 0);
 
-	CD3DX12_ROOT_PARAMETER params[11];
+	CD3DX12_DESCRIPTOR_RANGE shadowRange;
+	shadowRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 11);
+
+	CD3DX12_ROOT_PARAMETER params[12];
 	params[SLOT_MVP_CB].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
 	params[SLOT_PERFRAME_CB].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 	params[SLOT_PERINSTANCE_CB].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_ALL);
@@ -48,6 +51,7 @@ bool MeshPipeline::createRootSignature(ID3D12Device* device){
 	params[SLOT_BRDF_LUT].InitAsDescriptorTable(1, &iblBrdfRange, D3D12_SHADER_VISIBILITY_PIXEL);
 	params[SLOT_MAT_TEXTURES].InitAsDescriptorTable(1, &matRange, D3D12_SHADER_VISIBILITY_PIXEL);
 	params[SLOT_SAMPLER].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
+	params[SLOT_SHADOW_MAP].InitAsDescriptorTable(1, &shadowRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	CD3DX12_ROOT_SIGNATURE_DESC desc;
 	desc.Init(_countof(params), params, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);

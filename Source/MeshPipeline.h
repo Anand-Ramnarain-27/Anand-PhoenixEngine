@@ -2,6 +2,7 @@
 
 #include "Module.h"
 #include "ModuleSamplerHeap.h"
+#include "ShadowMath.h"
 #include <d3d12.h>
 #include <wrl.h>
 
@@ -26,6 +27,9 @@ public:
 		uint32_t envRoughnessLevels;
 		Vector3 cameraPosition;
 		uint32_t framePad;
+		Matrix dirLightViewProj[ShadowMath::kMaxCascades];
+		Vector4 dirShadowParams0;
+		Vector4 dirShadowParams1;
 	};
 
 	static constexpr uint32_t MAT_FLAG_BASECOLOR_TEX = 0x01;
@@ -89,6 +93,7 @@ public:
 	static constexpr UINT SLOT_BRDF_LUT = 8;
 	static constexpr UINT SLOT_MAT_TEXTURES = 9;
 	static constexpr UINT SLOT_SAMPLER = 10;
+	static constexpr UINT SLOT_SHADOW_MAP = 11;
 
 	bool init(ID3D12Device* device, bool useMSAA = false);
 	void bindIBL(ID3D12GraphicsCommandList* cmd, const EnvironmentSystem* env) const;

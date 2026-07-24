@@ -159,12 +159,13 @@ class ShadowMapPass {
 public:
     bool init(ID3D12Device* device);
 
-    void beginFrame(){ m_ringCursor = 0; m_cubeCursor = 0; }
+    void beginFrame(){ m_ringCursor = 0; m_cubeCursor = 0; ++m_frameIndex; }
 
     void render(ID3D12GraphicsCommandList* cmd,
                 const std::vector<MeshEntry*>& meshes,
-                const Matrix* viewProjs, int cascadeCount,
-                uint32_t resolution, int mode, float expK, float lightBleed);
+                Matrix* viewProjs, int cascadeCount,
+                uint32_t resolution, int mode, float expK, float lightBleed,
+                bool stagger);
 
     void renderSpot(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
                     const Matrix& spotViewProj, uint32_t resolution);
@@ -192,6 +193,10 @@ public:
     }
     bool gpuVpReady() const { return m_vpReady; }
 
+    bool copyPreview(ID3D12GraphicsCommandList* cmd, int slice);
+    D3D12_GPU_DESCRIPTOR_HANDLE getPreviewSrvHandle() const { return m_previewSrv.getGPUHandle(0); }
+    bool hasPreview() const { return m_previewValid; }
+
 private:
     bool ensureResources(uint32_t resolution, int cascadeCount);
     bool ensureMomentResources();
@@ -199,9 +204,10 @@ private:
     bool ensurePointResources(uint32_t resolution);
     bool ensureReduceResources(uint32_t depthW, uint32_t depthH);
     void renderDepth(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
-                     const Matrix* viewProjs, int cascadeCount);
+                     const Matrix* viewProjs, int cascadeCount, const bool* skip);
     void renderMoments(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
-                       const Matrix* viewProjs, int cascadeCount, int mode, float expK);
+                       const Matrix* viewProjs, int cascadeCount, int mode, float expK,
+                       const bool* skip);
     void blurMoments(ID3D12GraphicsCommandList* cmd);
 
     ShadowMapPipeline m_pipeline;
@@ -261,4 +267,13 @@ private:
     bool m_vpReady = false;
     ComPtr<ID3D12Resource> m_lightMatrixCB;
     void* m_lightMatrixMapped = nullptr;
+
+    uint32_t m_frameIndex = 0;
+    Matrix m_cachedVP[ShadowMath::kMaxCascades];
+    bool m_cacheValid[ShadowMath::kMaxCascades] = {};
+
+    ComPtr<ID3D12Resource> m_previewTex;
+    ShaderTableDesc m_previewSrv;
+    uint32_t m_previewRes = 0;
+    bool m_previewValid = false;
 };

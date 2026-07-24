@@ -425,6 +425,8 @@ bool ShadowMapPass::ensureResources(uint32_t resolution, int cascadeCount){
 
     m_resolution = resolution;
     m_cascadeCount = cascadeCount;
+    for (auto& v : m_cacheValid) v = false;
+    m_previewValid = false;
 
     D3D12_RESOURCE_DESC dd = {};
     dd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -479,17 +481,31 @@ bool ShadowMapPass::ensureResources(uint32_t resolution, int cascadeCount){
 
 void ShadowMapPass::render(ID3D12GraphicsCommandList* cmd,
                            const std::vector<MeshEntry*>& meshes,
-                           const Matrix* viewProjs, int cascadeCount,
-                           uint32_t resolution, int mode, float expK, float lightBleed){
+                           Matrix* viewProjs, int cascadeCount,
+                           uint32_t resolution, int mode, float expK, float lightBleed,
+                           bool stagger){
     if (!ensureResources(resolution, cascadeCount)) return;
     cascadeCount = m_cascadeCount;
 
+    static const uint32_t kInterval[ShadowMath::kMaxCascades] = { 1, 1, 2, 4 };
+    bool skip[ShadowMath::kMaxCascades] = {};
+    for (int c = 0; c < cascadeCount; ++c){
+        const bool due = !stagger || (m_frameIndex % kInterval[c] == 0);
+        if (!due && m_cacheValid[c]){
+            skip[c] = true;
+            viewProjs[c] = m_cachedVP[c];
+        } else {
+            m_cachedVP[c] = viewProjs[c];
+            m_cacheValid[c] = true;
+        }
+    }
+
     BEGIN_EVENT(cmd, L"Shadow Map Pass");
     if (mode == 0){
-        renderDepth(cmd, meshes, viewProjs, cascadeCount);
+        renderDepth(cmd, meshes, viewProjs, cascadeCount, skip);
     } else {
         if (ensureMomentResources()){
-            renderMoments(cmd, meshes, viewProjs, cascadeCount, mode, expK);
+            renderMoments(cmd, meshes, viewProjs, cascadeCount, mode, expK, skip);
             blurMoments(cmd);
         }
     }
@@ -498,7 +514,8 @@ void ShadowMapPass::render(ID3D12GraphicsCommandList* cmd,
 
 void ShadowMapPass::renderDepth(ID3D12GraphicsCommandList* cmd,
                                 const std::vector<MeshEntry*>& meshes,
-                                const Matrix* viewProjs, int cascadeCount){
+                                const Matrix* viewProjs, int cascadeCount,
+                                const bool* skip){
     if (m_readable){
         auto toDepth = CD3DX12_RESOURCE_BARRIER::Transition(
             m_depthTexture.Get(),
@@ -518,6 +535,7 @@ void ShadowMapPass::renderDepth(ID3D12GraphicsCommandList* cmd,
 
     const UINT mvpSz = cbAlign(sizeof(Matrix));
     for (int c = 0; c < cascadeCount; ++c){
+        if (skip && skip[c]) continue;
         D3D12_CPU_DESCRIPTOR_HANDLE dsv = m_dsvSlice[c].getCPUHandle();
         cmd->OMSetRenderTargets(0, nullptr, FALSE, &dsv);
         cmd->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
@@ -616,7 +634,7 @@ bool ShadowMapPass::ensureMomentResources(){
 void ShadowMapPass::renderMoments(ID3D12GraphicsCommandList* cmd,
                                   const std::vector<MeshEntry*>& meshes,
                                   const Matrix* viewProjs, int cascadeCount,
-                                  int mode, float expK){
+                                  int mode, float expK, const bool* skip){
     if (m_readable){
         auto toDepth = CD3DX12_RESOURCE_BARRIER::Transition(
             m_depthTexture.Get(),
@@ -654,6 +672,7 @@ void ShadowMapPass::renderMoments(ID3D12GraphicsCommandList* cmd,
 
     const UINT mvpSz = cbAlign(sizeof(Matrix));
     for (int c = 0; c < cascadeCount; ++c){
+        if (skip && skip[c]) continue;
         D3D12_CPU_DESCRIPTOR_HANDLE rtv = m_momentRtv[c].getCPUHandle();
         D3D12_CPU_DESCRIPTOR_HANDLE dsv = m_dsvSlice[c].getCPUHandle();
         cmd->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
@@ -1134,4 +1153,76 @@ void ShadowMapPass::renderDirectionalGpu(ID3D12GraphicsCommandList* cmd,
     cmd->ResourceBarrier(1, &toSrv);
     m_readable = true;
     END_EVENT(cmd);
+}
+
+bool ShadowMapPass::copyPreview(ID3D12GraphicsCommandList* cmd, int slice){
+    if (!m_depthTexture || !m_readable) return false;
+    if (slice < 0) slice = 0;
+    if (slice >= m_cascadeCount) slice = m_cascadeCount - 1;
+
+    if (!m_previewTex || m_previewRes != m_resolution){
+        if (m_previewTex){
+            app->getGPUResources()->deferRelease(m_previewTex);
+            m_previewTex.Reset();
+            m_previewSrv.reset();
+        }
+        m_previewRes = m_resolution;
+        m_previewValid = false;
+
+        D3D12_RESOURCE_DESC dd = {};
+        dd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        dd.Width = m_resolution;
+        dd.Height = m_resolution;
+        dd.DepthOrArraySize = 1;
+        dd.MipLevels = 1;
+        dd.Format = DXGI_FORMAT_R32_FLOAT;
+        dd.SampleDesc = { 1, 0 };
+        auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+        HRESULT hr = app->getD3D12()->getDevice()->CreateCommittedResource(
+            &hp, D3D12_HEAP_FLAG_NONE, &dd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+            nullptr, IID_PPV_ARGS(&m_previewTex));
+        if (FAILED(hr)){
+            LOG("ShadowMapPass: preview create failed 0x%08X", hr);
+            return false;
+        }
+        m_previewTex->SetName(L"ShadowMap_Preview");
+
+        m_previewSrv = app->getShaderDescriptors()->allocTable("ShadowMap_PreviewSRV");
+        if (!m_previewSrv.isValid()) return false;
+        D3D12_SHADER_RESOURCE_VIEW_DESC s = {};
+        s.Format = DXGI_FORMAT_R32_FLOAT;
+        s.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        s.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(
+            D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_0,
+            D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_0,
+            D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_0,
+            D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_1);
+        s.Texture2D.MipLevels = 1;
+        m_previewSrv.createSRV(m_previewTex.Get(), 0, &s);
+    }
+
+    const UINT sub = (UINT)slice;
+    CD3DX12_RESOURCE_BARRIER pre[] = {
+        CD3DX12_RESOURCE_BARRIER::Transition(m_depthTexture.Get(),
+            D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+            D3D12_RESOURCE_STATE_COPY_SOURCE, sub),
+        CD3DX12_RESOURCE_BARRIER::Transition(m_previewTex.Get(),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST),
+    };
+    cmd->ResourceBarrier(2, pre);
+
+    CD3DX12_TEXTURE_COPY_LOCATION dst(m_previewTex.Get(), 0);
+    CD3DX12_TEXTURE_COPY_LOCATION src(m_depthTexture.Get(), sub);
+    cmd->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+
+    CD3DX12_RESOURCE_BARRIER post[] = {
+        CD3DX12_RESOURCE_BARRIER::Transition(m_depthTexture.Get(),
+            D3D12_RESOURCE_STATE_COPY_SOURCE,
+            D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, sub),
+        CD3DX12_RESOURCE_BARRIER::Transition(m_previewTex.Get(),
+            D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+    };
+    cmd->ResourceBarrier(2, post);
+    m_previewValid = true;
+    return true;
 }

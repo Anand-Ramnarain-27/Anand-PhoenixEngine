@@ -31,6 +31,10 @@ public:
     bool shadowDebugCascades = false;
     bool shadowGpuFrustum = false;
     float shadowAmbientStrength = 0.5f;
+    bool shadowTightFrustum = true;
+    bool shadowStaggerCascades = false;
+    bool shadowShowPreview = false;
+    int shadowPreviewCascade = 0;
 };
 
 class ComponentPointLight : public Component {

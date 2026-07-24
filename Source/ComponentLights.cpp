@@ -67,6 +67,12 @@ void ComponentDirectionalLight::onEditor(){
         ImGui::SetItemTooltip("Z-partition the view into N shadow maps (Lecture 16).");
         ImGui::SliderFloat("Cascade Blend", &shadowCascadeLambda, 0.f, 1.f);
         ImGui::SetItemTooltip("Linear (0) vs logarithmic (1) split distribution.");
+        ImGui::Checkbox("Tight Frustum (mesh bounds)", &shadowTightFrustum);
+        ImGui::SetItemTooltip("Clamp the shadow range to the visible meshes' bounds (Lecture 15).");
+        ImGui::Checkbox("Stagger Distant Cascades", &shadowStaggerCascades);
+        ImGui::SetItemTooltip("Update far cascades every 2nd/4th frame (Lecture 16 optimization).");
+        ImGui::Checkbox("Show Shadow Map", &shadowShowPreview);
+        ImGui::SetItemTooltip("Open a window previewing the shadow map texture.");
         ImGui::Checkbox("Debug Cascades", &shadowDebugCascades);
         ImGui::SetItemTooltip("Tint each cascade region a different colour.");
         ImGui::Checkbox("GPU Frustum (parallel reduction)", &shadowGpuFrustum);
@@ -98,6 +104,8 @@ void ComponentDirectionalLight::onSave(std::string& outJson) const{
     doc.AddMember("shadowDebugCascades", shadowDebugCascades, a);
     doc.AddMember("shadowGpuFrustum", shadowGpuFrustum, a);
     doc.AddMember("shadowAmbientStrength", shadowAmbientStrength, a);
+    doc.AddMember("shadowTightFrustum", shadowTightFrustum, a);
+    doc.AddMember("shadowStaggerCascades", shadowStaggerCascades, a);
     StringBuffer buf; Writer<StringBuffer> w(buf); doc.Accept(w);
     outJson = buf.GetString();
 }
@@ -123,6 +131,8 @@ void ComponentDirectionalLight::onLoad(const std::string& jsonStr){
     if (doc.HasMember("shadowDebugCascades")) shadowDebugCascades = doc["shadowDebugCascades"].GetBool();
     if (doc.HasMember("shadowGpuFrustum")) shadowGpuFrustum = doc["shadowGpuFrustum"].GetBool();
     if (doc.HasMember("shadowAmbientStrength")) shadowAmbientStrength = doc["shadowAmbientStrength"].GetFloat();
+    if (doc.HasMember("shadowTightFrustum")) shadowTightFrustum = doc["shadowTightFrustum"].GetBool();
+    if (doc.HasMember("shadowStaggerCascades")) shadowStaggerCascades = doc["shadowStaggerCascades"].GetBool();
 }
 
 ComponentPointLight::ComponentPointLight(GameObject* owner) : Component(owner){}

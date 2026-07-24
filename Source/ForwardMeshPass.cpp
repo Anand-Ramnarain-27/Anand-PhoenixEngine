@@ -193,6 +193,21 @@ bool ForwardMeshPass::createFallbackTextures(ID3D12Device* device){
 		writeFallbackTex2DSRV(m_fallbackBRDFSRV, 0, m_fallbackTex2D.Get());
 	}
 
+	m_fallbackShadowSRV = app->getShaderDescriptors()->allocTable("MeshPass_FallbackShadow");
+	if (!m_fallbackShadowSRV.isValid()){
+		LOG("ForwardMeshPass: fallback shadow SRV alloc failed");
+		return false;
+	}
+	{
+		D3D12_SHADER_RESOURCE_VIEW_DESC sv = {};
+		sv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		sv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+		sv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		sv.Texture2DArray.MipLevels = 1;
+		sv.Texture2DArray.ArraySize = 1;
+		m_fallbackShadowSRV.createSRV(m_fallbackTex2D.Get(), 0, &sv);
+	}
+
 	return true;
 }
 
@@ -226,14 +241,25 @@ void ForwardMeshPass::uploadLights(const FrameLightData& lights){
 	copy(m_spotLightMapped, lights.spotLights.data(), lights.spotLights.size(), sizeof(MeshPipeline::GPUSpotLight), MeshPipeline::MAX_SPOT_LIGHTS);
 }
 
-void ForwardMeshPass::uploadPerFrameCB(const FrameLightData& lights, const Vector3& cameraPos, uint32_t envRoughLevels){
-	MeshPipeline::CbPerFrame cb;
+void ForwardMeshPass::uploadPerFrameCB(const FrameLightData& lights, const Vector3& cameraPos,
+                                       uint32_t envRoughLevels, const ShadowRenderData& shadow){
+	MeshPipeline::CbPerFrame cb = {};
 	cb.dirLightCount = static_cast<uint32_t>(std::min(lights.dirLights.size(), (size_t)MeshPipeline::MAX_DIR_LIGHTS));
 	cb.pointLightCount = static_cast<uint32_t>(std::min(lights.pointLights.size(), (size_t)MeshPipeline::MAX_POINT_LIGHTS));
 	cb.spotLightCount = static_cast<uint32_t>(std::min(lights.spotLights.size(), (size_t)MeshPipeline::MAX_SPOT_LIGHTS));
 	cb.envRoughnessLevels = envRoughLevels;
 	cb.cameraPosition = cameraPos;
 	cb.framePad = 0;
+
+	const bool shadowUsable = shadow.enabled && shadow.mode == 0 && !shadow.gpuMode
+	                          && shadow.srv.ptr != 0;
+	const int cascadeCount = std::max(1, std::min(shadow.cascadeCount, ShadowMath::kMaxCascades));
+	for (int c = 0; c < ShadowMath::kMaxCascades; ++c)
+		cb.dirLightViewProj[c] = shadow.lightViewProj[c].Transpose();
+	const float texel = shadow.resolution ? 1.0f / float(shadow.resolution) : 0.0f;
+	cb.dirShadowParams0 = Vector4(shadow.bias, shadow.normalBias, shadow.pcfRadius, texel);
+	cb.dirShadowParams1 = Vector4(shadowUsable ? 1.0f : 0.0f, 0.0f, float(cascadeCount), 0.0f);
+
 	memcpy(m_perFrameMapped, &cb, sizeof(cb));
 }
 
@@ -272,22 +298,25 @@ void ForwardMeshPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& view
 
 void ForwardMeshPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
                              const FrameLightData& lights, const Vector3& cameraPos,
-                             const Matrix& viewProj, const EnvironmentSystem* env, int samplerType){
-	renderWithPSO(cmd, m_pipeline.getPSO(), meshes, lights, cameraPos, viewProj, env, samplerType,
-	              0, MAX_OPAQUE);
+                             const Matrix& viewProj, const EnvironmentSystem* env,
+                             const ShadowRenderData& shadow, int samplerType){
+	renderWithPSO(cmd, m_pipeline.getPSO(), meshes, lights, cameraPos, viewProj, env, shadow,
+	              samplerType, 0, MAX_OPAQUE);
 }
 
 void ForwardMeshPass::renderTransparent(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
                                         const FrameLightData& lights, const Vector3& cameraPos,
-                                        const Matrix& viewProj, const EnvironmentSystem* env, int samplerType){
-	renderWithPSO(cmd, m_pipeline.getTransparentPSO(), meshes, lights, cameraPos, viewProj, env, samplerType,
-	              MAX_OPAQUE, MAX_TRANSPARENT);
+                                        const Matrix& viewProj, const EnvironmentSystem* env,
+                                        const ShadowRenderData& shadow, int samplerType){
+	renderWithPSO(cmd, m_pipeline.getTransparentPSO(), meshes, lights, cameraPos, viewProj, env, shadow,
+	              samplerType, MAX_OPAQUE, MAX_TRANSPARENT);
 }
 
 void ForwardMeshPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pso,
                                     const std::vector<MeshEntry*>& meshes,
                                     const FrameLightData& lights, const Vector3& cameraPos,
                                     const Matrix& viewProj, const EnvironmentSystem* env,
+                                    const ShadowRenderData& shadow,
                                     int samplerType, UINT slotBase, UINT maxSlots){
 	if (meshes.empty()) return;
 
@@ -296,7 +325,7 @@ void ForwardMeshPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12Pipeli
 	uint32_t roughLevels = 0;
 	if (env && env->hasIBL()) roughLevels = EnvironmentMap::NUM_ROUGHNESS_LEVELS;
 
-	uploadPerFrameCB(lights, cameraPos, roughLevels);
+	uploadPerFrameCB(lights, cameraPos, roughLevels, shadow);
 
 	cmd->SetPipelineState(pso);
 	cmd->SetGraphicsRootSignature(m_pipeline.getRootSig());
@@ -321,6 +350,12 @@ void ForwardMeshPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12Pipeli
 
 	cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_SAMPLER,
 	                                     samplerHeap->getGPUHandle(static_cast<ModuleSamplerHeap::Type>(samplerType)));
+
+	const bool shadowUsable = shadow.enabled && shadow.mode == 0 && !shadow.gpuMode
+	                          && shadow.srv.ptr != 0;
+	cmd->SetGraphicsRootDescriptorTable(MeshPipeline::SLOT_SHADOW_MAP,
+	                                     shadowUsable ? shadow.srv
+	                                                  : m_fallbackShadowSRV.getGPUHandle(0));
 
 	UINT drawn = 0;
 	for (MeshEntry* entry : meshes){

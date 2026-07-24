@@ -238,6 +238,7 @@ private:
     void drawDockspace();
     void drawMenuBar();
     void drawStatusBar();
+    void drawShadowMapPreview();
     void handleDialogs();
     void flushExitPrefabEdit();
     void handleShortcuts();
