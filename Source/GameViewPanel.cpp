@@ -14,7 +14,8 @@
 #include <functional>
 
 GameViewPanel::GameViewPanel(ModuleEditor* editor) : ViewportPanel(editor){
-    viewport.rt = std::make_unique<RenderTexture>("GameView", DXGI_FORMAT_R8G8B8A8_UNORM, Vector4(0.05f, 0.05f, 0.1f, 1.0f), DXGI_FORMAT_D32_FLOAT, 1.0f);
+    viewport.rt = std::make_unique<RenderTexture>("GameView", kSceneColorFormat, Vector4(0.05f, 0.05f, 0.1f, 1.0f), DXGI_FORMAT_D32_FLOAT, 1.0f);
+    viewport.display = std::make_unique<RenderTexture>("GameViewDisplay", DXGI_FORMAT_R8G8B8A8_UNORM, Vector4(0.05f, 0.05f, 0.1f, 1.0f));
 }
 
 void GameViewPanel::draw(){

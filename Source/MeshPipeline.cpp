@@ -83,7 +83,7 @@ bool MeshPipeline::createPSO(ID3D12Device* device, bool useMSAA){
 	desc.VS = { vs.data(), vs.size() };
 	desc.PS = { ps.data(), ps.size() };
 	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	desc.RTVFormats[0] = kSceneColorFormat;
 	desc.NumRenderTargets = 1;
 	desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	desc.SampleDesc = { useMSAA ? UINT(4) : UINT(1), 0 };
@@ -111,7 +111,7 @@ bool MeshPipeline::createTransparentPSO(ID3D12Device* device){
 	desc.VS = { vs.data(), vs.size() };
 	desc.PS = { ps.data(), ps.size() };
 	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	desc.RTVFormats[0] = kSceneColorFormat;
 	desc.NumRenderTargets = 1;
 	desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	desc.SampleDesc = { 1, 0 };

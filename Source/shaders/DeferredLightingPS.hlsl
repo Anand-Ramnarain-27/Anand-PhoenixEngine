@@ -4,7 +4,6 @@
 #include "ImageBasedLighting.hlsli"
 #include "Samplers.hlsli"
 #include "Shadows.hlsli"
-#include "Tonemap.hlsli"
 
 #define TILE_SIZE        16
 #define MAX_LIGHTS_PER_TILE 64
@@ -158,9 +157,6 @@ float4 main(float4 svPos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
 
     if (ShadowParams1.w > 0.5f && shadowCascade >= 0)
         color *= CascadeDebugTint(shadowCascade);
-
-    color = PBRNeutralTonemap(color);
-    color = LinearToSRGB(color);
 
     return float4(color, 1.0f);
 }

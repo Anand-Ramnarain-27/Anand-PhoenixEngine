@@ -34,6 +34,11 @@ void log(const char file[], int line, const char* format, ...);
 
 #define FRAMES_IN_FLIGHT 3
 
+// HDR scene color format shared by every pass that draws into a viewport's
+// RenderTexture (SceneView/GameView), so lighting, forward and post-process
+// passes all target the same format. Tonemapping brings it back to LDR.
+static constexpr DXGI_FORMAT kSceneColorFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+
 #include "debug_draw.hpp"
 inline const ddVec3& ddConvert(const Vector3& v){ return reinterpret_cast<const ddVec3&>(v); }
 inline const ddMat4x4& ddConvert(const Matrix& m){ return reinterpret_cast<const ddMat4x4&>(m); }

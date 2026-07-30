@@ -67,7 +67,7 @@ bool SkyboxRenderer::createPipeline(ID3D12Device* device, bool useMSAA){
 	psoDesc.PS = { ps.data(), ps.size() };
 	psoDesc.InputLayout = { &layout, 1 };
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	psoDesc.RTVFormats[0] = kSceneColorFormat;
 	psoDesc.NumRenderTargets = 1;
 	psoDesc.SampleDesc.Count = useMSAA ? 4u : 1u;
 	psoDesc.SampleMask = UINT_MAX;

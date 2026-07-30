@@ -251,6 +251,7 @@
     <ClInclude Include="DeferredLightingPass.h" />
     <ClInclude Include="LightCullingPass.h" />
     <ClInclude Include="DecalPass.h" />
+    <ClInclude Include="TonemapPass.h" />
     <ClInclude Include="ComponentDecal.h" />
     <ClInclude Include="BillboardPass.h" />
     <ClInclude Include="ComponentBillboard.h" />
@@ -443,6 +444,7 @@
     <ClCompile Include="DeferredLightingPass.cpp" />
     <ClCompile Include="LightCullingPass.cpp" />
     <ClCompile Include="DecalPass.cpp" />
+    <ClCompile Include="TonemapPass.cpp" />
     <ClCompile Include="ComponentDecal.cpp" />
     <ClCompile Include="BillboardPass.cpp" />
     <ClCompile Include="ComponentBillboard.cpp" />
@@ -805,6 +807,13 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
     </FxCompile>
     <FxCompile Include="shaders\MipChainPS.hlsl">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="shaders\TonemapPS.hlsl">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>

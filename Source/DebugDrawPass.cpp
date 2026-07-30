@@ -160,7 +160,7 @@ public:
         textPSODesc.VS = { textVS->GetBufferPointer(), textVS->GetBufferSize() };
         textPSODesc.PS = { textPS->GetBufferPointer(), textPS->GetBufferSize() };
         textPSODesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-        textPSODesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+        textPSODesc.RTVFormats[0] = kSceneColorFormat;
         textPSODesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
         textPSODesc.SampleDesc = { useMSAA ? UINT(4) : UINT(1) , 0 };
         textPSODesc.SampleMask = 0xffffffff;
@@ -216,7 +216,7 @@ public:
         pointPSODesc.VS = { linePointVS->GetBufferPointer(), linePointVS->GetBufferSize() };
         pointPSODesc.PS = { linePointPS->GetBufferPointer(), linePointPS->GetBufferSize() };
         pointPSODesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
-        pointPSODesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+        pointPSODesc.RTVFormats[0] = kSceneColorFormat;
         pointPSODesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
         pointPSODesc.SampleDesc = { useMSAA ? UINT(4) : UINT(1), 0 };
         pointPSODesc.SampleMask = 0xffffffff;

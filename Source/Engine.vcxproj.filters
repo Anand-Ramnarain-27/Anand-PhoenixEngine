@@ -302,6 +302,9 @@
     <ClCompile Include="DecalPass.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
+    <ClCompile Include="TonemapPass.cpp">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClCompile>
     <ClCompile Include="BillboardPass.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
@@ -848,6 +851,9 @@
     <ClInclude Include="DecalPass.h">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
+    <ClInclude Include="TonemapPass.h">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClInclude>
     <ClInclude Include="BillboardPass.h">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
@@ -1152,6 +1158,9 @@
     <FxCompile Include="shaders\DecalPS.hlsl">
       <Filter>Shaders\Deferred</Filter>
     </FxCompile>
+    <FxCompile Include="shaders\TonemapPS.hlsl">
+      <Filter>Shaders\PostProcess</Filter>
+    </FxCompile>
     <FxCompile Include="shaders\BillboardVS.hlsl">
       <Filter>Shaders\Forward</Filter>
     </FxCompile>
@@ -1356,6 +1365,9 @@
     </Filter>
     <Filter Include="Shaders\Compute">
       <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000044}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\PostProcess">
+      <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000045}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

@@ -158,6 +158,9 @@ bool ModuleEditor::init(){
         m_particlePass.reset();
     }
 
+    m_tonemapPass = std::make_unique<TonemapPass>();
+    if (!m_tonemapPass->init(device)) return false;
+
     m_envSystem = std::make_unique<EnvironmentSystem>();
     if (!m_envSystem->init(device, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT, false)) return false;
 
@@ -223,6 +226,7 @@ bool ModuleEditor::cleanUp(){
     m_gbufferPass.reset();
     m_deferredLightingPass.reset();
     m_decalPass.reset();
+    m_tonemapPass.reset();
     if (m_skinningPass){ m_skinningPass->cleanUp(); m_skinningPass.reset(); }
     m_gpuQueryHeap.Reset();
     m_gpuReadback.Reset();

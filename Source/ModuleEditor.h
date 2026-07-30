@@ -22,6 +22,7 @@
 #include "ParticlePass.h"
 #include "SkinningPass.h"
 #include "RenderOctree.h"
+#include "TonemapPass.h"
 
 #include <memory>
 #include <vector>
@@ -91,6 +92,7 @@ public:
 
     GBufferPass* getGBufferPass() const { return m_gbufferPass.get(); }
     DeferredLightingPass* getDeferredLightingPass() const { return m_deferredLightingPass.get(); }
+    TonemapPass* getTonemapPass() const { return m_tonemapPass.get(); }
 
     void log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
     GameObject* createEmptyGameObject(const char* name = "Empty", GameObject* parent = nullptr);
@@ -149,6 +151,7 @@ private:
     std::unique_ptr<BillboardPass> m_billboardPass;
     std::unique_ptr<TrailPass> m_trailPass;
     std::unique_ptr<ParticlePass> m_particlePass;
+    std::unique_ptr<TonemapPass> m_tonemapPass;
     std::unique_ptr<EnvironmentSystem> m_envSystem;
     std::unique_ptr<HotReloadManager> m_hotReload;
     std::unique_ptr<SkinningPass> m_skinningPass;

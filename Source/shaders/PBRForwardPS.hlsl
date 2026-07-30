@@ -1,6 +1,5 @@
 #include "ForwardPass.hlsli"
 #include "Lighting.hlsli"
-#include "Tonemap.hlsli"
 #include "ImageBasedLighting.hlsli"
 
 float4 main(
@@ -60,6 +59,5 @@ float4 main(
 
     colour += SampleEmissive(InstanceMaterial, EmissiveTex, texCoord);
 
-    float3 ldr = PBRNeutralTonemap(colour);
-    return float4(LinearToSRGB(ldr), 1.0);
+    return float4(colour, 1.0);
 }

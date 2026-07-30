@@ -9,6 +9,7 @@ class SceneManager;
 
 struct EditorViewport {
     std::unique_ptr<RenderTexture> rt;
+    std::unique_ptr<RenderTexture> display;
     ImVec2 size = {};
     ImVec2 pos = {};
     ImVec2 lastSize = {};
@@ -16,7 +17,7 @@ struct EditorViewport {
     uint32_t newWidth = 0;
     uint32_t newHeight = 0;
 
-    bool isReady() const { return rt && rt->isValid() && size.x > 4 && size.y > 4; }
+    bool isReady() const { return rt && rt->isValid() && display && display->isValid() && size.x > 4 && size.y > 4; }
 
     void checkResize(){
         if (size.x > 4 && size.y > 4 && (size.x != lastSize.x || size.y != lastSize.y)){
