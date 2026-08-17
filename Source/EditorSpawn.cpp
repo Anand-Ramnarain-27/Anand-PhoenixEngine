@@ -98,6 +98,17 @@ void ModuleEditor::setupDefaultScene(){
     }
 }
 
+void ModuleEditor::applySkyboxFromSettings(){
+    if (!m_sceneManager || !m_envSystem) return;
+    const EditorSceneSettings::Skybox& sky = m_sceneManager->getSettings().skybox;
+    if (!sky.enabled || sky.cubemapPath.empty()) return;
+
+    std::string ext = fs::path(sky.cubemapPath).extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    if (ext == ".hdr") m_envSystem->loadHDR(sky.cubemapPath);
+    else m_envSystem->load(sky.cubemapPath);
+}
+
 GameObject* ModuleEditor::createEmptyGameObject(const char* name, GameObject* parent){
     SceneGraph* scene = getActiveModuleScene();
     if (!scene) return nullptr;
@@ -193,7 +204,7 @@ void ModuleEditor::spawnAssetAtPath(const std::string& path){
         if (GameObject* go = spawnModel(path)) m_selection.object = go;
     }
     else if (ext == ".json"){
-        if (m_sceneManager && m_sceneManager->loadScene(path)) log(("Loaded scene: " + path).c_str(), EditorColors::Success);
+        if (m_sceneManager && m_sceneManager->loadScene(path)){ applySkyboxFromSettings(); log(("Loaded scene: " + path).c_str(), EditorColors::Success); }
     }
     else if (ext == ".prefab"){
         if (!scene) return;

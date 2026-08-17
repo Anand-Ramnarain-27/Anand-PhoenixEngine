@@ -103,7 +103,7 @@ bool SceneManager::saveCurrentScene(const std::string& filePath){
     if (m_editingPrefab){ LOG("SceneManager: Cannot save scene while editing a prefab"); return false; }
     auto* ms = activeScene ? activeScene->getModuleScene() : nullptr;
     if (!ms){ LOG("SceneManager: No active scene to save"); return false; }
-    return SceneSerializer::SaveScene(ms, filePath);
+    return SceneSerializer::SaveScene(ms, filePath, &settings);
 }
 
 bool SceneManager::loadScene(const std::string& filePath){
@@ -111,7 +111,7 @@ bool SceneManager::loadScene(const std::string& filePath){
     auto* ms = activeScene ? activeScene->getModuleScene() : nullptr;
     if (!ms){ LOG("SceneManager: No active scene to load into"); return false; }
     app->getD3D12()->flush();
-    return SceneSerializer::LoadScene(filePath, ms);
+    return SceneSerializer::LoadScene(filePath, ms, &settings);
 }
 
 void SceneManager::enterPrefabEdit(SceneGraph* prefabScene, const std::string& prefabName){

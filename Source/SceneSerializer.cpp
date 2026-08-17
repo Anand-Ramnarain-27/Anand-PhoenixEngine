@@ -28,7 +28,7 @@ static uint32_t readUID(const Value& node, const char* key){
     return 0;
 }
 
-bool SceneSerializer::SaveScene(const SceneGraph* scene, const std::string& filePath){
+bool SceneSerializer::SaveScene(const SceneGraph* scene, const std::string& filePath, const EditorSceneSettings* settings){
     if (!scene) return false;
     try{
         Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
@@ -76,6 +76,35 @@ bool SceneSerializer::SaveScene(const SceneGraph* scene, const std::string& file
 
         for (auto* child : scene->getRoot()->getChildren()) serialize(child);
         sceneObj.AddMember("GameObjects", goArray, a);
+
+        if (settings){
+            Value set(kObjectType);
+
+            Value skyObj(kObjectType);
+            skyObj.AddMember("enabled", settings->skybox.enabled, a);
+            skyObj.AddMember("cubemapPath", Value(settings->skybox.cubemapPath.c_str(), a), a);
+            set.AddMember("Skybox", skyObj, a);
+
+            Value ambObj(kObjectType);
+            Value ambColor(kArrayType); pushVec3(ambColor, settings->ambient.color, a);
+            ambObj.AddMember("color", ambColor, a);
+            ambObj.AddMember("intensity", settings->ambient.intensity, a);
+            set.AddMember("Ambient", ambObj, a);
+
+            set.AddMember("GravityY", settings->gravityY, a);
+
+            Value ppObj(kObjectType);
+            ppObj.AddMember("exposure", settings->postProcess.exposure, a);
+            ppObj.AddMember("bloomEnabled", settings->postProcess.bloomEnabled, a);
+            ppObj.AddMember("bloomThreshold", settings->postProcess.bloomThreshold, a);
+            ppObj.AddMember("bloomIntensity", settings->postProcess.bloomIntensity, a);
+            ppObj.AddMember("lutEnabled", settings->postProcess.lutEnabled, a);
+            ppObj.AddMember("lutPath", Value(settings->postProcess.lutPath.c_str(), a), a);
+            set.AddMember("PostProcess", ppObj, a);
+
+            sceneObj.AddMember("Settings", set, a);
+        }
+
         doc.AddMember("Scene", sceneObj, a);
 
         StringBuffer sb;
@@ -87,7 +116,7 @@ bool SceneSerializer::SaveScene(const SceneGraph* scene, const std::string& file
     catch (...){ LOG("SceneSerializer: Unknown save exception"); return false; }
 }
 
-bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene){
+bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, EditorSceneSettings* settings){
     if (!scene) return false;
     auto* fs = app->getFileSystem();
     if (!fs->Exists(filePath.c_str())){ LOG("SceneSerializer: File not found: %s", filePath.c_str()); return false; }
@@ -159,6 +188,41 @@ bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene){
         for (auto* child : go->getChildren()) resolveSkins(child);
     };
     resolveSkins(scene->getRoot());
+
+    if (settings){
+        EditorSceneSettings defaults;
+        settings->skybox = defaults.skybox;
+        settings->ambient = defaults.ambient;
+        settings->gravityY = defaults.gravityY;
+        settings->postProcess = defaults.postProcess;
+
+        if (doc["Scene"].HasMember("Settings")){
+            const Value& set = doc["Scene"]["Settings"];
+            if (set.HasMember("Skybox")){
+                const Value& sk = set["Skybox"];
+                if (sk.HasMember("enabled")) settings->skybox.enabled = sk["enabled"].GetBool();
+                if (sk.HasMember("cubemapPath")) settings->skybox.cubemapPath = sk["cubemapPath"].GetString();
+            }
+            if (set.HasMember("Ambient")){
+                const Value& amb = set["Ambient"];
+                if (amb.HasMember("color")){
+                    const auto& c = amb["color"];
+                    settings->ambient.color = { c[0].GetFloat(), c[1].GetFloat(), c[2].GetFloat() };
+                }
+                if (amb.HasMember("intensity")) settings->ambient.intensity = amb["intensity"].GetFloat();
+            }
+            if (set.HasMember("GravityY")) settings->gravityY = set["GravityY"].GetFloat();
+            if (set.HasMember("PostProcess")){
+                const Value& pp = set["PostProcess"];
+                if (pp.HasMember("exposure")) settings->postProcess.exposure = pp["exposure"].GetFloat();
+                if (pp.HasMember("bloomEnabled")) settings->postProcess.bloomEnabled = pp["bloomEnabled"].GetBool();
+                if (pp.HasMember("bloomThreshold")) settings->postProcess.bloomThreshold = pp["bloomThreshold"].GetFloat();
+                if (pp.HasMember("bloomIntensity")) settings->postProcess.bloomIntensity = pp["bloomIntensity"].GetFloat();
+                if (pp.HasMember("lutEnabled")) settings->postProcess.lutEnabled = pp["lutEnabled"].GetBool();
+                if (pp.HasMember("lutPath")) settings->postProcess.lutPath = pp["lutPath"].GetString();
+            }
+        }
+    }
 
     return true;
 }

@@ -348,7 +348,7 @@ void AssetBrowserPanel::drawItemContextMenu(int idx){
         }
         if (e.ext == ".json"){
             if (ImGui::MenuItem("Load Scene"))
-                if (auto* sm = m_editor->getSceneManager(); sm && sm->loadScene(e.path)) m_editor->log(("Loaded: " + e.name).c_str(), EditorColors::Success);
+                if (auto* sm = m_editor->getSceneManager(); sm && sm->loadScene(e.path)){ m_editor->applySkyboxFromSettings(); m_editor->log(("Loaded: " + e.name).c_str(), EditorColors::Success); }
             ImGui::Separator();
         }
         if (e.ext == ".gltf" || e.ext == ".fbx" || e.ext == ".obj"){
@@ -612,7 +612,7 @@ void AssetBrowserPanel::spawnAsset(const std::string& path){
         if (GameObject* go = m_editor->spawnModel(path)) sel.object = go;
     }
     else if (ext == ".json"){
-        if (auto* sm = m_editor->getSceneManager(); sm && sm->loadScene(path)) m_editor->log(("Loaded scene: " + path).c_str(), EditorColors::Success);
+        if (auto* sm = m_editor->getSceneManager(); sm && sm->loadScene(path)){ m_editor->applySkyboxFromSettings(); m_editor->log(("Loaded scene: " + path).c_str(), EditorColors::Success); }
     }
     else if (ext == ".prefab") prefabInstantiate(fs::path(path).stem().string());
     else if (ext == ".dds" || ext == ".png" || ext == ".jpg" || ext == ".jpeg"){
