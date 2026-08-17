@@ -1,14 +1,14 @@
 #include "Globals.h"
 #include "API/Phoenix_Scene.h"
 #include "Application.h"
-#include "ModuleEditor.h"
+#include "RuntimeCore.h"
 #include "SceneGraph.h"
 
 namespace Phoenix {
 
 static SceneGraph* getScene(){
-    if (!app || !app->getEditor()) return nullptr;
-    return app->getEditor()->getActiveModuleScene();
+    if (!app || !app->getRuntimeCore()) return nullptr;
+    return app->getRuntimeCore()->getActiveModuleScene();
 }
 
 GameObject* Scene::Find(const std::string& name){

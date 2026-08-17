@@ -354,10 +354,10 @@
     <ClCompile Include="ModuleEditor.cpp">
       <Filter>Engine\Editor</Filter>
     </ClCompile>
-    <ClCompile Include="EditorRenderer.cpp">
-      <Filter>Engine\Editor</Filter>
+    <ClCompile Include="RuntimeCore.cpp">
+      <Filter>Engine\Core</Filter>
     </ClCompile>
-    <ClCompile Include="EditorSceneGather.cpp">
+    <ClCompile Include="EditorRenderer.cpp">
       <Filter>Engine\Editor</Filter>
     </ClCompile>
     <ClCompile Include="EditorMenus.cpp">
@@ -926,6 +926,9 @@
     <!-- ============================================================ -->
     <ClInclude Include="ModuleEditor.h">
       <Filter>Engine\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="RuntimeCore.h">
+      <Filter>Engine\Core</Filter>
     </ClInclude>
     <ClInclude Include="EditorSelection.h">
       <Filter>Engine\Editor</Filter>

@@ -4,7 +4,7 @@
 #include "ComponentMesh.h"
 #include "GameObject.h"
 #include "Application.h"
-#include "ModuleEditor.h"
+#include "RuntimeCore.h"
 #include "SceneManager.h"
 #include <imgui.h>
 #include <algorithm>
@@ -20,8 +20,8 @@ void ComponentRigidbody::update(float dt){
     if (isStatic || mass <= 0.f) return;
 
     float grav = kGravityAccel;
-    if (app && app->getEditor() && app->getEditor()->getSceneManager())
-        grav = app->getEditor()->getSceneManager()->getSettings().gravityY;
+    if (app && app->getRuntimeCore() && app->getRuntimeCore()->getSceneManager())
+        grav = app->getRuntimeCore()->getSceneManager()->getSettings().gravityY;
     if (useGravity) velocity.y += grav * gravityScale * dt;
 
     float dampFactor = std::max(0.f, 1.f - linearDamping * dt);

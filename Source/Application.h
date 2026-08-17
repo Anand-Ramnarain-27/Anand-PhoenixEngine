@@ -21,6 +21,7 @@ class ModuleRTDescriptors;
 class ModuleDSDescriptors;
 class ModuleAssets;
 class ModuleStaticBuffer;
+class RuntimeCore;
 
 class Application {
 public:
@@ -39,6 +40,7 @@ public:
     ModuleFileSystem* getFileSystem(){ return fileSystem; }
     ModuleCamera* getCamera(){ return camera; }
     ModuleEditor* getEditor(){ return editor; }
+    RuntimeCore* getRuntimeCore(){ return runtimeCore; }
     ModuleShaderDescriptors* getShaderDescriptors(){ return shaderDescriptors; }
     ModuleRingBuffer* getRingBuffer(){ return ringBuffer; }
     ModuleRTDescriptors* getRTDescriptors(){ return rtDescriptors; }
@@ -76,6 +78,7 @@ private:
     ModuleAssets* assets = nullptr;
     ModuleEditor* editor = nullptr;
     ModuleStaticBuffer* staticBuffer = nullptr;
+    RuntimeCore* runtimeCore = nullptr;
 
     uint64_t lastMilis = 0;
     TickList tickList = {};

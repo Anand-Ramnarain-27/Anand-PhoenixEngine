@@ -64,6 +64,16 @@ class ComponentMesh;
 class SceneGraph;
 class FileDialog;
 class EngineDropTarget;
+class ShadowMapPass;
+class ForwardMeshPass;
+class MeshPipeline;
+class GBufferPass;
+class DeferredLightingPass;
+class TonemapPass;
+class BloomPass;
+class PostProcessChain;
+class ColorLUT;
+class HotReloadManager;
 
 class ModuleEditor : public Module {
 public:
@@ -75,17 +85,19 @@ public:
     void preRender() override;
     void render() override;
 
-    SceneManager* getSceneManager() const { return m_sceneManager.get(); }
-    ForwardMeshPass* getMeshRenderPass() const { return m_meshRenderPass.get(); }
-    MeshPipeline* getMeshPipeline() const { return m_meshRenderPass ? &m_meshRenderPass->getPipeline() : nullptr; }
-    EnvironmentSystem* getEnvSystem() const { return m_envSystem.get(); }
-    DebugDrawPass* getDebugDraw() const { return m_debugDraw.get(); }
-    CollisionSystem* getCollisionSystem() const { return m_collisionSystem.get(); }
-    CollisionResponse* getCollisionResponse() const { return m_collisionResponse.get(); }
+    // Forwarded to Application::getRuntimeCore() — RuntimeCore is the single owner of
+    // the scene/render state, shared with the standalone Player build.
+    SceneManager* getSceneManager() const;
+    ForwardMeshPass* getMeshRenderPass() const;
+    MeshPipeline* getMeshPipeline() const;
+    EnvironmentSystem* getEnvSystem() const;
+    DebugDrawPass* getDebugDraw() const;
+    CollisionSystem* getCollisionSystem() const;
+    CollisionResponse* getCollisionResponse() const;
     EditorSelection& getSelection(){ return m_selection; }
     double getGpuFrameTimeMs() const { return m_gpuFrameTimeMs; }
     bool isGpuTimerReady() const { return m_gpuTimerReady; }
-    int getFrameDrawCalls() const { return m_frameDrawCalls; }
+    int getFrameDrawCalls() const;
     int getSamplerType() const { return m_samplerType; }
     void setSamplerType(int t){ m_samplerType = t; }
     SceneGraph* getActiveModuleScene()const;
@@ -93,12 +105,13 @@ public:
 
     void renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras, RenderTexture* outputRT = nullptr);
 
-    GBufferPass* getGBufferPass() const { return m_gbufferPass.get(); }
-    DeferredLightingPass* getDeferredLightingPass() const { return m_deferredLightingPass.get(); }
-    TonemapPass* getTonemapPass() const { return m_tonemapPass.get(); }
-    BloomPass* getBloomPass() const { return m_bloomPass.get(); }
-    PostProcessChain* getPostProcessChain() const { return m_postProcessChain.get(); }
-    ColorLUT* getColorLUT() const { return m_colorLUT.get(); }
+    GBufferPass* getGBufferPass() const;
+    DeferredLightingPass* getDeferredLightingPass() const;
+    ShadowMapPass* getShadowMapPass() const;
+    TonemapPass* getTonemapPass() const;
+    BloomPass* getBloomPass() const;
+    PostProcessChain* getPostProcessChain() const;
+    ColorLUT* getColorLUT() const;
 
     void log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
     GameObject* createEmptyGameObject(const char* name = "Empty", GameObject* parent = nullptr);
@@ -140,31 +153,12 @@ public:
     void exitPrefabEdit();
     PrefabEditSession* getPrefabSession(){ return &m_prefabSession; }
 
-    HotReloadManager* getHotReloadManager() const { return m_hotReload.get(); }
+    HotReloadManager* getHotReloadManager() const;
     void onScriptFileEvent(const std::string& absPath, FileWatcher::Event ev);
     void notifyScriptComponentsReload(const std::string& dllPath);
 
 private:
     std::unique_ptr<ImGuiPass> m_imguiPass;
-    std::unique_ptr<DebugDrawPass> m_debugDraw;
-    std::unique_ptr<CollisionSystem> m_collisionSystem;
-    std::unique_ptr<CollisionResponse> m_collisionResponse;
-    std::unique_ptr<SceneManager> m_sceneManager;
-    std::unique_ptr<ForwardMeshPass> m_meshRenderPass;
-    std::unique_ptr<GBufferPass> m_gbufferPass;
-    std::unique_ptr<DeferredLightingPass> m_deferredLightingPass;
-    std::unique_ptr<ShadowMapPass> m_shadowMapPass;
-    std::unique_ptr<DecalPass> m_decalPass;
-    std::unique_ptr<BillboardPass> m_billboardPass;
-    std::unique_ptr<TrailPass> m_trailPass;
-    std::unique_ptr<ParticlePass> m_particlePass;
-    std::unique_ptr<TonemapPass> m_tonemapPass;
-    std::unique_ptr<BloomPass> m_bloomPass;
-    std::unique_ptr<PostProcessChain> m_postProcessChain;
-    std::unique_ptr<ColorLUT> m_colorLUT;
-    std::unique_ptr<EnvironmentSystem> m_envSystem;
-    std::unique_ptr<HotReloadManager> m_hotReload;
-    std::unique_ptr<SkinningPass> m_skinningPass;
 
     FileWatcher m_scriptWatcher;
 
@@ -175,9 +169,6 @@ private:
     double m_gpuFrameTimeMs = 0.0;
     bool m_gpuTimerReady = false;
     float m_memoryUpdateTimer = 0.0f;
-
-    int m_frameDrawCalls = 0;
-    int m_frameMeshCount = 0;
 
     std::vector<std::unique_ptr<EditorPanel>> m_ownedPanels;
     std::vector<EditorPanel*> m_panels;
@@ -200,9 +191,6 @@ private:
     }
 
     EditorSelection m_selection;
-    FrameLightData m_frameLights;
-
-    RenderOctree m_renderOctree;
     int m_samplerType = 0;
     bool m_firstFrame = true;
 
@@ -229,22 +217,6 @@ private:
     bool m_pendingExitPrefab = false;
 
     ComPtr<ID3D12Resource> createUploadBuffer(ID3D12Device*, SIZE_T, const wchar_t*);
-    void gatherLights(GameObject* node, FrameLightData& out) const;
-    void gatherDecals(GameObject* node, std::vector<DecalInstance>& out,
-                      const Matrix& view, const Matrix& proj,
-                      uint32_t w, uint32_t h) const;
-    void gatherBillboards(GameObject* node, std::vector<BillboardInstance>& out,
-                          const Matrix& view, const Matrix& viewProj,
-                          const Vector3& camPos, const Vector3& camRight, const Vector3& camUp) const;
-    void gatherParticleSystems(GameObject* node, std::vector<BillboardInstance>& out,
-                               const Matrix& viewProj,
-                               const Vector3& camPos, const Vector3& camRight, const Vector3& camUp) const;
-    void gatherTrails(GameObject* node, std::vector<TrailInstance>& out,
-                      const Matrix& viewProj, const Vector3& camPos) const;
-    void gatherGPUParticles(GameObject* node, std::vector<ParticleDrawRequest>& out,
-                            const Vector3& camPos, const Vector3& camRight, const Vector3& camUp,
-                            float elapsedTime) const;
-    void debugDrawLights(SceneGraph* scene, float lightSize);
     void updateMemory();
     void updateEffectsInEditMode(float dt);
     void handleNewScenePopup(ID3D12GraphicsCommandList* cmd);

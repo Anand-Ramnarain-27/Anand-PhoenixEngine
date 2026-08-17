@@ -8,7 +8,10 @@
 #include "ModuleResources.h"
 #include "ModuleSamplerHeap.h"
 #include "ModuleCamera.h"
+#ifdef PHOENIX_EDITOR
 #include "ModuleEditor.h"
+#endif
+#include "RuntimeCore.h"
 #include "ModuleShaderDescriptors.h"
 #include "ModuleRingBuffer.h"
 #include "ModuleRTDescriptors.h"
@@ -30,7 +33,13 @@ Application::Application(int argc, wchar_t** argv, void* hWnd){
     modules.push_back(dsDescriptors = new ModuleDSDescriptors());
     modules.push_back(ringBuffer = new ModuleRingBuffer());
     modules.push_back(assets = new ModuleAssets());
+
+#ifdef PHOENIX_EDITOR
+    modules.push_back(runtimeCore = new RuntimeCore(/*standalone=*/false));
     modules.push_back(editor = new ModuleEditor());
+#else
+    modules.push_back(runtimeCore = new RuntimeCore(/*standalone=*/true));
+#endif
 
     staticBuffer = new ModuleStaticBuffer();
 }

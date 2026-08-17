@@ -1,6 +1,7 @@
 ﻿#include "Globals.h"
 #include "ModuleEditor.h"
 #include "Application.h"
+#include "RuntimeCore.h"
 #include <ole2.h>
 #include "DragDropManager.h"
 #include "EngineDropTarget.h"
@@ -91,19 +92,15 @@ bool ModuleEditor::init(){
     m_descTable = descs->allocTable();
 
     ComPtr<ID3D12Device2> device2;
-    ComPtr<ID3D12Device4> device4;
     device->QueryInterface(IID_PPV_ARGS(&device2));
-    device->QueryInterface(IID_PPV_ARGS(&device4));
 
     m_imguiPass = std::make_unique<ImGuiPass>(device2.Get(), d3d12->getHWnd(), m_descTable.getCPUHandle(), m_descTable.getGPUHandle());
-    m_debugDraw = std::make_unique<DebugDrawPass>(device4.Get(), d3d12->getDrawCommandQueue(), false);
-    m_collisionSystem = std::make_unique<CollisionSystem>();
-    m_collisionResponse = std::make_unique<CollisionResponse>();
-    m_sceneManager = std::make_unique<SceneManager>();
-    m_meshRenderPass = std::make_unique<ForwardMeshPass>();
-    m_hotReload = std::make_unique<HotReloadManager>();
 
-    m_hotReload->setReloadCallback([this](const std::string& dllPath){
+    // RuntimeCore (constructed/init'd earlier in Application's module list) already
+    // owns the scene manager, render passes and a HotReloadManager with any DLLs
+    // present at startup loaded. The editor only adds live hot-reload on top.
+    RuntimeCore* runtimeCore = app->getRuntimeCore();
+    runtimeCore->getHotReloadManager()->setReloadCallback([this](const std::string& dllPath){
         notifyScriptComponentsReload(dllPath);
         });
 
@@ -115,65 +112,6 @@ bool ModuleEditor::init(){
             onScriptFileEvent(absPath, ev);
         });
 
-    auto existing = app->getFileSystem()->GetFilesInDirectory(scriptDir.c_str(), ".dll");
-    for (const auto& path : existing)
-        m_hotReload->loadLibrary(path);
-
-    if (!m_meshRenderPass->init(device)) return false;
-
-    m_skinningPass = std::make_unique<SkinningPass>();
-    if (!m_skinningPass->init(device)){
-        m_skinningPass.reset();
-    }
-
-    m_gbufferPass = std::make_unique<GBufferPass>();
-    if (!m_gbufferPass->init(device)) return false;
-
-    m_shadowMapPass = std::make_unique<ShadowMapPass>();
-    if (!m_shadowMapPass->init(device)) return false;
-
-    m_deferredLightingPass = std::make_unique<DeferredLightingPass>();
-    if (!m_deferredLightingPass->init(device)) return false;
-
-    m_decalPass = std::make_unique<DecalPass>();
-    if (!m_decalPass->init(device)){
-        LOG("ModuleEditor: DecalPass init failed (non-fatal)");
-        m_decalPass.reset();
-    }
-
-    m_billboardPass = std::make_unique<BillboardPass>();
-    if (!m_billboardPass->init(device)){
-        LOG("ModuleEditor: BillboardPass init failed (non-fatal)");
-        m_billboardPass.reset();
-    }
-
-    m_trailPass = std::make_unique<TrailPass>();
-    if (!m_trailPass->init(device)){
-        LOG("ModuleEditor: TrailPass init failed (non-fatal)");
-        m_trailPass.reset();
-    }
-
-    m_particlePass = std::make_unique<ParticlePass>();
-    if (!m_particlePass->init(device)){
-        LOG("ModuleEditor: ParticlePass init failed (non-fatal)");
-        m_particlePass.reset();
-    }
-
-    m_tonemapPass = std::make_unique<TonemapPass>();
-    if (!m_tonemapPass->init(device)) return false;
-
-    m_bloomPass = std::make_unique<BloomPass>();
-    if (!m_bloomPass->init(device)) return false;
-
-    m_postProcessChain = std::make_unique<PostProcessChain>();
-    if (!m_postProcessChain->init(device)) return false;
-
-    m_colorLUT = std::make_unique<ColorLUT>();
-
-    m_envSystem = std::make_unique<EnvironmentSystem>();
-    if (!m_envSystem->init(device, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT, false)) return false;
-
-    m_sceneManager->setScene(std::make_unique<EmptyScene>(), device);
     setupDefaultScene();
 
     D3D12_QUERY_HEAP_DESC qd = { D3D12_QUERY_HEAP_TYPE_TIMESTAMP, 2, 0 };
@@ -229,29 +167,38 @@ bool ModuleEditor::cleanUp(){
 
     m_ownedPanels.clear();
     m_panels.clear();
-    m_envSystem.reset();
     m_imguiPass.reset();
-    m_debugDraw.reset();
-    m_sceneManager.reset();
-    m_gbufferPass.reset();
-    m_deferredLightingPass.reset();
-    m_decalPass.reset();
-    m_tonemapPass.reset();
-    m_bloomPass.reset();
-    m_postProcessChain.reset();
-    m_colorLUT.reset();
-    if (m_skinningPass){ m_skinningPass->cleanUp(); m_skinningPass.reset(); }
     m_gpuQueryHeap.Reset();
     m_gpuReadback.Reset();
 
     m_scriptWatcher.stop();
-    m_hotReload->unloadAll();
 
     return true;
 }
 
 SceneGraph* ModuleEditor::getActiveModuleScene() const{
-    return m_sceneManager ? m_sceneManager->getModuleScene() : nullptr;
+    return app->getRuntimeCore()->getActiveModuleScene();
+}
+
+SceneManager* ModuleEditor::getSceneManager() const{ return app->getRuntimeCore()->getSceneManager(); }
+ForwardMeshPass* ModuleEditor::getMeshRenderPass() const{ return app->getRuntimeCore()->getMeshRenderPass(); }
+MeshPipeline* ModuleEditor::getMeshPipeline() const{ return app->getRuntimeCore()->getMeshPipeline(); }
+EnvironmentSystem* ModuleEditor::getEnvSystem() const{ return app->getRuntimeCore()->getEnvSystem(); }
+DebugDrawPass* ModuleEditor::getDebugDraw() const{ return app->getRuntimeCore()->getDebugDraw(); }
+CollisionSystem* ModuleEditor::getCollisionSystem() const{ return app->getRuntimeCore()->getCollisionSystem(); }
+CollisionResponse* ModuleEditor::getCollisionResponse() const{ return app->getRuntimeCore()->getCollisionResponse(); }
+HotReloadManager* ModuleEditor::getHotReloadManager() const{ return app->getRuntimeCore()->getHotReloadManager(); }
+int ModuleEditor::getFrameDrawCalls() const{ return app->getRuntimeCore()->getFrameDrawCalls(); }
+GBufferPass* ModuleEditor::getGBufferPass() const{ return app->getRuntimeCore()->getGBufferPass(); }
+DeferredLightingPass* ModuleEditor::getDeferredLightingPass() const{ return app->getRuntimeCore()->getDeferredLightingPass(); }
+ShadowMapPass* ModuleEditor::getShadowMapPass() const{ return app->getRuntimeCore()->getShadowMapPass(); }
+TonemapPass* ModuleEditor::getTonemapPass() const{ return app->getRuntimeCore()->getTonemapPass(); }
+BloomPass* ModuleEditor::getBloomPass() const{ return app->getRuntimeCore()->getBloomPass(); }
+PostProcessChain* ModuleEditor::getPostProcessChain() const{ return app->getRuntimeCore()->getPostProcessChain(); }
+ColorLUT* ModuleEditor::getColorLUT() const{ return app->getRuntimeCore()->getColorLUT(); }
+
+void ModuleEditor::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras, RenderTexture* outputRT){
+    app->getRuntimeCore()->renderSceneWithCamera(cmd, view, proj, w, h, editorExtras, outputRT);
 }
 
 void ModuleEditor::log(const char* text, const ImVec4& color){
@@ -293,7 +240,7 @@ ImVec2 ModuleEditor::getSceneViewSize() const{
 
 
 void ModuleEditor::stopPlay(){
-    if (m_sceneManager) m_sceneManager->stop();
+    if (SceneManager* sm = getSceneManager()) sm->stop();
     m_selection.clear();
     m_undoStack.clear();
     m_redoStack.clear();
@@ -302,9 +249,10 @@ void ModuleEditor::stopPlay(){
 
 
 void ModuleEditor::enterPrefabEdit(const std::string& prefabName){
-    if (!m_sceneManager) return;
+    SceneManager* sm = getSceneManager();
+    if (!sm) return;
     app->getD3D12()->flush();
-    if (m_sceneManager->isEditingPrefab()) m_sceneManager->exitPrefabEdit();
+    if (sm->isEditingPrefab()) sm->exitPrefabEdit();
     m_prefabSession.clear();
     m_prefabSession.isolatedScene = std::make_unique<SceneGraph>();
     GameObject* loaded = PrefabManager::instantiatePrefab(prefabName, m_prefabSession.isolatedScene.get());
@@ -317,12 +265,13 @@ void ModuleEditor::enterPrefabEdit(const std::string& prefabName){
     m_prefabSession.rootObject = loaded;
     m_prefabSession.active = true;
     m_selection.object = loaded;
-    m_sceneManager->enterPrefabEdit(m_prefabSession.isolatedScene.get(), prefabName);
+    sm->enterPrefabEdit(m_prefabSession.isolatedScene.get(), prefabName);
     log(("Editing prefab: " + prefabName).c_str(), EditorColors::Active);
 }
 
 void ModuleEditor::exitPrefabEdit(){
-    if (!m_sceneManager || !m_sceneManager->isEditingPrefab()) return;
+    SceneManager* sm = getSceneManager();
+    if (!sm || !sm->isEditingPrefab()) return;
     m_pendingExitPrefab = true;
 }
 
@@ -331,7 +280,7 @@ void ModuleEditor::flushExitPrefabEdit(){
     m_pendingExitPrefab = false;
     app->getD3D12()->flush();
     m_selection.clear();
-    m_sceneManager->exitPrefabEdit();
+    getSceneManager()->exitPrefabEdit();
     m_prefabSession.clear();
     log("Exited prefab edit.", EditorColors::Muted);
 }
@@ -342,14 +291,15 @@ void ModuleEditor::onScriptFileEvent(const std::string& absPath, FileWatcher::Ev
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
     if (ext != ".dll") return;
 
+    HotReloadManager* hotReload = getHotReloadManager();
     switch (ev){
     case FileWatcher::Event::Added:
         log("[ScriptWatch] New DLL: %s", EditorColors::Success);
-        m_hotReload->loadLibrary(absPath);
+        hotReload->loadLibrary(absPath);
         break;
     case FileWatcher::Event::Modified:
         log("[ScriptWatch] DLL changed: %s — reloading", EditorColors::White);
-        m_hotReload->reloadLibrary(absPath);
+        hotReload->reloadLibrary(absPath);
         break;
     case FileWatcher::Event::Deleted:
         log("[ScriptWatch] DLL removed: %s", EditorColors::Danger);
@@ -361,12 +311,13 @@ void ModuleEditor::notifyScriptComponentsReload(const std::string& ){
     auto* scene = getActiveModuleScene();
     if (!scene) return;
 
+    HotReloadManager* hotReload = getHotReloadManager();
     std::function<void(GameObject*)> visit = [&](GameObject* node){
         if (!node) return;
         for (const auto& comp : node->getComponents()){
             if (comp->getType() == Component::Type::Script){
                 auto* sc = static_cast<ComponentScript*>(comp.get());
-                sc->onDllReloaded(m_hotReload.get());
+                sc->onDllReloaded(hotReload);
             }
         }
         for (auto* child : node->getChildren())
