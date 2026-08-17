@@ -24,7 +24,11 @@ static constexpr float kDeg2Rad = 0.0174532925f;
 
 SceneViewPanel::SceneViewPanel(ModuleEditor* editor) : ViewportPanel(editor){
     viewport.rt = std::make_unique<RenderTexture>("SceneView", kSceneColorFormat, Vector4(0.1f, 0.1f, 0.1f, 1.0f), DXGI_FORMAT_D32_FLOAT, 1.0f);
+    viewport.rtScratch = std::make_unique<RenderTexture>("SceneViewRtScratch", kSceneColorFormat, Vector4(0.1f, 0.1f, 0.1f, 1.0f));
     viewport.display = std::make_unique<RenderTexture>("SceneViewDisplay", DXGI_FORMAT_R8G8B8A8_UNORM, Vector4(0.1f, 0.1f, 0.1f, 1.0f));
+    viewport.displayScratch = std::make_unique<RenderTexture>("SceneViewDisplayScratch", DXGI_FORMAT_R8G8B8A8_UNORM, Vector4(0.1f, 0.1f, 0.1f, 1.0f));
+    for (int i = 0; i < EditorViewport::kNumBloomMips; ++i)
+        viewport.bloomMips[i] = std::make_unique<RenderTexture>("SceneViewBloomMip", kSceneColorFormat, Vector4(0.f, 0.f, 0.f, 1.0f));
 }
 
 void SceneViewPanel::draw(){

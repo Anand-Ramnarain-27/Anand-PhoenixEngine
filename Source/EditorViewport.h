@@ -8,8 +8,13 @@ class ModuleD3D12;
 class SceneManager;
 
 struct EditorViewport {
+    static constexpr int kNumBloomMips = 3;
+
     std::unique_ptr<RenderTexture> rt;
+    std::unique_ptr<RenderTexture> rtScratch;
     std::unique_ptr<RenderTexture> display;
+    std::unique_ptr<RenderTexture> displayScratch;
+    std::unique_ptr<RenderTexture> bloomMips[kNumBloomMips];
     ImVec2 size = {};
     ImVec2 pos = {};
     ImVec2 lastSize = {};

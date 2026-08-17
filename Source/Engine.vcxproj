@@ -252,6 +252,10 @@
     <ClInclude Include="LightCullingPass.h" />
     <ClInclude Include="DecalPass.h" />
     <ClInclude Include="TonemapPass.h" />
+    <ClInclude Include="BloomPass.h" />
+    <ClInclude Include="PostProcessChain.h" />
+    <ClInclude Include="ColorLUT.h" />
+    <ClInclude Include="PostProcessPanel.h" />
     <ClInclude Include="ComponentDecal.h" />
     <ClInclude Include="BillboardPass.h" />
     <ClInclude Include="ComponentBillboard.h" />
@@ -445,6 +449,10 @@
     <ClCompile Include="LightCullingPass.cpp" />
     <ClCompile Include="DecalPass.cpp" />
     <ClCompile Include="TonemapPass.cpp" />
+    <ClCompile Include="BloomPass.cpp" />
+    <ClCompile Include="PostProcessChain.cpp" />
+    <ClCompile Include="ColorLUT.cpp" />
+    <ClCompile Include="PostProcessPanel.cpp" />
     <ClCompile Include="ComponentDecal.cpp" />
     <ClCompile Include="BillboardPass.cpp" />
     <ClCompile Include="ComponentBillboard.cpp" />
@@ -579,6 +587,7 @@
     <None Include="shaders\Noise3d.hlsli" />
     <None Include="shaders\Noise.hlsli" />
     <None Include="shaders\Decal.hlsli" />
+    <None Include="shaders\PostProcessEffect.hlsli" />
     <None Include="SimpleMath.inl" />
   </ItemGroup>
   <ItemGroup>
@@ -814,6 +823,41 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
     </FxCompile>
     <FxCompile Include="shaders\TonemapPS.hlsl">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="shaders\ChromaticAberrationPS.hlsl">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="shaders\FXAAPS.hlsl">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="shaders\BloomExtractPS.hlsl">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="shaders\KawaseDownsamplePS.hlsl">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="shaders\KawaseUpsamplePS.hlsl">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>

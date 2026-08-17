@@ -112,6 +112,7 @@ void ModuleEditor::drawDockspace(){
         ImGui::DockBuilderSplitNode(left, ImGuiDir_Down, 0.22f, &leftBot, &leftTop);
         ImGui::DockBuilderDockWindow("Hierarchy", leftTop);
         ImGui::DockBuilderDockWindow("Scene Settings", leftBot);
+        ImGui::DockBuilderDockWindow("Post Process", leftBot);
 
         ImGui::DockBuilderDockWindow("Viewport", mid);
         ImGui::DockBuilderDockWindow("Game", mid);

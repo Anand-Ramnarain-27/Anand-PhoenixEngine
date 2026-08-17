@@ -50,6 +50,7 @@
 #include "InspectorPanel.h"
 #include "AssetBrowserPanel.h"
 #include "SceneSettingsPanel.h"
+#include "PostProcessPanel.h"
 #include "PrefabManager.h"
 #include "FileWatcher.h"
 #include "ResourceMaterial.h"
@@ -161,6 +162,14 @@ bool ModuleEditor::init(){
     m_tonemapPass = std::make_unique<TonemapPass>();
     if (!m_tonemapPass->init(device)) return false;
 
+    m_bloomPass = std::make_unique<BloomPass>();
+    if (!m_bloomPass->init(device)) return false;
+
+    m_postProcessChain = std::make_unique<PostProcessChain>();
+    if (!m_postProcessChain->init(device)) return false;
+
+    m_colorLUT = std::make_unique<ColorLUT>();
+
     m_envSystem = std::make_unique<EnvironmentSystem>();
     if (!m_envSystem->init(device, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT, false)) return false;
 
@@ -188,6 +197,7 @@ bool ModuleEditor::init(){
     m_performance = addPanel<PerformancePanel>(this);
     m_assetBrowser = addPanel<AssetBrowserPanel>(this);
     addPanel<SceneSettingsPanel>(this);
+    addPanel<PostProcessPanel>(this);
     addPanel<ResourcesPanel>(this);
     addPanel<CollisionDebugPanel>(this);
     addPanel<GPUMemoryPanel>(this);
@@ -227,6 +237,9 @@ bool ModuleEditor::cleanUp(){
     m_deferredLightingPass.reset();
     m_decalPass.reset();
     m_tonemapPass.reset();
+    m_bloomPass.reset();
+    m_postProcessChain.reset();
+    m_colorLUT.reset();
     if (m_skinningPass){ m_skinningPass->cleanUp(); m_skinningPass.reset(); }
     m_gpuQueryHeap.Reset();
     m_gpuReadback.Reset();

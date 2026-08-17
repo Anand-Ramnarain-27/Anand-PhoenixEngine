@@ -29,4 +29,13 @@ struct EditorSceneSettings {
         bool enabled = false;
         std::string cubemapPath;
     } skybox;
+
+    struct PostProcess {
+        float exposure = 0.0f;
+        bool bloomEnabled = true;
+        float bloomThreshold = 1.0f;
+        float bloomIntensity = 0.6f;
+        bool lutEnabled = false;
+        std::string lutPath;
+    } postProcess;
 };

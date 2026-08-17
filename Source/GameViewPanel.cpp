@@ -15,7 +15,11 @@
 
 GameViewPanel::GameViewPanel(ModuleEditor* editor) : ViewportPanel(editor){
     viewport.rt = std::make_unique<RenderTexture>("GameView", kSceneColorFormat, Vector4(0.05f, 0.05f, 0.1f, 1.0f), DXGI_FORMAT_D32_FLOAT, 1.0f);
+    viewport.rtScratch = std::make_unique<RenderTexture>("GameViewRtScratch", kSceneColorFormat, Vector4(0.05f, 0.05f, 0.1f, 1.0f));
     viewport.display = std::make_unique<RenderTexture>("GameViewDisplay", DXGI_FORMAT_R8G8B8A8_UNORM, Vector4(0.05f, 0.05f, 0.1f, 1.0f));
+    viewport.displayScratch = std::make_unique<RenderTexture>("GameViewDisplayScratch", DXGI_FORMAT_R8G8B8A8_UNORM, Vector4(0.05f, 0.05f, 0.1f, 1.0f));
+    for (int i = 0; i < EditorViewport::kNumBloomMips; ++i)
+        viewport.bloomMips[i] = std::make_unique<RenderTexture>("GameViewBloomMip", kSceneColorFormat, Vector4(0.f, 0.f, 0.f, 1.0f));
 }
 
 void GameViewPanel::draw(){

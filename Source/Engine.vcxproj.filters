@@ -305,6 +305,18 @@
     <ClCompile Include="TonemapPass.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
+    <ClCompile Include="BloomPass.cpp">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClCompile>
+    <ClCompile Include="PostProcessChain.cpp">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClCompile>
+    <ClCompile Include="ColorLUT.cpp">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClCompile>
+    <ClCompile Include="PostProcessPanel.cpp">
+      <Filter>Engine\Editor\Panels</Filter>
+    </ClCompile>
     <ClCompile Include="BillboardPass.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
@@ -854,6 +866,18 @@
     <ClInclude Include="TonemapPass.h">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
+    <ClInclude Include="BloomPass.h">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClInclude>
+    <ClInclude Include="PostProcessChain.h">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClInclude>
+    <ClInclude Include="ColorLUT.h">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClInclude>
+    <ClInclude Include="PostProcessPanel.h">
+      <Filter>Engine\Editor\Panels</Filter>
+    </ClInclude>
     <ClInclude Include="BillboardPass.h">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
@@ -1079,6 +1103,9 @@
     <None Include="shaders\Decal.hlsli">
       <Filter>Shaders\Common</Filter>
     </None>
+    <None Include="shaders\PostProcessEffect.hlsli">
+      <Filter>Shaders\PostProcess</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Engine.rc">
@@ -1159,6 +1186,21 @@
       <Filter>Shaders\Deferred</Filter>
     </FxCompile>
     <FxCompile Include="shaders\TonemapPS.hlsl">
+      <Filter>Shaders\PostProcess</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ChromaticAberrationPS.hlsl">
+      <Filter>Shaders\PostProcess</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\FXAAPS.hlsl">
+      <Filter>Shaders\PostProcess</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\BloomExtractPS.hlsl">
+      <Filter>Shaders\PostProcess</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\KawaseDownsamplePS.hlsl">
+      <Filter>Shaders\PostProcess</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\KawaseUpsamplePS.hlsl">
       <Filter>Shaders\PostProcess</Filter>
     </FxCompile>
     <FxCompile Include="shaders\BillboardVS.hlsl">
