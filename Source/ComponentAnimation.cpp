@@ -1,6 +1,8 @@
 #include "Globals.h"
 #include "ComponentAnimation.h"
+#ifdef PHOENIX_EDITOR
 #include "StateMachineGraphEditor.h"
+#endif
 #include "ModuleFileSystem.h"
 #include "AssetBrowserPanel.h"
 #include "GameObject.h"
@@ -474,6 +476,7 @@ void ComponentAnimation::onEditor(){
 }
 
 void ComponentAnimation::drawStateMachineSection(){
+#ifdef PHOENIX_EDITOR
     namespace fs = std::filesystem;
     ImGui::Spacing();
     ImGui::SeparatorText("State Machine");
@@ -580,6 +583,7 @@ void ComponentAnimation::drawStateMachineSection(){
     } else {
         ImGui::TextDisabled("No SM loaded — drag a .json from the Asset Browser or use Pick");
     }
+#endif
 }
 
 

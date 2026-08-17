@@ -187,6 +187,7 @@ void ComponentParticleSystem::update(float dt){
 }
 
 void ComponentParticleSystem::onEditor(){
+#ifdef PHOENIX_EDITOR
     if (auto* ed = app->getEditor()){
         bool fxPlaying = ed->isEffectsPlaying();
         ImGui::SeparatorText("Effects Transport");
@@ -300,6 +301,7 @@ void ComponentParticleSystem::onEditor(){
     ImGui::Separator();
     int alive = (int)std::count_if(m_particles.begin(), m_particles.end(), [](const Particle& p){ return p.alive; });
     ImGui::Text("Live particles: %d / %d", alive, maxParticles);
+#endif
 }
 
 void ComponentParticleSystem::updateNoisePreview(){
