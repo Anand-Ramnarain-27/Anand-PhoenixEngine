@@ -2,7 +2,6 @@
 
 namespace Phoenix {
 
-// Maps to DirectXTK Keyboard::Keys / Windows VK_* values.
 enum class Key : int {
     None      = 0,
     Back      = 0x08,

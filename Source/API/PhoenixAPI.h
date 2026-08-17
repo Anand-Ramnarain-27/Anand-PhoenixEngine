@@ -1,21 +1,5 @@
 #pragma once
 
-// ============================================================
-//  PhoenixAPI.h  --  single include for all Phoenix scripts
-//
-//  Usage in your script .h:
-//      #include "PhoenixAPI.h"
-//
-//  Gives you:
-//    Phoenix::Input    - keyboard / mouse
-//    Phoenix::Time     - deltaTime, fps, timeSinceStart
-//    Phoenix::Debug    - Log, LogWarning, LogError, LogFormat
-//    Phoenix::Scene    - Find, Spawn, Destroy
-//    Phoenix::Vec3/Quat/Color/Mat4  - math types
-//    Phoenix::Key / Phoenix::MouseButton  - input enums
-//    GetTransform / GetRigidbody / GetAnimation / Position ...
-// ============================================================
-
 #include "API/Phoenix_Types.h"
 #include "API/Phoenix_Keys.h"
 #include "API/Phoenix_Debug.h"
@@ -26,8 +10,6 @@
 #include "IScript.h"
 #include "ScriptExport.h"
 
-// Pull math types into the global namespace so scripts can write
-// Vec3, Quat etc. without the Phoenix:: prefix.
 using Phoenix::Vec2;
 using Phoenix::Vec3;
 using Phoenix::Vec4;

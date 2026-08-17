@@ -6,7 +6,6 @@
 #include "ComponentParticleSystem.h"
 #include "ComponentScript.h"
 
-// Null-safe one-liner helpers so scripts don't need to call go->getComponent<T>() directly.
 
 namespace Phoenix {
 

@@ -2,7 +2,6 @@
 #include <cstdio>
 #include <cstdarg>
 
-// Forward-declare the engine log function so we don't need to pull in Globals.h
 void log(const char file[], int line, const char* format, ...);
 
 namespace Phoenix {
@@ -20,7 +19,6 @@ struct Debug {
         ::log("Script", 0, "[ERROR] %s", msg);
     }
 
-    // printf-style: Debug::LogFormat("Health: %d / %d", hp, maxHp);
     static void LogFormat(const char* fmt, ...){
         char buf[512];
         va_list args;
