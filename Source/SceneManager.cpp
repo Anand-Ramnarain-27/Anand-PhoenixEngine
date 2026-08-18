@@ -8,6 +8,7 @@
 #include "ComponentMesh.h"
 #include "ComponentAnimation.h"
 #include "SceneSerializer.h"
+#include "BuildSettings.h"
 
 SceneManager::~SceneManager(){ clearScene(); }
 
@@ -112,6 +113,12 @@ bool SceneManager::loadScene(const std::string& filePath){
     if (!ms){ LOG("SceneManager: No active scene to load into"); return false; }
     app->getD3D12()->flush();
     return SceneSerializer::LoadScene(filePath, ms, &settings);
+}
+
+bool SceneManager::loadSceneByBuildIndex(int index, const BuildSettings& buildSettings){
+    std::string path = buildSettings.getScenePathAtBuildIndex(index);
+    if (path.empty()){ LOG("SceneManager: No scene at build index %d", index); return false; }
+    return loadScene(path);
 }
 
 void SceneManager::enterPrefabEdit(SceneGraph* prefabScene, const std::string& prefabName){

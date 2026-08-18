@@ -263,6 +263,7 @@
     <ClInclude Include="ModuleCamera.h" />
     <ClInclude Include="ModuleD3D12.h" />
     <ClInclude Include="RuntimeCore.h" />
+    <ClInclude Include="BuildSettings.h" />
     <ClInclude Include="ModuleGPUResources.h" />
     <ClInclude Include="ModuleStaticBuffer.h" />
     <ClInclude Include="framework.h" />
@@ -415,6 +416,7 @@
     <ClCompile Include="ModuleCamera.cpp" />
     <ClCompile Include="ModuleD3D12.cpp" />
     <ClCompile Include="RuntimeCore.cpp" />
+    <ClCompile Include="BuildSettings.cpp" />
     <ClCompile Include="ModuleGPUResources.cpp" />
     <ClCompile Include="ModuleStaticBuffer.cpp" />
     <ClCompile Include="GamePad.cpp">

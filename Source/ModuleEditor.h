@@ -85,8 +85,6 @@ public:
     void preRender() override;
     void render() override;
 
-    // Forwarded to Application::getRuntimeCore() — RuntimeCore is the single owner of
-    // the scene/render state, shared with the standalone Player build.
     SceneManager* getSceneManager() const;
     ForwardMeshPass* getMeshRenderPass() const;
     MeshPipeline* getMeshPipeline() const;

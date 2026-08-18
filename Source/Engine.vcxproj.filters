@@ -357,6 +357,9 @@
     <ClCompile Include="RuntimeCore.cpp">
       <Filter>Engine\Core</Filter>
     </ClCompile>
+    <ClCompile Include="BuildSettings.cpp">
+      <Filter>Engine\Core</Filter>
+    </ClCompile>
     <ClCompile Include="EditorRenderer.cpp">
       <Filter>Engine\Editor</Filter>
     </ClCompile>
@@ -928,6 +931,9 @@
       <Filter>Engine\Editor</Filter>
     </ClInclude>
     <ClInclude Include="RuntimeCore.h">
+      <Filter>Engine\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="BuildSettings.h">
       <Filter>Engine\Core</Filter>
     </ClInclude>
     <ClInclude Include="EditorSelection.h">

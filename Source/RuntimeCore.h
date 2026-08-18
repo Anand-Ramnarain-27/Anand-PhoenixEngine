@@ -35,11 +35,6 @@ class GameObject;
 class SceneGraph;
 struct EditorViewport;
 
-// Owns everything both the Editor and a standalone Player need to boot a
-// scene, tick simulation, and render a frame — no ImGui/editor UI in here.
-// The Editor drives tick()/renderSceneWithCamera() explicitly (see
-// ModuleEditor); a standalone Player runs this as an ordinary Module and
-// lets preRender()/render() do the whole frame into the swapchain.
 class RuntimeCore : public Module {
 public:
     explicit RuntimeCore(bool standalone);
@@ -50,8 +45,6 @@ public:
     void preRender() override;
     void render() override;
 
-    // Advances scene simulation, culling and physics for one frame.
-    // aspectRatio <= 0 leaves the camera's current aspect ratio untouched.
     void tick(float dt, float aspectRatio);
 
     void renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj,
@@ -76,6 +69,8 @@ public:
 
     SceneGraph* getActiveModuleScene() const;
     int getFrameDrawCalls() const { return m_frameDrawCalls; }
+
+    void applySkyboxFromSettings();
 
 private:
     bool m_standalone;
@@ -106,11 +101,6 @@ private:
     int m_frameDrawCalls = 0;
     int m_frameMeshCount = 0;
 
-    // Standalone (Player) only: the swapchain-sized target renderSceneWithCamera
-    // draws into before the post-process chain resolves it to the backbuffer.
-    // Held behind a pointer (defined type only needed in RuntimeCore.cpp) so
-    // this header doesn't drag RenderTexture's full definition into every
-    // translation unit that just wants RuntimeCore's scene/pass accessors.
     std::unique_ptr<EditorViewport> m_playerViewport;
 
     void gatherLights(GameObject* node, FrameLightData& out) const;

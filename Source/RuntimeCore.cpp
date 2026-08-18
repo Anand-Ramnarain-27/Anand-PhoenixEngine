@@ -9,6 +9,7 @@
 #include "ModuleFileSystem.h"
 #include "ModuleStaticBuffer.h"
 #include "ModuleResources.h"
+#include "BuildSettings.h"
 #include "DebugDrawPass.h"
 #include "ComponentDecal.h"
 #include "ComponentBillboard.h"
@@ -147,6 +148,17 @@ bool RuntimeCore::init(){
             mh = std::max(1u, mh / 2);
             m_playerViewport->bloomMips[i]->resize(mw, mh);
         }
+
+        BuildSettings buildSettings;
+        const std::string bsPath = app->getFileSystem()->GetLibraryPath() + "BuildSettings.json";
+        if (buildSettings.Load(bsPath)){
+            if (m_sceneManager->loadSceneByBuildIndex(0, buildSettings))
+                applySkyboxFromSettings();
+            else
+                LOG("RuntimeCore: BuildSettings.json found but scene 0 failed to load");
+        } else {
+            LOG("RuntimeCore: No BuildSettings.json at '%s' — booting with an empty scene", bsPath.c_str());
+        }
     }
 
     return true;
@@ -170,6 +182,17 @@ bool RuntimeCore::cleanUp(){
 
 SceneGraph* RuntimeCore::getActiveModuleScene() const{
     return m_sceneManager ? m_sceneManager->getModuleScene() : nullptr;
+}
+
+void RuntimeCore::applySkyboxFromSettings(){
+    if (!m_sceneManager || !m_envSystem) return;
+    const EditorSceneSettings::Skybox& sky = m_sceneManager->getSettings().skybox;
+    if (!sky.enabled || sky.cubemapPath.empty()) return;
+
+    std::string ext = std::filesystem::path(sky.cubemapPath).extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    if (ext == ".hdr") m_envSystem->loadHDR(sky.cubemapPath);
+    else m_envSystem->load(sky.cubemapPath);
 }
 
 void RuntimeCore::tick(float dt, float aspectRatio){
@@ -254,10 +277,28 @@ void RuntimeCore::tick(float dt, float aspectRatio){
 
 void RuntimeCore::preRender(){
     if (!m_standalone) return;
-    const float dt = static_cast<float>(app->getElapsedMilis()) * 0.001f;
     ModuleD3D12* d3d12 = app->getD3D12();
-    const float aspect = (d3d12->getWindowHeight() > 0)
-        ? float(d3d12->getWindowWidth()) / float(d3d12->getWindowHeight()) : 0.f;
+
+    const uint32_t curW = d3d12->getWindowWidth();
+    const uint32_t curH = d3d12->getWindowHeight();
+    if (m_playerViewport && m_playerViewport->rt &&
+        (m_playerViewport->rt->getWidth() != curW || m_playerViewport->rt->getHeight() != curH) &&
+        curW > 0 && curH > 0){
+        d3d12->flush();
+        m_playerViewport->rt->resize(curW, curH);
+        m_playerViewport->rtScratch->resize(curW, curH);
+        m_playerViewport->display->resize(curW, curH);
+        m_playerViewport->displayScratch->resize(curW, curH);
+        uint32_t mw = curW, mh = curH;
+        for (int i = 0; i < EditorViewport::kNumBloomMips; ++i){
+            mw = std::max(1u, mw / 2);
+            mh = std::max(1u, mh / 2);
+            m_playerViewport->bloomMips[i]->resize(mw, mh);
+        }
+    }
+
+    const float dt = static_cast<float>(app->getElapsedMilis()) * 0.001f;
+    const float aspect = (curH > 0) ? float(curW) / float(curH) : 0.f;
     tick(dt, aspect);
 }
 
@@ -328,15 +369,14 @@ void RuntimeCore::renderStandaloneFrame(){
     if (chain && nPostGamma > 0)
         chain->run(cmd, PostProcessEffectDef::Domain::PostGamma, tonemapTarget, tonemapOther);
 
-    // Copy the resolved LDR frame into the swapchain backbuffer.
-    auto toCopySrc = CD3DX12_RESOURCE_BARRIER::Transition(tonemapTarget->getTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    auto toCopySrc = CD3DX12_RESOURCE_BARRIER::Transition(tonemapTarget->getTexture(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE);
     auto toCopyDst = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST);
     D3D12_RESOURCE_BARRIER preCopy[] = { toCopySrc, toCopyDst };
     cmd->ResourceBarrier(2, preCopy);
     cmd->CopyResource(d3d12->getBackBuffer(), tonemapTarget->getTexture());
-    auto toRTV = CD3DX12_RESOURCE_BARRIER::Transition(tonemapTarget->getTexture(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    auto toSRV = CD3DX12_RESOURCE_BARRIER::Transition(tonemapTarget->getTexture(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     auto toPresent = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
-    D3D12_RESOURCE_BARRIER postCopy[] = { toRTV, toPresent };
+    D3D12_RESOURCE_BARRIER postCopy[] = { toSRV, toPresent };
     cmd->ResourceBarrier(2, postCopy);
 
     cmd->Close();

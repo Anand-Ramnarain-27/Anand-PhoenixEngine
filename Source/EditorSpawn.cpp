@@ -1,6 +1,7 @@
 ﻿#include "Globals.h"
 #include "ModuleEditor.h"
 #include "Application.h"
+#include "RuntimeCore.h"
 #include <ole2.h>
 #include "DragDropManager.h"
 #include "EngineDropTarget.h"
@@ -99,14 +100,7 @@ void ModuleEditor::setupDefaultScene(){
 }
 
 void ModuleEditor::applySkyboxFromSettings(){
-    if (!getSceneManager() || !getEnvSystem()) return;
-    const EditorSceneSettings::Skybox& sky = getSceneManager()->getSettings().skybox;
-    if (!sky.enabled || sky.cubemapPath.empty()) return;
-
-    std::string ext = fs::path(sky.cubemapPath).extension().string();
-    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-    if (ext == ".hdr") getEnvSystem()->loadHDR(sky.cubemapPath);
-    else getEnvSystem()->load(sky.cubemapPath);
+    app->getRuntimeCore()->applySkyboxFromSettings();
 }
 
 GameObject* ModuleEditor::createEmptyGameObject(const char* name, GameObject* parent){

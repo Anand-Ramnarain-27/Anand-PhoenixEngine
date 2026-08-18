@@ -96,9 +96,6 @@ bool ModuleEditor::init(){
 
     m_imguiPass = std::make_unique<ImGuiPass>(device2.Get(), d3d12->getHWnd(), m_descTable.getCPUHandle(), m_descTable.getGPUHandle());
 
-    // RuntimeCore (constructed/init'd earlier in Application's module list) already
-    // owns the scene manager, render passes and a HotReloadManager with any DLLs
-    // present at startup loaded. The editor only adds live hot-reload on top.
     RuntimeCore* runtimeCore = app->getRuntimeCore();
     runtimeCore->getHotReloadManager()->setReloadCallback([this](const std::string& dllPath){
         notifyScriptComponentsReload(dllPath);

@@ -1,6 +1,7 @@
 #include "Globals.h"
 #include <windows.h>
 #include <ole2.h>
+#include <cstdio>
 
 #include "Application.h"
 #include "ModuleD3D12.h"
@@ -9,6 +10,17 @@
 #include "Mouse.h"
 
 Application* app = nullptr;
+
+static LONG WINAPI PlayerCrashHandler(EXCEPTION_POINTERS* info){
+    FILE* f = nullptr;
+    if (fopen_s(&f, "player_crash.log", "a") == 0 && f){
+        fprintf(f, "Unhandled exception 0x%08lX at address %p\n",
+            info->ExceptionRecord->ExceptionCode,
+            info->ExceptionRecord->ExceptionAddress);
+        fclose(f);
+    }
+    return EXCEPTION_EXECUTE_HANDLER;
+}
 
 static const wchar_t kWindowClassName[] = L"PhoenixPlayerWindowClass";
 static const wchar_t kWindowTitle[] = L"Phoenix Player";
@@ -85,10 +97,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(lpCmdLine);
     UNREFERENCED_PARAMETER(nCmdShow);
 
-    // OleInitialize is a superset of CoInitialize; DirectXTex's WIC-based texture
-    // import path (shared with the Editor, exercised by ModuleAssets at startup)
-    // requires COM to be initialized even though the Player itself never uses
-    // drag-drop.
+    SetUnhandledExceptionFilter(PlayerCrashHandler);
+
     if (FAILED(OleInitialize(nullptr)))
         return FALSE;
 
