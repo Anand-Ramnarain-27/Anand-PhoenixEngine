@@ -1,6 +1,7 @@
 ﻿#include "Globals.h"
 #include "ModuleEditor.h"
 #include "Application.h"
+#include "BuildSettingsPanel.h"
 #include <ole2.h>
 #include "DragDropManager.h"
 #include "EngineDropTarget.h"
@@ -162,6 +163,8 @@ void ModuleEditor::drawMenuBar(){
         ImGui::Separator();
         if (ImGui::MenuItem("Save Scene", "Ctrl+S")) saveScene();
         if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
+        ImGui::Separator();
+        if (ImGui::MenuItem("Build Settings...")) m_buildSettings->open = true;
         ImGui::Separator();
         if (ImGui::MenuItem("Quit", "Alt+F4")){}
         ImGui::EndMenu();

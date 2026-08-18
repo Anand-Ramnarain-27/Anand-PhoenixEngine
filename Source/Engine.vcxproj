@@ -256,6 +256,7 @@
     <ClInclude Include="PostProcessChain.h" />
     <ClInclude Include="ColorLUT.h" />
     <ClInclude Include="PostProcessPanel.h" />
+    <ClInclude Include="BuildSettingsPanel.h" />
     <ClInclude Include="ComponentDecal.h" />
     <ClInclude Include="BillboardPass.h" />
     <ClInclude Include="ComponentBillboard.h" />
@@ -455,6 +456,7 @@
     <ClCompile Include="PostProcessChain.cpp" />
     <ClCompile Include="ColorLUT.cpp" />
     <ClCompile Include="PostProcessPanel.cpp" />
+    <ClCompile Include="BuildSettingsPanel.cpp" />
     <ClCompile Include="ComponentDecal.cpp" />
     <ClCompile Include="BillboardPass.cpp" />
     <ClCompile Include="ComponentBillboard.cpp" />

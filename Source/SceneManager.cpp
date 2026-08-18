@@ -9,6 +9,8 @@
 #include "ComponentAnimation.h"
 #include "SceneSerializer.h"
 #include "BuildSettings.h"
+#include "ModuleFileSystem.h"
+#include <filesystem>
 
 SceneManager::~SceneManager(){ clearScene(); }
 
@@ -118,6 +120,11 @@ bool SceneManager::loadScene(const std::string& filePath){
 bool SceneManager::loadSceneByBuildIndex(int index, const BuildSettings& buildSettings){
     std::string path = buildSettings.getScenePathAtBuildIndex(index);
     if (path.empty()){ LOG("SceneManager: No scene at build index %d", index); return false; }
+    if (!std::filesystem::path(path).is_absolute()){
+        std::string assetsPath = app->getFileSystem()->GetAssetsPath();
+        std::string baseDir = assetsPath.substr(0, assetsPath.size() - std::string("Assets/").size());
+        path = baseDir + path;
+    }
     return loadScene(path);
 }
 

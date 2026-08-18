@@ -52,6 +52,7 @@
 #include "AssetBrowserPanel.h"
 #include "SceneSettingsPanel.h"
 #include "PostProcessPanel.h"
+#include "BuildSettingsPanel.h"
 #include "PrefabManager.h"
 #include "FileWatcher.h"
 #include "ResourceMaterial.h"
@@ -136,6 +137,8 @@ bool ModuleEditor::init(){
     addPanel<ResourcesPanel>(this);
     addPanel<CollisionDebugPanel>(this);
     addPanel<GPUMemoryPanel>(this);
+    m_buildSettings = addPanel<BuildSettingsPanel>(this);
+    m_buildSettings->open = false;
 
     HWND hwnd = app->getD3D12()->getHWnd();
     m_dropTarget = new EngineDropTarget();

@@ -317,6 +317,9 @@
     <ClCompile Include="PostProcessPanel.cpp">
       <Filter>Engine\Editor\Panels</Filter>
     </ClCompile>
+    <ClCompile Include="BuildSettingsPanel.cpp">
+      <Filter>Engine\Editor\Panels</Filter>
+    </ClCompile>
     <ClCompile Include="BillboardPass.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
@@ -879,6 +882,9 @@
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
     <ClInclude Include="PostProcessPanel.h">
+      <Filter>Engine\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="BuildSettingsPanel.h">
       <Filter>Engine\Editor\Panels</Filter>
     </ClInclude>
     <ClInclude Include="BillboardPass.h">

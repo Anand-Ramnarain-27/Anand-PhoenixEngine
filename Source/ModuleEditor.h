@@ -58,6 +58,7 @@ class EditorPanel;
 class SceneViewPanel;
 class GameViewPanel;
 class AssetBrowserPanel;
+class BuildSettingsPanel;
 class GameObject;
 class ComponentCamera;
 class ComponentMesh;
@@ -100,6 +101,7 @@ public:
     void setSamplerType(int t){ m_samplerType = t; }
     SceneGraph* getActiveModuleScene()const;
     ImVec2 getSceneViewSize() const;
+    const std::string& getCurrentScenePath() const { return m_currentScenePath; }
 
     void renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras, RenderTexture* outputRT = nullptr);
 
@@ -176,6 +178,7 @@ private:
     ConsolePanel* m_console = nullptr;
     PerformancePanel* m_performance = nullptr;
     AssetBrowserPanel* m_assetBrowser = nullptr;
+    BuildSettingsPanel* m_buildSettings = nullptr;
 
     EngineDropTarget* m_dropTarget = nullptr;
 
