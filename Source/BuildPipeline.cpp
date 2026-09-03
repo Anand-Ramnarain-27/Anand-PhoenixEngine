@@ -149,6 +149,23 @@ bool BuildPipeline::copyDirectoryContents(const std::string& src, const std::str
     return true;
 }
 
+// Extensions already re-compiled into Library/ (Meshes/Materials/Animations/Textures) and safe
+// to skip when shipping raw Assets. Scenes (.json), scripts (.dll/.pdb), skybox HDRs (.hdr), and
+// state machines (.json) are deliberately NOT here — those are loaded directly by path at runtime.
+static const char* kStrippableAssetExtensions =
+    "*.fbx *.stl *.blend *.gltf *.glb *.png *.jpg *.jpeg *.tga *.bmp *.dds";
+
+static std::string sanitizeFileStem(const std::string& name){
+    std::string out;
+    for (char c : name){
+        if (c == '<' || c == '>' || c == ':' || c == '"' || c == '/' || c == '\\' || c == '|' || c == '?' || c == '*')
+            continue;
+        out += c;
+    }
+    while (!out.empty() && (out.back() == ' ' || out.back() == '.')) out.pop_back();
+    return out.empty() ? "Player" : out;
+}
+
 void BuildPipeline::run(BuildSettings settings){
     if (settings.getEnabledSceneCount() == 0){ fail("No enabled scenes in the build list."); return; }
     if (settings.outputDir.empty()){ fail("No output folder set."); return; }
@@ -197,8 +214,24 @@ void BuildPipeline::run(BuildSettings settings){
         if (!runRobocopy(playerBuildDir.string(), outputDir.string(), "/LEV:1", msg)){ fail(msg); return; }
     }
 
+    std::string productName = sanitizeFileStem(settings.productName);
+    if (productName != "Player"){
+        std::error_code renEc;
+        if (fs::exists(outputDir / "Player.exe"))
+            fs::rename(outputDir / "Player.exe", outputDir / (productName + ".exe"), renEc);
+        if (fs::exists(outputDir / "Player.pdb"))
+            fs::rename(outputDir / "Player.pdb", outputDir / (productName + ".pdb"), renEc);
+    }
+
     setProgress(0.78f, "Copying Assets...");
-    if (!copyDirectoryContents(assetsSrc, (outputDir / "Assets").string())) { m_status = Status::Failed; return; }
+    if (settings.stripSourceAssets){
+        std::error_code assetsEc;
+        fs::create_directories(outputDir / "Assets", assetsEc);
+        std::string msg;
+        std::string args = std::string("/MIR /XF ") + kStrippableAssetExtensions;
+        if (!runRobocopy(assetsSrc, (outputDir / "Assets").string(), args, msg)){ fail(msg); return; }
+    }
+    else if (!copyDirectoryContents(assetsSrc, (outputDir / "Assets").string())) { m_status = Status::Failed; return; }
 
     setProgress(0.92f, "Copying Library...");
     if (!copyDirectoryContents(librarySrc, (outputDir / "Library").string())) { m_status = Status::Failed; return; }

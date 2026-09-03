@@ -12,6 +12,8 @@ struct BuildSettings {
     std::string outputDir;
     std::string configuration = "Release";
     std::string platform = "x64";
+    std::string productName = "Player";
+    bool stripSourceAssets = false;
 
     bool Load(const std::string& filePath);
     bool Save(const std::string& filePath) const;

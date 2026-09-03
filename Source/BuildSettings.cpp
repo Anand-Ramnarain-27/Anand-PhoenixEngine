@@ -35,6 +35,8 @@ bool BuildSettings::Load(const std::string& filePath){
     if (doc.HasMember("OutputDir") && doc["OutputDir"].IsString()) outputDir = doc["OutputDir"].GetString();
     if (doc.HasMember("Configuration") && doc["Configuration"].IsString()) configuration = doc["Configuration"].GetString();
     if (doc.HasMember("Platform") && doc["Platform"].IsString()) platform = doc["Platform"].GetString();
+    if (doc.HasMember("ProductName") && doc["ProductName"].IsString()) productName = doc["ProductName"].GetString();
+    if (doc.HasMember("StripSourceAssets") && doc["StripSourceAssets"].IsBool()) stripSourceAssets = doc["StripSourceAssets"].GetBool();
 
     return true;
 }
@@ -54,6 +56,8 @@ bool BuildSettings::Save(const std::string& filePath) const{
         doc.AddMember("OutputDir", Value(outputDir.c_str(), a), a);
         doc.AddMember("Configuration", Value(configuration.c_str(), a), a);
         doc.AddMember("Platform", Value(platform.c_str(), a), a);
+        doc.AddMember("ProductName", Value(productName.c_str(), a), a);
+        doc.AddMember("StripSourceAssets", stripSourceAssets, a);
 
         StringBuffer sb;
         PrettyWriter<StringBuffer> writer(sb);

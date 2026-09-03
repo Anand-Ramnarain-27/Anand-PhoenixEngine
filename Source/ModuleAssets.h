@@ -26,6 +26,7 @@ public:
 
 	UID importAsset(const char* filePath);
 	void refreshAssets();
+	void refreshFromLibraryMetadata();
 	void deleteAsset(const std::string& assetPath);
 
 	UID findUID(const std::string& assetPath) const;

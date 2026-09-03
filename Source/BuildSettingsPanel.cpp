@@ -97,6 +97,16 @@ void BuildSettingsPanel::drawSceneList(){
 void BuildSettingsPanel::drawOutputSection(){
     ImGui::SeparatorText("Output");
 
+    char nameBuf[128];
+    strncpy(nameBuf, m_settings.productName.c_str(), sizeof(nameBuf) - 1);
+    nameBuf[sizeof(nameBuf) - 1] = '\0';
+    ImGui::SetNextItemWidth(220.f);
+    if (ImGui::InputText("Product Name", nameBuf, sizeof(nameBuf))){
+        m_settings.productName = nameBuf;
+        save();
+    }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Name of the built .exe (e.g. \"MyGame\" -> MyGame.exe).");
+
     static const char* kConfigs[] = { "Debug", "Release" };
     int configIdx = (m_settings.configuration == "Debug") ? 0 : 1;
     ImGui::SetNextItemWidth(160.f);
@@ -126,6 +136,12 @@ void BuildSettingsPanel::drawOutputSection(){
         m_settings.outputDir = m_outputDirDialog->getSelectedPath();
         save();
     }
+
+    if (ImGui::Checkbox("Strip source assets", &m_settings.stripSourceAssets)) save();
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Skip shipping raw source models/textures (.fbx/.gltf/.png/.jpg/...) that are\n"
+                           "already baked into Library/. Scenes, scripts, and skybox HDRs still ship.\n"
+                           "Shrinks the build significantly; turn off if something goes missing.");
 
     ImGui::Spacing();
     ImGui::Separator();

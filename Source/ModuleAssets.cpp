@@ -7,8 +7,10 @@
 #include "SceneImporter.h"
 #include "TextureImporter.h"
 #include "tiny_gltf.h"
+#include "3rdParty/rapidjson/document.h"
 #include <filesystem>
 #include <algorithm>
+#include <cctype>
 
 namespace fs = std::filesystem;
 
@@ -52,6 +54,7 @@ static std::string normalisePath(std::string p){
 bool ModuleAssets::init(){
     ensureLibraryDirectories();
     refreshAssets();
+    refreshFromLibraryMetadata();
 
     std::string assetsRoot = app->getFileSystem()->GetAssetsPath();
     m_watcher.start(assetsRoot, [this](const std::string& path, FileWatcher::Event ev){
@@ -169,6 +172,73 @@ void ModuleAssets::refreshAssets(){
         }
         else if (isTextureExtension(ext)){
             importTexture(path, ext, uid);
+        }
+    }
+}
+
+// Fallback for standalone builds shipped without raw source Assets (see BuildPipeline's
+// "strip source assets" option): reconstructs UID/mesh/material/texture registrations purely
+// from Library/metadata/*.meta + the already-compiled Library caches, for anything refreshAssets()
+// didn't already find on disk under Assets/. A no-op when the full Assets tree is present, since
+// everything it would register is already covered by refreshAssets().
+void ModuleAssets::refreshFromLibraryMetadata(){
+    ModuleFileSystem* fsys = app->getFileSystem();
+    std::string metaFolder = fsys->GetLibraryPath() + "metadata/";
+    if (!fs::exists(metaFolder)) return;
+
+    std::string assetsRoot = app->getFileSystem()->GetAssetsPath();
+
+    for (const auto& entry : fs::directory_iterator(metaFolder)){
+        if (!entry.is_regular_file()) continue;
+        std::string fileName = entry.path().filename().string();
+        if (fileName.size() <= 5 || fileName.compare(fileName.size() - 5, 5, ".meta") != 0) continue;
+        std::string key = fileName.substr(0, fileName.size() - 5);
+
+        // Legacy (pre-portable) meta files are keyed by a sanitised absolute path and always
+        // start with a drive letter followed by "~~" (e.g. "C~~Users~..."). Skip those — only
+        // the portable, Assets-relative key is safe to reconstruct a virtual path from.
+        if (key.size() > 2 && isalpha((unsigned char)key[0]) && key[1] == '~' && key[2] == '~') continue;
+
+        std::string relPath = key;
+        std::replace(relPath.begin(), relPath.end(), '~', '/');
+        std::string virtualPath = normalisePath(assetsRoot + relPath);
+
+        if (m_pathToUID.count(virtualPath)) continue; // already registered via a real Assets scan
+
+        char* buf = nullptr;
+        unsigned size = fsys->Load(entry.path().string().c_str(), &buf);
+        if (!buf || size == 0) continue;
+        rapidjson::Document doc;
+        doc.Parse(buf, size);
+        delete[] buf;
+        if (doc.HasParseError() || !doc.HasMember("uid")) continue;
+        UID uid = doc["uid"].GetUint64();
+        if (uid == 0) continue;
+
+        std::string ext = fs::path(relPath).extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+        if (isImportableModelExtension(ext)){
+            std::string sceneName = fs::path(relPath).stem().string();
+            if (!sceneExists(sceneName)) continue; // no compiled cache shipped for this model
+
+            m_pathToUID[virtualPath] = uid;
+            m_uidToPath[uid] = virtualPath;
+
+            int mc = 0, matc = 0, animc = 0;
+            countLibraryFiles(fsys->GetLibraryPath() + "Meshes/" + sceneName + "/", ".mesh", mc);
+            countLibraryFiles(fsys->GetLibraryPath() + "Materials/" + sceneName + "/", ".mat", matc);
+            countLibraryFiles(fsys->GetLibraryPath() + "Animations/" + sceneName + "/", ".anim", animc);
+            registerSceneSubResources(virtualPath, sceneName, mc, matc, animc);
+        }
+        else if (isTextureExtension(ext)){
+            std::string texName = fs::path(relPath).stem().string();
+            std::string ddsPath = fsys->GetLibraryPath() + "Textures/" + texName + ".dds";
+            if (!fsys->Exists(ddsPath.c_str())) continue; // no compiled texture shipped
+
+            m_pathToUID[virtualPath] = uid;
+            m_uidToPath[uid] = virtualPath;
+            app->getResources()->registerTexture(uid, ddsPath);
         }
     }
 }
