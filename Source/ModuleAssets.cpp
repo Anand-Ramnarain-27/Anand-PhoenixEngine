@@ -22,6 +22,10 @@ static bool isModelExtension(const std::string& ext){
     return ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".stl" || ext == ".blend";
 }
 
+static bool isImportableModelExtension(const std::string& ext){
+    return ext == ".gltf" || ext == ".glb";
+}
+
 static bool isTextureExtension(const std::string& ext){
     return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".dds" || ext == ".tga" || ext == ".bmp" || ext == ".hdr";
 }
@@ -147,7 +151,7 @@ void ModuleAssets::refreshAssets(){
         m_pathToUID[path] = uid;
         m_uidToPath[uid] = path;
 
-        if (isModelExtension(ext)){
+        if (isImportableModelExtension(ext)){
             std::string sceneName = entry.path().stem().string();
             if (!sceneExists(sceneName) || needsReimport(path) ||
                 materialCacheNeedsUpgrade(sceneName) || animCacheNeedsUpgrade(sceneName)){

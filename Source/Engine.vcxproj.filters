@@ -363,6 +363,9 @@
     <ClCompile Include="BuildSettings.cpp">
       <Filter>Engine\Core</Filter>
     </ClCompile>
+    <ClCompile Include="BuildPipeline.cpp">
+      <Filter>Engine\Core</Filter>
+    </ClCompile>
     <ClCompile Include="EditorRenderer.cpp">
       <Filter>Engine\Editor</Filter>
     </ClCompile>
@@ -940,6 +943,9 @@
       <Filter>Engine\Core</Filter>
     </ClInclude>
     <ClInclude Include="BuildSettings.h">
+      <Filter>Engine\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="BuildPipeline.h">
       <Filter>Engine\Core</Filter>
     </ClInclude>
     <ClInclude Include="EditorSelection.h">

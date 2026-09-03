@@ -131,13 +131,30 @@ void BuildSettingsPanel::drawOutputSection(){
     ImGui::Separator();
     ImGui::Spacing();
 
+    BuildPipeline::Status status = BuildPipeline::Get().GetStatus();
+    if (status != m_lastSeenStatus){
+        if (status == BuildPipeline::Status::Success)
+            m_editor->log(BuildPipeline::Get().GetMessage().c_str(), EditorColors::Success);
+        else if (status == BuildPipeline::Status::Failed)
+            m_editor->log(("Build failed: " + BuildPipeline::Get().GetMessage()).c_str(), EditorColors::Danger);
+        m_lastSeenStatus = status;
+    }
+
+    bool isRunning = BuildPipeline::Get().IsRunning();
     int enabledCount = m_settings.getEnabledSceneCount();
-    ImGui::BeginDisabled(enabledCount == 0 || m_settings.outputDir.empty());
+    ImGui::BeginDisabled(enabledCount == 0 || m_settings.outputDir.empty() || isRunning);
     if (ImGui::Button("Build", ImVec2(120, 32))){
         save();
-        m_editor->log("Build Settings saved. The Build pipeline (compiling Player + packaging assets) is coming in the next phase.", EditorColors::Info);
+        m_editor->log("Build started: compiling Player and packaging assets...", EditorColors::Info);
+        BuildPipeline::Get().StartBuild(m_settings);
     }
     ImGui::EndDisabled();
-    if (enabledCount == 0){ ImGui::SameLine(); textMuted("Add at least one enabled scene."); }
+
+    if (isRunning){
+        ImGui::Spacing();
+        ImGui::ProgressBar(BuildPipeline::Get().GetProgress(), ImVec2(-1.f, 0.f));
+        ImGui::TextWrapped("%s", BuildPipeline::Get().GetMessage().c_str());
+    }
+    else if (enabledCount == 0){ ImGui::SameLine(); textMuted("Add at least one enabled scene."); }
     else if (m_settings.outputDir.empty()){ ImGui::SameLine(); textMuted("Choose an output folder."); }
 }

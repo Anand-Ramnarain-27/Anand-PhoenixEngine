@@ -1,6 +1,7 @@
 #pragma once
 #include "EditorPanel.h"
 #include "BuildSettings.h"
+#include "BuildPipeline.h"
 #include <memory>
 #include <string>
 
@@ -23,4 +24,5 @@ private:
     std::string m_settingsPath;
     std::unique_ptr<FileDialog> m_outputDirDialog;
     std::string m_pickedScenePath;
+    BuildPipeline::Status m_lastSeenStatus = BuildPipeline::Status::Idle;
 };

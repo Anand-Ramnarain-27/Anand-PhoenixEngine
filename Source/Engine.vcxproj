@@ -288,6 +288,7 @@
     <ClInclude Include="ModuleEditor.h" />
     <ClInclude Include="RuntimeCore.h" />
     <ClInclude Include="BuildSettings.h" />
+    <ClInclude Include="BuildPipeline.h" />
     <ClInclude Include="ModuleGPUResources.h" />
     <ClInclude Include="ModuleStaticBuffer.h" />
     <ClInclude Include="PhoenixEngine.h" />
@@ -486,6 +487,7 @@
     <ClCompile Include="EditorRenderer.cpp" />
     <ClCompile Include="RuntimeCore.cpp" />
     <ClCompile Include="BuildSettings.cpp" />
+    <ClCompile Include="BuildPipeline.cpp" />
     <ClCompile Include="EditorMenus.cpp" />
     <ClCompile Include="EditorCommands.cpp" />
     <ClCompile Include="EditorSpawn.cpp" />
