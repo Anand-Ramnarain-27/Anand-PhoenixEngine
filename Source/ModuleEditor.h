@@ -76,6 +76,8 @@ class FogPass;
 class VolumetricFogPass;
 class PostProcessChain;
 class ColorLUT;
+struct FrameLightData;
+struct ShadowRenderData;
 class HotReloadManager;
 
 class ModuleEditor : public Module {
@@ -116,6 +118,8 @@ public:
     VolumetricFogPass* getVolumetricFogPass() const;
     PostProcessChain* getPostProcessChain() const;
     ColorLUT* getColorLUT() const;
+    const FrameLightData& getFrameLights() const;
+    const ShadowRenderData& getFrameShadowData() const;
 
     void log(const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1));
     GameObject* createEmptyGameObject(const char* name = "Empty", GameObject* parent = nullptr);

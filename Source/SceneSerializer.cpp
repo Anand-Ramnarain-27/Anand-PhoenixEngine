@@ -117,6 +117,7 @@ bool SceneSerializer::SaveScene(const SceneGraph* scene, const std::string& file
             fogObj.AddMember("extinctionCoeff", settings->fog.extinctionCoeff, a);
             fogObj.AddMember("noiseAmount", settings->fog.noiseAmount, a);
             fogObj.AddMember("fogIntensity", settings->fog.fogIntensity, a);
+            fogObj.AddMember("anisotropyG", settings->fog.anisotropyG, a);
             set.AddMember("Fog", fogObj, a);
 
             sceneObj.AddMember("Settings", set, a);
@@ -257,6 +258,7 @@ bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, 
                 if (fg.HasMember("extinctionCoeff")) settings->fog.extinctionCoeff = fg["extinctionCoeff"].GetFloat();
                 if (fg.HasMember("noiseAmount")) settings->fog.noiseAmount = fg["noiseAmount"].GetFloat();
                 if (fg.HasMember("fogIntensity")) settings->fog.fogIntensity = fg["fogIntensity"].GetFloat();
+                if (fg.HasMember("anisotropyG")) settings->fog.anisotropyG = fg["anisotropyG"].GetFloat();
             }
         }
     }

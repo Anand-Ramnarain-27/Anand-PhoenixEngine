@@ -55,10 +55,12 @@ void ViewportPanel::renderToTexture(ID3D12GraphicsCommandList* cmd){
                 vfs.extinctionCoeff = settings->fog.extinctionCoeff;
                 vfs.noiseAmount = settings->fog.noiseAmount;
                 vfs.fogIntensity = settings->fog.fogIntensity;
+                vfs.anisotropyG = settings->fog.anisotropyG;
                 vfs.maxOpacity = settings->fog.maxOpacity;
                 const float elapsedTime = (float)app->getElapsedMilis() / 1000.f;
                 hdrResult = volFog->render(cmd, hdrResult, fogOut, *gbuffer, camPos, invViewProj,
-                                           elapsedTime, vfs, /*viewportIndex=*/0);
+                                           elapsedTime, m_editor->getFrameLights(),
+                                           m_editor->getFrameShadowData(), vfs, /*viewportIndex=*/0);
             }
         } else if (FogPass* fog = m_editor->getFogPass()){
             FogSettings fs;

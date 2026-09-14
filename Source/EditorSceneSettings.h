@@ -56,5 +56,6 @@ struct EditorSceneSettings {
         float extinctionCoeff = 0.15f;
         float noiseAmount = 0.5f;
         float fogIntensity = 1.0f;
+        float anisotropyG = 0.3f;
     } fog;
 };

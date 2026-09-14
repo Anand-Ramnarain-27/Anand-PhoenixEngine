@@ -138,6 +138,13 @@ void PostProcessPanel::drawFogSection(){
         ImGui::SameLine(100.f);
         ImGui::SetNextItemWidth(-1.f);
         ImGui::SliderFloat("##fog_intensity", &fog.fogIntensity, 0.f, 2.f, "%.2f");
+
+        ImGui::Text("Anisotropy");
+        ImGui::SameLine(100.f);
+        ImGui::SetNextItemWidth(-1.f);
+        ImGui::SliderFloat("##fog_aniso", &fog.anisotropyG, -0.95f, 0.95f, "%.2f");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Scattering direction (Henyey-Greenstein g). Positive = forward scattering (light shafts toward camera), negative = back scattering.");
     }
     ImGui::EndDisabled();
 }

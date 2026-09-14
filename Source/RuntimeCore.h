@@ -71,6 +71,9 @@ public:
     PostProcessChain* getPostProcessChain() const { return m_postProcessChain.get(); }
     ColorLUT* getColorLUT() const { return m_colorLUT.get(); }
 
+    const FrameLightData& getFrameLights() const { return m_frameLights; }
+    const ShadowRenderData& getFrameShadowData() const { return m_frameShadowData; }
+
     SceneGraph* getActiveModuleScene() const;
     int getFrameDrawCalls() const { return m_frameDrawCalls; }
 
@@ -102,6 +105,7 @@ private:
     std::unique_ptr<SkinningPass> m_skinningPass;
 
     FrameLightData m_frameLights;
+    ShadowRenderData m_frameShadowData;
     RenderOctree m_renderOctree;
 
     int m_frameDrawCalls = 0;

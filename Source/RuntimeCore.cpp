@@ -370,10 +370,12 @@ void RuntimeCore::renderStandaloneFrame(){
                 vfs.extinctionCoeff = settings->fog.extinctionCoeff;
                 vfs.noiseAmount = settings->fog.noiseAmount;
                 vfs.fogIntensity = settings->fog.fogIntensity;
+                vfs.anisotropyG = settings->fog.anisotropyG;
                 vfs.maxOpacity = settings->fog.maxOpacity;
                 const float elapsedTime = (float)app->getElapsedMilis() / 1000.f;
                 hdrResult = m_volumetricFogPass->render(cmd, hdrResult, fogOut, *m_gbufferPass, pos,
-                                                        invViewProj, elapsedTime, vfs, /*viewportIndex=*/1);
+                                                        invViewProj, elapsedTime, m_frameLights,
+                                                        m_frameShadowData, vfs, /*viewportIndex=*/1);
             }
         } else if (m_fogPass){
             FogSettings fs;
@@ -873,6 +875,7 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
                                             app->getSamplerHeap()->getHeap() };
         cmd->SetDescriptorHeaps(2, shHeaps);
     }
+    m_frameShadowData = shadowData;
 
     if (m_gbufferPass && (!opaqueMeshes.empty() || !translucentMeshes.empty() || !billboards.empty())){
         const int gbufferViewportIndex = editorExtras ? 0 : 1;
