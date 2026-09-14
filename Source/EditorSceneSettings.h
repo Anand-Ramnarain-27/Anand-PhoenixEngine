@@ -40,7 +40,7 @@ struct EditorSceneSettings {
     } postProcess;
 
     struct Fog {
-        enum class Mode { Linear = 0, ExponentialHeight = 1 };
+        enum class Mode { Linear = 0, ExponentialHeight = 1, Volumetric = 2 };
 
         bool enabled = false;
         Mode mode = Mode::Linear;
@@ -51,5 +51,10 @@ struct EditorSceneSettings {
         float density = 0.02f;
         float heightFalloff = 0.1f;
         float heightOffset = 0.0f;
+
+        int numSteps = 32;
+        float extinctionCoeff = 0.15f;
+        float noiseAmount = 0.5f;
+        float fogIntensity = 1.0f;
     } fog;
 };

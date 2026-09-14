@@ -120,6 +120,9 @@ bool RuntimeCore::init(){
     m_fogPass = std::make_unique<FogPass>();
     if (!m_fogPass->init(device)) return false;
 
+    m_volumetricFogPass = std::make_unique<VolumetricFogPass>();
+    if (!m_volumetricFogPass->init(device)) return false;
+
     m_postProcessChain = std::make_unique<PostProcessChain>();
     if (!m_postProcessChain->init(device)) return false;
 
@@ -177,6 +180,7 @@ bool RuntimeCore::cleanUp(){
     m_tonemapPass.reset();
     m_bloomPass.reset();
     m_fogPass.reset();
+    m_volumetricFogPass.reset();
     m_postProcessChain.reset();
     m_colorLUT.reset();
     if (m_skinningPass){ m_skinningPass->cleanUp(); m_skinningPass.reset(); }
@@ -353,24 +357,39 @@ void RuntimeCore::renderStandaloneFrame(){
 
     const EditorSceneSettings* settings = m_sceneManager ? &m_sceneManager->getSettings() : nullptr;
 
-    if (m_fogPass && m_gbufferPass && settings && settings->fog.enabled){
+    if (m_gbufferPass && settings && settings->fog.enabled){
         Matrix invViewProj;
         (view * proj).Invert(invViewProj);
         RenderTexture* fogOut = (hdrResult == m_playerViewport->rt.get())
                                      ? m_playerViewport->rtScratch.get() : m_playerViewport->rt.get();
-        FogSettings fs;
-        fs.enabled = settings->fog.enabled;
-        fs.mode = (settings->fog.mode == EditorSceneSettings::Fog::Mode::ExponentialHeight)
-                      ? FogSettings::Mode::ExponentialHeight : FogSettings::Mode::Linear;
-        fs.color = settings->fog.color;
-        fs.startDistance = settings->fog.startDistance;
-        fs.endDistance = settings->fog.endDistance;
-        fs.maxOpacity = settings->fog.maxOpacity;
-        fs.density = settings->fog.density;
-        fs.heightFalloff = settings->fog.heightFalloff;
-        fs.heightOffset = settings->fog.heightOffset;
-        hdrResult = m_fogPass->render(cmd, hdrResult, fogOut, *m_gbufferPass, pos, invViewProj,
-                                       fs, /*viewportIndex=*/1);
+        if (settings->fog.mode == EditorSceneSettings::Fog::Mode::Volumetric){
+            if (m_volumetricFogPass){
+                VolumetricFogSettings vfs;
+                vfs.enabled = true;
+                vfs.numSteps = (uint32_t)std::max(1, settings->fog.numSteps);
+                vfs.extinctionCoeff = settings->fog.extinctionCoeff;
+                vfs.noiseAmount = settings->fog.noiseAmount;
+                vfs.fogIntensity = settings->fog.fogIntensity;
+                vfs.maxOpacity = settings->fog.maxOpacity;
+                const float elapsedTime = (float)app->getElapsedMilis() / 1000.f;
+                hdrResult = m_volumetricFogPass->render(cmd, hdrResult, fogOut, *m_gbufferPass, pos,
+                                                        invViewProj, elapsedTime, vfs, /*viewportIndex=*/1);
+            }
+        } else if (m_fogPass){
+            FogSettings fs;
+            fs.enabled = true;
+            fs.mode = (settings->fog.mode == EditorSceneSettings::Fog::Mode::ExponentialHeight)
+                          ? FogSettings::Mode::ExponentialHeight : FogSettings::Mode::Linear;
+            fs.color = settings->fog.color;
+            fs.startDistance = settings->fog.startDistance;
+            fs.endDistance = settings->fog.endDistance;
+            fs.maxOpacity = settings->fog.maxOpacity;
+            fs.density = settings->fog.density;
+            fs.heightFalloff = settings->fog.heightFalloff;
+            fs.heightOffset = settings->fog.heightOffset;
+            hdrResult = m_fogPass->render(cmd, hdrResult, fogOut, *m_gbufferPass, pos, invViewProj,
+                                           fs, /*viewportIndex=*/1);
+        }
     }
 
     RenderTexture* bloomResult = nullptr;

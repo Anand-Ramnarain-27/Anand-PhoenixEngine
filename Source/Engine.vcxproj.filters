@@ -311,6 +311,9 @@
     <ClCompile Include="FogPass.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
+    <ClCompile Include="VolumetricFogPass.cpp">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClCompile>
     <ClCompile Include="PostProcessChain.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
@@ -884,6 +887,9 @@
     <ClInclude Include="FogPass.h">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
+    <ClInclude Include="VolumetricFogPass.h">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClInclude>
     <ClInclude Include="PostProcessChain.h">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
@@ -1222,6 +1228,12 @@
       <Filter>Shaders\PostProcess</Filter>
     </FxCompile>
     <FxCompile Include="shaders\FogPS.hlsl">
+      <Filter>Shaders\PostProcess</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\VolumetricFogCompositePS.hlsl">
+      <Filter>Shaders\PostProcess</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\VolumetricFogCS.hlsl">
       <Filter>Shaders\PostProcess</Filter>
     </FxCompile>
     <FxCompile Include="shaders\FXAAPS.hlsl">

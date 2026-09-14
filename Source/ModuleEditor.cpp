@@ -195,6 +195,7 @@ ShadowMapPass* ModuleEditor::getShadowMapPass() const{ return app->getRuntimeCor
 TonemapPass* ModuleEditor::getTonemapPass() const{ return app->getRuntimeCore()->getTonemapPass(); }
 BloomPass* ModuleEditor::getBloomPass() const{ return app->getRuntimeCore()->getBloomPass(); }
 FogPass* ModuleEditor::getFogPass() const{ return app->getRuntimeCore()->getFogPass(); }
+VolumetricFogPass* ModuleEditor::getVolumetricFogPass() const{ return app->getRuntimeCore()->getVolumetricFogPass(); }
 PostProcessChain* ModuleEditor::getPostProcessChain() const{ return app->getRuntimeCore()->getPostProcessChain(); }
 ColorLUT* ModuleEditor::getColorLUT() const{ return app->getRuntimeCore()->getColorLUT(); }
 

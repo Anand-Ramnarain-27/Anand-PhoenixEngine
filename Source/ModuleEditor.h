@@ -73,6 +73,7 @@ class DeferredLightingPass;
 class TonemapPass;
 class BloomPass;
 class FogPass;
+class VolumetricFogPass;
 class PostProcessChain;
 class ColorLUT;
 class HotReloadManager;
@@ -112,6 +113,7 @@ public:
     TonemapPass* getTonemapPass() const;
     BloomPass* getBloomPass() const;
     FogPass* getFogPass() const;
+    VolumetricFogPass* getVolumetricFogPass() const;
     PostProcessChain* getPostProcessChain() const;
     ColorLUT* getColorLUT() const;
 

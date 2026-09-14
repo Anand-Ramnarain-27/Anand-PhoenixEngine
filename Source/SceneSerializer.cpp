@@ -113,6 +113,10 @@ bool SceneSerializer::SaveScene(const SceneGraph* scene, const std::string& file
             fogObj.AddMember("density", settings->fog.density, a);
             fogObj.AddMember("heightFalloff", settings->fog.heightFalloff, a);
             fogObj.AddMember("heightOffset", settings->fog.heightOffset, a);
+            fogObj.AddMember("numSteps", settings->fog.numSteps, a);
+            fogObj.AddMember("extinctionCoeff", settings->fog.extinctionCoeff, a);
+            fogObj.AddMember("noiseAmount", settings->fog.noiseAmount, a);
+            fogObj.AddMember("fogIntensity", settings->fog.fogIntensity, a);
             set.AddMember("Fog", fogObj, a);
 
             sceneObj.AddMember("Settings", set, a);
@@ -249,6 +253,10 @@ bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, 
                 if (fg.HasMember("density")) settings->fog.density = fg["density"].GetFloat();
                 if (fg.HasMember("heightFalloff")) settings->fog.heightFalloff = fg["heightFalloff"].GetFloat();
                 if (fg.HasMember("heightOffset")) settings->fog.heightOffset = fg["heightOffset"].GetFloat();
+                if (fg.HasMember("numSteps")) settings->fog.numSteps = fg["numSteps"].GetInt();
+                if (fg.HasMember("extinctionCoeff")) settings->fog.extinctionCoeff = fg["extinctionCoeff"].GetFloat();
+                if (fg.HasMember("noiseAmount")) settings->fog.noiseAmount = fg["noiseAmount"].GetFloat();
+                if (fg.HasMember("fogIntensity")) settings->fog.fogIntensity = fg["fogIntensity"].GetFloat();
             }
         }
     }

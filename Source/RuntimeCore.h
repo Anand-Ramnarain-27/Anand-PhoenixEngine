@@ -13,6 +13,7 @@
 #include "TonemapPass.h"
 #include "BloomPass.h"
 #include "FogPass.h"
+#include "VolumetricFogPass.h"
 #include "PostProcessChain.h"
 #include "ColorLUT.h"
 
@@ -66,6 +67,7 @@ public:
     TonemapPass* getTonemapPass() const { return m_tonemapPass.get(); }
     BloomPass* getBloomPass() const { return m_bloomPass.get(); }
     FogPass* getFogPass() const { return m_fogPass.get(); }
+    VolumetricFogPass* getVolumetricFogPass() const { return m_volumetricFogPass.get(); }
     PostProcessChain* getPostProcessChain() const { return m_postProcessChain.get(); }
     ColorLUT* getColorLUT() const { return m_colorLUT.get(); }
 
@@ -92,6 +94,7 @@ private:
     std::unique_ptr<TonemapPass> m_tonemapPass;
     std::unique_ptr<BloomPass> m_bloomPass;
     std::unique_ptr<FogPass> m_fogPass;
+    std::unique_ptr<VolumetricFogPass> m_volumetricFogPass;
     std::unique_ptr<PostProcessChain> m_postProcessChain;
     std::unique_ptr<ColorLUT> m_colorLUT;
     std::unique_ptr<EnvironmentSystem> m_envSystem;

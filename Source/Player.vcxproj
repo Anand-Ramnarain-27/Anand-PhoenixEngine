@@ -233,6 +233,7 @@
     <ClInclude Include="TonemapPass.h" />
     <ClInclude Include="BloomPass.h" />
     <ClInclude Include="FogPass.h" />
+    <ClInclude Include="VolumetricFogPass.h" />
     <ClInclude Include="PostProcessChain.h" />
     <ClInclude Include="ColorLUT.h" />
     <ClInclude Include="ComponentDecal.h" />
@@ -390,6 +391,7 @@
     <ClCompile Include="TonemapPass.cpp" />
     <ClCompile Include="BloomPass.cpp" />
     <ClCompile Include="FogPass.cpp" />
+    <ClCompile Include="VolumetricFogPass.cpp" />
     <ClCompile Include="PostProcessChain.cpp" />
     <ClCompile Include="ColorLUT.cpp" />
     <ClCompile Include="ComponentDecal.cpp" />
@@ -603,6 +605,13 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
     </FxCompile>
+    <FxCompile Include="shaders\VolumetricFogCS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
+    </FxCompile>
     <FxCompile Include="shaders\DecalVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
@@ -758,6 +767,13 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
     </FxCompile>
     <FxCompile Include="shaders\FogPS.hlsl">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="shaders\VolumetricFogCompositePS.hlsl">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>

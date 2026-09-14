@@ -62,7 +62,7 @@ void PostProcessPanel::drawFogSection(){
 
     ImGui::BeginDisabled(!fog.enabled);
 
-    static const char* kModeNames[] = { "Linear (Distance)", "Exponential Height" };
+    static const char* kModeNames[] = { "Linear (Distance)", "Exponential Height", "Volumetric (Ray-Marched)" };
     int modeIdx = (int)fog.mode;
     ImGui::Text("Mode");
     ImGui::SameLine(100.f);
@@ -70,29 +70,38 @@ void PostProcessPanel::drawFogSection(){
     if (ImGui::Combo("##fog_mode", &modeIdx, kModeNames, IM_ARRAYSIZE(kModeNames)))
         fog.mode = (EditorSceneSettings::Fog::Mode)modeIdx;
 
-    ImGui::Text("Colour");
-    ImGui::SameLine(100.f);
-    ImGui::SetNextItemWidth(-1.f);
-    ImGui::ColorEdit3("##fog_color", &fog.color.x);
+    const bool isVolumetric = (fog.mode == EditorSceneSettings::Fog::Mode::Volumetric);
+    const bool isHeight = (fog.mode == EditorSceneSettings::Fog::Mode::ExponentialHeight);
+
+    if (!isVolumetric){
+        ImGui::Text("Colour");
+        ImGui::SameLine(100.f);
+        ImGui::SetNextItemWidth(-1.f);
+        ImGui::ColorEdit3("##fog_color", &fog.color.x);
+    }
 
     ImGui::Text("Max Opacity");
     ImGui::SameLine(100.f);
     ImGui::SetNextItemWidth(-1.f);
     ImGui::SliderFloat("##fog_maxop", &fog.maxOpacity, 0.f, 1.f, "%.2f");
+    if (ImGui::IsItemHovered() && isVolumetric)
+        ImGui::SetTooltip("Overall strength of the volumetric effect (0 = off, 1 = full).");
 
-    ImGui::Text("Start Dist.");
-    ImGui::SameLine(100.f);
-    ImGui::SetNextItemWidth(-1.f);
-    ImGui::SliderFloat("##fog_start", &fog.startDistance, 0.f, 1000.f, "%.1f");
+    if (!isVolumetric){
+        ImGui::Text("Start Dist.");
+        ImGui::SameLine(100.f);
+        ImGui::SetNextItemWidth(-1.f);
+        ImGui::SliderFloat("##fog_start", &fog.startDistance, 0.f, 1000.f, "%.1f");
 
-    ImGui::Text("End Dist.");
-    ImGui::SameLine(100.f);
-    ImGui::SetNextItemWidth(-1.f);
-    ImGui::SliderFloat("##fog_end", &fog.endDistance, 0.f, 2000.f, "%.1f");
-    if (ImGui::IsItemHovered() && fog.mode == EditorSceneSettings::Fog::Mode::ExponentialHeight)
-        ImGui::SetTooltip("Also used to fade the height fog in over distance.");
+        ImGui::Text("End Dist.");
+        ImGui::SameLine(100.f);
+        ImGui::SetNextItemWidth(-1.f);
+        ImGui::SliderFloat("##fog_end", &fog.endDistance, 0.f, 2000.f, "%.1f");
+        if (ImGui::IsItemHovered() && isHeight)
+            ImGui::SetTooltip("Also used to fade the height fog in over distance.");
+    }
 
-    if (fog.mode == EditorSceneSettings::Fog::Mode::ExponentialHeight){
+    if (isHeight){
         ImGui::Text("Density");
         ImGui::SameLine(100.f);
         ImGui::SetNextItemWidth(-1.f);
@@ -107,6 +116,28 @@ void PostProcessPanel::drawFogSection(){
         ImGui::SameLine(100.f);
         ImGui::SetNextItemWidth(-1.f);
         ImGui::SliderFloat("##fog_hoffset", &fog.heightOffset, -100.f, 100.f, "%.1f");
+    }
+
+    if (isVolumetric){
+        ImGui::Text("Steps");
+        ImGui::SameLine(100.f);
+        ImGui::SetNextItemWidth(-1.f);
+        ImGui::SliderInt("##fog_steps", &fog.numSteps, 4, 128);
+
+        ImGui::Text("Extinction");
+        ImGui::SameLine(100.f);
+        ImGui::SetNextItemWidth(-1.f);
+        ImGui::SliderFloat("##fog_extinction", &fog.extinctionCoeff, 0.f, 1.f, "%.3f");
+
+        ImGui::Text("Noise Amount");
+        ImGui::SameLine(100.f);
+        ImGui::SetNextItemWidth(-1.f);
+        ImGui::SliderFloat("##fog_noiseamt", &fog.noiseAmount, 0.f, 1.f, "%.2f");
+
+        ImGui::Text("Intensity");
+        ImGui::SameLine(100.f);
+        ImGui::SetNextItemWidth(-1.f);
+        ImGui::SliderFloat("##fog_intensity", &fog.fogIntensity, 0.f, 2.f, "%.2f");
     }
     ImGui::EndDisabled();
 }
