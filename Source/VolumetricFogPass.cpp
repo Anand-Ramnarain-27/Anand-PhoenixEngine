@@ -43,6 +43,10 @@ namespace {
 
 bool VolumetricFogPass::init(ID3D12Device* device){
     m_device = device;
+    if (!m_lightCulling.init(device)){
+        LOG("VolumetricFogPass: light culling init failed");
+        return false;
+    }
     if (!createComputeRootSignature(device)){
         LOG("VolumetricFogPass: compute root signature creation failed");
         return false;
@@ -85,9 +89,11 @@ bool VolumetricFogPass::createComputeRootSignature(ID3D12Device* device){
     CD3DX12_DESCRIPTOR_RANGE momentRange;     momentRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 5);
     CD3DX12_DESCRIPTOR_RANGE spotShRange;     spotShRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6);
     CD3DX12_DESCRIPTOR_RANGE pointShRange;    pointShRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 7);
+    CD3DX12_DESCRIPTOR_RANGE pointIdxRange;   pointIdxRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 8);
+    CD3DX12_DESCRIPTOR_RANGE spotIdxRange;    spotIdxRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 9);
     CD3DX12_DESCRIPTOR_RANGE sampRange;       sampRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, ModuleSamplerHeap::COUNT, 0);
 
-    CD3DX12_ROOT_PARAMETER params[12];
+    CD3DX12_ROOT_PARAMETER params[14];
     params[SLOT_PERFRAME_CB].InitAsConstantBufferView(0, 0);
     params[SLOT_GBUF_DEPTH].InitAsDescriptorTable(1, &depthRange);
     params[SLOT_OUTPUT].InitAsDescriptorTable(1, &outRange);
@@ -98,6 +104,8 @@ bool VolumetricFogPass::createComputeRootSignature(ID3D12Device* device){
     params[SLOT_SHADOW_MOMENTS].InitAsDescriptorTable(1, &momentRange);
     params[SLOT_SPOT_SHADOW].InitAsDescriptorTable(1, &spotShRange);
     params[SLOT_POINT_SHADOW].InitAsDescriptorTable(1, &pointShRange);
+    params[SLOT_POINT_INDICES].InitAsDescriptorTable(1, &pointIdxRange);
+    params[SLOT_SPOT_INDICES].InitAsDescriptorTable(1, &spotIdxRange);
     params[SLOT_GPU_VP].InitAsConstantBufferView(1, 0);
     params[SLOT_SAMPLER].InitAsDescriptorTable(1, &sampRange);
 
@@ -331,6 +339,8 @@ RenderTexture* VolumetricFogPass::render(ID3D12GraphicsCommandList* cmd,
                                          RenderTexture* output,
                                          GBufferPass& gbufferPass,
                                          const Vector3& cameraPos,
+                                         const Matrix& view,
+                                         const Matrix& projection,
                                          const Matrix& invViewProj,
                                          float elapsedTime,
                                          const FrameLightData& lights,
@@ -344,12 +354,20 @@ RenderTexture* VolumetricFogPass::render(ID3D12GraphicsCommandList* cmd,
 
     viewportIndex = (viewportIndex >= 0 && viewportIndex < NUM_VIEWPORTS) ? viewportIndex : 0;
 
-    const uint32_t width = input->getWidth();
-    const uint32_t height = input->getHeight();
-    if (width == 0 || height == 0) return input;
+    const uint32_t fullWidth = input->getWidth();
+    const uint32_t fullHeight = input->getHeight();
+    if (fullWidth == 0 || fullHeight == 0) return input;
+    const uint32_t width = settings.halfResolution ? std::max(1u, fullWidth / 2) : fullWidth;
+    const uint32_t height = settings.halfResolution ? std::max(1u, fullHeight / 2) : fullHeight;
     if (!ensureFogTexture(width, height, viewportIndex)) return input;
 
     BEGIN_EVENT(cmd, L"Volumetric Fog");
+
+    // Fog-safe tile light lists: same tile culling algorithm as deferred lighting, but without
+    // its near-depth rejection (fog fills space in front of geometry too). Always runs at the
+    // GBuffer's full resolution so tile indices stay consistent regardless of half-res fog.
+    m_lightCulling.cull(cmd, gbufferPass, lights, view, projection, fullWidth, fullHeight,
+                        viewportIndex, /*ignoreNearDepth=*/true);
 
     uploadLights(lights, viewportIndex);
 
@@ -359,11 +377,15 @@ RenderTexture* VolumetricFogPass::render(ID3D12GraphicsCommandList* cmd,
     cbc.time = elapsedTime;
     cbc.viewportWidth = width;
     cbc.viewportHeight = height;
+    cbc.fullViewportWidth = fullWidth;
+    cbc.fullViewportHeight = fullHeight;
     cbc.numSteps = settings.numSteps;
     cbc.extinctionCoeff = settings.extinctionCoeff;
     cbc.noiseAmount = settings.noiseAmount;
     cbc.fogIntensity = settings.fogIntensity;
     cbc.anisotropyG = settings.anisotropyG;
+    cbc.frameIndex = m_frameIndex++;
+    cbc.boundedRayLength = settings.boundedRayLength ? 1u : 0u;
     cbc.dirLightCount = static_cast<uint32_t>(std::min(lights.dirLights.size(), (size_t)MeshPipeline::MAX_DIR_LIGHTS));
     cbc.pointLightCount = static_cast<uint32_t>(std::min(lights.pointLights.size(), (size_t)MeshPipeline::MAX_POINT_LIGHTS));
     cbc.spotLightCount = static_cast<uint32_t>(std::min(lights.spotLights.size(), (size_t)MeshPipeline::MAX_SPOT_LIGHTS));
@@ -419,6 +441,9 @@ RenderTexture* VolumetricFogPass::render(ID3D12GraphicsCommandList* cmd,
         (shadow.spotEnabled && shadow.spotSrv.ptr) ? shadow.spotSrv : m_fallbackTex2DSRV.getGPUHandle(0));
     cmd->SetComputeRootDescriptorTable(SLOT_POINT_SHADOW,
         (shadow.pointEnabled && shadow.pointSrv.ptr) ? shadow.pointSrv : m_fallbackCubeSRV.getGPUHandle(0));
+
+    cmd->SetComputeRootDescriptorTable(SLOT_POINT_INDICES, m_lightCulling.getPointListSRV(viewportIndex));
+    cmd->SetComputeRootDescriptorTable(SLOT_SPOT_INDICES, m_lightCulling.getSpotListSRV(viewportIndex));
 
     cmd->SetComputeRootConstantBufferView(SLOT_GPU_VP,
         (shadow.gpuMode && shadow.gpuVpVA) ? shadow.gpuVpVA : m_computeCB[viewportIndex]->GetGPUVirtualAddress());

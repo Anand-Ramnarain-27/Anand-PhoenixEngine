@@ -118,6 +118,8 @@ bool SceneSerializer::SaveScene(const SceneGraph* scene, const std::string& file
             fogObj.AddMember("noiseAmount", settings->fog.noiseAmount, a);
             fogObj.AddMember("fogIntensity", settings->fog.fogIntensity, a);
             fogObj.AddMember("anisotropyG", settings->fog.anisotropyG, a);
+            fogObj.AddMember("halfResolution", settings->fog.halfResolution, a);
+            fogObj.AddMember("boundedRayLength", settings->fog.boundedRayLength, a);
             set.AddMember("Fog", fogObj, a);
 
             sceneObj.AddMember("Settings", set, a);
@@ -259,6 +261,8 @@ bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, 
                 if (fg.HasMember("noiseAmount")) settings->fog.noiseAmount = fg["noiseAmount"].GetFloat();
                 if (fg.HasMember("fogIntensity")) settings->fog.fogIntensity = fg["fogIntensity"].GetFloat();
                 if (fg.HasMember("anisotropyG")) settings->fog.anisotropyG = fg["anisotropyG"].GetFloat();
+                if (fg.HasMember("halfResolution")) settings->fog.halfResolution = fg["halfResolution"].GetBool();
+                if (fg.HasMember("boundedRayLength")) settings->fog.boundedRayLength = fg["boundedRayLength"].GetBool();
             }
         }
     }

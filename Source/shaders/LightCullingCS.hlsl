@@ -10,6 +10,8 @@ cbuffer CbCulling : register(b0){
     uint ViewportHeight;
     float4x4 Projection;
     float4x4 View;
+    uint IgnoreNearDepth;
+    float CullPad0, CullPad1, CullPad2;
 };
 
 Texture2D<float> DepthBuffer : register(t0);
@@ -94,12 +96,13 @@ void main(uint2 globalIdx : SV_DispatchThreadID,
         float radius = sqrt(pl.SquaredRadius);
         float3 vPos = mul(float4(pl.Position, 1.0f), View).xyz;
 
+        bool nearOK = (IgnoreNearDepth != 0u) || ((viewMinZ - vPos.z) < radius);
         bool inside =
             distFromPlane(planes[0], vPos) < radius &&
             distFromPlane(planes[1], vPos) < radius &&
             distFromPlane(planes[2], vPos) < radius &&
             distFromPlane(planes[3], vPos) < radius &&
-            (viewMinZ - vPos.z) < radius &&
+            nearOK &&
             (vPos.z - viewMaxZ) < radius;
 
         if (inside){
@@ -133,12 +136,13 @@ void main(uint2 globalIdx : SV_DispatchThreadID,
 
         float3 vPos = mul(float4(sphereC, 1.0f), View).xyz;
 
+        bool spotNearOK = (IgnoreNearDepth != 0u) || ((viewMinZ - vPos.z) < sphereR);
         bool inside =
             distFromPlane(planes[0], vPos) < sphereR &&
             distFromPlane(planes[1], vPos) < sphereR &&
             distFromPlane(planes[2], vPos) < sphereR &&
             distFromPlane(planes[3], vPos) < sphereR &&
-            (viewMinZ - vPos.z) < sphereR &&
+            spotNearOK &&
             (vPos.z - viewMaxZ) < sphereR;
 
         if (inside){

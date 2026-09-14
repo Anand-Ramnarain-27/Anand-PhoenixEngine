@@ -372,9 +372,11 @@ void RuntimeCore::renderStandaloneFrame(){
                 vfs.fogIntensity = settings->fog.fogIntensity;
                 vfs.anisotropyG = settings->fog.anisotropyG;
                 vfs.maxOpacity = settings->fog.maxOpacity;
+                vfs.halfResolution = settings->fog.halfResolution;
+                vfs.boundedRayLength = settings->fog.boundedRayLength;
                 const float elapsedTime = (float)app->getElapsedMilis() / 1000.f;
                 hdrResult = m_volumetricFogPass->render(cmd, hdrResult, fogOut, *m_gbufferPass, pos,
-                                                        invViewProj, elapsedTime, m_frameLights,
+                                                        view, proj, invViewProj, elapsedTime, m_frameLights,
                                                         m_frameShadowData, vfs, /*viewportIndex=*/1);
             }
         } else if (m_fogPass){

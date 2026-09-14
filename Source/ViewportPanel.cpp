@@ -57,9 +57,11 @@ void ViewportPanel::renderToTexture(ID3D12GraphicsCommandList* cmd){
                 vfs.fogIntensity = settings->fog.fogIntensity;
                 vfs.anisotropyG = settings->fog.anisotropyG;
                 vfs.maxOpacity = settings->fog.maxOpacity;
+                vfs.halfResolution = settings->fog.halfResolution;
+                vfs.boundedRayLength = settings->fog.boundedRayLength;
                 const float elapsedTime = (float)app->getElapsedMilis() / 1000.f;
-                hdrResult = volFog->render(cmd, hdrResult, fogOut, *gbuffer, camPos, invViewProj,
-                                           elapsedTime, m_editor->getFrameLights(),
+                hdrResult = volFog->render(cmd, hdrResult, fogOut, *gbuffer, camPos, view, proj,
+                                           invViewProj, elapsedTime, m_editor->getFrameLights(),
                                            m_editor->getFrameShadowData(), vfs, /*viewportIndex=*/0);
             }
         } else if (FogPass* fog = m_editor->getFogPass()){

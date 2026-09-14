@@ -2,6 +2,7 @@
 #include "ShaderTableDesc.h"
 #include "ShadowMapPass.h"
 #include "MeshPipeline.h"
+#include "LightCullingPass.h"
 #include <d3d12.h>
 #include <wrl.h>
 using Microsoft::WRL::ComPtr;
@@ -18,6 +19,8 @@ struct VolumetricFogSettings {
     float fogIntensity = 1.0f;
     float anisotropyG = 0.3f;
     float maxOpacity = 1.0f;
+    bool halfResolution = true;
+    bool boundedRayLength = false;
 };
 
 class VolumetricFogPass {
@@ -34,19 +37,24 @@ public:
     static constexpr UINT SLOT_SHADOW_MOMENTS = 7;
     static constexpr UINT SLOT_SPOT_SHADOW = 8;
     static constexpr UINT SLOT_POINT_SHADOW = 9;
-    static constexpr UINT SLOT_GPU_VP = 10;
-    static constexpr UINT SLOT_SAMPLER = 11;
+    static constexpr UINT SLOT_POINT_INDICES = 10;
+    static constexpr UINT SLOT_SPOT_INDICES = 11;
+    static constexpr UINT SLOT_GPU_VP = 12;
+    static constexpr UINT SLOT_SAMPLER = 13;
 
     bool init(ID3D12Device* device);
 
-    // Ray-marches transmittance + in-scattering into an intermediate texture, then composites it
-    // onto (input -> output). Returns the RenderTexture the result was written to (either output,
-    // or input if disabled/invalid).
+    // Ray-marches transmittance + in-scattering into an intermediate texture (optionally at half
+    // resolution, with the sample offset by Interleaved Gradient Noise to break up banding), then
+    // composites it onto (input -> output) with a bilinear upsample. Returns the RenderTexture the
+    // result was written to (either output, or input if disabled/invalid).
     RenderTexture* render(ID3D12GraphicsCommandList* cmd,
                           RenderTexture* input,
                           RenderTexture* output,
                           GBufferPass& gbufferPass,
                           const Vector3& cameraPos,
+                          const Matrix& view,
+                          const Matrix& projection,
                           const Matrix& invViewProj,
                           float elapsedTime,
                           const FrameLightData& lights,
@@ -61,11 +69,15 @@ private:
         float time;
         uint32_t viewportWidth;
         uint32_t viewportHeight;
+        uint32_t fullViewportWidth;
+        uint32_t fullViewportHeight;
         uint32_t numSteps;
         float extinctionCoeff;
         float noiseAmount;
         float fogIntensity;
         float anisotropyG;
+        uint32_t frameIndex;
+        uint32_t boundedRayLength;
         float framePad0;
         uint32_t dirLightCount;
         uint32_t pointLightCount;
@@ -107,6 +119,10 @@ private:
     ComPtr<ID3D12RootSignature> m_compositeRootSig;
     ComPtr<ID3D12PipelineState> m_compositePSO;
 
+    // Fog-safe tile light lists (no near-depth rejection), private to this pass so the main
+    // deferred-lighting light-culling results (which DO reject near lights) stay untouched.
+    LightCullingPass m_lightCulling;
+
     ComPtr<ID3D12Resource> m_computeCB[NUM_VIEWPORTS];
     void* m_computeMapped[NUM_VIEWPORTS] = {};
     ComPtr<ID3D12Resource> m_compositeCB[NUM_VIEWPORTS];
@@ -132,4 +148,6 @@ private:
     ShaderTableDesc m_fogUav[NUM_VIEWPORTS];
     uint32_t m_fogTexWidth[NUM_VIEWPORTS] = {};
     uint32_t m_fogTexHeight[NUM_VIEWPORTS] = {};
+
+    uint32_t m_frameIndex = 0;
 };

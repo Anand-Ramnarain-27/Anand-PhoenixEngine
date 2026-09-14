@@ -4,17 +4,24 @@
 #include "Shadows.hlsli"
 #include "Samplers.hlsli"
 
+#define TILE_SIZE 16
+#define MAX_LIGHTS_PER_TILE 64
+
 cbuffer CbPerFrame : register(b0){
     float4x4 InvViewProj;
     float3 CameraPosition;
     float Time;
     uint ViewportWidth;
     uint ViewportHeight;
+    uint FullViewportWidth;
+    uint FullViewportHeight;
     uint NumSteps;
     float ExtinctionCoeff;
     float NoiseAmount;
     float FogIntensity;
     float AnisotropyG;
+    uint FrameIndex;
+    uint BoundedRayLength;
     float FramePad0;
     uint DirLightCount;
     uint PointLightCount;
@@ -44,6 +51,9 @@ Texture2DArray ShadowMap : register(t4);
 Texture2DArray ShadowMoments : register(t5);
 Texture2D SpotShadowMap : register(t6);
 TextureCube PointShadowMap : register(t7);
+
+StructuredBuffer<int> PointLightIndices : register(t8);
+StructuredBuffer<int> SpotLightIndices : register(t9);
 
 cbuffer GpuVP : register(b1){
     row_major float4x4 GpuViewProj;
@@ -92,6 +102,46 @@ float PhaseHG_Schlick(float cosTheta, float g){
     return (1.0f - k * k) / (4.0f * PI * denom * denom);
 }
 
+// Interleaved Gradient Noise: a cheap, animated low-discrepancy sequence used to dither the
+// ray-march start offset so a low step count bands instead of banding coherently every frame.
+float SampleIGN(float2 pixelXY, float frameIndex){
+    pixelXY += frameIndex * 5.588238f;
+    return frac(52.9829189f * frac(0.06711056f * pixelXY.x + 0.00583715f * pixelXY.y));
+}
+
+uint GetTileIndex(uint2 pixelPos){
+    uint numTilesX = (FullViewportWidth + TILE_SIZE - 1) / TILE_SIZE;
+    return (pixelPos.y / TILE_SIZE) * numTilesX + (pixelPos.x / TILE_SIZE);
+}
+
+bool RaySphereIntersect(float3 ro, float3 rd, float3 center, float radius, out float t0, out float t1){
+    float3 oc = ro - center;
+    float b = dot(oc, rd);
+    float c = dot(oc, oc) - radius * radius;
+    float disc = b * b - c;
+    if (disc < 0.0f){ t0 = 0.0f; t1 = 0.0f; return false; }
+    float s = sqrt(disc);
+    t0 = -b - s;
+    t1 = -b + s;
+    return true;
+}
+
+// Bounding sphere of a spot light's cone, same construction used by LightCullingCS.hlsl's tile test.
+void SpotBoundingSphere(SpotLight sl, out float3 sphereC, out float sphereR){
+    float spotR = sqrt(sl.SquaredRadius);
+    float cosOuter = sl.OuterAngle;
+    const float kCosQuarterPi = 0.70710678f;
+    if (cosOuter < kCosQuarterPi){
+        float sinA = sqrt(1.0f - cosOuter * cosOuter);
+        float tanA = sinA / cosOuter;
+        sphereR = spotR * tanA;
+        sphereC = sl.Position + sl.Direction * spotR;
+    } else {
+        sphereR = spotR * 0.5f / (cosOuter * cosOuter);
+        sphereC = sl.Position + sl.Direction * sphereR;
+    }
+}
+
 float SampleDirectionalShadow(float3 worldPos){
     if (ShadowParams1.x < 0.5f) return 1.0f;
     int mode = (int)ShadowParams1.y;
@@ -111,9 +161,11 @@ float SampleDirectionalShadow(float3 worldPos){
                                        ShadowParams2.x, mode == 2 ? 1 : 0, ShadowParams2.y, cascade);
 }
 
-// Sum of Li(x, L) * Vis(x, L) * phase(rayDir, L) over all lights, at world-space point worldPos.
-// rayDir is the camera-to-point ray direction (the lecture's -V).
-float3 AccumulateInScattering(float3 worldPos, float3 rayDir){
+// Sum of Li(x, L) * Vis(x, L) * phase(rayDir, L) over lights visible at world-space point worldPos.
+// rayDir is the camera-to-point ray direction (the lecture's -V). Directional lights are always
+// evaluated (cheap, few of them); point/spot lights use this pixel's tile light list and are
+// skipped entirely when includePointSpot is false (the "bounded ray length" optimization).
+float3 AccumulateInScattering(float3 worldPos, float3 rayDir, uint tileIdx, bool includePointSpot){
     float3 result = float3(0.0f, 0.0f, 0.0f);
 
     float dirShadow = SampleDirectionalShadow(worldPos);
@@ -125,8 +177,12 @@ float3 AccumulateInScattering(float3 worldPos, float3 rayDir){
         result += L.Color * L.Intensity * phase * vis;
     }
 
-    for (uint p = 0; p < PointLightCount; ++p){
-        PointLight L = PointLights[p];
+    if (!includePointSpot) return result;
+
+    for (uint pi = 0; pi < MAX_LIGHTS_PER_TILE; ++pi){
+        int idx = PointLightIndices[tileIdx * MAX_LIGHTS_PER_TILE + pi];
+        if (idx < 0) break;
+        PointLight L = PointLights[idx];
         float3 toLight = L.Position - worldPos;
         float sqDist = dot(toLight, toLight);
         float atten = PointLightAttenuation(sqDist, L.SquaredRadius);
@@ -139,8 +195,10 @@ float3 AccumulateInScattering(float3 worldPos, float3 rayDir){
         result += L.Color * L.Intensity * atten * phase * vis;
     }
 
-    for (uint s = 0; s < SpotLightCount; ++s){
-        SpotLight L = SpotLights[s];
+    for (uint si = 0; si < MAX_LIGHTS_PER_TILE; ++si){
+        int idx = SpotLightIndices[tileIdx * MAX_LIGHTS_PER_TILE + si];
+        if (idx < 0) break;
+        SpotLight L = SpotLights[idx];
         float3 toLight = L.Position - worldPos;
         float3 Ldir = normalize(toLight);
         float projDist = dot(-toLight, L.Direction);
@@ -163,7 +221,7 @@ void main(uint3 dtid : SV_DispatchThreadID){
     if (dtid.x >= ViewportWidth || dtid.y >= ViewportHeight) return;
 
     float2 uv = (float2(dtid.xy) + 0.5f) / float2(ViewportWidth, ViewportHeight);
-    float depth = GBufferDepth.Load(int3(dtid.xy, 0));
+    float depth = GBufferDepth.SampleLevel(PointClamp, uv, 0);
     float3 worldPos = ReconstructWorldPosFog(uv, depth, InvViewProj);
 
     float3 rayVec = worldPos - CameraPosition;
@@ -173,16 +231,55 @@ void main(uint3 dtid : SV_DispatchThreadID){
     uint steps = max(NumSteps, 1u);
     float stepSize = dist / float(steps);
     float3 marchStep = marchDir * stepSize;
-    float3 currentPos = CameraPosition;
+
+    float ign = SampleIGN(uv * float2(ViewportWidth, ViewportHeight), (float)FrameIndex);
+    float3 currentPos = CameraPosition + marchStep * ign;
+
+    uint2 fullPixel = uint2(uv * float2(FullViewportWidth, FullViewportHeight));
+    uint tileIdx = GetTileIndex(min(fullPixel, uint2(FullViewportWidth - 1, FullViewportHeight - 1)));
+
+    float lightT0 = 0.0f;
+    float lightT1 = dist;
+    if (BoundedRayLength != 0u){
+        lightT0 = 1e9f;
+        lightT1 = -1e9f;
+        for (uint pi = 0; pi < MAX_LIGHTS_PER_TILE; ++pi){
+            int idx = PointLightIndices[tileIdx * MAX_LIGHTS_PER_TILE + pi];
+            if (idx < 0) break;
+            PointLight L = PointLights[idx];
+            float t0, t1;
+            if (RaySphereIntersect(CameraPosition, marchDir, L.Position, sqrt(L.SquaredRadius), t0, t1)){
+                lightT0 = min(lightT0, t0);
+                lightT1 = max(lightT1, t1);
+            }
+        }
+        for (uint si = 0; si < MAX_LIGHTS_PER_TILE; ++si){
+            int idx = SpotLightIndices[tileIdx * MAX_LIGHTS_PER_TILE + si];
+            if (idx < 0) break;
+            SpotLight L = SpotLights[idx];
+            float3 sphereC; float sphereR;
+            SpotBoundingSphere(L, sphereC, sphereR);
+            float t0, t1;
+            if (RaySphereIntersect(CameraPosition, marchDir, sphereC, sphereR, t0, t1)){
+                lightT0 = min(lightT0, t0);
+                lightT1 = max(lightT1, t1);
+            }
+        }
+        lightT0 = clamp(lightT0, 0.0f, dist);
+        lightT1 = clamp(lightT1, 0.0f, dist);
+    }
 
     float extCoeff = 0.0f;
     float3 accInScattering = float3(0.0f, 0.0f, 0.0f);
+    float t = 0.0f;
     [loop]
     for (uint i = 0; i < steps; ++i){
         extCoeff += CalculateExtinctionCoeff(currentPos) * stepSize;
-        float3 inScatter = AccumulateInScattering(currentPos, marchDir) * stepSize;
+        bool withinLightBounds = (t >= lightT0 && t <= lightT1);
+        float3 inScatter = AccumulateInScattering(currentPos, marchDir, tileIdx, withinLightBounds) * stepSize;
         accInScattering += inScatter * exp(-extCoeff);
         currentPos += marchStep;
+        t += stepSize;
     }
 
     float transmittance = saturate(FogIntensity * exp(-extCoeff));

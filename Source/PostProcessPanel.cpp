@@ -145,6 +145,16 @@ void PostProcessPanel::drawFogSection(){
         ImGui::SliderFloat("##fog_aniso", &fog.anisotropyG, -0.95f, 0.95f, "%.2f");
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Scattering direction (Henyey-Greenstein g). Positive = forward scattering (light shafts toward camera), negative = back scattering.");
+
+        ImGui::Spacing();
+        textMuted("Performance");
+        ImGui::Checkbox("Half Resolution##fog_halfres", &fog.halfResolution);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Ray-march at half width/height and bilinear-upsample (~4x less compute, also smooths dithering noise).");
+
+        ImGui::Checkbox("Bounded Ray Length##fog_bounded", &fog.boundedRayLength);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Skip point/spot light evaluation along ray segments outside every tile light's influence sphere. Directional light and extinction/transmittance are unaffected.");
     }
     ImGui::EndDisabled();
 }

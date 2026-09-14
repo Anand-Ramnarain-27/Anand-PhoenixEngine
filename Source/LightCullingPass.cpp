@@ -109,7 +109,8 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
                              const Matrix& view,
                              const Matrix& projection,
                              uint32_t width, uint32_t height,
-                             int viewportIndex){
+                             int viewportIndex,
+                             bool ignoreNearDepth){
     if (width == 0 || height == 0) return;
     viewportIndex = (viewportIndex >= 0 && viewportIndex < NUM_VIEWPORTS) ? viewportIndex : 0;
 
@@ -162,6 +163,7 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
         cb.viewportHeight = height;
         cb.projection = projection.Transpose();
         cb.view = view.Transpose();
+        cb.ignoreNearDepth = ignoreNearDepth ? 1u : 0u;
         memcpy(m_cbMapped[viewportIndex], &cb, sizeof(cb));
     }
 

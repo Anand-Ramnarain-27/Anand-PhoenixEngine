@@ -45,19 +45,25 @@ public:
         uint32_t viewportHeight;
         Matrix projection;
         Matrix view;
+        uint32_t ignoreNearDepth;
+        float cullPad0, cullPad1, cullPad2;
     };
 
     static constexpr int NUM_VIEWPORTS = 2;
 
     bool init(ID3D12Device* device);
 
+    // ignoreNearDepth: skip the "light is closer than the nearest visible surface in this tile"
+    // rejection. Deferred lighting needs that rejection (a light behind visible geometry can't
+    // light it); volumetric fog fills the space in front of geometry too, so it needs the full list.
     void cull(ID3D12GraphicsCommandList* cmd,
               GBufferPass& gbufferPass,
               const FrameLightData& lights,
               const Matrix& view,
               const Matrix& projection,
               uint32_t width, uint32_t height,
-              int viewportIndex);
+              int viewportIndex,
+              bool ignoreNearDepth = false);
 
     D3D12_GPU_DESCRIPTOR_HANDLE getPointListSRV(int viewportIndex) const { return m_pointListSRV[viewportIndex].getGPUHandle(0); }
     D3D12_GPU_DESCRIPTOR_HANDLE getSpotListSRV(int viewportIndex) const { return m_spotListSRV[viewportIndex] .getGPUHandle(0); }

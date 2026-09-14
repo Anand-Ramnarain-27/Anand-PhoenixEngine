@@ -57,5 +57,7 @@ struct EditorSceneSettings {
         float noiseAmount = 0.5f;
         float fogIntensity = 1.0f;
         float anisotropyG = 0.3f;
+        bool halfResolution = true;
+        bool boundedRayLength = false;
     } fog;
 };
