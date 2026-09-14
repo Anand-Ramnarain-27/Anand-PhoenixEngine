@@ -24,8 +24,10 @@ bool TrailPass::init(ID3D12Device* device){
     if (!createFallbackTexture(device)) return false;
 
     LOG("TrailPass: init OK");
+#ifdef PHOENIX_EDITOR
     if (auto* ed = app->getEditor())
         ed->log("TrailPass: initialized OK", ImVec4(0.5f, 1.f, 0.5f, 1.f));
+#endif
     return true;
 }
 

@@ -275,6 +275,7 @@ void ComponentMesh::updateLOD(float coverage, int forceIndex){
 void ComponentMesh::render(ID3D12GraphicsCommandList* ){
 }
 
+#ifdef PHOENIX_EDITOR
 namespace fs = std::filesystem;
 
 static std::string toLower(std::string s){
@@ -353,8 +354,10 @@ static void drawTexturePicker(ComponentMesh* mesh, Material* mat, int submeshIdx
     if (ImGui::Button("Cancel", ImVec2(80, 0))) ImGui::CloseCurrentPopup();
     ImGui::EndPopup();
 }
+#endif // PHOENIX_EDITOR
 
 void ComponentMesh::onEditor(){
+#ifdef PHOENIX_EDITOR
     ComponentMesh* mesh = this;
     bool hasEntries = !mesh->getEntries().empty();
     bool hasProcedural = (mesh->getProceduralModel() != nullptr);
@@ -529,6 +532,7 @@ void ComponentMesh::onEditor(){
         ImGui::Spacing();
         ImGui::PopID();
     }
+#endif // PHOENIX_EDITOR
 }
 
 void ComponentMesh::onDrawGizmos(){

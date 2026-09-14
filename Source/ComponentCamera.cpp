@@ -53,6 +53,7 @@ static constexpr float kDeg2Rad = 0.0174532925f;
 static constexpr float kRad2Deg = 57.2957795f;
 
 void ComponentCamera::onEditor(){
+#ifdef PHOENIX_EDITOR
     ComponentCamera* cam = this;
     bool isMain = cam->isMainCamera();
     if (ImGui::Checkbox("Is Active Camera", &isMain)) cam->setMainCamera(isMain);
@@ -124,6 +125,7 @@ void ComponentCamera::onEditor(){
             for (auto& e : allCams) e.cam->setMainCamera(false);
             cam->setMainCamera(true);
         }
+#endif
 }
 
 void ComponentCamera::onSave(std::string& outJson) const{

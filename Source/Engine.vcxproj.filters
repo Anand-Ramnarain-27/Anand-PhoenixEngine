@@ -317,6 +317,9 @@
     <ClCompile Include="PostProcessPanel.cpp">
       <Filter>Engine\Editor\Panels</Filter>
     </ClCompile>
+    <ClCompile Include="BuildSettingsPanel.cpp">
+      <Filter>Engine\Editor\Panels</Filter>
+    </ClCompile>
     <ClCompile Include="BillboardPass.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
@@ -354,10 +357,16 @@
     <ClCompile Include="ModuleEditor.cpp">
       <Filter>Engine\Editor</Filter>
     </ClCompile>
-    <ClCompile Include="EditorRenderer.cpp">
-      <Filter>Engine\Editor</Filter>
+    <ClCompile Include="RuntimeCore.cpp">
+      <Filter>Engine\Core</Filter>
     </ClCompile>
-    <ClCompile Include="EditorSceneGather.cpp">
+    <ClCompile Include="BuildSettings.cpp">
+      <Filter>Engine\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="BuildPipeline.cpp">
+      <Filter>Engine\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="EditorRenderer.cpp">
       <Filter>Engine\Editor</Filter>
     </ClCompile>
     <ClCompile Include="EditorMenus.cpp">
@@ -878,6 +887,9 @@
     <ClInclude Include="PostProcessPanel.h">
       <Filter>Engine\Editor\Panels</Filter>
     </ClInclude>
+    <ClInclude Include="BuildSettingsPanel.h">
+      <Filter>Engine\Editor\Panels</Filter>
+    </ClInclude>
     <ClInclude Include="BillboardPass.h">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
@@ -926,6 +938,15 @@
     <!-- ============================================================ -->
     <ClInclude Include="ModuleEditor.h">
       <Filter>Engine\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="RuntimeCore.h">
+      <Filter>Engine\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="BuildSettings.h">
+      <Filter>Engine\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="BuildPipeline.h">
+      <Filter>Engine\Core</Filter>
     </ClInclude>
     <ClInclude Include="EditorSelection.h">
       <Filter>Engine\Editor</Filter>

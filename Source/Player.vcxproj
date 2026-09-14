@@ -1,5 +1,5 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -20,11 +20,11 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
-    <ProjectGuid>{1EEA1523-1CAF-4CA4-97B8-1C77FF6F7D9E}</ProjectGuid>
+    <ProjectGuid>{7A3F1C90-2B44-4E77-9A11-8F6D0C55E201}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>PhoenixEngine</RootNamespace>
+    <RootNamespace>Player</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>PhoenixEngine</ProjectName>
+    <ProjectName>Player</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -93,7 +93,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>PHOENIX_EDITOR;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
     </ClCompile>
@@ -107,7 +107,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>PHOENIX_EDITOR;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <AdditionalIncludeDirectories>.;3rdParty/WinPixEventRunTime/Include;3rdParty/ImGuizmo;3rdParty/DirectXTex;3rdParty/tinygltf;3rdParty/mikktspace;3rdParty/imgui-docking;3rdParty/directX;3rdParty/imgui-node-editor-master</AdditionalIncludeDirectories>
@@ -130,7 +130,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>PHOENIX_EDITOR;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
     </ClCompile>
@@ -148,7 +148,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>PHOENIX_EDITOR;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <AdditionalIncludeDirectories>.;3rdParty/WinPixEventRunTime/Include;3rdParty/ImGuizmo;3rdParty/DirectXTex;3rdParty/tinygltf;3rdParty/mikktspace;3rdParty/imgui-docking;3rdParty/directX;3rdParty/imgui-node-editor-master</AdditionalIncludeDirectories>
@@ -165,12 +165,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="3rdParty\imgui-1.89.8\backends\imgui_impl_win32.h" />
-    <ClInclude Include="3rdParty\imgui-docking\backends\imgui_impl_dx12.h" />
-    <ClInclude Include="3rdParty\imgui-docking\backends\imgui_impl_win32.h" />
     <ClInclude Include="3rdParty\imgui-docking\imgui.h" />
     <ClInclude Include="3rdParty\imgui-docking\imgui_internal.h" />
-    <ClInclude Include="3rdParty\ImGuizmo\ImGuizmo.h" />
     <ClInclude Include="3rdParty\imgui-node-editor-master\imgui_node_editor.h" />
     <ClInclude Include="3rdParty\imgui-node-editor-master\imgui_node_editor_internal.h" />
     <ClInclude Include="BoundingVolume.h" />
@@ -185,7 +181,6 @@
     <ClInclude Include="NarrowPhase.h" />
     <ClInclude Include="CollisionSystem.h" />
     <ClInclude Include="Application.h" />
-    <ClInclude Include="AssetBrowserPanel.h" />
     <ClInclude Include="ScriptCreator.h" />
     <ClInclude Include="API\PhoenixAPI.h" />
     <ClInclude Include="API\Phoenix_Keys.h" />
@@ -195,10 +190,6 @@
     <ClInclude Include="API\Phoenix_Input.h" />
     <ClInclude Include="API\Phoenix_Scene.h" />
     <ClInclude Include="API\Phoenix_GameObject.h" />
-    <ClInclude Include="AssetPickerWidget.h" />
-    <ClInclude Include="CurveWidget.h" />
-    <ClInclude Include="DragDropManager.h" />
-    <ClInclude Include="EngineDropTarget.h" />
     <ClInclude Include="CommandContext.h" />
     <ClInclude Include="Component.h" />
     <ClInclude Include="ComponentCamera.h" />
@@ -213,16 +204,7 @@
     <ClInclude Include="debug_draw.hpp" />
     <ClInclude Include="DepthStencilDesc.h" />
     <ClInclude Include="DescriptorBase.h" />
-    <ClInclude Include="EditorColors.h" />
-    <ClInclude Include="EditorPanel.h" />
-    <ClInclude Include="ConsolePanel.h" />
-    <ClInclude Include="PerformancePanel.h" />
-    <ClInclude Include="ResourcesPanel.h" />
-    <ClInclude Include="CollisionDebugPanel.h" />
-    <ClInclude Include="GPUMemoryPanel.h" />
     <ClInclude Include="EditorSceneSettings.h" />
-    <ClInclude Include="EditorSelection.h" />
-    <ClInclude Include="EditorViewport.h" />
     <ClInclude Include="EnvironmentMap.h" />
     <ClInclude Include="EnvironmentSystem.h" />
     <ClInclude Include="FileDialog.h" />
@@ -230,16 +212,13 @@
     <ClInclude Include="Frustum.h" />
     <ClInclude Include="FrustumDebugDraw.h" />
     <ClInclude Include="GameObject.h" />
-    <ClInclude Include="GameViewPanel.h" />
     <ClInclude Include="gltf_utils.h" />
     <ClInclude Include="HandleManager.h" />
     <ClInclude Include="HDRToCubemapPass.h" />
-    <ClInclude Include="HierarchyPanel.h" />
     <ClInclude Include="HotReloadManager.h" />
     <ClInclude Include="IBLGenerator.h" />
     <ClInclude Include="IBLSettings.h" />
     <ClInclude Include="ImporterUtils.h" />
-    <ClInclude Include="InspectorPanel.h" />
     <ClInclude Include="IScene.h" />
     <ClInclude Include="IScript.h" />
     <ClInclude Include="IScriptFactory.h" />
@@ -255,8 +234,6 @@
     <ClInclude Include="BloomPass.h" />
     <ClInclude Include="PostProcessChain.h" />
     <ClInclude Include="ColorLUT.h" />
-    <ClInclude Include="PostProcessPanel.h" />
-    <ClInclude Include="BuildSettingsPanel.h" />
     <ClInclude Include="ComponentDecal.h" />
     <ClInclude Include="BillboardPass.h" />
     <ClInclude Include="ComponentBillboard.h" />
@@ -285,17 +262,13 @@
     <ClInclude Include="MathUtils.h" />
     <ClInclude Include="ModuleCamera.h" />
     <ClInclude Include="ModuleD3D12.h" />
-    <ClInclude Include="ModuleEditor.h" />
     <ClInclude Include="RuntimeCore.h" />
     <ClInclude Include="BuildSettings.h" />
-    <ClInclude Include="BuildPipeline.h" />
     <ClInclude Include="ModuleGPUResources.h" />
     <ClInclude Include="ModuleStaticBuffer.h" />
-    <ClInclude Include="PhoenixEngine.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GamePad.h" />
     <ClInclude Include="Globals.h" />
-    <ClInclude Include="ImGuiPass.h" />
     <ClInclude Include="Keyboard.h" />
     <ClInclude Include="Module.h" />
     <ClInclude Include="ModuleInput.h" />
@@ -324,37 +297,15 @@
     <ClInclude Include="SceneImporter.h" />
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="SceneSerializer.h" />
-    <ClInclude Include="SceneSettingsPanel.h" />
-    <ClInclude Include="SceneViewPanel.h" />
-    <ClInclude Include="MousePicker.h" />
     <ClInclude Include="ResourceStateMachine.h" />
-    <ClInclude Include="StateMachineGraphEditor.h" />
-    <ClInclude Include="DebugSceneBuilder.h" />
     <ClInclude Include="ScriptExport.h" />
     <ClInclude Include="ShaderTableDesc.h" />
     <ClInclude Include="SimpleMath.h" />
     <ClInclude Include="SkyboxRenderer.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="TextureImporter.h" />
-    <ClInclude Include="ViewportPanel.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="3rdParty\imgui-docking\backends\imgui_impl_dx12.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </PrecompiledHeaderFile>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </PrecompiledHeaderFile>
-    </ClCompile>
-    <ClCompile Include="3rdParty\imgui-docking\backends\imgui_impl_win32.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </PrecompiledHeaderFile>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </PrecompiledHeaderFile>
-    </ClCompile>
     <ClCompile Include="3rdParty\imgui-docking\imgui.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -395,19 +346,11 @@
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </PrecompiledHeaderFile>
     </ClCompile>
-    <ClCompile Include="3rdParty\ImGuizmo\ImGuizmo.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-    </ClCompile>
     <ClCompile Include="Application.cpp" />
-    <ClCompile Include="AssetBrowserPanel.cpp" />
     <ClCompile Include="ScriptCreator.cpp" />
     <ClCompile Include="API\Phoenix_Time.cpp" />
     <ClCompile Include="API\Phoenix_Input.cpp" />
     <ClCompile Include="API\Phoenix_Scene.cpp" />
-    <ClCompile Include="CurveWidget.cpp" />
-    <ClCompile Include="DragDropManager.cpp" />
-    <ClCompile Include="EngineDropTarget.cpp" />
     <ClCompile Include="CommandContext.cpp" />
     <ClCompile Include="ComponentCamera.cpp" />
     <ClCompile Include="ComponentFactory.cpp" />
@@ -429,22 +372,13 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="DepthStencilDesc.cpp" />
-    <ClCompile Include="EditorPanel.cpp" />
-    <ClCompile Include="ConsolePanel.cpp" />
-    <ClCompile Include="PerformancePanel.cpp" />
-    <ClCompile Include="ResourcesPanel.cpp" />
-    <ClCompile Include="CollisionDebugPanel.cpp" />
-    <ClCompile Include="GPUMemoryPanel.cpp" />
     <ClCompile Include="EnvironmentSystem.cpp" />
     <ClCompile Include="FileDialog.cpp" />
     <ClCompile Include="FileWatcher.cpp" />
     <ClCompile Include="GameObject.cpp" />
-    <ClCompile Include="GameViewPanel.cpp" />
     <ClCompile Include="HDRToCubemapPass.cpp" />
-    <ClCompile Include="HierarchyPanel.cpp" />
     <ClCompile Include="HotReloadManager.cpp" />
     <ClCompile Include="IBLGenerator.cpp" />
-    <ClCompile Include="InspectorPanel.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="MaterialImporter.cpp" />
     <ClCompile Include="Mesh.cpp" />
@@ -456,8 +390,6 @@
     <ClCompile Include="BloomPass.cpp" />
     <ClCompile Include="PostProcessChain.cpp" />
     <ClCompile Include="ColorLUT.cpp" />
-    <ClCompile Include="PostProcessPanel.cpp" />
-    <ClCompile Include="BuildSettingsPanel.cpp" />
     <ClCompile Include="ComponentDecal.cpp" />
     <ClCompile Include="BillboardPass.cpp" />
     <ClCompile Include="ComponentBillboard.cpp" />
@@ -483,18 +415,10 @@
     <ClCompile Include="MathUtils.cpp" />
     <ClCompile Include="ModuleCamera.cpp" />
     <ClCompile Include="ModuleD3D12.cpp" />
-    <ClCompile Include="ModuleEditor.cpp" />
-    <ClCompile Include="EditorRenderer.cpp" />
     <ClCompile Include="RuntimeCore.cpp" />
     <ClCompile Include="BuildSettings.cpp" />
-    <ClCompile Include="BuildPipeline.cpp" />
-    <ClCompile Include="EditorMenus.cpp" />
-    <ClCompile Include="EditorCommands.cpp" />
-    <ClCompile Include="EditorSpawn.cpp" />
-    <ClCompile Include="EditorEffects.cpp" />
     <ClCompile Include="ModuleGPUResources.cpp" />
     <ClCompile Include="ModuleStaticBuffer.cpp" />
-    <ClCompile Include="PhoenixEngine.cpp" />
     <ClCompile Include="GamePad.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -507,7 +431,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="ImGuiPass.cpp" />
     <ClCompile Include="Keyboard.cpp" />
     <ClCompile Include="ModuleInput.cpp" />
     <ClCompile Include="Mouse.cpp" />
@@ -529,34 +452,29 @@
     <ClCompile Include="SceneImporter.cpp" />
     <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="SceneSerializer.cpp" />
-    <ClCompile Include="SceneSettingsPanel.cpp" />
-    <ClCompile Include="SceneViewPanel.cpp" />
-    <ClCompile Include="MousePicker.cpp" />
-    <ClCompile Include="StateMachineGraphEditor.cpp" />
-    <ClCompile Include="DebugSceneBuilder.cpp" />
     <ClCompile Include="3rdParty\imgui-node-editor-master\imgui_node_editor.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"></PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'"></PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
     </ClCompile>
     <ClCompile Include="3rdParty\imgui-node-editor-master\imgui_node_editor_api.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"></PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'"></PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
     </ClCompile>
     <ClCompile Include="3rdParty\imgui-node-editor-master\imgui_canvas.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"></PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'"></PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
     </ClCompile>
     <ClCompile Include="3rdParty\imgui-node-editor-master\crude_json.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"></PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'"></PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
     </ClCompile>
     <ClCompile Include="ResourceStateMachine.cpp" />
     <ClCompile Include="ShaderTableDesc.cpp" />
@@ -566,14 +484,7 @@
     </ClCompile>
     <ClCompile Include="SkyboxRenderer.cpp" />
     <ClCompile Include="TextureImporter.cpp" />
-    <ClCompile Include="ViewportPanel.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="Engine.rc" />
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="Engine.ico" />
-    <Image Include="small.ico" />
+    <ClCompile Include="PlayerMain.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

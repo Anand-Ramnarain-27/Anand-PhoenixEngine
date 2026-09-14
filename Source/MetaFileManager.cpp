@@ -13,19 +13,48 @@
 using namespace rapidjson;
 namespace fs = std::filesystem;
 
+static std::string sanitise(std::string s){
+	std::replace(s.begin(), s.end(), '\\', '/');
+	for (char& c : s) if (c == '/') c = '~';
+	return s;
+}
+
+static std::string getRelativeAssetKey(const std::string& assetPath){
+	std::string path = assetPath;
+	std::replace(path.begin(), path.end(), '\\', '/');
+	std::string assetsRoot = app->getFileSystem()->GetAssetsPath();
+	std::replace(assetsRoot.begin(), assetsRoot.end(), '\\', '/');
+	if (path.size() > assetsRoot.size() && path.compare(0, assetsRoot.size(), assetsRoot) == 0)
+		return path.substr(assetsRoot.size());
+	return path;
+}
+
 std::string MetaFileManager::getMetaPath(const std::string& assetPath){
 	ModuleFileSystem* fs = app->getFileSystem();
 	std::string metaFolder = fs->GetLibraryPath() + "metadata/";
 	fs->CreateDir(metaFolder.c_str());
+	return metaFolder + sanitise(getRelativeAssetKey(assetPath)) + ".meta";
+}
+
+static std::string getLegacyMetaPath(const std::string& assetPath){
+	ModuleFileSystem* fs = app->getFileSystem();
+	std::string metaFolder = fs->GetLibraryPath() + "metadata/";
 	std::string canonical = std::filesystem::weakly_canonical(assetPath).string();
-	std::replace(canonical.begin(), canonical.end(), '\\', '/');
+	return metaFolder + sanitise(canonical) + ".meta";
+}
 
-	std::string sanitised = canonical;
-	for (char& c : sanitised){
-		if (c == '/') c = '~';
-	}
-
-	return metaFolder + sanitised + ".meta";
+static bool loadFrom(const std::string& metaPath, MetaData& outMeta){
+	char* buf = nullptr;
+	unsigned size = app->getFileSystem()->Load(metaPath.c_str(), &buf);
+	if (!buf || size == 0) return false;
+	Document doc;
+	doc.Parse(buf, size);
+	delete[] buf;
+	if (doc.HasParseError()) return false;
+	if (doc.HasMember("uid")) outMeta.uid = doc["uid"].GetUint64();
+	if (doc.HasMember("type")) outMeta.type = (ResourceBase::Type)doc["type"].GetInt();
+	if (doc.HasMember("lastModified")) outMeta.lastModified = doc["lastModified"].GetUint64();
+	return true;
 }
 
 bool MetaFileManager::save(const std::string& assetPath, const MetaData& meta){
@@ -42,21 +71,19 @@ bool MetaFileManager::save(const std::string& assetPath, const MetaData& meta){
 }
 
 bool MetaFileManager::load(const std::string& assetPath, MetaData& outMeta){
-	char* buf = nullptr;
-	unsigned size = app->getFileSystem()->Load(getMetaPath(assetPath).c_str(), &buf);
-	if (!buf || size == 0) return false;
-	Document doc;
-	doc.Parse(buf, size);
-	delete[] buf;
-	if (doc.HasParseError()) return false;
-	if (doc.HasMember("uid")) outMeta.uid = doc["uid"].GetUint64();
-	if (doc.HasMember("type")) outMeta.type = (ResourceBase::Type)doc["type"].GetInt();
-	if (doc.HasMember("lastModified")) outMeta.lastModified = doc["lastModified"].GetUint64();
-	return true;
+	if (loadFrom(getMetaPath(assetPath), outMeta))
+		return true;
+
+	if (loadFrom(getLegacyMetaPath(assetPath), outMeta)){
+		save(assetPath, outMeta);
+		return true;
+	}
+	return false;
 }
 
 bool MetaFileManager::exists(const std::string& assetPath){
-	return app->getFileSystem()->Exists(getMetaPath(assetPath).c_str());
+	return app->getFileSystem()->Exists(getMetaPath(assetPath).c_str())
+	    || app->getFileSystem()->Exists(getLegacyMetaPath(assetPath).c_str());
 }
 
 UID MetaFileManager::getOrCreateUID(const std::string& assetPath, ResourceBase::Type type){

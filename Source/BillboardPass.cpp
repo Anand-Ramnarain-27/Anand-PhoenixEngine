@@ -25,8 +25,10 @@ bool BillboardPass::init(ID3D12Device* device){
     if (!createFallbackTexture(device)) return false;
 
     LOG("BillboardPass: init OK");
+#ifdef PHOENIX_EDITOR
     if (auto* ed = app->getEditor())
         ed->log("BillboardPass: initialized OK", ImVec4(0.5f, 1.f, 0.5f, 1.f));
+#endif
     return true;
 }
 
@@ -94,8 +96,10 @@ D3D12_GPU_DESCRIPTOR_HANDLE BillboardPass::getOrLoadTexture(const std::string& p
     }
     if (!tex){
         LOG("BillboardPass: failed to load texture '%s', using fallback", path.c_str());
+#ifdef PHOENIX_EDITOR
         if (auto* ed = app->getEditor())
             ed->log(("Billboard: failed to load texture '" + path + "' (using fallback)").c_str(), ImVec4(1.f, 0.4f, 0.4f, 1.f));
+#endif
         m_textureCache.emplace(path, CachedTexture{ nullptr, m_fallbackSRV });
         return m_fallbackSRV.getGPUHandle(0);
     }
@@ -103,13 +107,16 @@ D3D12_GPU_DESCRIPTOR_HANDLE BillboardPass::getOrLoadTexture(const std::string& p
     ShaderTableDesc srv = app->getShaderDescriptors()->allocTable(("Billboard_SRV_" + path).c_str());
     if (!srv.isValid()){
         LOG("BillboardPass: SRV alloc failed for '%s', using fallback", path.c_str());
+#ifdef PHOENIX_EDITOR
         if (auto* ed = app->getEditor())
             ed->log(("Billboard: SRV alloc failed for '" + path + "' (using fallback)").c_str(), ImVec4(1.f, 0.4f, 0.4f, 1.f));
+#endif
         m_textureCache.emplace(path, CachedTexture{ nullptr, m_fallbackSRV });
         return m_fallbackSRV.getGPUHandle(0);
     }
     srv.createTexture2DSRV(tex.Get(), 0);
 
+#ifdef PHOENIX_EDITOR
     if (auto* ed = app->getEditor()){
         D3D12_RESOURCE_DESC rd = tex->GetDesc();
         std::string logMsg = "Billboard: loaded '" + resolvedPath + "'";
@@ -117,6 +124,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE BillboardPass::getOrLoadTexture(const std::string& p
         logMsg += " (" + std::to_string(rd.Width) + "x" + std::to_string(rd.Height) + ", fmt " + std::to_string((int)rd.Format) + ")";
         ed->log(logMsg.c_str(), ImVec4(0.5f, 1.f, 0.5f, 1.f));
     }
+#endif
 
     auto handle = srv.getGPUHandle(0);
     m_textureCache.emplace(path, CachedTexture{ std::move(tex), std::move(srv) });

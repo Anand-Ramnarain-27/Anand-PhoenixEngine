@@ -8,7 +8,9 @@
 #include <memory>
 
 class ResourceAnimation;
+#ifdef PHOENIX_EDITOR
 class StateMachineGraphEditor;
+#endif
 
 struct AnimLayer {
     ResourceAnimation* anim = nullptr;
@@ -88,7 +90,9 @@ private:
     HashString m_activeState;
     AnimLayer* m_layerHead = nullptr;
 
+#ifdef PHOENIX_EDITOR
     std::unique_ptr<StateMachineGraphEditor> m_graphEditor;
+#endif
 
     bool m_drawBones = false;
     bool m_drawAxisTriads = false;

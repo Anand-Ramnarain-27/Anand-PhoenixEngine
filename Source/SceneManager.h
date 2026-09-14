@@ -7,6 +7,7 @@
 class IScene;
 class ModuleCamera;
 class SceneGraph;
+struct BuildSettings;
 
 class SceneManager {
 public:
@@ -35,6 +36,7 @@ public:
 
     bool saveCurrentScene(const std::string& filePath);
     bool loadScene(const std::string& filePath);
+    bool loadSceneByBuildIndex(int index, const BuildSettings& buildSettings);
 
     void enterPrefabEdit(SceneGraph* prefabScene, const std::string& prefabName);
     void exitPrefabEdit();

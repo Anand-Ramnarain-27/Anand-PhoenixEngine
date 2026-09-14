@@ -1,6 +1,7 @@
 ﻿#include "Globals.h"
 #include "ModuleEditor.h"
 #include "Application.h"
+#include "BuildSettingsPanel.h"
 #include <ole2.h>
 #include "DragDropManager.h"
 #include "EngineDropTarget.h"
@@ -149,8 +150,8 @@ void ModuleEditor::drawMenuBar(){
     }
 
     auto saveScene = [&](){
-        if (!m_currentScenePath.empty() && m_sceneManager->getActiveScene()){
-            bool ok = m_sceneManager->saveCurrentScene(m_currentScenePath);
+        if (!m_currentScenePath.empty() && getSceneManager()->getActiveScene()){
+            bool ok = getSceneManager()->saveCurrentScene(m_currentScenePath);
             log(ok ? "Scene saved!" : "Failed to save.", ok ? EditorColors::Success : EditorColors::Danger);
         }
         else m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes");
@@ -162,6 +163,8 @@ void ModuleEditor::drawMenuBar(){
         ImGui::Separator();
         if (ImGui::MenuItem("Save Scene", "Ctrl+S")) saveScene();
         if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
+        ImGui::Separator();
+        if (ImGui::MenuItem("Build Settings...")) m_buildSettings->open = true;
         ImGui::Separator();
         if (ImGui::MenuItem("Quit", "Alt+F4")){}
         ImGui::EndMenu();
@@ -246,8 +249,8 @@ void ModuleEditor::drawMenuBar(){
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Debug")){
-        if (m_sceneManager){
-            EditorSceneSettings& s = m_sceneManager->getSettings();
+        if (getSceneManager()){
+            EditorSceneSettings& s = getSceneManager()->getSettings();
             ImGui::MenuItem("AABB Bounding Volumes", nullptr, &s.debugDrawBounds);
             ImGui::MenuItem("Broadphase Grid", nullptr, &s.debugDrawGrid);
             ImGui::MenuItem("Show Light Proxies", nullptr, &s.debugDrawLights);
@@ -380,7 +383,7 @@ void ModuleEditor::drawStatusBar(){
 
         const char* sceneName = "Untitled";
         static char sceneNameBuf[128];
-        if (m_sceneManager && !m_currentScenePath.empty()){
+        if (getSceneManager() && !m_currentScenePath.empty()){
             snprintf(sceneNameBuf, sizeof(sceneNameBuf), "%s",
                 std::filesystem::path(m_currentScenePath).filename().string().c_str());
             sceneName = sceneNameBuf;
@@ -412,7 +415,7 @@ void ModuleEditor::drawStatusBar(){
         char main[192], vram[48];
         snprintf(main, sizeof(main),
             "Renderer: D3D12  \xC2\xB7  Passes: 9  \xC2\xB7  Draw Calls: %d  \xC2\xB7  ",
-            m_frameDrawCalls);
+            getFrameDrawCalls());
         if (vramTotal > 0.f) snprintf(vram, sizeof(vram), "VRAM: %.2f / %.1f GB", vramUsed, vramTotal);
         else snprintf(vram, sizeof(vram), "VRAM: —");
 
@@ -440,9 +443,9 @@ void ModuleEditor::drawStatusBar(){
 
 void ModuleEditor::handleDialogs(){
     auto tryScene = [&](bool ok, const char* good, const char* bad){ log(ok ? good : bad, ok ? EditorColors::Success : EditorColors::Danger); };
-    if (m_saveDialog->draw() && m_sceneManager->getActiveScene()){
+    if (m_saveDialog->draw() && getSceneManager()->getActiveScene()){
         const std::string& p = m_saveDialog->getSelectedPath();
-        if (m_sceneManager->saveCurrentScene(p)){
+        if (getSceneManager()->saveCurrentScene(p)){
             m_currentScenePath = p;
             m_savePointIndex = (int)m_undoStack.size();
             m_redoStack.clear();
@@ -450,9 +453,9 @@ void ModuleEditor::handleDialogs(){
         }
         else tryScene(false, "", "Failed to save scene.");
     }
-    if (m_loadDialog->draw() && m_sceneManager->getActiveScene()){
+    if (m_loadDialog->draw() && getSceneManager()->getActiveScene()){
         const std::string& p = m_loadDialog->getSelectedPath();
-        if (m_sceneManager->loadScene(p)){ m_currentScenePath = p; applySkyboxFromSettings(); tryScene(true, "Scene loaded!", ""); }
+        if (getSceneManager()->loadScene(p)){ m_currentScenePath = p; applySkyboxFromSettings(); tryScene(true, "Scene loaded!", ""); }
         else tryScene(false, "", "Failed to load scene.");
     }
 }
@@ -466,7 +469,7 @@ void ModuleEditor::handleNewScenePopup(ID3D12GraphicsCommandList*){
     ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
     if (ImGui::Button("Create New Scene", ImVec2(160, 0))){
         app->getD3D12()->flush();
-        m_sceneManager->setScene(std::make_unique<EmptyScene>(), app->getD3D12()->getDevice());
+        getSceneManager()->setScene(std::make_unique<EmptyScene>(), app->getD3D12()->getDevice());
         setupDefaultScene();
         m_selection.clear();
         m_currentScenePath.clear();
@@ -489,8 +492,8 @@ void ModuleEditor::handleShortcuts(){
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_N, false)) m_showNewSceneConfirm = true;
     if (ctrl && shift && ImGui::IsKeyPressed(ImGuiKey_N, false)) createEmptyGameObject();
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_S, false)){
-        if (!m_currentScenePath.empty() && m_sceneManager->getActiveScene()){
-            bool ok = m_sceneManager->saveCurrentScene(m_currentScenePath);
+        if (!m_currentScenePath.empty() && getSceneManager()->getActiveScene()){
+            bool ok = getSceneManager()->saveCurrentScene(m_currentScenePath);
             if (ok){ m_savePointIndex = (int)m_undoStack.size(); m_redoStack.clear(); }
             log(ok ? "Scene saved!" : "Failed to save.", ok ? EditorColors::Success : EditorColors::Danger);
         }
@@ -499,7 +502,7 @@ void ModuleEditor::handleShortcuts(){
     if (ctrl && shift && ImGui::IsKeyPressed(ImGuiKey_S, false)) m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
     if (ctrl && ImGui::IsKeyPressed(ImGuiKey_O, false)) m_loadDialog->open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
     if (ImGui::IsKeyPressed(ImGuiKey_Delete, false) && m_selection.has()) deleteGameObject(m_selection.object);
-    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false) && m_sceneManager && m_sceneManager->isEditingPrefab()){ exitPrefabEdit(); return; }
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false) && getSceneManager() && getSceneManager()->isEditingPrefab()){ exitPrefabEdit(); return; }
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_Z, false)) undoToSavePoint();
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_Y, false)) redo();
     if (ctrl && !shift && ImGui::IsKeyPressed(ImGuiKey_C, false)) copySelected();

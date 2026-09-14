@@ -4,7 +4,7 @@
 
 class FileDialog {
 public:
-    enum class Type { Open, Save };
+    enum class Type { Open, Save, SelectFolder };
 
     FileDialog() = default;
     ~FileDialog() = default;

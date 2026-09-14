@@ -32,9 +32,10 @@ bool FileDialog::draw(){
     if (ImGui::Button("Refresh")) refreshDirectory();
     ImGui::Separator();
 
-    ImGui::BeginChild("FileList", ImVec2(0, -70), true);
+    ImGui::BeginChild("FileList", ImVec2(0, m_type == Type::SelectFolder ? -40 : -70), true);
     for (int i = 0; i < (int)m_entries.size(); ++i){
         const FileEntry& entry = m_entries[i];
+        if (m_type == Type::SelectFolder && !entry.isDirectory) continue;
         std::string label = (entry.isDirectory ? "[DIR]  " : "[FILE] ") + entry.name;
         if (ImGui::Selectable(label.c_str(), m_selectedIndex == i, ImGuiSelectableFlags_AllowDoubleClick)){
             m_selectedIndex = i;
@@ -47,6 +48,14 @@ bool FileDialog::draw(){
     }
     ImGui::EndChild();
     ImGui::Separator();
+
+    if (m_type == Type::SelectFolder){
+        if (ImGui::Button("Select This Folder")){ m_selectedPath = m_currentPath; fileSelected = true; m_isOpen = false; }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) m_isOpen = false;
+        ImGui::End();
+        return fileSelected;
+    }
 
     ImGui::Text("File name:"); ImGui::SameLine();
     char buf[256]; strncpy(buf, m_fileName.c_str(), sizeof(buf) - 1); buf[sizeof(buf) - 1] = '\0';

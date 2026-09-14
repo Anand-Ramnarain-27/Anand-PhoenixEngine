@@ -12,6 +12,7 @@ namespace AssetPicker {
 
 static constexpr const char* kTextures = ".png,.jpg,.jpeg,.dds,.tga,.bmp";
 static constexpr const char* kMeshes = ".gltf,.fbx,.obj";
+static constexpr const char* kScenes = ".json";
 static constexpr const char* kAll = "";
 
 namespace detail {

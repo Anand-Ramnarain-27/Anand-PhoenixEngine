@@ -177,6 +177,7 @@ bool ComponentTrail::buildMesh(const Vector3& camPos, std::vector<TrailVertex>& 
 }
 
 void ComponentTrail::onEditor(){
+#ifdef PHOENIX_EDITOR
     if (auto* ed = app->getEditor()){
         bool playing = ed->isEffectsPlaying();
         ImGui::SeparatorText("Effects Transport");
@@ -258,6 +259,7 @@ void ComponentTrail::onEditor(){
 
     ImGui::Separator();
     ImGui::Text("Sample points: %d", (int)m_points.size());
+#endif
 }
 
 void ComponentTrail::onSave(std::string& outJson) const{
