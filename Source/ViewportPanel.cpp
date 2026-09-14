@@ -9,6 +9,8 @@
 #include "ModuleRTDescriptors.h"
 #include "TonemapPass.h"
 #include "BloomPass.h"
+#include "FogPass.h"
+#include "GBufferPass.h"
 #include "PostProcessChain.h"
 #include "SceneManager.h"
 #include "EditorSceneSettings.h"
@@ -37,6 +39,22 @@ void ViewportPanel::renderToTexture(ID3D12GraphicsCommandList* cmd){
 
     EditorSceneSettings* settings = nullptr;
     if (SceneManager* sm = m_editor->getSceneManager()) settings = &sm->getSettings();
+
+    FogPass* fog = m_editor->getFogPass();
+    GBufferPass* gbuffer = m_editor->getGBufferPass();
+    if (fog && gbuffer && settings && settings->fog.enabled){
+        Matrix invView; view.Invert(invView);
+        Vector3 camPos = invView.Translation();
+        Matrix invViewProj; (view * proj).Invert(invViewProj);
+        RenderTexture* fogOut = (hdrResult == viewport.rt.get()) ? viewport.rtScratch.get() : viewport.rt.get();
+        FogSettings fs;
+        fs.enabled = settings->fog.enabled;
+        fs.color = settings->fog.color;
+        fs.startDistance = settings->fog.startDistance;
+        fs.endDistance = settings->fog.endDistance;
+        fs.maxOpacity = settings->fog.maxOpacity;
+        hdrResult = fog->render(cmd, hdrResult, fogOut, *gbuffer, camPos, invViewProj, fs, /*viewportIndex=*/0);
+    }
 
     BloomPass* bloom = m_editor->getBloomPass();
     RenderTexture* bloomResult = nullptr;

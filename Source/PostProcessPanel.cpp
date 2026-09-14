@@ -16,6 +16,7 @@ void PostProcessPanel::drawContent(){
     if (!m_editor->getSceneManager()){ textMuted("No scene manager."); return; }
     drawTonemapSection();
     drawBloomSection();
+    drawFogSection();
     drawLutSection();
     drawPluginEffectsSection();
 }
@@ -49,6 +50,36 @@ void PostProcessPanel::drawBloomSection(){
     ImGui::SameLine(100.f);
     ImGui::SetNextItemWidth(-1.f);
     ImGui::SliderFloat("##bloom_int", &bloom.bloomIntensity, 0.f, 3.f, "%.2f");
+    ImGui::EndDisabled();
+}
+
+void PostProcessPanel::drawFogSection(){
+    if (!ImGui::CollapsingHeader("Fog", ImGuiTreeNodeFlags_DefaultOpen)) return;
+    EditorSceneSettings& s = m_editor->getSceneManager()->getSettings();
+    auto& fog = s.fog;
+
+    ImGui::Checkbox("Enabled##fog", &fog.enabled);
+
+    ImGui::BeginDisabled(!fog.enabled);
+    ImGui::Text("Colour");
+    ImGui::SameLine(100.f);
+    ImGui::SetNextItemWidth(-1.f);
+    ImGui::ColorEdit3("##fog_color", &fog.color.x);
+
+    ImGui::Text("Start Dist.");
+    ImGui::SameLine(100.f);
+    ImGui::SetNextItemWidth(-1.f);
+    ImGui::SliderFloat("##fog_start", &fog.startDistance, 0.f, 1000.f, "%.1f");
+
+    ImGui::Text("End Dist.");
+    ImGui::SameLine(100.f);
+    ImGui::SetNextItemWidth(-1.f);
+    ImGui::SliderFloat("##fog_end", &fog.endDistance, 0.f, 2000.f, "%.1f");
+
+    ImGui::Text("Max Opacity");
+    ImGui::SameLine(100.f);
+    ImGui::SetNextItemWidth(-1.f);
+    ImGui::SliderFloat("##fog_maxop", &fog.maxOpacity, 0.f, 1.f, "%.2f");
     ImGui::EndDisabled();
 }
 

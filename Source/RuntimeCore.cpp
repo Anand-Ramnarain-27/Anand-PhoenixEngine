@@ -117,6 +117,9 @@ bool RuntimeCore::init(){
     m_bloomPass = std::make_unique<BloomPass>();
     if (!m_bloomPass->init(device)) return false;
 
+    m_fogPass = std::make_unique<FogPass>();
+    if (!m_fogPass->init(device)) return false;
+
     m_postProcessChain = std::make_unique<PostProcessChain>();
     if (!m_postProcessChain->init(device)) return false;
 
@@ -173,6 +176,7 @@ bool RuntimeCore::cleanUp(){
     m_decalPass.reset();
     m_tonemapPass.reset();
     m_bloomPass.reset();
+    m_fogPass.reset();
     m_postProcessChain.reset();
     m_colorLUT.reset();
     if (m_skinningPass){ m_skinningPass->cleanUp(); m_skinningPass.reset(); }
@@ -348,6 +352,21 @@ void RuntimeCore::renderStandaloneFrame(){
         hdrResult = chain->run(cmd, PostProcessEffectDef::Domain::PreTonemap, m_playerViewport->rt.get(), m_playerViewport->rtScratch.get());
 
     const EditorSceneSettings* settings = m_sceneManager ? &m_sceneManager->getSettings() : nullptr;
+
+    if (m_fogPass && m_gbufferPass && settings && settings->fog.enabled){
+        Matrix invViewProj;
+        (view * proj).Invert(invViewProj);
+        RenderTexture* fogOut = (hdrResult == m_playerViewport->rt.get())
+                                     ? m_playerViewport->rtScratch.get() : m_playerViewport->rt.get();
+        FogSettings fs;
+        fs.enabled = settings->fog.enabled;
+        fs.color = settings->fog.color;
+        fs.startDistance = settings->fog.startDistance;
+        fs.endDistance = settings->fog.endDistance;
+        fs.maxOpacity = settings->fog.maxOpacity;
+        hdrResult = m_fogPass->render(cmd, hdrResult, fogOut, *m_gbufferPass, pos, invViewProj,
+                                       fs, /*viewportIndex=*/1);
+    }
 
     RenderTexture* bloomResult = nullptr;
     if (m_bloomPass && settings && settings->postProcess.bloomEnabled){

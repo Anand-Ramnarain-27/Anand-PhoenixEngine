@@ -194,6 +194,7 @@ DeferredLightingPass* ModuleEditor::getDeferredLightingPass() const{ return app-
 ShadowMapPass* ModuleEditor::getShadowMapPass() const{ return app->getRuntimeCore()->getShadowMapPass(); }
 TonemapPass* ModuleEditor::getTonemapPass() const{ return app->getRuntimeCore()->getTonemapPass(); }
 BloomPass* ModuleEditor::getBloomPass() const{ return app->getRuntimeCore()->getBloomPass(); }
+FogPass* ModuleEditor::getFogPass() const{ return app->getRuntimeCore()->getFogPass(); }
 PostProcessChain* ModuleEditor::getPostProcessChain() const{ return app->getRuntimeCore()->getPostProcessChain(); }
 ColorLUT* ModuleEditor::getColorLUT() const{ return app->getRuntimeCore()->getColorLUT(); }
 

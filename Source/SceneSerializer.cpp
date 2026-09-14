@@ -102,6 +102,15 @@ bool SceneSerializer::SaveScene(const SceneGraph* scene, const std::string& file
             ppObj.AddMember("lutPath", Value(settings->postProcess.lutPath.c_str(), a), a);
             set.AddMember("PostProcess", ppObj, a);
 
+            Value fogObj(kObjectType);
+            fogObj.AddMember("enabled", settings->fog.enabled, a);
+            Value fogColor(kArrayType); pushVec3(fogColor, settings->fog.color, a);
+            fogObj.AddMember("color", fogColor, a);
+            fogObj.AddMember("startDistance", settings->fog.startDistance, a);
+            fogObj.AddMember("endDistance", settings->fog.endDistance, a);
+            fogObj.AddMember("maxOpacity", settings->fog.maxOpacity, a);
+            set.AddMember("Fog", fogObj, a);
+
             sceneObj.AddMember("Settings", set, a);
         }
 
@@ -195,6 +204,7 @@ bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, 
         settings->ambient = defaults.ambient;
         settings->gravityY = defaults.gravityY;
         settings->postProcess = defaults.postProcess;
+        settings->fog = defaults.fog;
 
         if (doc["Scene"].HasMember("Settings")){
             const Value& set = doc["Scene"]["Settings"];
@@ -220,6 +230,17 @@ bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, 
                 if (pp.HasMember("bloomIntensity")) settings->postProcess.bloomIntensity = pp["bloomIntensity"].GetFloat();
                 if (pp.HasMember("lutEnabled")) settings->postProcess.lutEnabled = pp["lutEnabled"].GetBool();
                 if (pp.HasMember("lutPath")) settings->postProcess.lutPath = pp["lutPath"].GetString();
+            }
+            if (set.HasMember("Fog")){
+                const Value& fg = set["Fog"];
+                if (fg.HasMember("enabled")) settings->fog.enabled = fg["enabled"].GetBool();
+                if (fg.HasMember("color")){
+                    const auto& c = fg["color"];
+                    settings->fog.color = { c[0].GetFloat(), c[1].GetFloat(), c[2].GetFloat() };
+                }
+                if (fg.HasMember("startDistance")) settings->fog.startDistance = fg["startDistance"].GetFloat();
+                if (fg.HasMember("endDistance")) settings->fog.endDistance = fg["endDistance"].GetFloat();
+                if (fg.HasMember("maxOpacity")) settings->fog.maxOpacity = fg["maxOpacity"].GetFloat();
             }
         }
     }

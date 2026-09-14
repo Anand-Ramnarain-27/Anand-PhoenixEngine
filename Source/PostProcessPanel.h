@@ -14,6 +14,7 @@ protected:
 private:
     void drawTonemapSection();
     void drawBloomSection();
+    void drawFogSection();
     void drawLutSection();
     void drawPluginEffectsSection();
 

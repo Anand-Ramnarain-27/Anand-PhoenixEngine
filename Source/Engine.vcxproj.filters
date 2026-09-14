@@ -308,6 +308,9 @@
     <ClCompile Include="BloomPass.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
+    <ClCompile Include="FogPass.cpp">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClCompile>
     <ClCompile Include="PostProcessChain.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
@@ -878,6 +881,9 @@
     <ClInclude Include="BloomPass.h">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
+    <ClInclude Include="FogPass.h">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClInclude>
     <ClInclude Include="PostProcessChain.h">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
@@ -1103,6 +1109,9 @@
     <None Include="shaders\Samplers.hlsli">
       <Filter>Shaders\Common</Filter>
     </None>
+    <None Include="shaders\FogCommon.hlsli">
+      <Filter>Shaders\Common</Filter>
+    </None>
     <None Include="shaders\Sampling.hlsli">
       <Filter>Shaders\Common</Filter>
     </None>
@@ -1210,6 +1219,9 @@
       <Filter>Shaders\PostProcess</Filter>
     </FxCompile>
     <FxCompile Include="shaders\ChromaticAberrationPS.hlsl">
+      <Filter>Shaders\PostProcess</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\FogPS.hlsl">
       <Filter>Shaders\PostProcess</Filter>
     </FxCompile>
     <FxCompile Include="shaders\FXAAPS.hlsl">

@@ -38,4 +38,12 @@ struct EditorSceneSettings {
         bool lutEnabled = false;
         std::string lutPath;
     } postProcess;
+
+    struct Fog {
+        bool enabled = false;
+        Vector3 color = Vector3(0.5f, 0.55f, 0.6f);
+        float startDistance = 10.0f;
+        float endDistance = 100.0f;
+        float maxOpacity = 1.0f;
+    } fog;
 };
