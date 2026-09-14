@@ -40,10 +40,16 @@ struct EditorSceneSettings {
     } postProcess;
 
     struct Fog {
+        enum class Mode { Linear = 0, ExponentialHeight = 1 };
+
         bool enabled = false;
+        Mode mode = Mode::Linear;
         Vector3 color = Vector3(0.5f, 0.55f, 0.6f);
         float startDistance = 10.0f;
         float endDistance = 100.0f;
         float maxOpacity = 1.0f;
+        float density = 0.02f;
+        float heightFalloff = 0.1f;
+        float heightOffset = 0.0f;
     } fog;
 };

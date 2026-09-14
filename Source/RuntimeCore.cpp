@@ -360,10 +360,15 @@ void RuntimeCore::renderStandaloneFrame(){
                                      ? m_playerViewport->rtScratch.get() : m_playerViewport->rt.get();
         FogSettings fs;
         fs.enabled = settings->fog.enabled;
+        fs.mode = (settings->fog.mode == EditorSceneSettings::Fog::Mode::ExponentialHeight)
+                      ? FogSettings::Mode::ExponentialHeight : FogSettings::Mode::Linear;
         fs.color = settings->fog.color;
         fs.startDistance = settings->fog.startDistance;
         fs.endDistance = settings->fog.endDistance;
         fs.maxOpacity = settings->fog.maxOpacity;
+        fs.density = settings->fog.density;
+        fs.heightFalloff = settings->fog.heightFalloff;
+        fs.heightOffset = settings->fog.heightOffset;
         hdrResult = m_fogPass->render(cmd, hdrResult, fogOut, *m_gbufferPass, pos, invViewProj,
                                        fs, /*viewportIndex=*/1);
     }

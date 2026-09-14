@@ -49,10 +49,15 @@ void ViewportPanel::renderToTexture(ID3D12GraphicsCommandList* cmd){
         RenderTexture* fogOut = (hdrResult == viewport.rt.get()) ? viewport.rtScratch.get() : viewport.rt.get();
         FogSettings fs;
         fs.enabled = settings->fog.enabled;
+        fs.mode = (settings->fog.mode == EditorSceneSettings::Fog::Mode::ExponentialHeight)
+                      ? FogSettings::Mode::ExponentialHeight : FogSettings::Mode::Linear;
         fs.color = settings->fog.color;
         fs.startDistance = settings->fog.startDistance;
         fs.endDistance = settings->fog.endDistance;
         fs.maxOpacity = settings->fog.maxOpacity;
+        fs.density = settings->fog.density;
+        fs.heightFalloff = settings->fog.heightFalloff;
+        fs.heightOffset = settings->fog.heightOffset;
         hdrResult = fog->render(cmd, hdrResult, fogOut, *gbuffer, camPos, invViewProj, fs, /*viewportIndex=*/0);
     }
 

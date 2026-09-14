@@ -61,10 +61,24 @@ void PostProcessPanel::drawFogSection(){
     ImGui::Checkbox("Enabled##fog", &fog.enabled);
 
     ImGui::BeginDisabled(!fog.enabled);
+
+    static const char* kModeNames[] = { "Linear (Distance)", "Exponential Height" };
+    int modeIdx = (int)fog.mode;
+    ImGui::Text("Mode");
+    ImGui::SameLine(100.f);
+    ImGui::SetNextItemWidth(-1.f);
+    if (ImGui::Combo("##fog_mode", &modeIdx, kModeNames, IM_ARRAYSIZE(kModeNames)))
+        fog.mode = (EditorSceneSettings::Fog::Mode)modeIdx;
+
     ImGui::Text("Colour");
     ImGui::SameLine(100.f);
     ImGui::SetNextItemWidth(-1.f);
     ImGui::ColorEdit3("##fog_color", &fog.color.x);
+
+    ImGui::Text("Max Opacity");
+    ImGui::SameLine(100.f);
+    ImGui::SetNextItemWidth(-1.f);
+    ImGui::SliderFloat("##fog_maxop", &fog.maxOpacity, 0.f, 1.f, "%.2f");
 
     ImGui::Text("Start Dist.");
     ImGui::SameLine(100.f);
@@ -75,11 +89,25 @@ void PostProcessPanel::drawFogSection(){
     ImGui::SameLine(100.f);
     ImGui::SetNextItemWidth(-1.f);
     ImGui::SliderFloat("##fog_end", &fog.endDistance, 0.f, 2000.f, "%.1f");
+    if (ImGui::IsItemHovered() && fog.mode == EditorSceneSettings::Fog::Mode::ExponentialHeight)
+        ImGui::SetTooltip("Also used to fade the height fog in over distance.");
 
-    ImGui::Text("Max Opacity");
-    ImGui::SameLine(100.f);
-    ImGui::SetNextItemWidth(-1.f);
-    ImGui::SliderFloat("##fog_maxop", &fog.maxOpacity, 0.f, 1.f, "%.2f");
+    if (fog.mode == EditorSceneSettings::Fog::Mode::ExponentialHeight){
+        ImGui::Text("Density");
+        ImGui::SameLine(100.f);
+        ImGui::SetNextItemWidth(-1.f);
+        ImGui::SliderFloat("##fog_density", &fog.density, 0.f, 1.f, "%.3f");
+
+        ImGui::Text("Height Falloff");
+        ImGui::SameLine(100.f);
+        ImGui::SetNextItemWidth(-1.f);
+        ImGui::SliderFloat("##fog_hfalloff", &fog.heightFalloff, 0.001f, 2.f, "%.3f");
+
+        ImGui::Text("Height Offset");
+        ImGui::SameLine(100.f);
+        ImGui::SetNextItemWidth(-1.f);
+        ImGui::SliderFloat("##fog_hoffset", &fog.heightOffset, -100.f, 100.f, "%.1f");
+    }
     ImGui::EndDisabled();
 }
 

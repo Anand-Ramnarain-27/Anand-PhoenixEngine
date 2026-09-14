@@ -104,11 +104,15 @@ bool SceneSerializer::SaveScene(const SceneGraph* scene, const std::string& file
 
             Value fogObj(kObjectType);
             fogObj.AddMember("enabled", settings->fog.enabled, a);
+            fogObj.AddMember("mode", (int)settings->fog.mode, a);
             Value fogColor(kArrayType); pushVec3(fogColor, settings->fog.color, a);
             fogObj.AddMember("color", fogColor, a);
             fogObj.AddMember("startDistance", settings->fog.startDistance, a);
             fogObj.AddMember("endDistance", settings->fog.endDistance, a);
             fogObj.AddMember("maxOpacity", settings->fog.maxOpacity, a);
+            fogObj.AddMember("density", settings->fog.density, a);
+            fogObj.AddMember("heightFalloff", settings->fog.heightFalloff, a);
+            fogObj.AddMember("heightOffset", settings->fog.heightOffset, a);
             set.AddMember("Fog", fogObj, a);
 
             sceneObj.AddMember("Settings", set, a);
@@ -234,6 +238,7 @@ bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, 
             if (set.HasMember("Fog")){
                 const Value& fg = set["Fog"];
                 if (fg.HasMember("enabled")) settings->fog.enabled = fg["enabled"].GetBool();
+                if (fg.HasMember("mode")) settings->fog.mode = (EditorSceneSettings::Fog::Mode)fg["mode"].GetInt();
                 if (fg.HasMember("color")){
                     const auto& c = fg["color"];
                     settings->fog.color = { c[0].GetFloat(), c[1].GetFloat(), c[2].GetFloat() };
@@ -241,6 +246,9 @@ bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, 
                 if (fg.HasMember("startDistance")) settings->fog.startDistance = fg["startDistance"].GetFloat();
                 if (fg.HasMember("endDistance")) settings->fog.endDistance = fg["endDistance"].GetFloat();
                 if (fg.HasMember("maxOpacity")) settings->fog.maxOpacity = fg["maxOpacity"].GetFloat();
+                if (fg.HasMember("density")) settings->fog.density = fg["density"].GetFloat();
+                if (fg.HasMember("heightFalloff")) settings->fog.heightFalloff = fg["heightFalloff"].GetFloat();
+                if (fg.HasMember("heightOffset")) settings->fog.heightOffset = fg["heightOffset"].GetFloat();
             }
         }
     }

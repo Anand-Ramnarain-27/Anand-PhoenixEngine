@@ -122,6 +122,10 @@ RenderTexture* FogPass::render(ID3D12GraphicsCommandList* cmd,
     cb.startDistance = settings.startDistance;
     cb.endDistance = settings.endDistance;
     cb.maxOpacity = settings.maxOpacity;
+    cb.mode = static_cast<uint32_t>(settings.mode);
+    cb.density = settings.density;
+    cb.heightFalloff = settings.heightFalloff;
+    cb.heightOffset = settings.heightOffset;
     memcpy(m_perFrameMapped[viewportIndex], &cb, sizeof(cb));
 
     BEGIN_EVENT(cmd, L"Fog");
