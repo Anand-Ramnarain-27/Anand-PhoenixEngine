@@ -7,7 +7,10 @@
 #include "SceneImporter.h"
 #include "TextureImporter.h"
 #include "tiny_gltf.h"
+#include "ResourceAnimation.h"
 #include "3rdParty/rapidjson/document.h"
+#include "3rdParty/rapidjson/prettywriter.h"
+#include "3rdParty/rapidjson/stringbuffer.h"
 #include <filesystem>
 #include <algorithm>
 #include <cctype>
@@ -44,6 +47,113 @@ static UID makeSubUID(UID parentUID, const std::string& type, int index){
         hash *= 1099511628211ULL;
     }
     return hash ? hash : 1;
+}
+
+// Auto-generates Assets/StateMachines/<sceneName>.json (one state per
+// imported clip, no transitions - trigger names are gameplay-specific and
+// can't be inferred from the model alone) so a freshly-imported model
+// already has something loadable instead of needing one hand-authored with
+// manually-computed AnimationUIDs. Never overwrites an existing file, so
+// re-importing a model (or hand/graph-editor edits to its state machine)
+// is safe.
+static void generateDefaultStateMachine(const std::string& sceneName, const std::vector<UID>& animUIDs){
+    if (animUIDs.empty()) return;
+
+    ModuleFileSystem* fsys = app->getFileSystem();
+    std::string smDir = fsys->GetAssetsPath() + "StateMachines/";
+    std::string smPath = smDir + sceneName + ".json";
+    if (fsys->Exists(smPath.c_str())) return;
+
+    struct ClipInfo { std::string name; UID uid; };
+    std::vector<ClipInfo> clips;
+    clips.reserve(animUIDs.size());
+    for (UID uid : animUIDs){
+        std::string rawName;
+        if (auto* anim = app->getResources()->RequestAnimation(uid)){
+            rawName = anim->getAnimName();
+            app->getResources()->ReleaseResource(anim);
+        }
+        if (rawName.empty()) rawName = "Clip" + std::to_string(clips.size());
+
+        // Mixamo-style names look like "Armature|ModelName_ClipName|BaseLayer" -
+        // reduce that down to "ClipName" when the shape is present; otherwise
+        // fall back to the raw name as-is.
+        std::string clean = rawName;
+        size_t p1 = clean.find('|');
+        if (p1 != std::string::npos){
+            size_t p2 = clean.find('|', p1 + 1);
+            clean = (p2 != std::string::npos) ? clean.substr(p1 + 1, p2 - p1 - 1) : clean.substr(p1 + 1);
+        }
+        std::string prefix = sceneName + "_";
+        if (clean.size() > prefix.size()){
+            bool match = true;
+            for (size_t k = 0; k < prefix.size(); ++k)
+                if (std::tolower((unsigned char)clean[k]) != std::tolower((unsigned char)prefix[k])){ match = false; break; }
+            if (match) clean = clean.substr(prefix.size());
+        }
+        if (clean.empty()) clean = rawName;
+
+        clips.push_back({ clean, uid });
+    }
+
+    // Prefer a clip whose name actually ENDS with "idle" (so "Idle"/
+    // "Hobbit_Idle" wins over "Idle_long"/"Hobbit_Idle_long", which contain
+    // "idle" as a substring too but aren't the plain idle pose) - fall back
+    // to any substring match, then to the first clip.
+    size_t defaultIdx = 0;
+    bool foundExact = false;
+    size_t firstSubstring = 0;
+    bool foundSubstring = false;
+    for (size_t i = 0; i < clips.size(); ++i){
+        std::string lower = clips[i].name;
+        std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+        static constexpr char kIdle[] = "idle";
+        static constexpr size_t kIdleLen = sizeof(kIdle) - 1;
+        if (!foundSubstring && lower.find(kIdle) != std::string::npos){ firstSubstring = i; foundSubstring = true; }
+        if (!foundExact && lower.size() >= kIdleLen && lower.compare(lower.size() - kIdleLen, kIdleLen, kIdle) == 0){
+            defaultIdx = i;
+            foundExact = true;
+            break;
+        }
+    }
+    if (!foundExact && foundSubstring) defaultIdx = firstSubstring;
+
+    using namespace rapidjson;
+    Document doc;
+    doc.SetObject();
+    auto& a = doc.GetAllocator();
+
+    doc.AddMember("Version", 1, a);
+    doc.AddMember("DefaultState", Value(clips[defaultIdx].name.c_str(), a), a);
+
+    Value clipArr(kArrayType);
+    for (const auto& c : clips){
+        Value obj(kObjectType);
+        obj.AddMember("Name", Value(c.name.c_str(), a), a);
+        obj.AddMember("AnimationUID", c.uid, a);
+        obj.AddMember("Loop", true, a);
+        clipArr.PushBack(obj, a);
+    }
+    doc.AddMember("Clips", clipArr, a);
+
+    Value stateArr(kArrayType);
+    for (const auto& c : clips){
+        Value obj(kObjectType);
+        obj.AddMember("Name", Value(c.name.c_str(), a), a);
+        obj.AddMember("Clip", Value(c.name.c_str(), a), a);
+        stateArr.PushBack(obj, a);
+    }
+    doc.AddMember("States", stateArr, a);
+    doc.AddMember("Transitions", Value(kArrayType), a);
+
+    StringBuffer sb;
+    PrettyWriter<StringBuffer> writer(sb);
+    doc.Accept(writer);
+    fsys->CreateDir(smDir.c_str());
+    fsys->Save(smPath.c_str(), sb.GetString(), (unsigned)sb.GetSize());
+
+    LOG("ModuleAssets: auto-generated default state machine for '%s' (%d clip(s), default='%s') -> %s",
+        sceneName.c_str(), (int)clips.size(), clips[defaultIdx].name.c_str(), smPath.c_str());
 }
 
 static std::string normalisePath(std::string p){
@@ -384,16 +494,21 @@ void ModuleAssets::registerSceneSubResources(const std::string& filePath, const 
     }
 
     std::string animFolder = fsys->GetLibraryPath() + "Animations/" + sceneName + "/";
+    std::vector<UID> animUIDs;
+    animUIDs.reserve(animCount);
     for (int i = 0; i < animCount; ++i){
         UID animUID = makeSubUID(parent, "anim", i);
         std::string lp = animFolder + std::to_string(i) + ".anim";
         m_subUIDs[filePath + "|anim|" + std::to_string(i)] = animUID;
         m_uidToPath[animUID] = lp;
         app->getResources()->registerAnimation(animUID, lp);
+        animUIDs.push_back(animUID);
     }
 
     LOG("ModuleAssets: Registered %d meshes, %d materials, %d animations for %s",
         meshCount, materialCount, animCount, sceneName.c_str());
+
+    generateDefaultStateMachine(sceneName, animUIDs);
 }
 
 void ModuleAssets::deleteAsset(const std::string& assetPath){

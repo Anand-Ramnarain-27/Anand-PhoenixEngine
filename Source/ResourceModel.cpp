@@ -8,6 +8,7 @@
 #include "ModuleAssets.h"
 #include "Application.h"
 #include "GameObject.h"
+#include "ModuleFileSystem.h"
 #include <filesystem>
 
 ResourceModel::ResourceModel(UID uid) : ResourceBase(uid, Type::Model){}
@@ -143,8 +144,22 @@ GameObject* ResourceModel::spawnIntoScene(SceneGraph* scene, GameObject* parent)
     if (!animUIDs.empty()){
         auto* animComp = root->createComponent<ComponentAnimation>();
         animComp->setAnimationList(animUIDs);
-        animComp->OnPlay(animUIDs[0], true);
-        LOG("ResourceModel: ComponentAnimation added to root '%s' — playing anim[0]", modelName.c_str());
+
+        // Auto-load a state machine matching this model's name, if one
+        // exists (either auto-generated at import by
+        // ModuleAssets::registerSceneSubResources, or hand/graph-editor
+        // authored) - LoadStateMachineFromPath() also starts it playing via
+        // its own OnPlay(). Falls back to just playing the first clip
+        // directly, as before, if no such file exists.
+        std::string smPath = app->getFileSystem()->GetAssetsPath() + "StateMachines/" + modelName + ".json";
+        if (app->getFileSystem()->Exists(smPath.c_str())){
+            animComp->LoadStateMachineFromPath(smPath);
+            LOG("ResourceModel: auto-loaded state machine for '%s' from %s", modelName.c_str(), smPath.c_str());
+        } else {
+            animComp->OnPlay(animUIDs[0], true);
+            LOG("ResourceModel: ComponentAnimation added to root '%s' — playing anim[0] (no state machine at %s)",
+                modelName.c_str(), smPath.c_str());
+        }
     } else {
         LOG("ResourceModel: no anim UIDs — ComponentAnimation NOT created. "
             "Delete Library/Animations/%s/ and re-import to regenerate.",
