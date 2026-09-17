@@ -14,6 +14,7 @@
 #include "ComponentBillboard.h"
 #include "ComponentParticleSystem.h"
 #include "ComponentTrail.h"
+#include "ComponentScript.h"
 #include "PrefabManager.h"
 #include <algorithm>
 #include <random>
@@ -87,6 +88,7 @@ namespace {
     template<> struct CompTag<ComponentBillboard>              { static constexpr Component::Type v = Component::Type::Billboard; };
     template<> struct CompTag<ComponentParticleSystem>        { static constexpr Component::Type v = Component::Type::ParticleSystem; };
     template<> struct CompTag<ComponentTrail>                  { static constexpr Component::Type v = Component::Type::Trail; };
+    template<> struct CompTag<ComponentScript>                  { static constexpr Component::Type v = Component::Type::Script; };
 }
 
 template<typename T>
@@ -123,20 +125,13 @@ bool GameObject::removeComponentByType(Component::Type type){
 }
 
 template ComponentTransform* GameObject::createComponent<ComponentTransform>();
-template ComponentMesh* GameObject::createComponent<ComponentMesh>();
-template ComponentCamera* GameObject::createComponent<ComponentCamera>();
-template ComponentDirectionalLight* GameObject::createComponent<ComponentDirectionalLight>();
-template ComponentPointLight* GameObject::createComponent<ComponentPointLight>();
-template ComponentSpotLight* GameObject::createComponent<ComponentSpotLight>();
-template ComponentAnimation* GameObject::createComponent<ComponentAnimation>();
-template ComponentCharacterMotion* GameObject::createComponent<ComponentCharacterMotion>();
-template ComponentSimpleCharacterController* GameObject::createComponent<ComponentSimpleCharacterController>();
-template ComponentRigidbody* GameObject::createComponent<ComponentRigidbody>();
-template ComponentBounds* GameObject::createComponent<ComponentBounds>();
-template ComponentDecal* GameObject::createComponent<ComponentDecal>();
-template ComponentBillboard* GameObject::createComponent<ComponentBillboard>();
-template ComponentParticleSystem* GameObject::createComponent<ComponentParticleSystem>();
-template ComponentTrail* GameObject::createComponent<ComponentTrail>();
+// The rest of GameObject::createComponent<T>()'s explicit instantiations (Mesh,
+// Camera, lights, Animation, CharacterMotion, SimpleCharacterController,
+// Rigidbody, Bounds, Decal, Billboard, ParticleSystem, Trail) live in
+// GameObjectComponentFactories.cpp instead, compiled only into Engine/Player -
+// each of those types' constructors pulls in ImGui/debug_draw/AnimationController/
+// ModuleFileSystem, which a thin consumer of GameObject.cpp (PhoenixCore, and
+// therefore GameScript.dll) should not have to link against.
 
 template ComponentTransform* GameObject::getComponent<ComponentTransform>() const;
 template ComponentMesh* GameObject::getComponent<ComponentMesh>() const;
@@ -153,6 +148,7 @@ template ComponentDecal* GameObject::getComponent<ComponentDecal>() const;
 template ComponentBillboard* GameObject::getComponent<ComponentBillboard>() const;
 template ComponentParticleSystem* GameObject::getComponent<ComponentParticleSystem>() const;
 template ComponentTrail* GameObject::getComponent<ComponentTrail>() const;
+template ComponentScript* GameObject::getComponent<ComponentScript>() const;
 
 template bool GameObject::removeComponent<ComponentMesh>();
 template bool GameObject::removeComponent<ComponentCamera>();

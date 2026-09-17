@@ -378,6 +378,7 @@
     <ClCompile Include="FileDialog.cpp" />
     <ClCompile Include="FileWatcher.cpp" />
     <ClCompile Include="GameObject.cpp" />
+    <ClCompile Include="GameObjectComponentFactories.cpp" />
     <ClCompile Include="HDRToCubemapPass.cpp" />
     <ClCompile Include="HotReloadManager.cpp" />
     <ClCompile Include="IBLGenerator.cpp" />
@@ -439,6 +440,7 @@
     <ClCompile Include="ModuleInput.cpp" />
     <ClCompile Include="Mouse.cpp" />
     <ClCompile Include="PrefabManager.cpp" />
+    <ClCompile Include="PrefabManagerCore.cpp" />
     <ClCompile Include="PrimitiveFactory.cpp" />
     <ClCompile Include="RenderTargetDesc.cpp" />
     <ClCompile Include="RenderTexture.cpp" />

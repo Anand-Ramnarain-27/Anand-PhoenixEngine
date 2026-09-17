@@ -6,6 +6,7 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PhoenixEngine", "Engine.vcxproj", "{1EEA1523-1CAF-4CA4-97B8-1C77FF6F7D9E}"
 	ProjectSection(ProjectDependencies) = postProject
 		{371B9FA9-4C90-4AC6-A123-ACED756D6C77} = {371B9FA9-4C90-4AC6-A123-ACED756D6C77}
+		{11B4DC88-ECB8-4E09-89FD-BE5B0F77E5DC} = {11B4DC88-ECB8-4E09-89FD-BE5B0F77E5DC}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DirectXTex", "3rdParty\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj", "{371B9FA9-4C90-4AC6-A123-ACED756D6C77}"
@@ -13,12 +14,16 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GameScript", "GameScript\GameScript.vcxproj", "{3C9DF9D4-9ECF-45B3-8AC1-533DF5445B0D}"
 	ProjectSection(ProjectDependencies) = postProject
 		{1EEA1523-1CAF-4CA4-97B8-1C77FF6F7D9E} = {1EEA1523-1CAF-4CA4-97B8-1C77FF6F7D9E}
+		{11B4DC88-ECB8-4E09-89FD-BE5B0F77E5DC} = {11B4DC88-ECB8-4E09-89FD-BE5B0F77E5DC}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Player", "Player.vcxproj", "{7A3F1C90-2B44-4E77-9A11-8F6D0C55E201}"
 	ProjectSection(ProjectDependencies) = postProject
 		{371B9FA9-4C90-4AC6-A123-ACED756D6C77} = {371B9FA9-4C90-4AC6-A123-ACED756D6C77}
+		{11B4DC88-ECB8-4E09-89FD-BE5B0F77E5DC} = {11B4DC88-ECB8-4E09-89FD-BE5B0F77E5DC}
 	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PhoenixCore", "PhoenixCore.vcxproj", "{11B4DC88-ECB8-4E09-89FD-BE5B0F77E5DC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -42,6 +47,10 @@ Global
 		{7A3F1C90-2B44-4E77-9A11-8F6D0C55E201}.Debug|x64.Build.0 = Debug|x64
 		{7A3F1C90-2B44-4E77-9A11-8F6D0C55E201}.Release|x64.ActiveCfg = Release|x64
 		{7A3F1C90-2B44-4E77-9A11-8F6D0C55E201}.Release|x64.Build.0 = Release|x64
+		{11B4DC88-ECB8-4E09-89FD-BE5B0F77E5DC}.Debug|x64.ActiveCfg = Debug|x64
+		{11B4DC88-ECB8-4E09-89FD-BE5B0F77E5DC}.Debug|x64.Build.0 = Debug|x64
+		{11B4DC88-ECB8-4E09-89FD-BE5B0F77E5DC}.Release|x64.ActiveCfg = Release|x64
+		{11B4DC88-ECB8-4E09-89FD-BE5B0F77E5DC}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -34,10 +34,7 @@ struct PrefabManager::SerialiseCtx {
     explicit SerialiseCtx(Document& d) : doc(d), a(d.GetAllocator()){}
 };
 
-std::unordered_map<const GameObject*, PrefabInstanceData>& PrefabManager::registry(){
-    static std::unordered_map<const GameObject*, PrefabInstanceData> s_registry;
-    return s_registry;
-}
+// PrefabManager::registry() lives in PrefabManagerCore.cpp now.
 
 uint32_t PrefabManager::makePrefabUID(const std::string& name){
     uint32_t hash = 2166136261u;
@@ -391,10 +388,7 @@ const PrefabInstanceData* PrefabManager::getInstanceData(const GameObject* go){
     return (it != registry().end()) ? &it->second : nullptr;
 }
 
-PrefabInstanceData* PrefabManager::getInstanceDataMutable(GameObject* go){
-    auto it = registry().find(go);
-    return (it != registry().end()) ? &it->second : nullptr;
-}
+// PrefabManager::getInstanceDataMutable() lives in PrefabManagerCore.cpp now.
 
 std::vector<PrefabManager::PrefabInfo> PrefabManager::listPrefabsInfo(){
     std::vector<PrefabInfo> results;
@@ -454,31 +448,8 @@ std::vector<std::string> PrefabManager::listPrefabs(){
     return names;
 }
 
-void PrefabManager::markComponentAdded(GameObject* go, int componentType){
-    PrefabInstanceData* inst = getInstanceDataMutable(go);
-    if (!inst) return;
-
-    auto& v = inst->overrides.addedComponentTypes;
-    if (std::find(v.begin(), v.end(), componentType) == v.end())
-        v.push_back(componentType);
-
-    auto& r = inst->overrides.removedComponentTypes;
-    r.erase(std::remove(r.begin(), r.end(), componentType), r.end());
-}
-
-void PrefabManager::markComponentRemoved(GameObject* go, int componentType){
-    PrefabInstanceData* inst = getInstanceDataMutable(go);
-    if (!inst) return;
-
-    auto& v = inst->overrides.removedComponentTypes;
-    if (std::find(v.begin(), v.end(), componentType) == v.end())
-        v.push_back(componentType);
-
-    auto& a = inst->overrides.addedComponentTypes;
-    a.erase(std::remove(a.begin(), a.end(), componentType), a.end());
-
-    inst->overrides.modifiedProperties.erase(componentType);
-}
+// PrefabManager::markComponentAdded()/markComponentRemoved() live in
+// PrefabManagerCore.cpp now.
 
 bool PrefabManager::prefabExists(const std::string& prefabName){ return app->getFileSystem()->Exists(getPrefabPath(prefabName).c_str()); }
 void PrefabManager::linkInstance(GameObject* go, const PrefabInstanceData& data){ if (go) registry()[go] = data; }

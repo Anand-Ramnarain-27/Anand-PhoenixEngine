@@ -120,12 +120,14 @@
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)API;$(SolutionDir)3rdParty/WinPixEventRunTime/Include;$(SolutionDir)3rdParty/ImGuizmo;$(SolutionDir)3rdParty/DirectXTex;$(SolutionDir)3rdParty/tinygltf;$(SolutionDir)3rdParty/mikktspace;$(SolutionDir)3rdParty/imgui-docking;$(SolutionDir)3rdParty/directX;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>$(SolutionDir)..\build\PhoenixEngine\$(Configuration)\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\build\PhoenixCore\$(Configuration)\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>PhoenixCore.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy "$(OutDir)GameScript.dll" "$(SolutionDir)..\build\PhoenixEngine\$(Configuration)\$(Platform)\Assets\Scripts\" /Y /I
@@ -145,12 +147,14 @@ xcopy "$(OutDir)GameScript.pdb" "$(SolutionDir)..\build\PhoenixEngine\$(Configur
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)API;$(SolutionDir)3rdParty/WinPixEventRunTime/Include;$(SolutionDir)3rdParty/ImGuizmo;$(SolutionDir)3rdParty/DirectXTex;$(SolutionDir)3rdParty/tinygltf;$(SolutionDir)3rdParty/mikktspace;$(SolutionDir)3rdParty/imgui-docking;$(SolutionDir)3rdParty/directX;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>$(SolutionDir)..\build\PhoenixEngine\$(Configuration)\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\build\PhoenixCore\$(Configuration)\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>PhoenixCore.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy "$(OutDir)GameScript.dll" "$(SolutionDir)..\build\PhoenixEngine\$(Configuration)\$(Platform)\Assets\Scripts\" /Y /I
@@ -162,6 +166,8 @@ xcopy "$(OutDir)GameScript.pdb" "$(SolutionDir)..\build\PhoenixEngine\$(Configur
     <ClInclude Include="EnemyScript.h" />
     <ClInclude Include="PlayerScript.h" />
       <ClInclude Include="Test.h" />
+    <ClInclude Include="$(SolutionDir)API\PhoenixAPI.h" />
+    <ClInclude Include="$(SolutionDir)API\Phoenix_GameObject.h" />
     <ClCompile Include="Test.cpp" />
 </ItemGroup>
   <ItemGroup>

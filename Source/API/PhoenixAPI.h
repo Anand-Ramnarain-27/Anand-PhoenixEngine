@@ -28,6 +28,7 @@ using Phoenix::GetTransform;
 using Phoenix::GetRigidbody;
 using Phoenix::GetAnimation;
 using Phoenix::GetParticles;
+using Phoenix::GetScript;
 using Phoenix::SetActive;
 using Phoenix::IsActive;
 using Phoenix::GetName;
