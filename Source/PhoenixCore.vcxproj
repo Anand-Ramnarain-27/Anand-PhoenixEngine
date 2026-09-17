@@ -168,6 +168,17 @@
     <ClInclude Include="BoundingVolume.h" />
     <ClInclude Include="Frustum.h" />
     <ClInclude Include="SimpleMath.h" />
+    <ClInclude Include="RuntimeCore.h" />
+    <ClInclude Include="SceneManager.h" />
+    <ClInclude Include="SceneGraph.h" />
+    <ClInclude Include="IScene.h" />
+    <ClInclude Include="API\Phoenix_Scene.h" />
+    <ClInclude Include="ResourceStateMachine.h" />
+    <ClInclude Include="ModuleAssets.h" />
+    <ClInclude Include="ModuleResources.h" />
+    <ClInclude Include="ResourceAnimation.h" />
+    <ClInclude Include="MetaFileManager.h" />
+    <ClInclude Include="ModuleFileSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Globals.cpp">
@@ -191,6 +202,18 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="RenderOctree.cpp" />
+    <ClCompile Include="RuntimeCoreCore.cpp" />
+    <ClCompile Include="SceneManagerCore.cpp" />
+    <ClCompile Include="SceneGraph.cpp" />
+    <ClCompile Include="API\Phoenix_Scene.cpp" />
+    <ClCompile Include="ComponentAnimationTrigger.cpp" />
+    <ClCompile Include="ResourceStateMachine.cpp" />
+    <ClCompile Include="ModuleAssetsCore.cpp" />
+    <ClCompile Include="ModuleResourcesCore.cpp" />
+    <ClCompile Include="ModuleResourcesFactoriesStub.cpp" />
+    <ClCompile Include="ResourceAnimation.cpp" />
+    <ClCompile Include="ModuleFileSystem.cpp" />
+    <ClCompile Include="MetaFileManager.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

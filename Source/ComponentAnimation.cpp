@@ -116,22 +116,13 @@ void ComponentAnimation::clearLayers(){
     m_layerHead = nullptr;
 }
 
-void ComponentAnimation::pushLayer(UID animUID, float transitionTimeMs, bool loop){
-    ResourceAnimation* anim = app->getResources()->RequestAnimation(animUID);
-    if (!anim){
-        LOG("ComponentAnimation::pushLayer: failed to load animation uid=%llu", animUID);
-        return;
-    }
-    AnimLayer* layer = new AnimLayer();
-    layer->anim = anim;
-    layer->currentTimeMs = 0.f;
-    layer->fadeTimeMs = 0.f;
-    layer->transitionTimeMs = transitionTimeMs;
-    layer->loop = loop;
-    layer->next = m_layerHead;
-    m_layerHead = layer;
-}
-
+// ComponentAnimation::pushLayer() lives in ComponentAnimationTrigger.cpp now
+// (alongside SendTrigger(), its only caller that GameScript.dll needs) - kept
+// separate from this file's ctor/onEditor()/onDrawGizmos()/update() so it can
+// be linked into GameScript.dll (via PhoenixCore) without ImGui, the
+// debug-draw gizmo library, or this class's vtable (GameScript.dll never
+// constructs a ComponentAnimation itself, only calls a method on one that
+// already exists).
 
 void ComponentAnimation::OnPlay(UID uid, bool loop){
     clearLayers();
@@ -157,24 +148,7 @@ void ComponentAnimation::OnPlay(){
     pushLayer(clip->animationUID, 0.f, clip->loop);
 }
 
-void ComponentAnimation::SendTrigger(const HashString& trigger){
-    if (!m_stateMachine) return;
-
-    for (const auto& tr : m_stateMachine->transitions){
-        if (tr.source != m_activeState || tr.trigger != trigger) continue;
-
-        const SMState* target = m_stateMachine->FindState(tr.target);
-        if (!target) return;
-
-        const SMClip* clip = m_stateMachine->FindClip(target->clipName);
-        if (!clip || clip->animationUID == 0) return;
-
-        pushLayer(clip->animationUID, (float)tr.interpolationMs, clip->loop);
-        m_activeState = tr.target;
-        return;
-    }
-}
-
+// ComponentAnimation::SendTrigger() lives in ComponentAnimationTrigger.cpp now.
 
 void ComponentAnimation::LoadStateMachineFromPath(const std::string& path){
     if (path.empty()) return;

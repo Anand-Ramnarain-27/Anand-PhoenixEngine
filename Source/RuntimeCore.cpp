@@ -188,9 +188,9 @@ bool RuntimeCore::cleanUp(){
     return true;
 }
 
-SceneGraph* RuntimeCore::getActiveModuleScene() const{
-    return m_sceneManager ? m_sceneManager->getModuleScene() : nullptr;
-}
+// RuntimeCore::getActiveModuleScene() lives in RuntimeCoreCore.cpp now -
+// kept separate from this file's renderer/pass code so it can be linked
+// into GameScript.dll (via PhoenixCore) without the whole renderer.
 
 void RuntimeCore::applySkyboxFromSettings(){
     if (!m_sceneManager || !m_envSystem) return;

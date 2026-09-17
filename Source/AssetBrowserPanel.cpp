@@ -95,11 +95,22 @@ void AssetBrowserPanel::drawContent(){
             std::string full = (projectRoot / rel).string();
             if (fs::exists(full)) m_roots.push_back({ full, label });
         }
-        // Walk upward to find Source/GameScript and add it as a Scripts root
+        // Walk upward looking for a GameScript project folder (identified by
+        // GameScript.vcxproj, not just the folder name) and add it as a Scripts
+        // root. Checks both Anand-PhoenixEngine's own dev layout (Source/GameScript)
+        // and an exported project's layout (GameScript directly beside the exe,
+        // e.g. ashfall's engine/GameScript) at each level.
         fs::path search = fs::path(lib).parent_path();
         for (int i = 0; i < 8; ++i){
-            fs::path candidate = search / "Source" / "GameScript";
-            if (fs::exists(candidate)){ m_roots.push_back({ candidate.string(), "Scripts" }); break; }
+            bool found = false;
+            for (fs::path candidate : { search / "Source" / "GameScript", search / "GameScript" }){
+                if (fs::exists(candidate / "GameScript.vcxproj")){
+                    m_roots.push_back({ candidate.string(), "Scripts" });
+                    found = true;
+                    break;
+                }
+            }
+            if (found) break;
             fs::path parent = search.parent_path();
             if (parent == search) break;
             search = parent;
@@ -690,22 +701,27 @@ void AssetBrowserPanel::createScript(const char* name){
     if (!name || name[0] == '\0') return;
 
     // GetLibraryPath() is exe-relative (build/PhoenixEngine/Debug/x64/Library/).
-    // Walk upward until we find the repo root that contains Source/GameScript.
+    // Walk upward until we find the GameScript project folder - either
+    // Source/GameScript (this repo's own dev layout) or GameScript directly
+    // beside the exe (an exported project's layout, e.g. ashfall's engine/GameScript).
     std::string lib = app->getFileSystem()->GetLibraryPath();
     while (!lib.empty() && (lib.back() == '/' || lib.back() == '\\')) lib.pop_back();
 
     fs::path gsDir;
     fs::path search = fs::path(lib).parent_path();
     for (int i = 0; i < 8; ++i){
-        fs::path candidate = search / "Source" / "GameScript";
-        if (fs::exists(candidate)){ gsDir = candidate; break; }
+        bool found = false;
+        for (fs::path candidate : { search / "Source" / "GameScript", search / "GameScript" }){
+            if (fs::exists(candidate / "GameScript.vcxproj")){ gsDir = candidate; found = true; break; }
+        }
+        if (found) break;
         fs::path parent = search.parent_path();
         if (parent == search) break;
         search = parent;
     }
 
     if (gsDir.empty()){
-        m_editor->log("Could not locate Source/GameScript folder.", EditorColors::Danger);
+        m_editor->log("Could not locate the GameScript project folder.", EditorColors::Danger);
         return;
     }
 

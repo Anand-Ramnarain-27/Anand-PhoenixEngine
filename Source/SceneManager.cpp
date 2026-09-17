@@ -30,10 +30,10 @@ void SceneManager::clearScene(){
     hasSerializedState = false;
 }
 
-SceneGraph* SceneManager::getModuleScene() const{
-    if (m_editingPrefab && m_prefabScene) return m_prefabScene;
-    return activeScene ? activeScene->getModuleScene() : nullptr;
-}
+// SceneManager::getModuleScene() lives in SceneManagerCore.cpp now - kept
+// separate from this file's render()/updateAnimations()/play()/loadScene()
+// so it can be linked into GameScript.dll (via PhoenixCore) without
+// ComponentMesh/ComponentAnimation/SceneSerializer/ModuleD3D12.
 
 void SceneManager::play(){
     if (!activeScene || m_editingPrefab) return;

@@ -39,30 +39,18 @@ std::string ModuleResources::getLibraryPath(UID uid) const{
     return it != m_registry.end() ? it->second.libraryPath : "";
 }
 
-ResourceBase* ModuleResources::RequestResource(UID uid){
-    std::lock_guard<std::mutex> lock(m_resourceMutex);
-    auto it = m_resources.find(uid);
-    if (it != m_resources.end()){ it->second->addRef(); return it->second; }
-    ResourceBase* resource = CreateResourceFromUID(uid);
-    if (!resource) return nullptr;
-    if (!resource->LoadInMemory()){ delete resource; return nullptr; }
-    resource->addRef();
-    m_resources[uid] = resource;
-    return resource;
-}
-
-void ModuleResources::ReleaseResource(ResourceBase* resource){
-    if (!resource) return;
-    std::lock_guard<std::mutex> lock(m_resourceMutex);
-    resource->releaseRef();
-    if (resource->referenceCount == 0){ resource->UnloadFromMemory(); m_resources.erase(resource->uid); delete resource; }
-}
+// ModuleResources::RequestResource()/ReleaseResource()/RequestAnimation()/
+// CreateResourceFromUID() live in ModuleResourcesCore.cpp now - kept separate
+// so they can be linked into GameScript.dll (via PhoenixCore) without this
+// class's constructor/vtable (init()/cleanUp() are virtual overrides, and
+// cleanUp() calls StopAssetWatcher() below - GameScript.dll never
+// constructs/destroys a ModuleResources itself, only calls RequestAnimation
+// on an already-running instance via app->getResources()).
 
 ResourceMesh* ModuleResources::RequestMesh(UID uid){ return static_cast<ResourceMesh*>(RequestResource(uid)); }
 ResourceMaterial* ModuleResources::RequestMaterial(UID uid){ return static_cast<ResourceMaterial*>(RequestResource(uid)); }
 ResourceTexture* ModuleResources::RequestTexture(UID uid){ return static_cast<ResourceTexture*>(RequestResource(uid)); }
 ResourceModel* ModuleResources::RequestModel(UID uid){ return static_cast<ResourceModel*>(RequestResource(uid)); }
-ResourceAnimation* ModuleResources::RequestAnimation(UID uid){ return static_cast<ResourceAnimation*>(RequestResource(uid)); }
 
 void ModuleResources::uploadPendingMeshes(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer){
     std::lock_guard<std::mutex> lock(m_resourceMutex);
@@ -73,27 +61,7 @@ void ModuleResources::uploadPendingMeshes(ID3D12GraphicsCommandList* cmd, Module
     }
 }
 
-ResourceBase* ModuleResources::CreateResourceFromUID(UID uid){
-    auto regIt = m_registry.find(uid);
-    if (regIt != m_registry.end()){
-        const ResourceRecord& rec = regIt->second;
-        std::string assetPath = app->getAssets()->getPathFromUID(uid);
-        switch (rec.type){
-        case ResourceBase::Type::Mesh: { auto* r = new ResourceMesh(uid); r->libraryFile = rec.libraryPath; r->assetsFile = assetPath; return r; }
-        case ResourceBase::Type::Material: { auto* r = new ResourceMaterial(uid); r->libraryFile = rec.libraryPath; r->assetsFile = assetPath; r->textureUID = rec.textureUID; return r; }
-        case ResourceBase::Type::Texture: { auto* r = new ResourceTexture(uid); r->libraryFile = rec.libraryPath; r->assetsFile = assetPath; return r; }
-        case ResourceBase::Type::Model: { auto* r = new ResourceModel(uid); r->libraryFile = rec.libraryPath; r->assetsFile = assetPath; return r; }
-        case ResourceBase::Type::Animation: { auto* r = new ResourceAnimation(uid); r->libraryFile = rec.libraryPath; r->assetsFile = assetPath; return r; }
-        default: LOG("ModuleResources: Unknown type for uid=%llu", uid); return nullptr;
-        }
-    }
-    std::string assetPath = app->getAssets()->getPathFromUID(uid);
-    if (assetPath.empty()){ LOG("ModuleResources: No registry entry and no asset path for uid=%llu", uid); return nullptr; }
-    MetaData meta;
-    if (!MetaFileManager::load(assetPath, meta)){ LOG("ModuleResources: No meta file for %s", assetPath.c_str()); return nullptr; }
-    LOG("ModuleResources: uid=%llu not in registry, cannot create without library path", uid);
-    return nullptr;
-}
+// ModuleResources::CreateResourceFromUID() lives in ModuleResourcesCore.cpp now.
 
 void ModuleResources::StartAssetWatcher(){
     m_watcherRunning = true;

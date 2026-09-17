@@ -411,8 +411,11 @@
     <ClCompile Include="MetaFileManager.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="ModuleAssets.cpp" />
+    <ClCompile Include="ModuleAssetsCore.cpp" />
     <ClCompile Include="ModuleFileSystem.cpp" />
     <ClCompile Include="ModuleResources.cpp" />
+    <ClCompile Include="ModuleResourcesCore.cpp" />
+    <ClCompile Include="ModuleResourcesFactories.cpp" />
     <ClCompile Include="ModuleRingBuffer.cpp" />
     <ClCompile Include="SceneGraph.cpp" />
     <ClCompile Include="ModuleShaderDescriptors.cpp" />
@@ -421,6 +424,7 @@
     <ClCompile Include="ModuleCamera.cpp" />
     <ClCompile Include="ModuleD3D12.cpp" />
     <ClCompile Include="RuntimeCore.cpp" />
+    <ClCompile Include="RuntimeCoreCore.cpp" />
     <ClCompile Include="BuildSettings.cpp" />
     <ClCompile Include="ModuleGPUResources.cpp" />
     <ClCompile Include="ModuleStaticBuffer.cpp" />
@@ -446,6 +450,7 @@
     <ClCompile Include="RenderTexture.cpp" />
     <ClCompile Include="AnimationController.cpp" />
     <ClCompile Include="ComponentAnimation.cpp" />
+    <ClCompile Include="ComponentAnimationTrigger.cpp" />
     <ClCompile Include="ComponentCharacterMotion.cpp" />
     <ClCompile Include="ComponentSimpleCharacterController.cpp" />
     <ClCompile Include="SkinningPass.cpp" />
@@ -457,6 +462,7 @@
     <ClCompile Include="ResourceTexture.cpp" />
     <ClCompile Include="SceneImporter.cpp" />
     <ClCompile Include="SceneManager.cpp" />
+    <ClCompile Include="SceneManagerCore.cpp" />
     <ClCompile Include="SceneSerializer.cpp" />
     <ClCompile Include="3rdParty\imgui-node-editor-master\imgui_node_editor.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -483,6 +489,7 @@
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
     </ClCompile>
     <ClCompile Include="ResourceStateMachine.cpp" />
+    <ClCompile Include="ResourceStateMachineEditor.cpp" />
     <ClCompile Include="ShaderTableDesc.cpp" />
     <ClCompile Include="SimpleMath.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>

@@ -16,6 +16,17 @@ class ResourceAnimation;
 struct ID3D12GraphicsCommandList;
 class ModuleStaticBuffer;
 
+// Constructs a Mesh/Material/Texture/Model resource (never Animation - that
+// case is handled inline in ModuleResources::CreateResourceFromUID, which
+// doesn't need this). Defined in ModuleResourcesFactories.cpp (the real
+// implementation, Engine/Player-only - touches ModuleStaticBuffer/GPU-facing
+// code) or ModuleResourcesFactoriesStub.cpp (a nullptr stub, PhoenixCore-only
+// - GameScript.dll only ever requests Animation resources today). Exists so
+// CreateResourceFromUID's link doesn't need ResourceMesh/Material/Texture/
+// Model's constructors just to resolve the Animation case.
+ResourceBase* CreateNonAnimationResource(ResourceBase::Type type, UID uid,
+    const std::string& libraryPath, UID textureUID, const std::string& assetPath);
+
 class ModuleResources : public Module {
 public:
     ModuleResources();

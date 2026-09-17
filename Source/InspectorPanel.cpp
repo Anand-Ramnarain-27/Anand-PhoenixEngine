@@ -31,6 +31,7 @@
 #include "EditorSelection.h"
 #include "PrefabEditSession.h"
 #include "ComponentScript.h"
+#include "HotReloadManager.h"
 #include "ComponentCharacterMotion.h"
 #include "ComponentSimpleCharacterController.h"
 #include "ComponentRigidbody.h"
@@ -366,6 +367,31 @@ void InspectorPanel::drawAddComponentMenu(){
         addComp("Billboard", Component::Type::Billboard, go->getComponent<ComponentBillboard>() != nullptr);
         addComp("Particle System", Component::Type::ParticleSystem, go->getComponent<ComponentParticleSystem>() != nullptr);
         addComp("Trail", Component::Type::Trail, go->getComponent<ComponentTrail>() != nullptr);
+        ImGui::EndMenu();
+    }
+    ImGui::Separator();
+    if (ImGui::BeginMenu("Add Script")){
+        auto* hr = m_editor->getHotReloadManager();
+        if (!hr){
+            ImGui::TextDisabled("HotReload not ready");
+        }
+        else {
+            auto names = hr->getRegisteredClassNames();
+            if (names.empty()){
+                ImGui::TextDisabled("No script DLL loaded");
+            }
+            else {
+                for (const auto& name : names){
+                    if (ImGui::MenuItem(name.c_str())){
+                        auto comp = ComponentFactory::CreateComponent(Component::Type::Script, go);
+                        auto* sc = static_cast<ComponentScript*>(comp.get());
+                        sc->setScriptClass(name, hr);
+                        go->addComponent(std::move(comp));
+                        ImGui::CloseCurrentPopup();
+                    }
+                }
+            }
+        }
         ImGui::EndMenu();
     }
     ImGui::EndPopup();

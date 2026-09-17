@@ -5,6 +5,7 @@
 #include "ComponentMesh.h"
 #include "ComponentTransform.h"
 #include "Application.h"
+#include "RuntimeCore.h"
 #include "ModuleCamera.h"
 #include <imgui.h>
 
@@ -113,8 +114,16 @@ void ComponentScript::onSave(std::string& outJson) const{
 void ComponentScript::onLoad(const std::string& jsonStr){
     Document doc; doc.Parse(jsonStr.c_str());
     if (doc.HasParseError()) return;
-    if (doc.HasMember("ClassName"))
-        m_className = doc["ClassName"].GetString();
+    if (doc.HasMember("ClassName")){
+        // setScriptClass() (not a plain m_className assignment) is required here -
+        // it's what actually reconnects m_script to a live instance via
+        // HotReloadManager::createScript(). Without it, a component restored from
+        // a saved scene/prefab keeps its class name but never gets a script
+        // instance, and every caller (scene load, prefab instantiate, Play/Stop's
+        // temp-scene restore) would need to remember to reconnect it themselves.
+        RuntimeCore* rc = app ? app->getRuntimeCore() : nullptr;
+        setScriptClass(doc["ClassName"].GetString(), rc ? rc->getHotReloadManager() : nullptr);
+    }
     if (m_script && doc.HasMember("ScriptData"))
         m_script->Load(doc["ScriptData"].GetString());
 }

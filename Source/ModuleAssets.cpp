@@ -459,10 +459,10 @@ UID ModuleAssets::findUID(const std::string& assetPath) const{
     return MetaFileManager::load(path, meta) ? meta.uid : 0;
 }
 
-std::string ModuleAssets::getPathFromUID(UID uid) const{
-    auto it = m_uidToPath.find(uid);
-    return it != m_uidToPath.end() ? it->second : "";
-}
+// ModuleAssets::getPathFromUID() lives in ModuleAssetsCore.cpp now - kept
+// separate from this file's gltf-import pipeline (tinygltf/SceneImporter/
+// TextureImporter) so it can be linked into GameScript.dll (via PhoenixCore),
+// since ModuleResources::CreateResourceFromUID() calls it unconditionally.
 
 bool ModuleAssets::needsReimport(const std::string& assetPath) const{
     std::string path = normalisePath(assetPath);
