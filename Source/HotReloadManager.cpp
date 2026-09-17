@@ -82,6 +82,16 @@ bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLib
     }
     out.dllPath = dllPath;
 
+    // Hand this process's Application* across the DLL boundary, if the DLL
+    // wants it (GameScript.dll's GameScriptGlobals.cpp exports this so that
+    // Phoenix::Input/etc, statically linked into the DLL from PhoenixCore.lib,
+    // have a real Application to reach instead of a permanently-null one -
+    // a DLL has its own separate copy of any global, it never shares the
+    // EXE's). Optional: older/other script DLLs without this export just skip it.
+    using SetAppFn = void(*)(Application*);
+    if (auto setApp = reinterpret_cast<SetAppFn>(GetProcAddress(out.handle, "SetPhoenixEngineApp")))
+        setApp(app);
+
     auto base = reinterpret_cast<const BYTE*>(out.handle);
     auto dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
     auto nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
