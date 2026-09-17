@@ -446,6 +446,7 @@
     <ClCompile Include="HDRToCubemapPass.cpp" />
     <ClCompile Include="HierarchyPanel.cpp" />
     <ClCompile Include="HotReloadManager.cpp" />
+    <ClCompile Include="EngineLogBridge.cpp" />
     <ClCompile Include="IBLGenerator.cpp" />
     <ClCompile Include="InspectorPanel.cpp" />
     <ClCompile Include="Material.cpp" />

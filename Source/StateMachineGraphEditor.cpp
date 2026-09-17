@@ -184,8 +184,14 @@ void StateMachineGraphEditor::Draw(ResourceStateMachine& sm, const HashString* a
         }
     }
 
-    ed::End();
-
+    // Suspend()/Resume() must be called INSIDE Begin()/End(), not after -
+    // End() resets EditorContext::m_DrawList to null as part of its normal
+    // cleanup, and Suspend() unconditionally dereferences it
+    // (IM_ASSERT(m_DrawList != nullptr) is compiled out in Release builds),
+    // so calling Suspend() after End() is a null-pointer crash every time.
+    // This wraps the screen-space popups below in the canonical
+    // imgui-node-editor pattern: Begin -> draw nodes -> Suspend -> popups ->
+    // Resume -> End.
     ed::Suspend();
 
     if (m_showNodeMenu){ ImGui::OpenPopup("##NodeCtx"); m_showNodeMenu = false; }
@@ -280,5 +286,6 @@ void StateMachineGraphEditor::Draw(ResourceStateMachine& sm, const HashString* a
     }
 
     ed::Resume();
+    ed::End();
     ed::SetCurrentEditor(nullptr);
 }

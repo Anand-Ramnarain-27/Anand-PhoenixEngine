@@ -19,3 +19,13 @@ Application* app = nullptr;
 extern "C" SCRIPT_API void SetPhoenixEngineApp(Application* engineApp){
     app = engineApp;
 }
+
+// Same handoff, for a callback that forwards script log calls into the
+// editor's visible Console panel instead of just OutputDebugStringA. See
+// Anand-PhoenixEngine's HotReloadManager.cpp/EngineLogBridge.cpp.
+using EngineLogFn = void(*)(const char*, float, float, float, float);
+EngineLogFn g_engineLogFn = nullptr;
+
+extern "C" SCRIPT_API void SetPhoenixEngineLogFn(EngineLogFn fn){
+    g_engineLogFn = fn;
+}

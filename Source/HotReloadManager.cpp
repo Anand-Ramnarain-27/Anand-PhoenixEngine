@@ -92,6 +92,17 @@ bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLib
     if (auto setApp = reinterpret_cast<SetAppFn>(GetProcAddress(out.handle, "SetPhoenixEngineApp")))
         setApp(app);
 
+    // Same handoff, for forwarding Platform::LogDebug-style calls into the
+    // editor's visible Console panel instead of just OutputDebugStringA.
+    // PhoenixEngineLogToConsole() is defined in EngineLogBridge.cpp (real
+    // forward to ModuleEditor::log) or PlayerLogBridge.cpp (no-op stub) -
+    // whichever this binary links.
+    using LogFn = void(*)(const char*, float, float, float, float);
+    extern void PhoenixEngineLogToConsole(const char*, float, float, float, float);
+    using SetLogFn = void(*)(LogFn);
+    if (auto setLog = reinterpret_cast<SetLogFn>(GetProcAddress(out.handle, "SetPhoenixEngineLogFn")))
+        setLog(&PhoenixEngineLogToConsole);
+
     auto base = reinterpret_cast<const BYTE*>(out.handle);
     auto dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
     auto nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);

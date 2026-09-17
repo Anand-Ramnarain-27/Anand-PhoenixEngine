@@ -381,6 +381,7 @@
     <ClCompile Include="GameObjectComponentFactories.cpp" />
     <ClCompile Include="HDRToCubemapPass.cpp" />
     <ClCompile Include="HotReloadManager.cpp" />
+    <ClCompile Include="PlayerLogBridge.cpp" />
     <ClCompile Include="IBLGenerator.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="MaterialImporter.cpp" />
