@@ -3,6 +3,7 @@
 #include "GameObject.h"
 #include "SceneGraph.h"
 #include "ComponentTransform.h"
+#include "ComponentMesh.h"
 #include "ComponentFactory.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
@@ -78,6 +79,7 @@ static void serialiseNodeInto(const GameObject* go, Value& out, Document::Alloca
     out.AddMember("Name", Value(go->getName().c_str(), a), a);
     out.AddMember("UID", go->getUID(), a);
     out.AddMember("Active", go->isActive(), a);
+    out.AddMember("Tag", Value(go->getTag().c_str(), a), a);
 
     const PrefabInstanceData* instData = PrefabManager::getInstanceData(go);
     if (instData){
@@ -115,11 +117,20 @@ static void serialiseNodeInto(const GameObject* go, Value& out, Document::Alloca
     out.AddMember("Children", children, a);
 }
 
+// ComponentMesh::onLoad only stashes skin joint names/IBMs; they're bound to real
+// GameObjects here, once the whole subtree exists (same pass SceneSerializer runs
+// on scene load). Without it a spawned skinned mesh never gets skin data.
+static void resolveSkinsInSubtree(GameObject* go){
+    if (auto* cm = go->getComponent<ComponentMesh>()) cm->resolveDeferredSkin();
+    for (auto* child : go->getChildren()) resolveSkinsInSubtree(child);
+}
+
 GameObject* PrefabManager::deserialiseNode(const Value& node, SceneGraph* scene, GameObject* parent){
     if (!node.IsObject()) return nullptr;
     const char* name = node.HasMember("Name") ? node["Name"].GetString() : "Unnamed";
     GameObject* go = scene->createGameObject(name, parent);
     go->setActive(node.HasMember("Active") ? node["Active"].GetBool() : true);
+    if (node.HasMember("Tag") && node["Tag"].IsString()) go->setTag(node["Tag"].GetString());
 
     if (node.HasMember("PrefabLink") && node["PrefabLink"].IsObject()){
         const Value& lk = node["PrefabLink"];
@@ -150,6 +161,8 @@ GameObject* PrefabManager::deserialiseNode(const Value& node, SceneGraph* scene,
 
     if (node.HasMember("Children") && node["Children"].IsArray())
         for (SizeType i = 0; i < node["Children"].Size(); ++i) deserialiseNode(node["Children"][i], scene, go);
+
+    if (!parent) resolveSkinsInSubtree(go); // outermost call: subtree is complete
 
     return go;
 }
@@ -312,6 +325,7 @@ bool PrefabManager::revertToPrefab(GameObject* go, SceneGraph* scene){
         }
     }
 
+    resolveSkinsInSubtree(go); // reverted mesh components re-stash pending skin data
     inst->overrides = savedOverrides;
     LOG("PrefabManager: Reverted '%s' from prefab '%s'", go->getName().c_str(), inst->prefabName.c_str());
     return true;
