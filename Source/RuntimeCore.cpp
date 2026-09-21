@@ -34,6 +34,7 @@
 #include "ComponentBounds.h"
 #include "CollisionSystem.h"
 #include "CollisionResponse.h"
+#include "NavigationSystem.h"
 #include "ShadowMath.h"
 #include "Model.h"
 #include "Mesh.h"
@@ -61,6 +62,7 @@ bool RuntimeCore::init(){
     m_debugDraw = std::make_unique<DebugDrawPass>(device4.Get(), d3d12->getDrawCommandQueue(), false);
     m_collisionSystem = std::make_unique<CollisionSystem>();
     m_collisionResponse = std::make_unique<CollisionResponse>();
+    m_navigationSystem = std::make_unique<NavigationSystem>();
     m_sceneManager = std::make_unique<SceneManager>();
     m_meshRenderPass = std::make_unique<ForwardMeshPass>();
     m_hotReload = std::make_unique<HotReloadManager>();
@@ -1303,6 +1305,9 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
 
         if (s.debugDrawGrid && m_collisionSystem)
             m_collisionSystem->drawBroadPhaseDebug();
+
+        if (s.debugDrawNav && m_navigationSystem)
+            m_navigationSystem->drawDebug();
 
         if (camera->showFrustumCullingDebug){
             if (camera->hasGameFrustum()){

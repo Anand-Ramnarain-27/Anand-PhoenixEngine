@@ -7,11 +7,6 @@
 #include <chrono>
 #include "SceneGraph.h"
 #include "GameObject.h"
-#include "ComponentMesh.h"
-#include "ComponentTransform.h"
-#include "ComponentBounds.h"
-#include "ComponentRigidbody.h"
-#include <functional>
 #include <cfloat>
 #include <cmath>
 
@@ -102,90 +97,9 @@ int CollisionSystem::getLastOctreeLeafCount() const{
     return o ? o->getLastLeafCount() : 0;
 }
 
-static void buildOBB(CollisionBody& body){
-    const ComponentTransform* t = body.go->getTransform();
-    const ComponentMesh* cm = body.go->getComponent<ComponentMesh>();
-    if (!t || !cm || !cm->hasAABB()) return;
-
-    const Matrix& W = const_cast<ComponentTransform*>(t)->getGlobalMatrix();
-    const Vector3 lMin = cm->getLocalAABBMin();
-    const Vector3 lMax = cm->getLocalAABBMax();
-    const Vector3 lHalf = (lMax - lMin) * 0.5f;
-    const Vector3 lCtr = (lMin + lMax) * 0.5f;
-
-    body.obbCenter = Vector3::Transform(lCtr, W);
-
-    Vector3 cx(W._11, W._12, W._13);
-    Vector3 cy(W._21, W._22, W._23);
-    Vector3 cz(W._31, W._32, W._33);
-
-    float sx = cx.Length(), sy = cy.Length(), sz = cz.Length();
-    static const float kEps = 1e-8f;
-    body.obbAxes[0] = sx > kEps ? cx / sx : Vector3::UnitX;
-    body.obbAxes[1] = sy > kEps ? cy / sy : Vector3::UnitY;
-    body.obbAxes[2] = sz > kEps ? cz / sz : Vector3::UnitZ;
-    body.obbHalves[0] = lHalf.x * sx;
-    body.obbHalves[1] = lHalf.y * sy;
-    body.obbHalves[2] = lHalf.z * sz;
-}
-
-static void applyBVType(CollisionBody& body){
-    const ComponentBounds* cb = body.go->getComponent<ComponentBounds>();
-    if (!cb || cb->bvType == BVType::AABB){
-        body.bvType = BVType::AABB;
-        return;
-    }
-
-    body.bvType = BVType::Sphere;
-    body.sphereCenter = body.obbCenter;
-
-    if (cb->radiusOverride >= 0.f){
-        body.sphereRadius = cb->radiusOverride;
-    } else {
-        body.sphereRadius = sqrtf(
-            body.obbHalves[0] * body.obbHalves[0] +
-            body.obbHalves[1] * body.obbHalves[1] +
-            body.obbHalves[2] * body.obbHalves[2]);
-    }
-
-    Sphere s{ body.sphereCenter, body.sphereRadius };
-    body.worldAABB = s.toAABB();
-}
-
-
-std::vector<CollisionBody> CollisionSystem::gatherBodies(SceneGraph* scene, float dt){
-    std::vector<CollisionBody> bodies;
-    if (!scene) return bodies;
-
-    std::function<void(GameObject*)> visit = [&](GameObject* node){
-        if (!node || !node->isActive()) return;
-        ComponentMesh* cm = node->getComponent<ComponentMesh>();
-        if (cm && cm->hasAABB()){
-            CollisionBody body;
-            body.go = node;
-            Vector3 mn, mx;
-            cm->getWorldAABB(mn, mx);
-            body.worldAABB.min = mn;
-            body.worldAABB.max = mx;
-            buildOBB(body);
-            applyBVType(body);
-
-            const ComponentRigidbody* rb = node->getComponent<ComponentRigidbody>();
-            if (rb && rb->isFastMoving && !rb->isStatic && dt > 1e-7f){
-                const Vector3 disp = rb->velocity * dt;
-                body.worldAABB.min = Vector3::Min(body.worldAABB.min,
-                                                   body.worldAABB.min + disp);
-                body.worldAABB.max = Vector3::Max(body.worldAABB.max,
-                                                   body.worldAABB.max + disp);
-            }
-
-            bodies.push_back(body);
-        }
-        for (auto* child : node->getChildren()) visit(child);
-    };
-    visit(scene->getRoot());
-    return bodies;
-}
+// buildOBB/applyBVType/gatherBodies/Raycast/IsLineClear moved to
+// CollisionSystemCore.cpp so PhoenixCore/GameScript.dll can call Raycast
+// without this file's broad/mid/narrow-phase dependencies.
 
 void CollisionSystem::run(SceneGraph* scene, float dt){
     m_results = {};

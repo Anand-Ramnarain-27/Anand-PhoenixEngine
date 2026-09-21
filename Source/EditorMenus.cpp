@@ -323,7 +323,8 @@ void ModuleEditor::drawMenuBar(){
         for (EditorPanel* p : m_panels){
             const char* n = p->getName();
             if (strcmp(n,"Render Graph")==0 || strcmp(n,"GPU Memory")==0 ||
-                strcmp(n,"Collision Debug")==0 || strcmp(n,"Performance")==0) continue;
+                strcmp(n,"Collision Debug")==0 || strcmp(n,"Navigation Debug")==0 ||
+                strcmp(n,"Performance")==0) continue;
             ImGui::MenuItem(n, nullptr, &p->open);
         }
         ImGui::Separator();
@@ -331,7 +332,8 @@ void ModuleEditor::drawMenuBar(){
         for (EditorPanel* p : m_panels){
             const char* n = p->getName();
             if (strcmp(n,"Render Graph")==0 || strcmp(n,"GPU Memory")==0 ||
-                strcmp(n,"Collision Debug")==0 || strcmp(n,"Performance")==0)
+                strcmp(n,"Collision Debug")==0 || strcmp(n,"Navigation Debug")==0 ||
+                strcmp(n,"Performance")==0)
                 ImGui::MenuItem(n, nullptr, &p->open);
         }
         ImGui::Separator();

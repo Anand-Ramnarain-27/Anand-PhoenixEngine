@@ -10,7 +10,7 @@
 #include <cfloat>
 #include <cmath>
 
-MousePicker::Ray MousePicker::buildRay(
+RayMath::Ray MousePicker::buildRay(
     float mx, float my,
     float vpX, float vpY, float vpW, float vpH,
     const Matrix& view, const Matrix& proj){
@@ -28,63 +28,14 @@ MousePicker::Ray MousePicker::buildRay(
     Vector3 nearPt = unproject(0.f);
     Vector3 farPt = unproject(1.f);
 
-    Ray r;
+    RayMath::Ray r;
     r.origin = nearPt;
     r.direction = farPt - nearPt;
     r.direction.Normalize();
     return r;
 }
 
-float MousePicker::rayVsAABB(const Ray& ray, const Vector3& mn, const Vector3& mx){
-    float tmin = 0.f, tmax = FLT_MAX;
-    const float* ro = &ray.origin.x;
-    const float* rd = &ray.direction.x;
-    const float* lo = &mn.x;
-    const float* hi = &mx.x;
-
-    for (int i = 0; i < 3; ++i){
-        if (std::abs(rd[i]) < 1e-8f){
-            if (ro[i] < lo[i] || ro[i] > hi[i]) return FLT_MAX;
-        } else {
-            float invD = 1.f / rd[i];
-            float t1 = (lo[i] - ro[i]) * invD;
-            float t2 = (hi[i] - ro[i]) * invD;
-            if (t1 > t2) std::swap(t1, t2);
-            tmin = tmin > t1 ? tmin : t1;
-            tmax = tmax < t2 ? tmax : t2;
-            if (tmin > tmax) return FLT_MAX;
-        }
-    }
-    return tmin >= 0.f ? tmin : (tmax >= 0.f ? tmax : FLT_MAX);
-}
-
-float MousePicker::rayVsTriangle(const Ray& ray,
-                                  const Vector3& v0,
-                                  const Vector3& v1,
-                                  const Vector3& v2){
-    constexpr float kEps = 1e-8f;
-
-    Vector3 e1 = v1 - v0;
-    Vector3 e2 = v2 - v0;
-    Vector3 h = ray.direction.Cross(e2);
-    float a = e1.Dot(h);
-
-    if (std::abs(a) < kEps) return FLT_MAX;
-
-    float f = 1.f / a;
-    Vector3 s = ray.origin - v0;
-    float u = f * s.Dot(h);
-    if (u < 0.f || u > 1.f) return FLT_MAX;
-
-    Vector3 q = s.Cross(e1);
-    float v = f * ray.direction.Dot(q);
-    if (v < 0.f || u + v > 1.f) return FLT_MAX;
-
-    float t = f * e2.Dot(q);
-    return t > kEps ? t : FLT_MAX;
-}
-
-float MousePicker::testMeshTriangles(const Ray& ray, GameObject* go){
+float MousePicker::testMeshTriangles(const RayMath::Ray& ray, GameObject* go){
     ComponentMesh* cm = go->getComponent<ComponentMesh>();
     if (!cm) return FLT_MAX;
 
@@ -94,7 +45,7 @@ float MousePicker::testMeshTriangles(const Ray& ray, GameObject* go){
     Matrix world = t->getGlobalMatrix();
     Matrix worldInv = world.Invert();
 
-    Ray localRay;
+    RayMath::Ray localRay;
     localRay.origin = Vector3::Transform(ray.origin, worldInv);
     localRay.direction = Vector3::TransformNormal(ray.direction, worldInv);
     localRay.direction.Normalize();
@@ -112,7 +63,7 @@ float MousePicker::testMeshTriangles(const Ray& ray, GameObject* go){
             const Vector3& v0 = verts[indices[i ]].position;
             const Vector3& v1 = verts[indices[i + 1]].position;
             const Vector3& v2 = verts[indices[i + 2]].position;
-            float d = rayVsTriangle(localRay, v0, v1, v2);
+            float d = RayMath::RayVsTriangle(localRay, v0, v1, v2);
             if (d < closest) closest = d;
         }
     }
@@ -120,7 +71,7 @@ float MousePicker::testMeshTriangles(const Ray& ray, GameObject* go){
     return closest;
 }
 
-void MousePicker::traverse(const Ray& ray, GameObject* node,
+void MousePicker::traverse(const RayMath::Ray& ray, GameObject* node,
                             float& outDist, GameObject*& outHit){
     if (!node || !node->isActive()) return;
 
@@ -128,7 +79,7 @@ void MousePicker::traverse(const Ray& ray, GameObject* node,
     if (cm && cm->hasAABB()){
         Vector3 wMin, wMax;
         cm->getWorldAABB(wMin, wMax);
-        float aabbDist = rayVsAABB(ray, wMin, wMax);
+        float aabbDist = RayMath::RayVsAABB(ray, wMin, wMax);
         if (aabbDist < outDist){
             float triDist = testMeshTriangles(ray, node);
             if (triDist < outDist){
@@ -149,7 +100,7 @@ GameObject* MousePicker::pick(
     SceneGraph* scene){
     if (!scene || vpW <= 0.f || vpH <= 0.f) return nullptr;
 
-    Ray ray = buildRay(mx, my, vpX, vpY, vpW, vpH, view, proj);
+    RayMath::Ray ray = buildRay(mx, my, vpX, vpY, vpW, vpH, view, proj);
 
     float closest = FLT_MAX;
     GameObject* hit = nullptr;

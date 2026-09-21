@@ -92,6 +92,18 @@ void InspectorPanel::drawContent(){
         if (isEditRoot) ImGui::PopStyleColor();
 
         ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
+        ImGui::Text("Tag");
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        char tagBuf[128];
+        strncpy_s(tagBuf, go->getTag().c_str(), sizeof(tagBuf) - 1);
+        ImGui::SetNextItemWidth(-1.f);
+        if (ImGui::InputText("##gotag", tagBuf, sizeof(tagBuf))) go->setTag(tagBuf);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Free-form label for AI/gameplay queries, e.g. \"Player\" or a faction name.\n"
+                              "Used by FindNearestWithTag - unrelated to the Name field above.");
+
+        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
         ImGui::Text("UID: %u", go->getUID());
         ImGui::PopStyleColor();
         ImGui::Separator();

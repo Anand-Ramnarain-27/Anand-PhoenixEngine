@@ -45,6 +45,7 @@ bool SceneSerializer::SaveScene(const SceneGraph* scene, const std::string& file
                         ? go->getParent()->getUID() : 0u, a);
                 node.AddMember("Name", Value(go->getName().c_str(), a), a);
                 node.AddMember("Active", go->isActive(), a);
+                node.AddMember("Tag", Value(go->getTag().c_str(), a), a);
 
                 if (PrefabManager::isPrefabInstance(go)){
                     Value pfLink(kObjectType);
@@ -161,6 +162,7 @@ bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, 
         if (!uid){ LOG("SceneSerializer: UID has unexpected type, skipping"); continue; }
         auto* go = scene->createGameObject(node["Name"].GetString());
         go->setActive(node["Active"].GetBool());
+        if (node.HasMember("Tag") && node["Tag"].IsString()) go->setTag(node["Tag"].GetString());
         uidMap[uid] = go;
     }
 

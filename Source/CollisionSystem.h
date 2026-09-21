@@ -4,6 +4,15 @@
 #include <memory>
 
 class SceneGraph;
+class GameObject;
+
+struct RaycastHit {
+    bool hit = false;
+    Vector3 point;
+    Vector3 normal;
+    float distance = 0.f;
+    GameObject* object = nullptr;
+};
 
 class CollisionSystem {
 public:
@@ -38,6 +47,12 @@ public:
     void run(SceneGraph* scene, float dt);
 
     const CollisionResults& getResults() const { return m_results; }
+
+    // Stateless on-demand query, independent of run()/getResults() - gathers a
+    // fresh body list each call. Used for AI line-of-sight/perception.
+    static bool Raycast(SceneGraph* scene, const Vector3& origin, const Vector3& dir,
+                        float maxDistance, RaycastHit& outHit);
+    static bool IsLineClear(SceneGraph* scene, const Vector3& from, const Vector3& to);
 
 private:
     static std::vector<CollisionBody> gatherBodies(SceneGraph* scene, float dt);

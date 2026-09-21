@@ -21,6 +21,7 @@ struct EditorSceneSettings {
 
     bool debugDrawBounds = false;
     bool debugDrawGrid = false;
+    bool debugDrawNav = false;
 
     bool debugDrawCameraFrustums = true;
     bool debugDrawEditorCameraRay = true;

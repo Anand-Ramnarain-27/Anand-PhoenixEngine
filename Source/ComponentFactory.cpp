@@ -14,6 +14,7 @@
 #include "ComponentBillboard.h"
 #include "ComponentParticleSystem.h"
 #include "ComponentTrail.h"
+#include "ComponentAIAgent.h"
 
 std::unique_ptr<Component> ComponentFactory::CreateComponent(Component::Type type, GameObject* owner){
     switch (type){
@@ -33,6 +34,7 @@ std::unique_ptr<Component> ComponentFactory::CreateComponent(Component::Type typ
     case Component::Type::Billboard: return std::make_unique<ComponentBillboard>(owner);
     case Component::Type::ParticleSystem: return std::make_unique<ComponentParticleSystem>(owner);
         case Component::Type::Trail: return std::make_unique<ComponentTrail>(owner);
+    case Component::Type::AIAgent: return std::make_unique<ComponentAIAgent>(owner);
     default: LOG("ComponentFactory: Unknown component type %d", (int)type); return nullptr;
     }
 }

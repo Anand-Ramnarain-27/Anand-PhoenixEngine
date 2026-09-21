@@ -25,6 +25,7 @@
 #include "ComponentBillboard.h"
 #include "ComponentParticleSystem.h"
 #include "ComponentTrail.h"
+#include "ComponentAIAgent.h"
 
 template<typename T, typename... Args>
 T* GameObject::createComponent(Args&&... args){
@@ -53,3 +54,4 @@ template ComponentDecal* GameObject::createComponent<ComponentDecal>();
 template ComponentBillboard* GameObject::createComponent<ComponentBillboard>();
 template ComponentParticleSystem* GameObject::createComponent<ComponentParticleSystem>();
 template ComponentTrail* GameObject::createComponent<ComponentTrail>();
+template ComponentAIAgent* GameObject::createComponent<ComponentAIAgent>();

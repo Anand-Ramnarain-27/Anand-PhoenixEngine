@@ -15,6 +15,7 @@
 #include "ComponentParticleSystem.h"
 #include "ComponentTrail.h"
 #include "ComponentScript.h"
+#include "ComponentAIAgent.h"
 #include "PrefabManager.h"
 #include <algorithm>
 #include <random>
@@ -89,6 +90,7 @@ namespace {
     template<> struct CompTag<ComponentParticleSystem>        { static constexpr Component::Type v = Component::Type::ParticleSystem; };
     template<> struct CompTag<ComponentTrail>                  { static constexpr Component::Type v = Component::Type::Trail; };
     template<> struct CompTag<ComponentScript>                  { static constexpr Component::Type v = Component::Type::Script; };
+    template<> struct CompTag<ComponentAIAgent>                 { static constexpr Component::Type v = Component::Type::AIAgent; };
 }
 
 template<typename T>
@@ -149,6 +151,7 @@ template ComponentBillboard* GameObject::getComponent<ComponentBillboard>() cons
 template ComponentParticleSystem* GameObject::getComponent<ComponentParticleSystem>() const;
 template ComponentTrail* GameObject::getComponent<ComponentTrail>() const;
 template ComponentScript* GameObject::getComponent<ComponentScript>() const;
+template ComponentAIAgent* GameObject::getComponent<ComponentAIAgent>() const;
 
 template bool GameObject::removeComponent<ComponentMesh>();
 template bool GameObject::removeComponent<ComponentCamera>();
@@ -160,3 +163,4 @@ template bool GameObject::removeComponent<ComponentCharacterMotion>();
 template bool GameObject::removeComponent<ComponentSimpleCharacterController>();
 template bool GameObject::removeComponent<ComponentRigidbody>();
 template bool GameObject::removeComponent<ComponentBounds>();
+template bool GameObject::removeComponent<ComponentAIAgent>();

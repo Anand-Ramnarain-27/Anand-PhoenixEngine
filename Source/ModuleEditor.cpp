@@ -136,6 +136,7 @@ bool ModuleEditor::init(){
     addPanel<PostProcessPanel>(this);
     addPanel<ResourcesPanel>(this);
     addPanel<CollisionDebugPanel>(this);
+    addPanel<NavigationDebugPanel>(this);
     addPanel<GPUMemoryPanel>(this);
     m_buildSettings = addPanel<BuildSettingsPanel>(this);
     m_buildSettings->open = false;
@@ -187,6 +188,7 @@ EnvironmentSystem* ModuleEditor::getEnvSystem() const{ return app->getRuntimeCor
 DebugDrawPass* ModuleEditor::getDebugDraw() const{ return app->getRuntimeCore()->getDebugDraw(); }
 CollisionSystem* ModuleEditor::getCollisionSystem() const{ return app->getRuntimeCore()->getCollisionSystem(); }
 CollisionResponse* ModuleEditor::getCollisionResponse() const{ return app->getRuntimeCore()->getCollisionResponse(); }
+NavigationSystem* ModuleEditor::getNavigationSystem() const{ return app->getRuntimeCore()->getNavigationSystem(); }
 HotReloadManager* ModuleEditor::getHotReloadManager() const{ return app->getRuntimeCore()->getHotReloadManager(); }
 int ModuleEditor::getFrameDrawCalls() const{ return app->getRuntimeCore()->getFrameDrawCalls(); }
 GBufferPass* ModuleEditor::getGBufferPass() const{ return app->getRuntimeCore()->getGBufferPass(); }

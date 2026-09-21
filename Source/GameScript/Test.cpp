@@ -5,6 +5,7 @@
 using namespace rapidjson;
 
 #include "Globals.h"
+#include "API/PhoenixAPI.h"
 
 Test::Test() = default;
 
@@ -12,7 +13,28 @@ void Test::Start(GameObject* owner){
     m_owner = owner;
 }
 
-void Test::Update(float /*dt*/){
+// Phase-2 link/compile smoke test: exercises every new script-facing API
+// surface (Navigation/Perception/Steering/tag) so a GameScript.dll build
+// failure here means the PhoenixCore split missed a dependency. Inert -
+// no gameplay effect, safe to leave in or delete once verified.
+void Test::Update(float dt){
+    if (!m_owner) return;
+
+    SetTag(m_owner, GetTag(m_owner));
+
+    std::vector<Vec3> path;
+    Navigation::FindPath(Position(m_owner), Position(m_owner), path);
+    Navigation::IsWalkable(Position(m_owner));
+
+    RaycastResult hit = Perception::Raycast(Position(m_owner), Vec3(0, 0, 1), 5.f);
+    Perception::IsLineClear(Position(m_owner), Position(m_owner) + Vec3(0, 0, 1));
+    Perception::ValidateChargeLane(Position(m_owner), Vec3(0, 0, 1), 1.f, 5.f);
+    Perception::FindNearestWithTag(GetTag(m_owner), Position(m_owner), m_owner);
+
+    Vec3 desired = Steering::Seek(Position(m_owner), Position(m_owner) + Vec3(1, 0, 0), 3.f);
+    Steering::ApplySteering(Vec3::Zero, desired, 3.f, 10.f, dt);
+
+    (void)hit;
 }
 
 void Test::Destroy(){

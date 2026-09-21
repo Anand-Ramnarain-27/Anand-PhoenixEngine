@@ -95,6 +95,12 @@
     <ClCompile Include="API\Phoenix_Scene.cpp">
       <Filter>Engine\Scripting\API</Filter>
     </ClCompile>
+    <ClCompile Include="API\Phoenix_Navigation.cpp">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClCompile>
+    <ClCompile Include="API\Phoenix_Perception.cpp">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClCompile>
     <!-- ============================================================ -->
     <!-- Engine\Scene                                                  -->
     <!-- ============================================================ -->
@@ -115,6 +121,9 @@
       <Filter>Engine\Scene\Components</Filter>
     </ClCompile>
     <ClCompile Include="ComponentMesh.cpp">
+      <Filter>Engine\Scene\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentMeshCore.cpp">
       <Filter>Engine\Scene\Components</Filter>
     </ClCompile>
     <ClCompile Include="ComponentCamera.cpp">
@@ -140,6 +149,24 @@
     </ClCompile>
     <ClCompile Include="ComponentRigidbody.cpp">
       <Filter>Engine\Scene\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentAIAgent.cpp">
+      <Filter>Engine\Scene\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="NavigationSystem.cpp">
+      <Filter>Engine\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="NavigationSystemDebug.cpp">
+      <Filter>Engine\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="WaypointGraphProvider.cpp">
+      <Filter>Engine\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="WaypointGraphProviderDebug.cpp">
+      <Filter>Engine\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="SteeringBehaviors.cpp">
+      <Filter>Engine\AI</Filter>
     </ClCompile>
     <ClCompile Include="ComponentDecal.cpp">
       <Filter>Engine\Scene\Components</Filter>
@@ -406,6 +433,9 @@
     <ClCompile Include="CollisionDebugPanel.cpp">
       <Filter>Engine\Editor\Panels</Filter>
     </ClCompile>
+    <ClCompile Include="NavigationDebugPanel.cpp">
+      <Filter>Engine\Editor\Panels</Filter>
+    </ClCompile>
     <ClCompile Include="GPUMemoryPanel.cpp">
       <Filter>Engine\Editor\Panels</Filter>
     </ClCompile>
@@ -453,6 +483,12 @@
     <!-- ============================================================ -->
     <!-- Engine\Physics\Collision -->
     <ClCompile Include="CollisionSystem.cpp">
+      <Filter>Engine\Physics\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="CollisionSystemCore.cpp">
+      <Filter>Engine\Physics\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="RayMath.cpp">
       <Filter>Engine\Physics\Collision</Filter>
     </ClCompile>
     <!-- Engine\Physics\Collision\BroadPhase -->
@@ -620,6 +656,15 @@
     <ClInclude Include="API\Phoenix_GameObject.h">
       <Filter>Engine\Scripting\API</Filter>
     </ClInclude>
+    <ClInclude Include="API\Phoenix_Navigation.h">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClInclude>
+    <ClInclude Include="API\Phoenix_Perception.h">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClInclude>
+    <ClInclude Include="API\Phoenix_Steering.h">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClInclude>
     <!-- ============================================================ -->
     <!-- Engine\Scene                                                  -->
     <!-- ============================================================ -->
@@ -676,6 +721,9 @@
       <Filter>Engine\Scene\Components</Filter>
     </ClInclude>
     <ClInclude Include="ComponentRigidbody.h">
+      <Filter>Engine\Scene\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentAIAgent.h">
       <Filter>Engine\Scene\Components</Filter>
     </ClInclude>
     <ClInclude Include="ComponentDecal.h">
@@ -988,6 +1036,9 @@
     <ClInclude Include="CollisionDebugPanel.h">
       <Filter>Engine\Editor\Panels</Filter>
     </ClInclude>
+    <ClInclude Include="NavigationDebugPanel.h">
+      <Filter>Engine\Editor\Panels</Filter>
+    </ClInclude>
     <ClInclude Include="GPUMemoryPanel.h">
       <Filter>Engine\Editor\Panels</Filter>
     </ClInclude>
@@ -1046,6 +1097,21 @@
     </ClInclude>
     <ClInclude Include="CollisionSystem.h">
       <Filter>Engine\Physics\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="RayMath.h">
+      <Filter>Engine\Physics\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="INavProvider.h">
+      <Filter>Engine\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="WaypointGraphProvider.h">
+      <Filter>Engine\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="NavigationSystem.h">
+      <Filter>Engine\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="SteeringBehaviors.h">
+      <Filter>Engine\AI</Filter>
     </ClInclude>
     <!-- Engine\Physics\Collision\BroadPhase -->
     <ClInclude Include="BruteForceBroadPhase.h">
@@ -1416,6 +1482,9 @@
     </Filter>
     <Filter Include="Engine\Physics\Response">
       <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000043}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\AI">
+      <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000051}</UniqueIdentifier>
     </Filter>
     <Filter Include="Engine\UI">
       <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000028}</UniqueIdentifier>

@@ -7,6 +7,9 @@
 #include "API/Phoenix_Input.h"
 #include "API/Phoenix_Scene.h"
 #include "API/Phoenix_GameObject.h"
+#include "API/Phoenix_Navigation.h"
+#include "API/Phoenix_Perception.h"
+#include "API/Phoenix_Steering.h"
 #include "IScript.h"
 #include "ScriptExport.h"
 
@@ -32,6 +35,12 @@ using Phoenix::GetScript;
 using Phoenix::SetActive;
 using Phoenix::IsActive;
 using Phoenix::GetName;
+using Phoenix::GetTag;
+using Phoenix::SetTag;
 using Phoenix::Position;
 using Phoenix::Scale;
 using Phoenix::Rotation;
+using Phoenix::Navigation;
+using Phoenix::Perception;
+using Phoenix::RaycastResult;
+using Phoenix::Steering;

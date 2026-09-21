@@ -18,6 +18,8 @@ inline ComponentScript*        GetScript    (GameObject* go){ return go ? go->ge
 inline void        SetActive(GameObject* go, bool active){ if (go) go->setActive(active); }
 inline bool        IsActive (GameObject* go)             { return go && go->isActive(); }
 inline const char* GetName  (GameObject* go)             { return go ? go->getName().c_str() : ""; }
+inline const char* GetTag   (GameObject* go)             { return go ? go->getTag().c_str() : ""; }
+inline void        SetTag   (GameObject* go, const char* tag){ if (go) go->setTag(tag ? tag : ""); }
 
 // Shorthand transform accessors
 inline Vec3& Position(GameObject* go){ return go->getTransform()->position; }

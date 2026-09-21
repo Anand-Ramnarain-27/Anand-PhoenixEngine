@@ -32,6 +32,7 @@ class EnvironmentSystem;
 class DebugDrawPass;
 class CollisionSystem;
 class CollisionResponse;
+class NavigationSystem;
 class RenderTexture;
 class GameObject;
 class SceneGraph;
@@ -59,6 +60,7 @@ public:
     DebugDrawPass* getDebugDraw() const { return m_debugDraw.get(); }
     CollisionSystem* getCollisionSystem() const { return m_collisionSystem.get(); }
     CollisionResponse* getCollisionResponse() const { return m_collisionResponse.get(); }
+    NavigationSystem* getNavigationSystem() const { return m_navigationSystem.get(); }
     HotReloadManager* getHotReloadManager() const { return m_hotReload.get(); }
 
     GBufferPass* getGBufferPass() const { return m_gbufferPass.get(); }
@@ -85,6 +87,7 @@ private:
     std::unique_ptr<DebugDrawPass> m_debugDraw;
     std::unique_ptr<CollisionSystem> m_collisionSystem;
     std::unique_ptr<CollisionResponse> m_collisionResponse;
+    std::unique_ptr<NavigationSystem> m_navigationSystem;
     std::unique_ptr<SceneManager> m_sceneManager;
     std::unique_ptr<ForwardMeshPass> m_meshRenderPass;
     std::unique_ptr<GBufferPass> m_gbufferPass;

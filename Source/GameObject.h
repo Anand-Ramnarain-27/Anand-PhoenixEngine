@@ -39,6 +39,9 @@ public:
     const std::string& getName() const { return name; }
     void setName(const std::string& newName){ name = newName; }
 
+    const std::string& getTag() const { return tag; }
+    void setTag(const std::string& newTag){ tag = newTag; }
+
     uint32_t getUID() const { return uid; }
     bool isActive() const { return active; }
     void setActive(bool value){ active = value; }
@@ -50,6 +53,7 @@ private:
 
     uint32_t uid;
     std::string name;
+    std::string tag;
     bool active = true;
     bool pendingDestroy = false;
     GameObject* parent = nullptr;

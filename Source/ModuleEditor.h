@@ -6,6 +6,7 @@
 #include "PerformancePanel.h"
 #include "ResourcesPanel.h"
 #include "CollisionDebugPanel.h"
+#include "NavigationDebugPanel.h"
 #include "GPUMemoryPanel.h"
 #include "ForwardMeshPass.h"
 #include "MeshPipeline.h"
@@ -53,6 +54,7 @@ class ImGuiPass;
 class DebugDrawPass;
 class CollisionSystem;
 class CollisionResponse;
+class NavigationSystem;
 class RenderTexture;
 class EditorPanel;
 class SceneViewPanel;
@@ -97,6 +99,7 @@ public:
     DebugDrawPass* getDebugDraw() const;
     CollisionSystem* getCollisionSystem() const;
     CollisionResponse* getCollisionResponse() const;
+    NavigationSystem* getNavigationSystem() const;
     EditorSelection& getSelection(){ return m_selection; }
     double getGpuFrameTimeMs() const { return m_gpuFrameTimeMs; }
     bool isGpuTimerReady() const { return m_gpuTimerReady; }

@@ -1,7 +1,10 @@
 #include "Globals.h"
 #include "SceneGraph.h"
 #include "GameObject.h"
+#include "ComponentTransform.h"
 #include <algorithm>
+#include <functional>
+#include <cfloat>
 
 SceneGraph::SceneGraph(){ root = std::make_unique<GameObject>("Root"); }
 SceneGraph::~SceneGraph() = default;
@@ -38,4 +41,23 @@ GameObject* SceneGraph::findGameObjectByName(const std::string& name){
             return nullptr;
         };
     return search(root.get());
+}
+
+GameObject* SceneGraph::findNearestGameObjectWithTag(const std::string& tag, const Vector3& fromPosition,
+                                                     GameObject* exclude){
+    GameObject* best = nullptr;
+    float bestDistSq = FLT_MAX;
+
+    std::function<void(GameObject*)> visit = [&](GameObject* node){
+        if (node != root.get() && node != exclude && node->isActive() && node->getTag() == tag){
+            ComponentTransform* t = node->getTransform();
+            if (t){
+                float distSq = (t->position - fromPosition).LengthSquared();
+                if (distSq < bestDistSq){ bestDistSq = distSq; best = node; }
+            }
+        }
+        for (auto* child : node->getChildren()) visit(child);
+    };
+    visit(root.get());
+    return best;
 }
