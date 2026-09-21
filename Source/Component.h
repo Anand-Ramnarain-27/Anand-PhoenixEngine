@@ -30,6 +30,8 @@ public:
         Label = 20,
         Button = 21,
         ProgressBar = 22,
+        CheckBox = 23,
+        Slider = 24,
     };
 
     explicit Component(GameObject* owner) : owner(owner){}

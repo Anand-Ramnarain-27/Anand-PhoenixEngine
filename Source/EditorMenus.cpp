@@ -25,6 +25,8 @@
 #include "ComponentLabel.h"
 #include "ComponentButton.h"
 #include "ComponentProgressBar.h"
+#include "ComponentCheckBox.h"
+#include "ComponentSlider.h"
 #include "UITestScene.h"
 #include "HotReloadManager.h"
 #include "ComponentParticleSystem.h"
@@ -269,6 +271,25 @@ void ModuleEditor::drawMenuBar(){
             if (ImGui::MenuItem("Image")) spawnUI("Image", Component::Type::Image, Vector2(100.f, 100.f));
             if (ImGui::MenuItem("Label")) spawnUI("Label", Component::Type::Label, Vector2(300.f, 60.f));
             if (ImGui::MenuItem("Progress Bar")) spawnUI("Progress Bar", Component::Type::ProgressBar, Vector2(400.f, 32.f));
+            if (ImGui::MenuItem("Slider")) spawnUI("Slider", Component::Type::Slider, Vector2(400.f, 34.f));
+            if (ImGui::MenuItem("Checkbox")){
+                spawnUI("Checkbox", Component::Type::CheckBox, Vector2(300.f, 40.f));
+                // The box takes the row height on the left; a Label fills the rest and is part of the click target.
+                if (GameObject* go = m_selection.object){
+                    SceneGraph* sc = getActiveModuleScene();
+                    GameObject* text = sc->createGameObject("Text", go);
+                    text->addComponent(ComponentFactory::CreateComponent(Component::Type::Transform2D, text));
+                    auto* t = text->getComponent<ComponentTransform2D>();
+                    t->anchorMin = Vector2(0.f, 0.f);
+                    t->anchorMax = Vector2(1.f, 1.f);
+                    t->size = Vector2(-50.f, 0.f);
+                    t->position = Vector2(25.f, 0.f);
+                    text->addComponent(ComponentFactory::CreateComponent(Component::Type::Label, text));
+                    auto* label = text->getComponent<ComponentLabel>();
+                    label->text = "Checkbox";
+                    label->hAlign = ComponentLabel::HAlign::Left;
+                }
+            }
             ImGui::Separator();
             if (ImGui::MenuItem("UI Test Scene (adds to current scene)")){
                 if (SceneGraph* sc = getActiveModuleScene()){
@@ -336,6 +357,8 @@ void ModuleEditor::drawMenuBar(){
         addToSel("Label", Component::Type::Label);
         addToSel("Button", Component::Type::Button);
         addToSel("Progress Bar", Component::Type::ProgressBar);
+        addToSel("Checkbox", Component::Type::CheckBox);
+        addToSel("Slider", Component::Type::Slider);
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Debug")){

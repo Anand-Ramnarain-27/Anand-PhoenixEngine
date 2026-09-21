@@ -25,8 +25,7 @@ void ComponentButton::onEditor(){
 }
 
 void ComponentButton::onSave(std::string& outJson) const{
-    UIJson::putBool(outJson, "interactable", interactable);
-    UIJson::putBool(outJson, "navigable", navigable);
+    saveSelectable(outJson);
     UIJson::putFloats(outJson, "normalColor", &normalColor.x, 4);
     UIJson::putFloats(outJson, "hoverColor", &hoverColor.x, 4);
     UIJson::putFloats(outJson, "pressedColor", &pressedColor.x, 4);
@@ -38,8 +37,7 @@ void ComponentButton::onSave(std::string& outJson) const{
 
 void ComponentButton::onLoad(const std::string& json){
     UIJson::Reader r(json);
-    r.getBool("interactable", interactable);
-    r.getBool("navigable", navigable);
+    loadSelectable(r);
     r.getFloats("normalColor", &normalColor.x, 4);
     r.getFloats("hoverColor", &hoverColor.x, 4);
     r.getFloats("pressedColor", &pressedColor.x, 4);

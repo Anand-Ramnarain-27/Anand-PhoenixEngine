@@ -23,10 +23,15 @@ private:
     GameObject* m_owner = nullptr;
     GameObject* m_label = nullptr;
     GameObject* m_bar = nullptr;
+    GameObject* m_second = nullptr;
+    GameObject* m_health = nullptr;
+    GameObject* m_healthText = nullptr;
     int m_clicks = 0;
     Phoenix::UIListener m_onClick;
     Phoenix::UIListener m_onEnter;
     Phoenix::UIListener m_onExit;
+    Phoenix::UIListener m_onToggle;
+    Phoenix::UIListener m_onSlide;
 };
 
 extern "C" SCRIPT_API IScript* Create_UIDemoScript();

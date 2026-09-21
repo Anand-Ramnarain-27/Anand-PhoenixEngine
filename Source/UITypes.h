@@ -7,6 +7,7 @@ enum class UIEventType {
     Press,
     Release,
     Click,
+    ValueChanged,
     Count
 };
 
@@ -21,4 +22,8 @@ struct UIInput {
     bool shiftDown = false;
     bool submitPressed = false;
     bool submitReleased = false;
+
+    // Arrow keys pressed this frame: -1 / 0 / +1 (Right and Up are positive). Used to nudge focused sliders.
+    int navX = 0;
+    int navY = 0;
 };

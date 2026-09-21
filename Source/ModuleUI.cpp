@@ -15,6 +15,9 @@
 #include "ComponentLabel.h"
 #include "ComponentButton.h"
 #include "ComponentProgressBar.h"
+#include "ComponentCheckBox.h"
+#include "ComponentSlider.h"
+#include "UISelectable.h"
 #include "UIPass.h"
 #include <algorithm>
 #include <cmath>
@@ -31,7 +34,7 @@ namespace {
 
     void clearListenersRecursive(GameObject* node){
         if (!node) return;
-        if (auto* button = node->getComponent<ComponentButton>()) button->clearListeners();
+        if (auto* widget = selectableOf(node)) widget->clearListeners();
         for (GameObject* child : node->getChildren()) clearListenersRecursive(child);
     }
 }
@@ -130,7 +133,7 @@ void ModuleUI::emitNode(GameObject* node, const UIRect& parentRect, float scale)
     const bool drawsImage = image && image->enabled;
 
     // Anything that can take the pointer is recorded in draw order; hit-testing walks it back to front.
-    if (button || (drawsImage && image->raycastTarget))
+    if (selectableOf(node) || (drawsImage && image->raycastTarget))
         m_hits.push_back({ node, rect, pivotPos, rotation, scale });
 
     if (drawsImage){
@@ -150,37 +153,42 @@ void ModuleUI::emitNode(GameObject* node, const UIRect& parentRect, float scale)
     if (auto* bar = node->getComponent<ComponentProgressBar>(); bar && bar->enabled)
         emitProgressBar(node, rect, pivotPos, rotation, scale);
 
+    if (node->getComponent<ComponentCheckBox>()) emitCheckBox(node, rect, pivotPos, rotation, scale);
+    if (node->getComponent<ComponentSlider>()) emitSlider(node, rect, pivotPos, rotation, scale);
+
     if (auto* label = node->getComponent<ComponentLabel>(); label && label->enabled && !label->text.empty())
         emitLabel(node, rect, scale);
 
     for (GameObject* child : node->getChildren()) emitNode(child, rect, scale);
 }
 
+// Draws a sub-rectangle of a widget. It is positioned by rotating its corner about the widget pivot, so a rotated
+// widget still rotates as one piece.
+void ModuleUI::pushSubRect(const Vector2& mn, const Vector2& mx, const Vector2& pivotPos, float rotation, float scale,
+                           const std::string& texture, const Vector4& color, const Vector4* uv){
+    const float c = std::cos(rotation), s = std::sin(rotation);
+    const Vector2 off = mn - pivotPos;
+
+    UIDrawItem item;
+    item.kind = UIDrawItem::Kind::Image;
+    item.texture = texture;
+    item.position = (pivotPos + Vector2(off.x * c - off.y * s, off.x * s + off.y * c)) * scale;
+    item.size = (mx - mn) * scale;
+    item.pivot = Vector2::Zero;
+    item.rotation = rotation;
+    item.color = color;
+    // A flat colour has nothing to crop; a texture is cropped so it is not squashed into a partial rect.
+    if (uv && !texture.empty()){
+        item.useSourceUV = true;
+        item.sourceUV = *uv;
+    }
+    m_items.push_back(std::move(item));
+}
+
 void ModuleUI::emitProgressBar(GameObject* node, const UIRect& rect, const Vector2& pivotPos, float rotation, float scale){
     auto* bar = node->getComponent<ComponentProgressBar>();
-    const float c = std::cos(rotation), s = std::sin(rotation);
 
-    // Draws a sub-rectangle of the widget. It is positioned by rotating its corner about the widget pivot, so a
-    // rotated bar still rotates as one piece.
-    auto push = [&](Vector2 mn, Vector2 mx, const std::string& texture, const Vector4& color, const Vector4* uv){
-        const Vector2 off = mn - pivotPos;
-        UIDrawItem item;
-        item.kind = UIDrawItem::Kind::Image;
-        item.texture = texture;
-        item.position = (pivotPos + Vector2(off.x * c - off.y * s, off.x * s + off.y * c)) * scale;
-        item.size = (mx - mn) * scale;
-        item.pivot = Vector2::Zero;
-        item.rotation = rotation;
-        item.color = color;
-        // A flat colour has nothing to crop; a texture is cropped so it is not squashed into the filled part.
-        if (uv && !texture.empty()){
-            item.useSourceUV = true;
-            item.sourceUV = *uv;
-        }
-        m_items.push_back(std::move(item));
-    };
-
-    push(rect.min, rect.max, bar->backgroundTexture, bar->backgroundColor, nullptr);
+    pushSubRect(rect.min, rect.max, pivotPos, rotation, scale, bar->backgroundTexture, bar->backgroundColor, nullptr);
 
     const float f = bar->getNormalized();
     if (f <= 0.f) return;
@@ -194,7 +202,54 @@ void ModuleUI::emitProgressBar(GameObject* node, const UIRect& rect, const Vecto
     case ComponentProgressBar::FillDirection::BottomToTop: mn.y = mx.y - size.y * f; uv = Vector4(0.f, 1.f - f, 1.f, f); break;
     case ComponentProgressBar::FillDirection::TopToBottom: mx.y = mn.y + size.y * f; uv = Vector4(0.f, 0.f, 1.f, f); break;
     }
-    push(mn, mx, bar->fillTexture, bar->fillColor, &uv);
+    pushSubRect(mn, mx, pivotPos, rotation, scale, bar->fillTexture, bar->fillColor, &uv);
+}
+
+void ModuleUI::emitCheckBox(GameObject* node, const UIRect& rect, const Vector2& pivotPos, float rotation, float scale){
+    auto* box = node->getComponent<ComponentCheckBox>();
+    const Vector4 tint = ComponentSelectable::stateTint(box->state);
+
+    // The box hugs the left edge of the row, vertically centred.
+    const float side = box->boxSize > 0.f ? box->boxSize : rect.size().y;
+    const Vector2 boxMin(rect.min.x, rect.center().y - side * 0.5f);
+    const Vector2 boxMax = boxMin + Vector2(side, side);
+    pushSubRect(boxMin, boxMax, pivotPos, rotation, scale, std::string(), box->boxColor * tint, nullptr);
+
+    if (!box->checked) return;
+    const float inset = side * 0.22f;
+    pushSubRect(boxMin + Vector2(inset, inset), boxMax - Vector2(inset, inset), pivotPos, rotation, scale,
+                box->checkTexture, box->checkColor * tint, nullptr);
+}
+
+void ModuleUI::emitSlider(GameObject* node, const UIRect& rect, const Vector2& pivotPos, float rotation, float scale){
+    auto* slider = node->getComponent<ComponentSlider>();
+    const Vector4 tint = ComponentSelectable::stateTint(slider->state);
+    const bool horizontal = slider->isHorizontal();
+    const Vector2 mid = rect.center();
+
+    // Handle centre along the main axis, and the thin track through the middle of the rect.
+    const float pos = slider->positionAt(rect, slider->getNormalized());
+    const float half = slider->trackThickness * 0.5f;
+    UIRect track;
+    track.min = horizontal ? Vector2(rect.min.x, mid.y - half) : Vector2(mid.x - half, rect.min.y);
+    track.max = horizontal ? Vector2(rect.max.x, mid.y + half) : Vector2(mid.x + half, rect.max.y);
+    pushSubRect(track.min, track.max, pivotPos, rotation, scale, std::string(), slider->trackColor, nullptr);
+
+    // Fill runs from the track's start (the end the value grows from) to the handle.
+    UIRect fill = track;
+    switch (slider->direction){
+    case ComponentSlider::Direction::LeftToRight: fill.max.x = pos; break;
+    case ComponentSlider::Direction::RightToLeft: fill.min.x = pos; break;
+    case ComponentSlider::Direction::BottomToTop: fill.min.y = pos; break;
+    case ComponentSlider::Direction::TopToBottom: fill.max.y = pos; break;
+    }
+    const Vector2 fs = fill.size();
+    if (fs.x > 0.f && fs.y > 0.f)
+        pushSubRect(fill.min, fill.max, pivotPos, rotation, scale, std::string(), slider->fillColor, nullptr);
+
+    const Vector2 hs = slider->handleSize;
+    const Vector2 hMin = horizontal ? Vector2(pos - hs.x * 0.5f, mid.y - hs.y * 0.5f) : Vector2(mid.x - hs.x * 0.5f, pos - hs.y * 0.5f);
+    pushSubRect(hMin, hMin + hs, pivotPos, rotation, scale, std::string(), slider->handleColor * tint, nullptr);
 }
 
 void ModuleUI::emitLabel(GameObject* node, const UIRect& rect, float scale){
@@ -240,15 +295,19 @@ void ModuleUI::emitLabel(GameObject* node, const UIRect& rect, float scale){
     m_items.push_back(std::move(item));
 }
 
-bool ModuleUI::hitTest(const Hit& hit, const Vector2& pixel) const{
+Vector2 ModuleUI::toLocal(const Hit& hit, const Vector2& pixel) const{
     Vector2 p = pixel / hit.scale;
     if (hit.rotation != 0.f){
-        // Undo the widget's rotation about its pivot so the test runs against the unrotated rect.
+        // Undo the widget's rotation about its pivot so tests run against the unrotated rect.
         const Vector2 d = p - hit.pivot;
         const float c = std::cos(-hit.rotation), s = std::sin(-hit.rotation);
         p = hit.pivot + Vector2(d.x * c - d.y * s, d.x * s + d.y * c);
     }
-    return hit.rect.contains(p);
+    return p;
+}
+
+bool ModuleUI::hitTest(const Hit& hit, const Vector2& pixel) const{
+    return hit.rect.contains(toLocal(hit, pixel));
 }
 
 void ModuleUI::updateInteraction(SceneGraph* scene, uint32_t width, uint32_t height, const UIInput& in){
@@ -258,124 +317,161 @@ void ModuleUI::updateInteraction(SceneGraph* scene, uint32_t width, uint32_t hei
 
     buildDrawList(scene, width, height);
 
-    struct ButtonRef {
+    struct Widget {
         GameObject* go;
-        ComponentButton* button;
+        ComponentSelectable* sel;
+        const Hit* hit;
     };
-    std::vector<ButtonRef> buttons;
+    std::vector<Widget> widgets;
     for (const Hit& hit : m_hits){
-        auto* button = hit.go->getComponent<ComponentButton>();
-        if (!button) continue;
-        button->clicked = button->pressedThisFrame = button->releasedThisFrame = false;
-        buttons.push_back({ hit.go, button });
+        ComponentSelectable* sel = selectableOf(hit.go);
+        if (!sel) continue;
+        sel->clicked = sel->pressedThisFrame = sel->releasedThisFrame = false;
+        widgets.push_back({ hit.go, sel, &hit });
     }
 
-    // The topmost input-blocking widget under the pointer wins; the button that handles it is the nearest
-    // one at or above it, so an icon or label inside a button still counts as the button.
-    ComponentButton* hoverButton = nullptr;
+    // The topmost input-blocking element under the pointer wins; the widget that handles it is the nearest one
+    // at or above it, so a label or icon inside a button or checkbox row still counts as that widget.
+    ComponentSelectable* hoverWidget = nullptr;
     if (in.pointerValid){
         for (auto it = m_hits.rbegin(); it != m_hits.rend(); ++it){
             if (!hitTest(*it, in.pointer)) continue;
             m_pointerOverUI = true;
-            for (GameObject* g = it->go; g && !hoverButton; g = g->getParent())
-                for (const ButtonRef& r : buttons)
-                    if (r.go == g){ hoverButton = r.button; break; }
+            for (GameObject* g = it->go; g && !hoverWidget; g = g->getParent())
+                for (const Widget& w : widgets)
+                    if (w.go == g){ hoverWidget = w.sel; break; }
             break;
         }
     }
 
-    auto queue = [&](const ButtonRef& r, UIEventType type){ m_pending.push_back({ r.go->getUID(), type }); };
+    auto queue = [&](const Widget& w, UIEventType type){ m_pending.push_back({ w.go->getUID(), type }); };
 
-    // Hover enter/exit. A disabled button blocks the pointer but is never hovered.
-    for (const ButtonRef& r : buttons){
-        const bool nowHover = r.button == hoverButton && r.button->interactable;
-        if (nowHover && !r.button->hovered) queue(r, UIEventType::HoverEnter);
-        if (!nowHover && r.button->hovered) queue(r, UIEventType::HoverExit);
-        r.button->hovered = nowHover;
+    // A click toggles a checkbox; the change is queued like any other event.
+    auto onClicked = [&](const Widget& w){
+        w.sel->clicked = true;
+        queue(w, UIEventType::Click);
+        if (auto* box = w.go->getComponent<ComponentCheckBox>()){
+            box->checked = !box->checked;
+            queue(w, UIEventType::ValueChanged);
+        }
+    };
+
+    // Hover enter/exit. A disabled widget blocks the pointer but is never hovered.
+    for (const Widget& w : widgets){
+        const bool nowHover = w.sel == hoverWidget && w.sel->interactable;
+        if (nowHover && !w.sel->hovered) queue(w, UIEventType::HoverEnter);
+        if (!nowHover && w.sel->hovered) queue(w, UIEventType::HoverExit);
+        w.sel->hovered = nowHover;
     }
 
-    // Pointer press / release. A click is a release over the same button that was pressed.
+    // Pointer press / release. A click is a release over the same widget that was pressed.
     if (in.mousePressed){
-        for (const ButtonRef& r : buttons) r.button->focused = false;
-        if (hoverButton && hoverButton->interactable){
-            for (const ButtonRef& r : buttons){
-                if (r.button != hoverButton) continue;
-                r.button->mouseHeld = true;
-                r.button->focused = r.button->navigable;
-                r.button->pressedThisFrame = true;
-                queue(r, UIEventType::Press);
+        for (const Widget& w : widgets) w.sel->focused = false;
+        if (hoverWidget && hoverWidget->interactable){
+            for (const Widget& w : widgets){
+                if (w.sel != hoverWidget) continue;
+                w.sel->mouseHeld = true;
+                w.sel->focused = w.sel->navigable;
+                w.sel->pressedThisFrame = true;
+                queue(w, UIEventType::Press);
             }
         }
     }
     if (in.mouseReleased){
-        for (const ButtonRef& r : buttons){
-            if (!r.button->mouseHeld) continue;
-            r.button->mouseHeld = false;
-            r.button->releasedThisFrame = true;
-            queue(r, UIEventType::Release);
-            if (r.button->hovered){
-                r.button->clicked = true;
-                queue(r, UIEventType::Click);
-            }
+        for (const Widget& w : widgets){
+            if (!w.sel->mouseHeld) continue;
+            w.sel->mouseHeld = false;
+            w.sel->releasedThisFrame = true;
+            queue(w, UIEventType::Release);
+            if (w.sel->hovered) onClicked(w);
         }
     }
 
-    // Keyboard: Tab / Shift+Tab walks the navigable buttons in draw order, Enter/Space presses the focused one.
-    std::vector<const ButtonRef*> navigable;
-    for (const ButtonRef& r : buttons){
-        if (r.button->interactable && r.button->navigable) navigable.push_back(&r);
-        else r.button->focused = false;
+    // Keyboard: Tab / Shift+Tab walks the navigable widgets in draw order, Enter/Space presses the focused one.
+    std::vector<const Widget*> navigable;
+    for (const Widget& w : widgets){
+        if (w.sel->interactable && w.sel->navigable) navigable.push_back(&w);
+        else w.sel->focused = false;
     }
     if (in.tabPressed && !navigable.empty()){
         const int count = (int)navigable.size();
         int current = -1;
-        for (int i = 0; i < count; ++i) if (navigable[i]->button->focused) current = i;
+        for (int i = 0; i < count; ++i) if (navigable[i]->sel->focused) current = i;
         const int step = in.shiftDown ? -1 : 1;
         const int next = current < 0 ? (in.shiftDown ? count - 1 : 0) : (current + step + count) % count;
-        for (const ButtonRef* r : navigable) r->button->focused = false;
-        navigable[next]->button->focused = true;
+        for (const Widget* w : navigable) w->sel->focused = false;
+        navigable[next]->sel->focused = true;
     }
     if (in.submitPressed){
-        for (const ButtonRef* r : navigable){
-            if (!r->button->focused) continue;
-            r->button->keyHeld = true;
-            r->button->pressedThisFrame = true;
-            queue(*r, UIEventType::Press);
+        for (const Widget* w : navigable){
+            if (!w->sel->focused) continue;
+            w->sel->keyHeld = true;
+            w->sel->pressedThisFrame = true;
+            queue(*w, UIEventType::Press);
         }
     }
     if (in.submitReleased){
-        for (const ButtonRef& r : buttons){
-            if (!r.button->keyHeld) continue;
-            r.button->keyHeld = false;
-            r.button->releasedThisFrame = true;
-            queue(r, UIEventType::Release);
-            r.button->clicked = true;
-            queue(r, UIEventType::Click);
+        for (const Widget& w : widgets){
+            if (!w.sel->keyHeld) continue;
+            w.sel->keyHeld = false;
+            w.sel->releasedThisFrame = true;
+            queue(w, UIEventType::Release);
+            onClicked(w);
         }
     }
 
-    for (const ButtonRef& r : buttons){
-        ComponentButton* btn = r.button;
-        if (!btn->interactable) btn->state = ComponentButton::State::Disabled;
-        else if ((btn->mouseHeld && btn->hovered) || btn->keyHeld) btn->state = ComponentButton::State::Pressed;
-        else if (btn->hovered || btn->focused) btn->state = ComponentButton::State::Hovered;
-        else btn->state = ComponentButton::State::Normal;
+    // Sliders: follow the pointer while it is held on one (clamped, so dragging past the ends is fine), and let
+    // the arrow keys nudge the focused one.
+    for (const Widget& w : widgets){
+        auto* slider = w.go->getComponent<ComponentSlider>();
+        if (!slider || !slider->interactable) continue;
+
+        bool changed = false;
+        if (w.sel->mouseHeld && in.pointerValid)
+            changed = slider->setNormalized(slider->normalizedAt(w.hit->rect, toLocal(*w.hit, in.pointer)));
+
+        if (w.sel->focused){
+            // Left/Right for horizontal sliders, Up/Down for vertical; the sign follows the fill direction.
+            const int nav = slider->isHorizontal() ? in.navX : in.navY;
+            const bool reversed = slider->direction == ComponentSlider::Direction::RightToLeft ||
+                                  slider->direction == ComponentSlider::Direction::TopToBottom;
+            if (nav != 0) changed |= slider->setValue(slider->value + slider->keyStep() * float(reversed ? -nav : nav));
+        }
+        if (changed) queue(w, UIEventType::ValueChanged);
+    }
+
+    for (const Widget& w : widgets){
+        ComponentSelectable* sel = w.sel;
+        if (!sel->interactable) sel->state = ComponentSelectable::State::Disabled;
+        else if ((sel->mouseHeld && sel->hovered) || sel->keyHeld || (sel->mouseHeld && w.go->getComponent<ComponentSlider>()))
+            sel->state = ComponentSelectable::State::Pressed;
+        else if (sel->hovered || sel->focused) sel->state = ComponentSelectable::State::Hovered;
+        else sel->state = ComponentSelectable::State::Normal;
     }
 
     dispatch(scene);
 }
 
 // Listeners run after all state is settled, and each target is looked up again by UID: a listener may destroy
-// objects (including the button it belongs to), which would leave any pointer gathered earlier dangling.
+// objects (including the widget it belongs to), which would leave any pointer gathered earlier dangling.
 void ModuleUI::dispatch(SceneGraph* scene){
     std::vector<PendingEvent> events;
     events.swap(m_pending);
 
     for (const PendingEvent& e : events){
         GameObject* go = findByUid(scene->getRoot(), e.uid);
-        if (!go) continue;
-        if (auto* button = go->getComponent<ComponentButton>())
-            button->delegateFor(e.type).invoke();
+        ComponentSelectable* sel = selectableOf(go);
+        if (!sel) continue;
+
+        if (e.type != UIEventType::ValueChanged){
+            sel->delegateFor(e.type).invoke();
+        }
+        else if (auto* box = go->getComponent<ComponentCheckBox>()){
+            box->onValueChanged.invoke(box->checked);
+        }
+        else if (auto* slider = go->getComponent<ComponentSlider>()){
+            slider->onValueChanged.invoke(slider->value);
+        }
     }
 }
 

@@ -58,7 +58,8 @@ void GameViewPanel::onImageDrawn(){
     const ImVec2 mouse = ImGui::GetMousePos();
 
     UIInput in;
-    in.pointerValid = hovered;
+    // A drag that started on a widget keeps tracking the pointer after it leaves the image.
+    in.pointerValid = hovered || ImGui::IsMouseDown(ImGuiMouseButton_Left);
     in.pointer = Vector2(mouse.x - viewport.pos.x, mouse.y - viewport.pos.y);
     in.mousePressed = hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
     in.mouseReleased = ImGui::IsMouseReleased(ImGuiMouseButton_Left);   // even outside, so a held button lets go
@@ -67,6 +68,8 @@ void GameViewPanel::onImageDrawn(){
         in.shiftDown = ImGui::GetIO().KeyShift;
         in.submitPressed = ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_Space, false);
         in.submitReleased = ImGui::IsKeyReleased(ImGuiKey_Enter) || ImGui::IsKeyReleased(ImGuiKey_Space);
+        in.navX = (ImGui::IsKeyPressed(ImGuiKey_RightArrow) ? 1 : 0) - (ImGui::IsKeyPressed(ImGuiKey_LeftArrow) ? 1 : 0);
+        in.navY = (ImGui::IsKeyPressed(ImGuiKey_UpArrow) ? 1 : 0) - (ImGui::IsKeyPressed(ImGuiKey_DownArrow) ? 1 : 0);
     }
 
     ui->updateInteraction(app->getRuntimeCore()->getActiveModuleScene(),

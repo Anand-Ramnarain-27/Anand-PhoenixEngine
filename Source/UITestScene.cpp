@@ -16,6 +16,8 @@
 #include "ComponentLabel.h"
 #include "ComponentButton.h"
 #include "ComponentProgressBar.h"
+#include "ComponentCheckBox.h"
+#include "ComponentSlider.h"
 #include <algorithm>
 
 namespace {
@@ -64,6 +66,24 @@ namespace {
         b->value = value;
         b->direction = direction;
         b->fillColor = fill;
+        return go;
+    }
+
+    GameObject* checkbox(SceneGraph* scene, GameObject* parent, const char* name, const Layout& l, const char* text, bool checked){
+        GameObject* go = scene->createGameObject(name, parent);
+        place(go, l);
+        add<ComponentCheckBox>(go, Component::Type::CheckBox)->checked = checked;
+        return go;
+    }
+
+    GameObject* slider(SceneGraph* scene, GameObject* parent, const char* name, const Layout& l, float value){
+        GameObject* go = scene->createGameObject(name, parent);
+        place(go, l);
+        auto* s = add<ComponentSlider>(go, Component::Type::Slider);
+        s->minValue = 0.f;
+        s->maxValue = 100.f;
+        s->wholeNumbers = true;
+        s->value = value;
         return go;
     }
 
@@ -139,6 +159,14 @@ void CreateUITestScene(SceneGraph* scene, HotReloadManager* hotReload){
     label(scene, panel, "Script Note", { { 0.f, 1.f }, { 1.f, 1.f }, { .5f, 1.f }, { 0.f, -14.f }, { -40.f, 40.f } },
           scripted ? "UIDemoScript attached: clicks are counted" : "No UIDemoScript loaded (build GameScript)", 20.f,
           scripted ? Vector4(.5f, 1.f, .5f, 1.f) : Vector4(1.f, .6f, .4f, 1.f));
+
+    // Below the panel: a checkbox (its row includes the text, so the text toggles it) and a slider.
+    GameObject* toggle = checkbox(scene, canvasGO, "Test Checkbox", pinned(topLeft, { 40.f, 660.f }, { 420.f, 44.f }), "", true);
+    label(scene, toggle, "Checkbox Text", { { 0.f, 0.f }, { 1.f, 1.f }, { .5f, .5f }, { 27.f, 0.f }, { -54.f, 0.f } },
+          "Enable second button", 30.f, white, ComponentLabel::HAlign::Left);
+    slider(scene, canvasGO, "Test Slider", pinned(topLeft, { 40.f, 730.f }, { 420.f, 36.f }), 70.f);
+    label(scene, canvasGO, "Slider Text", pinned(topLeft, { 480.f, 730.f }, { 300.f, 36.f }), "<- sets the Health Bar", 26.f, grey,
+          ComponentLabel::HAlign::Left);
 
     // Corner anchors: these stay glued to the screen corners at any resolution.
     label(scene, canvasGO, "Anchor TR", pinned(topRight, { -40.f, 40.f }, { 360.f, 50.f }), "Top Right anchor", 30.f, white,

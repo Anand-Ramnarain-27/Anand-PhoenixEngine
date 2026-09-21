@@ -5,7 +5,7 @@
 #include "SceneGraph.h"
 #include "GameObject.h"
 #include "ModuleUI.h"
-#include "ComponentButton.h"
+#include "UISelectable.h"
 #include "ComponentProgressBar.h"
 #include "ComponentImage.h"
 #include "ComponentLabel.h"
@@ -18,12 +18,12 @@ namespace Phoenix {
 namespace {
     UIListener addListener(GameObject* go, UIEventType type, UICallback callback){
         UIListener handle;
-        auto* button = go ? go->getComponent<ComponentButton>() : nullptr;
-        if (!button || !callback) return handle;
+        auto* widget = selectableOf(go);
+        if (!widget || !callback) return handle;
 
         handle.objectUid = go->getUID();
         handle.event = (int)type;
-        handle.id = button->delegateFor(type).add(std::move(callback));
+        handle.id = widget->delegateFor(type).add(std::move(callback));
         return handle;
     }
 
@@ -35,7 +35,7 @@ namespace {
         return nullptr;
     }
 
-    ComponentButton* button(GameObject* go){ return go ? go->getComponent<ComponentButton>() : nullptr; }
+    ComponentSelectable* widget(GameObject* go){ return selectableOf(go); }
 }
 
 UIListener UI::OnClick(GameObject* b, UICallback cb){ return addListener(b, UIEventType::Click, std::move(cb)); }
@@ -44,6 +44,28 @@ UIListener UI::OnRelease(GameObject* b, UICallback cb){ return addListener(b, UI
 UIListener UI::OnHoverEnter(GameObject* b, UICallback cb){ return addListener(b, UIEventType::HoverEnter, std::move(cb)); }
 UIListener UI::OnHoverExit(GameObject* b, UICallback cb){ return addListener(b, UIEventType::HoverExit, std::move(cb)); }
 
+UIListener UI::OnToggled(GameObject* go, std::function<void(bool)> cb){
+    UIListener handle;
+    auto* box = go ? go->getComponent<ComponentCheckBox>() : nullptr;
+    if (!box || !cb) return handle;
+
+    handle.objectUid = go->getUID();
+    handle.event = (int)UIEventType::ValueChanged;
+    handle.id = box->onValueChanged.add(std::move(cb));
+    return handle;
+}
+
+UIListener UI::OnValueChanged(GameObject* go, std::function<void(float)> cb){
+    UIListener handle;
+    auto* slider = go ? go->getComponent<ComponentSlider>() : nullptr;
+    if (!slider || !cb) return handle;
+
+    handle.objectUid = go->getUID();
+    handle.event = (int)UIEventType::ValueChanged;
+    handle.id = slider->onValueChanged.add(std::move(cb));
+    return handle;
+}
+
 void UI::RemoveListener(const UIListener& listener){
     if (!listener.valid() || !app || !app->getRuntimeCore()) return;
     SceneGraph* scene = app->getRuntimeCore()->getActiveModuleScene();
@@ -51,25 +73,32 @@ void UI::RemoveListener(const UIListener& listener){
 
     // The button may be gone already; its listeners went with it.
     GameObject* go = findByUid(scene->getRoot(), listener.objectUid);
-    if (auto* b = button(go))
-        b->delegateFor((UIEventType)listener.event).remove(listener.id);
+    if (!go) return;
+
+    if ((UIEventType)listener.event == UIEventType::ValueChanged){
+        if (auto* box = go->getComponent<ComponentCheckBox>()) box->onValueChanged.remove(listener.id);
+        if (auto* slider = go->getComponent<ComponentSlider>()) slider->onValueChanged.remove(listener.id);
+    }
+    else if (auto* w = widget(go)){
+        w->delegateFor((UIEventType)listener.event).remove(listener.id);
+    }
 }
 
 void UI::RemoveAllListeners(GameObject* go){
-    if (auto* b = button(go)) b->clearListeners();
+    if (auto* w = widget(go)) w->clearListeners();
 }
 
-bool UI::WasClicked(GameObject* go){ auto* b = button(go); return b && b->clicked; }
-bool UI::IsHovered(GameObject* go){ auto* b = button(go); return b && b->hovered; }
-bool UI::IsPressed(GameObject* go){ auto* b = button(go); return b && b->isHeld(); }
-bool UI::IsFocused(GameObject* go){ auto* b = button(go); return b && b->focused; }
+bool UI::WasClicked(GameObject* go){ auto* w = widget(go); return w && w->clicked; }
+bool UI::IsHovered(GameObject* go){ auto* w = widget(go); return w && w->hovered; }
+bool UI::IsPressed(GameObject* go){ auto* w = widget(go); return w && w->isHeld(); }
+bool UI::IsFocused(GameObject* go){ auto* w = widget(go); return w && w->focused; }
 
 bool UI::IsPointerOverUI(){
     return app && app->getUI() && app->getUI()->isPointerOverUI();
 }
 
-void UI::SetInteractable(GameObject* go, bool interactable){ if (auto* b = button(go)) b->interactable = interactable; }
-bool UI::IsInteractable(GameObject* go){ auto* b = button(go); return b && b->interactable; }
+void UI::SetInteractable(GameObject* go, bool interactable){ if (auto* w = widget(go)) w->interactable = interactable; }
+bool UI::IsInteractable(GameObject* go){ auto* w = widget(go); return w && w->interactable; }
 
 void UI::SetVisible(GameObject* go, bool visible){
     if (auto* t = go ? go->getComponent<ComponentTransform2D>() : nullptr) t->visible = visible;
@@ -95,6 +124,38 @@ void UI::SetTextColor(GameObject* go, Color color){
 
 void UI::SetImageTint(GameObject* go, Color color){
     if (auto* i = go ? go->getComponent<ComponentImage>() : nullptr) i->tint = Vector4(color.x, color.y, color.z, color.w);
+}
+
+void UI::SetChecked(GameObject* go, bool checked){
+    if (auto* box = go ? go->getComponent<ComponentCheckBox>() : nullptr) box->checked = checked;
+}
+
+bool UI::IsChecked(GameObject* go){
+    auto* box = go ? go->getComponent<ComponentCheckBox>() : nullptr;
+    return box && box->checked;
+}
+
+void UI::SetSliderValue(GameObject* go, float value){
+    if (auto* s = go ? go->getComponent<ComponentSlider>() : nullptr) s->setValue(value);
+}
+
+float UI::GetSliderValue(GameObject* go){
+    auto* s = go ? go->getComponent<ComponentSlider>() : nullptr;
+    return s ? s->value : 0.f;
+}
+
+float UI::GetSliderNormalized(GameObject* go){
+    auto* s = go ? go->getComponent<ComponentSlider>() : nullptr;
+    return s ? s->getNormalized() : 0.f;
+}
+
+void UI::SetSliderRange(GameObject* go, float minValue, float maxValue, bool wholeNumbers){
+    auto* s = go ? go->getComponent<ComponentSlider>() : nullptr;
+    if (!s) return;
+    s->minValue = minValue;
+    s->maxValue = maxValue;
+    s->wholeNumbers = wholeNumbers;
+    s->setValue(s->value);   // re-clamp into the new range
 }
 
 void UI::SetProgress(GameObject* go, float value){

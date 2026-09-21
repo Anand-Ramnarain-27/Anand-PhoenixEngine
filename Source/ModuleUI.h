@@ -10,7 +10,7 @@ class GameObject;
 class RenderTexture;
 class SceneGraph;
 class UIPass;
-class ComponentButton;
+class ComponentSelectable;
 
 // Owns the 2D UI: fonts, layout of every ComponentCanvas hierarchy, pointer/keyboard interaction, and drawing
 // it over a finished frame.
@@ -66,6 +66,11 @@ private:
     void emitNode(GameObject* node, const UIRect& parentRect, float scale);
     void emitLabel(GameObject* node, const UIRect& rect, float scale);
     void emitProgressBar(GameObject* node, const UIRect& rect, const Vector2& pivotPos, float rotation, float scale);
+    void emitCheckBox(GameObject* node, const UIRect& rect, const Vector2& pivotPos, float rotation, float scale);
+    void emitSlider(GameObject* node, const UIRect& rect, const Vector2& pivotPos, float rotation, float scale);
+    void pushSubRect(const Vector2& mn, const Vector2& mx, const Vector2& pivotPos, float rotation, float scale,
+                     const std::string& texture, const Vector4& color, const Vector4* uv);
+    Vector2 toLocal(const Hit& hit, const Vector2& pixel) const;
     bool hitTest(const Hit& hit, const Vector2& pixel) const;
     void dispatch(SceneGraph* scene);
 

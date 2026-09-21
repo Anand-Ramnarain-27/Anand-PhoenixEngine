@@ -318,13 +318,17 @@ void RuntimeCore::preRender(){
 
         UIInput in;
         in.pointer = Vector2(mouse.x, mouse.y);
-        in.pointerValid = mouse.x >= 0.f && mouse.y >= 0.f && mouse.x < float(curW) && mouse.y < float(curH);
+        // A drag that started on a widget keeps tracking the pointer after it leaves the window.
+        in.pointerValid = (mouse.x >= 0.f && mouse.y >= 0.f && mouse.x < float(curW) && mouse.y < float(curH)) ||
+                          input->isMouseDown(Phoenix::MouseButton::Left);
         in.mousePressed = input->isMousePressed(Phoenix::MouseButton::Left);
         in.mouseReleased = input->isMouseReleased(Phoenix::MouseButton::Left);
         in.tabPressed = input->isKeyPressed(Phoenix::Key::Tab);
         in.shiftDown = input->isKeyDown(Phoenix::Key::LeftShift) || input->isKeyDown(Phoenix::Key::RightShift);
         in.submitPressed = input->isKeyPressed(Phoenix::Key::Enter) || input->isKeyPressed(Phoenix::Key::Space);
         in.submitReleased = input->isKeyReleased(Phoenix::Key::Enter) || input->isKeyReleased(Phoenix::Key::Space);
+        in.navX = (input->isKeyPressed(Phoenix::Key::Right) ? 1 : 0) - (input->isKeyPressed(Phoenix::Key::Left) ? 1 : 0);
+        in.navY = (input->isKeyPressed(Phoenix::Key::Up) ? 1 : 0) - (input->isKeyPressed(Phoenix::Key::Down) ? 1 : 0);
         ui->updateInteraction(getActiveModuleScene(), curW, curH, in);
     }
 }
