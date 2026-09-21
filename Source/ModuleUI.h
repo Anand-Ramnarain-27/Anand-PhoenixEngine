@@ -65,6 +65,7 @@ private:
     void collectCanvases(GameObject* node, std::vector<GameObject*>& out) const;
     void emitNode(GameObject* node, const UIRect& parentRect, float scale);
     void emitLabel(GameObject* node, const UIRect& rect, float scale);
+    void emitProgressBar(GameObject* node, const UIRect& rect, const Vector2& pivotPos, float rotation, float scale);
     bool hitTest(const Hit& hit, const Vector2& pixel) const;
     void dispatch(SceneGraph* scene);
 

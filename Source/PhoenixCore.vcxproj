@@ -182,6 +182,7 @@
     <ClInclude Include="ComponentImage.h" />
     <ClInclude Include="ComponentLabel.h" />
     <ClInclude Include="ComponentButton.h" />
+    <ClInclude Include="ComponentProgressBar.h" />
     <ClInclude Include="UITypes.h" />
     <ClInclude Include="UIDrawItem.h" />
     <ClInclude Include="ModuleUI.h" />

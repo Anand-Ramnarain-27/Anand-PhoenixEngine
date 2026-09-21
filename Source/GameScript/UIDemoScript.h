@@ -22,6 +22,7 @@ private:
 
     GameObject* m_owner = nullptr;
     GameObject* m_label = nullptr;
+    GameObject* m_bar = nullptr;
     int m_clicks = 0;
     Phoenix::UIListener m_onClick;
     Phoenix::UIListener m_onEnter;

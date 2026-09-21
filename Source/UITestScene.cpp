@@ -15,6 +15,7 @@
 #include "ComponentImage.h"
 #include "ComponentLabel.h"
 #include "ComponentButton.h"
+#include "ComponentProgressBar.h"
 #include <algorithm>
 
 namespace {
@@ -52,6 +53,17 @@ namespace {
         GameObject* go = scene->createGameObject(name, parent);
         place(go, l);
         add<ComponentImage>(go, Component::Type::Image)->tint = color;
+        return go;
+    }
+
+    GameObject* bar(SceneGraph* scene, GameObject* parent, const char* name, const Layout& l, float value,
+                    ComponentProgressBar::FillDirection direction, Vector4 fill){
+        GameObject* go = scene->createGameObject(name, parent);
+        place(go, l);
+        auto* b = add<ComponentProgressBar>(go, Component::Type::ProgressBar);
+        b->value = value;
+        b->direction = direction;
+        b->fillColor = fill;
         return go;
     }
 
@@ -99,7 +111,7 @@ void CreateUITestScene(SceneGraph* scene, HotReloadManager* hotReload){
     const Vector4 white(1.f, 1.f, 1.f, 1.f), grey(.8f, .8f, .8f, 1.f), gold(1.f, .82f, .2f, 1.f);
 
     // Panel pinned to the top-left, holding the buttons.
-    GameObject* panel = image(scene, canvasGO, "Panel", pinned(topLeft, { 40.f, 40.f }, { 620.f, 520.f }), Vector4(0.f, 0.f, 0.f, .6f));
+    GameObject* panel = image(scene, canvasGO, "Panel", pinned(topLeft, { 40.f, 40.f }, { 620.f, 590.f }), Vector4(0.f, 0.f, 0.f, .6f));
     label(scene, panel, "Title", { { 0.f, 0.f }, { 1.f, 0.f }, { .5f, 0.f }, { 0.f, 16.f }, { 0.f, 56.f } },
           "Phoenix UI Test", 44.f, gold);
     label(scene, panel, "Hint", { { 0.f, 0.f }, { 1.f, 0.f }, { .5f, 0.f }, { 0.f, 84.f }, { -40.f, 70.f } },
@@ -108,6 +120,10 @@ void CreateUITestScene(SceneGraph* scene, HotReloadManager* hotReload){
     GameObject* clickMe = button(scene, panel, "Button Click Me", "Click me", { 0.f, 190.f }, Vector4(.24f, .36f, .68f, 1.f), true);
     button(scene, panel, "Button Second", "Second button", { 0.f, 280.f }, Vector4(.20f, .55f, .35f, 1.f), true);
     button(scene, panel, "Button Disabled", "Disabled", { 0.f, 370.f }, Vector4(.6f, .3f, .3f, 1.f), false);
+
+    // Filled by UIDemoScript, one tenth per click.
+    bar(scene, panel, "Click Progress", { { .5f, 0.f }, { .5f, 0.f }, { .5f, 0.f }, { 0.f, 462.f }, { 420.f, 26.f } },
+        0.f, ComponentProgressBar::FillDirection::LeftToRight, Vector4(.95f, .75f, .2f, 1.f));
 
     // Count clicks on screen when the script DLL is loaded.
     bool scripted = false;
@@ -140,6 +156,17 @@ void CreateUITestScene(SceneGraph* scene, HotReloadManager* hotReload){
     GameObject* spinner = image(scene, canvasGO, "Rotated Image", pinned(center, { 360.f, -60.f }, { 170.f, 170.f }), Vector4(1.f, .55f, .1f, 1.f));
     spinner->getComponent<ComponentTransform2D>()->rotation = 30.f;
     label(scene, canvasGO, "Rotated Label", pinned(center, { 360.f, -60.f }, { 200.f, 40.f }), "rotated 30 deg", 26.f, white);
+
+    // Progress bars: horizontal with a text overlay, reversed, and vertical.
+    GameObject* health = bar(scene, canvasGO, "Health Bar", pinned({ .5f, 0.f }, { 0.f, 40.f }, { 520.f, 40.f }), 0.7f,
+                             ComponentProgressBar::FillDirection::LeftToRight, Vector4(.85f, .2f, .2f, 1.f));
+    label(scene, health, "Health Text", fill(), "HP 70 / 100", 26.f, white);
+
+    bar(scene, canvasGO, "Reversed Bar", pinned({ .5f, 0.f }, { 0.f, 96.f }, { 520.f, 22.f }), 0.35f,
+        ComponentProgressBar::FillDirection::RightToLeft, Vector4(.3f, .6f, 1.f, 1.f));
+
+    bar(scene, canvasGO, "Vertical Bar", pinned({ 1.f, .5f }, { -90.f, 0.f }, { 44.f, 320.f }), 0.45f,
+        ComponentProgressBar::FillDirection::BottomToTop, Vector4(.4f, .85f, .4f, 1.f));
 
     // Stretched along the bottom: anchors span the full width, size.x insets it.
     GameObject* bar = image(scene, canvasGO, "Stretched Bar", { { 0.f, 1.f }, { 1.f, 1.f }, { .5f, 1.f }, { 0.f, -20.f }, { -500.f, 64.f } },

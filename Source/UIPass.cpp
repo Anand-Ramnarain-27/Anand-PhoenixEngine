@@ -7,6 +7,7 @@
 #include <CommonStates.h>
 #include <ResourceUploadBatch.h>
 #include <RenderTargetState.h>
+#include <cmath>
 #include <filesystem>
 
 using namespace DirectX;
@@ -182,6 +183,12 @@ void UIPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<UIDrawItem
             if (item.useSourceRect){
                 src = { (LONG)item.sourceRect.x, (LONG)item.sourceRect.y,
                         (LONG)(item.sourceRect.x + item.sourceRect.z), (LONG)(item.sourceRect.y + item.sourceRect.w) };
+            }
+            else if (item.useSourceUV){
+                const float tw = float(tex.size.x), th = float(tex.size.y);
+                src = { (LONG)std::lround(item.sourceUV.x * tw), (LONG)std::lround(item.sourceUV.y * th),
+                        (LONG)std::lround((item.sourceUV.x + item.sourceUV.z) * tw),
+                        (LONG)std::lround((item.sourceUV.y + item.sourceUV.w) * th) };
             }
             const float srcW = float(src.right - src.left);
             const float srcH = float(src.bottom - src.top);

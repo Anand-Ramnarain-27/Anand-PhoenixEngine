@@ -21,6 +21,7 @@
 #include "ComponentImage.h"
 #include "ComponentLabel.h"
 #include "ComponentButton.h"
+#include "ComponentProgressBar.h"
 #include "PrefabManager.h"
 #include <algorithm>
 #include <random>
@@ -101,6 +102,7 @@ namespace {
     template<> struct CompTag<ComponentImage>                   { static constexpr Component::Type v = Component::Type::Image; };
     template<> struct CompTag<ComponentLabel>                   { static constexpr Component::Type v = Component::Type::Label; };
     template<> struct CompTag<ComponentButton>                  { static constexpr Component::Type v = Component::Type::Button; };
+    template<> struct CompTag<ComponentProgressBar>             { static constexpr Component::Type v = Component::Type::ProgressBar; };
 }
 
 template<typename T>
@@ -167,6 +169,7 @@ template ComponentCanvas* GameObject::getComponent<ComponentCanvas>() const;
 template ComponentImage* GameObject::getComponent<ComponentImage>() const;
 template ComponentLabel* GameObject::getComponent<ComponentLabel>() const;
 template ComponentButton* GameObject::getComponent<ComponentButton>() const;
+template ComponentProgressBar* GameObject::getComponent<ComponentProgressBar>() const;
 
 template bool GameObject::removeComponent<ComponentMesh>();
 template bool GameObject::removeComponent<ComponentCamera>();
@@ -184,3 +187,4 @@ template bool GameObject::removeComponent<ComponentCanvas>();
 template bool GameObject::removeComponent<ComponentImage>();
 template bool GameObject::removeComponent<ComponentLabel>();
 template bool GameObject::removeComponent<ComponentButton>();
+template bool GameObject::removeComponent<ComponentProgressBar>();

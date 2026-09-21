@@ -14,6 +14,7 @@
 #include "ComponentImage.h"
 #include "ComponentLabel.h"
 #include "ComponentButton.h"
+#include "ComponentProgressBar.h"
 #include "UIPass.h"
 #include <algorithm>
 #include <cmath>
@@ -146,10 +147,54 @@ void ModuleUI::emitNode(GameObject* node, const UIRect& parentRect, float scale)
         m_items.push_back(std::move(item));
     }
 
+    if (auto* bar = node->getComponent<ComponentProgressBar>(); bar && bar->enabled)
+        emitProgressBar(node, rect, pivotPos, rotation, scale);
+
     if (auto* label = node->getComponent<ComponentLabel>(); label && label->enabled && !label->text.empty())
         emitLabel(node, rect, scale);
 
     for (GameObject* child : node->getChildren()) emitNode(child, rect, scale);
+}
+
+void ModuleUI::emitProgressBar(GameObject* node, const UIRect& rect, const Vector2& pivotPos, float rotation, float scale){
+    auto* bar = node->getComponent<ComponentProgressBar>();
+    const float c = std::cos(rotation), s = std::sin(rotation);
+
+    // Draws a sub-rectangle of the widget. It is positioned by rotating its corner about the widget pivot, so a
+    // rotated bar still rotates as one piece.
+    auto push = [&](Vector2 mn, Vector2 mx, const std::string& texture, const Vector4& color, const Vector4* uv){
+        const Vector2 off = mn - pivotPos;
+        UIDrawItem item;
+        item.kind = UIDrawItem::Kind::Image;
+        item.texture = texture;
+        item.position = (pivotPos + Vector2(off.x * c - off.y * s, off.x * s + off.y * c)) * scale;
+        item.size = (mx - mn) * scale;
+        item.pivot = Vector2::Zero;
+        item.rotation = rotation;
+        item.color = color;
+        // A flat colour has nothing to crop; a texture is cropped so it is not squashed into the filled part.
+        if (uv && !texture.empty()){
+            item.useSourceUV = true;
+            item.sourceUV = *uv;
+        }
+        m_items.push_back(std::move(item));
+    };
+
+    push(rect.min, rect.max, bar->backgroundTexture, bar->backgroundColor, nullptr);
+
+    const float f = bar->getNormalized();
+    if (f <= 0.f) return;
+
+    Vector2 mn = rect.min, mx = rect.max;
+    const Vector2 size = rect.size();
+    Vector4 uv(0.f, 0.f, 1.f, 1.f);
+    switch (bar->direction){
+    case ComponentProgressBar::FillDirection::LeftToRight: mx.x = mn.x + size.x * f; uv = Vector4(0.f, 0.f, f, 1.f); break;
+    case ComponentProgressBar::FillDirection::RightToLeft: mn.x = mx.x - size.x * f; uv = Vector4(1.f - f, 0.f, f, 1.f); break;
+    case ComponentProgressBar::FillDirection::BottomToTop: mn.y = mx.y - size.y * f; uv = Vector4(0.f, 1.f - f, 1.f, f); break;
+    case ComponentProgressBar::FillDirection::TopToBottom: mx.y = mn.y + size.y * f; uv = Vector4(0.f, 0.f, 1.f, f); break;
+    }
+    push(mn, mx, bar->fillTexture, bar->fillColor, &uv);
 }
 
 void ModuleUI::emitLabel(GameObject* node, const UIRect& rect, float scale){

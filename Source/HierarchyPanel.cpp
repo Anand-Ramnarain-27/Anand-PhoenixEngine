@@ -18,6 +18,7 @@
 #include "ComponentImage.h"
 #include "ComponentLabel.h"
 #include "ComponentButton.h"
+#include "ComponentProgressBar.h"
 #include "ComponentParticleSystem.h"
 #include "ComponentTrail.h"
 #include <algorithm>
@@ -298,6 +299,7 @@ void HierarchyPanel::itemContextMenu(GameObject* go){
             addIf("Image", Component::Type::Image, go->getComponent<ComponentImage>() != nullptr);
             addIf("Label", Component::Type::Label, go->getComponent<ComponentLabel>() != nullptr);
             addIf("Button", Component::Type::Button, go->getComponent<ComponentButton>() != nullptr);
+            addIf("Progress Bar", Component::Type::ProgressBar, go->getComponent<ComponentProgressBar>() != nullptr);
             ImGui::EndMenu();
         }
 

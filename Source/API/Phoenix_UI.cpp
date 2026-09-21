@@ -6,6 +6,7 @@
 #include "GameObject.h"
 #include "ModuleUI.h"
 #include "ComponentButton.h"
+#include "ComponentProgressBar.h"
 #include "ComponentImage.h"
 #include "ComponentLabel.h"
 #include "ComponentTransform2D.h"
@@ -94,6 +95,31 @@ void UI::SetTextColor(GameObject* go, Color color){
 
 void UI::SetImageTint(GameObject* go, Color color){
     if (auto* i = go ? go->getComponent<ComponentImage>() : nullptr) i->tint = Vector4(color.x, color.y, color.z, color.w);
+}
+
+void UI::SetProgress(GameObject* go, float value){
+    if (auto* b = go ? go->getComponent<ComponentProgressBar>() : nullptr) b->value = value;
+}
+
+float UI::GetProgress(GameObject* go){
+    auto* b = go ? go->getComponent<ComponentProgressBar>() : nullptr;
+    return b ? b->value : 0.f;
+}
+
+float UI::GetProgressNormalized(GameObject* go){
+    auto* b = go ? go->getComponent<ComponentProgressBar>() : nullptr;
+    return b ? b->getNormalized() : 0.f;
+}
+
+void UI::SetProgressRange(GameObject* go, float minValue, float maxValue){
+    if (auto* b = go ? go->getComponent<ComponentProgressBar>() : nullptr){
+        b->minValue = minValue;
+        b->maxValue = maxValue;
+    }
+}
+
+void UI::SetProgressColor(GameObject* go, Color fill){
+    if (auto* b = go ? go->getComponent<ComponentProgressBar>() : nullptr) b->fillColor = Vector4(fill.x, fill.y, fill.z, fill.w);
 }
 
 void UI::SetImageTexture(GameObject* go, const std::string& path){

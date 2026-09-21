@@ -60,6 +60,13 @@ struct UI {
     static void SetTextColor(GameObject* label, Color color);
 
     static void SetImageTint(GameObject* image, Color color);
+
+    // Progress bars work in the bar's own range (0..1 unless SetProgressRange changed it).
+    static void SetProgress(GameObject* bar, float value);
+    static float GetProgress(GameObject* bar);
+    static float GetProgressNormalized(GameObject* bar);
+    static void SetProgressRange(GameObject* bar, float minValue, float maxValue);
+    static void SetProgressColor(GameObject* bar, Color fill);
     static void SetImageTexture(GameObject* image, const std::string& path);
 };
 

@@ -17,6 +17,7 @@
 #include "ComponentImage.h"
 #include "ComponentLabel.h"
 #include "ComponentButton.h"
+#include "ComponentProgressBar.h"
 #include "ComponentParticleSystem.h"
 #include "ComponentTrail.h"
 #include "ComponentAIAgent.h"
@@ -45,6 +46,7 @@ std::unique_ptr<Component> ComponentFactory::CreateComponent(Component::Type typ
     case Component::Type::Image: return std::make_unique<ComponentImage>(owner);
     case Component::Type::Label: return std::make_unique<ComponentLabel>(owner);
     case Component::Type::Button: return std::make_unique<ComponentButton>(owner);
+    case Component::Type::ProgressBar: return std::make_unique<ComponentProgressBar>(owner);
     default: LOG("ComponentFactory: Unknown component type %d", (int)type); return nullptr;
     }
 }

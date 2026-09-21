@@ -29,6 +29,7 @@ public:
         Image = 19,
         Label = 20,
         Button = 21,
+        ProgressBar = 22,
     };
 
     explicit Component(GameObject* owner) : owner(owner){}

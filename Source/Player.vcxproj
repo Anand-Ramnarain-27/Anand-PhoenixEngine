@@ -253,6 +253,7 @@
     <ClInclude Include="ComponentImage.h" />
     <ClInclude Include="ComponentLabel.h" />
     <ClInclude Include="ComponentButton.h" />
+    <ClInclude Include="ComponentProgressBar.h" />
     <ClInclude Include="UITypes.h" />
     <ClInclude Include="UIDrawItem.h" />
     <ClInclude Include="API\Phoenix_UI.h" />
@@ -435,6 +436,7 @@
     <ClCompile Include="ComponentImage.cpp" />
     <ClCompile Include="ComponentLabel.cpp" />
     <ClCompile Include="ComponentButton.cpp" />
+    <ClCompile Include="ComponentProgressBar.cpp" />
     <ClCompile Include="API\Phoenix_UI.cpp" />
     <ClCompile Include="UIPass.cpp" />
     <ClCompile Include="ModuleUI.cpp" />

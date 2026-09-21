@@ -25,6 +25,7 @@
 #include "ComponentImage.h"
 #include "ComponentLabel.h"
 #include "ComponentButton.h"
+#include "ComponentProgressBar.h"
 #include "ComponentFactory.h"
 #include "PrefabManager.h"
 #include "TextureImporter.h"
@@ -213,6 +214,7 @@ void InspectorPanel::drawContent(){
             comp->getType() == Component::Type::Image ? "Image" :
             comp->getType() == Component::Type::Label ? "Label" :
             comp->getType() == Component::Type::Button ? "Button" :
+            comp->getType() == Component::Type::ProgressBar ? "Progress Bar" :
             "Component";
 
         ImGui::PushID((int)comp->getType());
@@ -399,6 +401,7 @@ void InspectorPanel::drawAddComponentMenu(){
         addComp("Image", Component::Type::Image, go->getComponent<ComponentImage>() != nullptr);
         addComp("Label", Component::Type::Label, go->getComponent<ComponentLabel>() != nullptr);
         addComp("Button", Component::Type::Button, go->getComponent<ComponentButton>() != nullptr);
+        addComp("Progress Bar", Component::Type::ProgressBar, go->getComponent<ComponentProgressBar>() != nullptr);
         ImGui::EndMenu();
     }
     ImGui::Separator();

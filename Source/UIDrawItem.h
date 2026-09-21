@@ -18,6 +18,8 @@ struct UIDrawItem {
     Vector2 pivot = Vector2(0.5f, 0.5f);
     bool useSourceRect = false;
     Vector4 sourceRect = Vector4::Zero; // x, y, w, h in texels
+    bool useSourceUV = false;
+    Vector4 sourceUV = Vector4(0.f, 0.f, 1.f, 1.f); // x, y, w, h as 0..1 fractions of the texture
 
     // Text: `origin` is the pivot expressed in unscaled font pixels from the top-left of the text block.
     std::string text;

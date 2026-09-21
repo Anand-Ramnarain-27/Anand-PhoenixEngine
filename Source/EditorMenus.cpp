@@ -24,6 +24,7 @@
 #include "ComponentImage.h"
 #include "ComponentLabel.h"
 #include "ComponentButton.h"
+#include "ComponentProgressBar.h"
 #include "UITestScene.h"
 #include "HotReloadManager.h"
 #include "ComponentParticleSystem.h"
@@ -267,6 +268,7 @@ void ModuleEditor::drawMenuBar(){
             }
             if (ImGui::MenuItem("Image")) spawnUI("Image", Component::Type::Image, Vector2(100.f, 100.f));
             if (ImGui::MenuItem("Label")) spawnUI("Label", Component::Type::Label, Vector2(300.f, 60.f));
+            if (ImGui::MenuItem("Progress Bar")) spawnUI("Progress Bar", Component::Type::ProgressBar, Vector2(400.f, 32.f));
             ImGui::Separator();
             if (ImGui::MenuItem("UI Test Scene (adds to current scene)")){
                 if (SceneGraph* sc = getActiveModuleScene()){
@@ -333,6 +335,7 @@ void ModuleEditor::drawMenuBar(){
         addToSel("Image", Component::Type::Image);
         addToSel("Label", Component::Type::Label);
         addToSel("Button", Component::Type::Button);
+        addToSel("Progress Bar", Component::Type::ProgressBar);
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Debug")){

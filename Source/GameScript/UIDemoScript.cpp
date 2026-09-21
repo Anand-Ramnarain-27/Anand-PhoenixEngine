@@ -13,6 +13,7 @@ UIDemoScript::UIDemoScript() = default;
 void UIDemoScript::Start(GameObject* owner){
     m_owner = owner;
     m_label = nullptr;
+    m_bar = Scene::Find("Click Progress");
     for (GameObject* child : owner->getChildren()){
         if (child->getComponent<ComponentLabel>()){ m_label = child; break; }
     }
@@ -42,6 +43,7 @@ void UIDemoScript::Destroy(){
 }
 
 void UIDemoScript::refreshLabel(){
+    if (m_bar) UI::SetProgress(m_bar, float(m_clicks % 11) / 10.f);   // 0..1, wraps after ten clicks
     if (!m_label) return;
     UI::SetText(m_label, "Clicked " + std::to_string(m_clicks));
 }
