@@ -24,5 +24,6 @@ protected:
     virtual void onImageDrawn(){}
     virtual void onDrawOverlays(){}
     virtual bool useEditorExtras() const = 0;
+    virtual bool drawsUI() const { return false; }
     virtual const char* notReadyText() const { return "Viewport not ready..."; }
 };

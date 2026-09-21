@@ -14,6 +14,8 @@
 #include "GBufferPass.h"
 #include "PostProcessChain.h"
 #include "SceneManager.h"
+#include "ModuleUI.h"
+#include "RuntimeCore.h"
 #include "EditorSceneSettings.h"
 #include <algorithm>
 
@@ -22,7 +24,17 @@ void ViewportPanel::renderToTexture(ID3D12GraphicsCommandList* cmd){
     const uint32_t h = (uint32_t)viewport.size.y;
     if (!viewport.rt || w == 0 || h == 0) return;
     Matrix view, proj;
-    if (!buildCameraMatrices(w, h, view, proj)) return;
+    if (!buildCameraMatrices(w, h, view, proj)){
+        // No camera to render the 3D scene with: clear the view and still draw any UI on top of it.
+        if (drawsUI() && viewport.display && viewport.display->isValid()){
+            if (ModuleUI* ui = app->getUI()){
+                viewport.display->beginRender(cmd);
+                viewport.display->endRender(cmd);
+                ui->renderUI(cmd, viewport.display.get(), app->getRuntimeCore()->getActiveModuleScene());
+            }
+        }
+        return;
+    }
     ModuleStaticBuffer* sb = app->getStaticBuffer();
     if (sb && sb->isInitialized()){
         app->getResources()->uploadPendingMeshes(cmd, sb);
@@ -102,6 +114,11 @@ void ViewportPanel::renderToTexture(ID3D12GraphicsCommandList* cmd){
 
     if (chain && nPostGamma > 0)
         chain->run(cmd, PostProcessEffectDef::Domain::PostGamma, tonemapTarget, tonemapOther);
+
+    // The post-gamma chain always leaves the finished image in `display`.
+    if (drawsUI())
+        if (ModuleUI* ui = app->getUI())
+            ui->renderUI(cmd, viewport.display.get(), app->getRuntimeCore()->getActiveModuleScene());
 }
 
 void ViewportPanel::handleResize(){

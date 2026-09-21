@@ -20,6 +20,11 @@
 #include "ComponentAnimation.h"
 #include "ComponentDecal.h"
 #include "ComponentBillboard.h"
+#include "ComponentTransform2D.h"
+#include "ComponentCanvas.h"
+#include "ComponentImage.h"
+#include "ComponentLabel.h"
+#include "ComponentButton.h"
 #include "ComponentFactory.h"
 #include "PrefabManager.h"
 #include "TextureImporter.h"
@@ -203,6 +208,11 @@ void InspectorPanel::drawContent(){
             comp->getType() == Component::Type::Billboard ? "Billboard" :
             comp->getType() == Component::Type::ParticleSystem ? "Particle System" :
             comp->getType() == Component::Type::Trail ? "Trail" :
+            comp->getType() == Component::Type::Transform2D ? "Transform 2D" :
+            comp->getType() == Component::Type::Canvas ? "Canvas" :
+            comp->getType() == Component::Type::Image ? "Image" :
+            comp->getType() == Component::Type::Label ? "Label" :
+            comp->getType() == Component::Type::Button ? "Button" :
             "Component";
 
         ImGui::PushID((int)comp->getType());
@@ -315,7 +325,8 @@ static bool vec3Row(const char* label, float v[3], float speed,
 void InspectorPanel::drawTransform(){
     GameObject* go = m_editor->getSelection().object;
     ComponentTransform* t = go->getTransform();
-    if (!t || !ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) return;
+    // UI widgets are positioned by their 2D transform; the 3D one is unused for them.
+    if (!t || go->getComponent<ComponentTransform2D>() || !ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) return;
 
     auto markOverride = [&](const char* prop){
         GameObject* root = findPrefabRoot(go);
@@ -379,6 +390,15 @@ void InspectorPanel::drawAddComponentMenu(){
         addComp("Billboard", Component::Type::Billboard, go->getComponent<ComponentBillboard>() != nullptr);
         addComp("Particle System", Component::Type::ParticleSystem, go->getComponent<ComponentParticleSystem>() != nullptr);
         addComp("Trail", Component::Type::Trail, go->getComponent<ComponentTrail>() != nullptr);
+        ImGui::EndMenu();
+    }
+    ImGui::Separator();
+    if (ImGui::BeginMenu("UI")){
+        addComp("Transform 2D", Component::Type::Transform2D, go->getComponent<ComponentTransform2D>() != nullptr);
+        addComp("Canvas", Component::Type::Canvas, go->getComponent<ComponentCanvas>() != nullptr);
+        addComp("Image", Component::Type::Image, go->getComponent<ComponentImage>() != nullptr);
+        addComp("Label", Component::Type::Label, go->getComponent<ComponentLabel>() != nullptr);
+        addComp("Button", Component::Type::Button, go->getComponent<ComponentButton>() != nullptr);
         ImGui::EndMenu();
     }
     ImGui::Separator();

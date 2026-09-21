@@ -2,7 +2,10 @@
 
 #include "Module.h"
 #include <dxgi1_6.h>
+#include <memory>
 #include <string>
+
+namespace DirectX { inline namespace DX12 { class GraphicsMemory; } }
 
 class ModuleD3D12 : public Module {
 public:
@@ -25,6 +28,7 @@ public:
     ID3D12CommandAllocator* getCommandAllocator() const { return m_commandAllocators[m_currentBackBufferIdx].Get(); }
     ID3D12Resource* getBackBuffer() const { return m_backBuffers[m_currentBackBufferIdx].Get(); }
     ID3D12CommandQueue* getDrawCommandQueue() const { return m_drawCommandQueue.Get(); }
+    DirectX::GraphicsMemory* getGraphicsMemory() const { return m_graphicsMemory.get(); }
 
     unsigned getCurrentBackBufferIdx() const { return m_currentBackBufferIdx; }
     unsigned getCurrentFrame() const { return m_frameIndex; }
@@ -98,6 +102,8 @@ private:
     ComPtr<ID3D12CommandAllocator> m_commandAllocators[FRAMES_IN_FLIGHT];
     ComPtr<ID3D12GraphicsCommandList4> m_commandList;
     ComPtr<ID3D12CommandQueue> m_drawCommandQueue;
+
+    std::unique_ptr<DirectX::GraphicsMemory> m_graphicsMemory;
 
     ComPtr<ID3D12Fence1> m_drawFence;
     HANDLE m_drawEvent = nullptr;

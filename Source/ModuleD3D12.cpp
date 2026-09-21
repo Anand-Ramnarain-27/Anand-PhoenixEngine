@@ -2,6 +2,7 @@
 #include "ModuleD3D12.h"
 #include "Application.h"
 #include "d3dx12.h"
+#include <GraphicsMemory.h>
 
 ModuleD3D12::ModuleD3D12(HWND wnd) : m_hWnd(wnd){}
 ModuleD3D12::~ModuleD3D12(){ cleanUp(); }
@@ -24,6 +25,8 @@ bool ModuleD3D12::init(){
     if (!createCommandList()) return false;
     if (!createDrawFence()) return false;
 
+    m_graphicsMemory = std::make_unique<DirectX::GraphicsMemory>(m_device.Get());
+
     m_currentBackBufferIdx = m_swapChain->GetCurrentBackBufferIndex();
     signalDrawQueue();
     return true;
@@ -31,6 +34,7 @@ bool ModuleD3D12::init(){
 
 bool ModuleD3D12::cleanUp(){
     flush();
+    m_graphicsMemory.reset();
     if (m_drawEvent){ CloseHandle(m_drawEvent); m_drawEvent = nullptr; }
     return true;
 }
@@ -57,6 +61,7 @@ void ModuleD3D12::preRender(){
 void ModuleD3D12::postRender(){
     m_swapChain->Present(useVSync ? 1 : 0, (!useVSync && m_allowTearing) ? DXGI_PRESENT_ALLOW_TEARING : 0);
     signalDrawQueue();
+    m_graphicsMemory->Commit(m_drawCommandQueue.Get());
 }
 
 UINT64 ModuleD3D12::signalDrawQueue(){

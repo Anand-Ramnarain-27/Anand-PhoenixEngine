@@ -10,7 +10,9 @@ public:
 protected:
     bool buildCameraMatrices(uint32_t w, uint32_t h, Matrix& outView, Matrix& outProj) override;
     void onDrawOverlays() override;
+    void onImageDrawn() override;
     bool useEditorExtras() const override { return false; }
+    bool drawsUI() const override { return true; }
     const char* notReadyText() const override { return "Game View not ready..."; }
 
 private:

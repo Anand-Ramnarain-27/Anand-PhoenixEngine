@@ -9,6 +9,7 @@
 #include "ModuleFileSystem.h"
 #include "ModuleStaticBuffer.h"
 #include "ModuleResources.h"
+#include "ModuleUI.h"
 #include "BuildSettings.h"
 #include "DebugDrawPass.h"
 #include "ComponentDecal.h"
@@ -310,6 +311,22 @@ void RuntimeCore::preRender(){
     const float dt = static_cast<float>(app->getElapsedMilis()) * 0.001f;
     const float aspect = (curH > 0) ? float(curW) / float(curH) : 0.f;
     tick(dt, aspect);
+
+    if (ModuleUI* ui = app->getUI()){
+        ModuleInput* input = app->getInput();
+        const Phoenix::Vec2 mouse = input->getMousePosition();
+
+        UIInput in;
+        in.pointer = Vector2(mouse.x, mouse.y);
+        in.pointerValid = mouse.x >= 0.f && mouse.y >= 0.f && mouse.x < float(curW) && mouse.y < float(curH);
+        in.mousePressed = input->isMousePressed(Phoenix::MouseButton::Left);
+        in.mouseReleased = input->isMouseReleased(Phoenix::MouseButton::Left);
+        in.tabPressed = input->isKeyPressed(Phoenix::Key::Tab);
+        in.shiftDown = input->isKeyDown(Phoenix::Key::LeftShift) || input->isKeyDown(Phoenix::Key::RightShift);
+        in.submitPressed = input->isKeyPressed(Phoenix::Key::Enter) || input->isKeyPressed(Phoenix::Key::Space);
+        in.submitReleased = input->isKeyReleased(Phoenix::Key::Enter) || input->isKeyReleased(Phoenix::Key::Space);
+        ui->updateInteraction(getActiveModuleScene(), curW, curH, in);
+    }
 }
 
 void RuntimeCore::render(){
@@ -329,7 +346,37 @@ void RuntimeCore::renderStandaloneFrame(){
     GameObject* activeCamGO = app->getCamera() ? app->getCamera()->getActiveCamera() : nullptr;
     ComponentCamera* cam = activeCamGO ? activeCamGO->getComponent<ComponentCamera>() : nullptr;
     ComponentTransform* camT = activeCamGO ? activeCamGO->getTransform() : nullptr;
-    if (!cam || !camT) return;
+
+    auto presentToBackBuffer = [&](RenderTexture* finalTarget){
+        auto toCopySrc = CD3DX12_RESOURCE_BARRIER::Transition(finalTarget->getTexture(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE);
+        auto toCopyDst = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST);
+        D3D12_RESOURCE_BARRIER preCopy[] = { toCopySrc, toCopyDst };
+        cmd->ResourceBarrier(2, preCopy);
+        cmd->CopyResource(d3d12->getBackBuffer(), finalTarget->getTexture());
+        auto toSRV = CD3DX12_RESOURCE_BARRIER::Transition(finalTarget->getTexture(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        auto toPresent = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
+        D3D12_RESOURCE_BARRIER postCopy[] = { toSRV, toPresent };
+        cmd->ResourceBarrier(2, postCopy);
+
+        cmd->Close();
+        ID3D12CommandList* lists[] = { cmd };
+        d3d12->getDrawCommandQueue()->ExecuteCommandLists(1, lists);
+    };
+
+    if (!cam || !camT){
+        // No camera to render the 3D scene with: clear the frame and still draw any UI on top of it.
+        cmd->Reset(d3d12->getCommandAllocator(), nullptr);
+        ID3D12DescriptorHeap* uiHeaps[] = { descs->getHeap(), app->getSamplerHeap()->getHeap() };
+        cmd->SetDescriptorHeaps(2, uiHeaps);
+
+        RenderTexture* display = m_playerViewport->display.get();
+        display->beginRender(cmd);
+        display->endRender(cmd);
+        if (ModuleUI* ui = app->getUI())
+            ui->renderUI(cmd, display, getActiveModuleScene());
+        presentToBackBuffer(display);
+        return;
+    }
 
     Matrix world = camT->getGlobalMatrix();
     Vector3 pos = world.Translation();
@@ -415,22 +462,15 @@ void RuntimeCore::renderStandaloneFrame(){
         tp.lutEnabled = settings->postProcess.lutEnabled;
     }
     if (m_tonemapPass) m_tonemapPass->render(cmd, hdrResult, tonemapTarget, bloomResult, m_colorLUT.get(), tp);
+    // The chain ping-pongs between the two display targets; its return value is the one holding the result.
+    RenderTexture* finalTarget = tonemapTarget;
     if (chain && nPostGamma > 0)
-        chain->run(cmd, PostProcessEffectDef::Domain::PostGamma, tonemapTarget, tonemapOther);
+        finalTarget = chain->run(cmd, PostProcessEffectDef::Domain::PostGamma, tonemapTarget, tonemapOther);
 
-    auto toCopySrc = CD3DX12_RESOURCE_BARRIER::Transition(tonemapTarget->getTexture(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE);
-    auto toCopyDst = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST);
-    D3D12_RESOURCE_BARRIER preCopy[] = { toCopySrc, toCopyDst };
-    cmd->ResourceBarrier(2, preCopy);
-    cmd->CopyResource(d3d12->getBackBuffer(), tonemapTarget->getTexture());
-    auto toSRV = CD3DX12_RESOURCE_BARRIER::Transition(tonemapTarget->getTexture(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    auto toPresent = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
-    D3D12_RESOURCE_BARRIER postCopy[] = { toSRV, toPresent };
-    cmd->ResourceBarrier(2, postCopy);
+    if (ModuleUI* ui = app->getUI())
+        ui->renderUI(cmd, finalTarget, getActiveModuleScene());
 
-    cmd->Close();
-    ID3D12CommandList* lists[] = { cmd };
-    d3d12->getDrawCommandQueue()->ExecuteCommandLists(1, lists);
+    presentToBackBuffer(finalTarget);
 }
 
 static float computeScreenCoverage(const Vector3& mn, const Vector3& mx, const Matrix& viewProj){

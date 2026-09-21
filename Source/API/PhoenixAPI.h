@@ -10,6 +10,7 @@
 #include "API/Phoenix_Navigation.h"
 #include "API/Phoenix_Perception.h"
 #include "API/Phoenix_Steering.h"
+#include "API/Phoenix_UI.h"
 #include "IScript.h"
 #include "ScriptExport.h"
 
@@ -44,3 +45,5 @@ using Phoenix::Navigation;
 using Phoenix::Perception;
 using Phoenix::RaycastResult;
 using Phoenix::Steering;
+using Phoenix::UI;
+using Phoenix::UIListener;

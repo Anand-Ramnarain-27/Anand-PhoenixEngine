@@ -16,6 +16,11 @@
 #include "ComponentTrail.h"
 #include "ComponentScript.h"
 #include "ComponentAIAgent.h"
+#include "ComponentTransform2D.h"
+#include "ComponentCanvas.h"
+#include "ComponentImage.h"
+#include "ComponentLabel.h"
+#include "ComponentButton.h"
 #include "PrefabManager.h"
 #include <algorithm>
 #include <random>
@@ -91,6 +96,11 @@ namespace {
     template<> struct CompTag<ComponentTrail>                  { static constexpr Component::Type v = Component::Type::Trail; };
     template<> struct CompTag<ComponentScript>                  { static constexpr Component::Type v = Component::Type::Script; };
     template<> struct CompTag<ComponentAIAgent>                 { static constexpr Component::Type v = Component::Type::AIAgent; };
+    template<> struct CompTag<ComponentTransform2D>             { static constexpr Component::Type v = Component::Type::Transform2D; };
+    template<> struct CompTag<ComponentCanvas>                  { static constexpr Component::Type v = Component::Type::Canvas; };
+    template<> struct CompTag<ComponentImage>                   { static constexpr Component::Type v = Component::Type::Image; };
+    template<> struct CompTag<ComponentLabel>                   { static constexpr Component::Type v = Component::Type::Label; };
+    template<> struct CompTag<ComponentButton>                  { static constexpr Component::Type v = Component::Type::Button; };
 }
 
 template<typename T>
@@ -152,6 +162,11 @@ template ComponentParticleSystem* GameObject::getComponent<ComponentParticleSyst
 template ComponentTrail* GameObject::getComponent<ComponentTrail>() const;
 template ComponentScript* GameObject::getComponent<ComponentScript>() const;
 template ComponentAIAgent* GameObject::getComponent<ComponentAIAgent>() const;
+template ComponentTransform2D* GameObject::getComponent<ComponentTransform2D>() const;
+template ComponentCanvas* GameObject::getComponent<ComponentCanvas>() const;
+template ComponentImage* GameObject::getComponent<ComponentImage>() const;
+template ComponentLabel* GameObject::getComponent<ComponentLabel>() const;
+template ComponentButton* GameObject::getComponent<ComponentButton>() const;
 
 template bool GameObject::removeComponent<ComponentMesh>();
 template bool GameObject::removeComponent<ComponentCamera>();
@@ -164,3 +179,8 @@ template bool GameObject::removeComponent<ComponentSimpleCharacterController>();
 template bool GameObject::removeComponent<ComponentRigidbody>();
 template bool GameObject::removeComponent<ComponentBounds>();
 template bool GameObject::removeComponent<ComponentAIAgent>();
+template bool GameObject::removeComponent<ComponentTransform2D>();
+template bool GameObject::removeComponent<ComponentCanvas>();
+template bool GameObject::removeComponent<ComponentImage>();
+template bool GameObject::removeComponent<ComponentLabel>();
+template bool GameObject::removeComponent<ComponentButton>();

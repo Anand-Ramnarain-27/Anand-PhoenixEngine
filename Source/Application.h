@@ -21,6 +21,7 @@ class ModuleRTDescriptors;
 class ModuleDSDescriptors;
 class ModuleAssets;
 class ModuleStaticBuffer;
+class ModuleUI;
 class RuntimeCore;
 
 class Application {
@@ -47,6 +48,7 @@ public:
     ModuleDSDescriptors* getDSDescriptors(){ return dsDescriptors; }
     ModuleAssets* getAssets(){ return assets; }
     ModuleStaticBuffer* getStaticBuffer(){ return staticBuffer; }
+    ModuleUI* getUI(){ return ui; }
 
     void swapModule(Module* from, Module* to){ swapModules.push_back(std::make_pair(from, to)); }
 
@@ -76,6 +78,7 @@ private:
     ModuleRTDescriptors* rtDescriptors = nullptr;
     ModuleDSDescriptors* dsDescriptors = nullptr;
     ModuleAssets* assets = nullptr;
+    ModuleUI* ui = nullptr;
     ModuleEditor* editor = nullptr;
     ModuleStaticBuffer* staticBuffer = nullptr;
     RuntimeCore* runtimeCore = nullptr;

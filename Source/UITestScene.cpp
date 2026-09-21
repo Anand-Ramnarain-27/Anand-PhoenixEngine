@@ -1,0 +1,150 @@
+#include "Globals.h"
+#include "UITestScene.h"
+#include "Application.h"
+#include "ModuleCamera.h"
+#include "SceneGraph.h"
+#include "GameObject.h"
+#include "HotReloadManager.h"
+#include "ComponentFactory.h"
+#include "ComponentTransform.h"
+#include "ComponentCamera.h"
+#include "ComponentLights.h"
+#include "ComponentScript.h"
+#include "ComponentTransform2D.h"
+#include "ComponentCanvas.h"
+#include "ComponentImage.h"
+#include "ComponentLabel.h"
+#include "ComponentButton.h"
+#include <algorithm>
+
+namespace {
+    template<typename T>
+    T* add(GameObject* go, Component::Type type){
+        go->addComponent(ComponentFactory::CreateComponent(type, go));
+        return go->getComponent<T>();
+    }
+
+    struct Layout {
+        Vector2 anchorMin, anchorMax, pivot, position, size;
+    };
+
+    ComponentTransform2D* place(GameObject* go, const Layout& l){
+        auto* t = add<ComponentTransform2D>(go, Component::Type::Transform2D);
+        t->anchorMin = l.anchorMin;
+        t->anchorMax = l.anchorMax;
+        t->pivot = l.pivot;
+        t->position = l.position;
+        t->size = l.size;
+        return t;
+    }
+
+    // Anchor at one point with the pivot on the same point, so `position` is the distance from that edge/corner.
+    Layout pinned(Vector2 anchor, Vector2 position, Vector2 size){
+        return { anchor, anchor, anchor, position, size };
+    }
+
+    // Fills its parent completely.
+    Layout fill(){
+        return { { 0.f, 0.f }, { 1.f, 1.f }, { .5f, .5f }, Vector2::Zero, Vector2::Zero };
+    }
+
+    GameObject* image(SceneGraph* scene, GameObject* parent, const char* name, const Layout& l, Vector4 color){
+        GameObject* go = scene->createGameObject(name, parent);
+        place(go, l);
+        add<ComponentImage>(go, Component::Type::Image)->tint = color;
+        return go;
+    }
+
+    GameObject* label(SceneGraph* scene, GameObject* parent, const char* name, const Layout& l, const char* text,
+                      float size, Vector4 color, ComponentLabel::HAlign h = ComponentLabel::HAlign::Center,
+                      ComponentLabel::VAlign v = ComponentLabel::VAlign::Middle){
+        GameObject* go = scene->createGameObject(name, parent);
+        place(go, l);
+        auto* c = add<ComponentLabel>(go, Component::Type::Label);
+        c->text = text;
+        c->fontSize = size;
+        c->color = color;
+        c->hAlign = h;
+        c->vAlign = v;
+        return go;
+    }
+
+    GameObject* button(SceneGraph* scene, GameObject* parent, const char* name, const char* text,
+                       Vector2 position, Vector4 color, bool interactable){
+        GameObject* go = image(scene, parent, name, { { .5f, 0.f }, { .5f, 0.f }, { .5f, 0.f }, position, { 420.f, 72.f } }, color);
+        add<ComponentButton>(go, Component::Type::Button)->interactable = interactable;
+        label(scene, go, "Text", fill(), text, 32.f, Vector4(1.f, 1.f, 1.f, 1.f));
+        return go;
+    }
+}
+
+void CreateUITestScene(SceneGraph* scene, HotReloadManager* hotReload){
+    if (!scene) return;
+
+    // ---- 3D: something to look at, so UI-over-scene compositing is visible ----
+    GameObject* camGO = scene->createGameObject("UI Test Camera");
+    camGO->getTransform()->position = Vector3(0.f, 2.f, 7.f);
+    camGO->getTransform()->rotation = Quaternion::CreateFromAxisAngle(Vector3::UnitX, -0.2f);
+    camGO->getTransform()->markDirty();
+    add<ComponentCamera>(camGO, Component::Type::Camera)->setMainCamera(true);
+
+    GameObject* sun = scene->createGameObject("UI Test Light");
+    add<ComponentDirectionalLight>(sun, Component::Type::DirectionalLight);
+
+    // ---- UI ----
+    GameObject* canvasGO = scene->createGameObject("UI Test Canvas");
+    add<ComponentCanvas>(canvasGO, Component::Type::Canvas);
+
+    const Vector2 topLeft(0.f, 0.f), topRight(1.f, 0.f), bottomLeft(0.f, 1.f), bottomRight(1.f, 1.f), center(.5f, .5f);
+    const Vector4 white(1.f, 1.f, 1.f, 1.f), grey(.8f, .8f, .8f, 1.f), gold(1.f, .82f, .2f, 1.f);
+
+    // Panel pinned to the top-left, holding the buttons.
+    GameObject* panel = image(scene, canvasGO, "Panel", pinned(topLeft, { 40.f, 40.f }, { 620.f, 520.f }), Vector4(0.f, 0.f, 0.f, .6f));
+    label(scene, panel, "Title", { { 0.f, 0.f }, { 1.f, 0.f }, { .5f, 0.f }, { 0.f, 16.f }, { 0.f, 56.f } },
+          "Phoenix UI Test", 44.f, gold);
+    label(scene, panel, "Hint", { { 0.f, 0.f }, { 1.f, 0.f }, { .5f, 0.f }, { 0.f, 84.f }, { -40.f, 70.f } },
+          "Press Play, then hover, click and\nTab through the buttons", 24.f, grey);
+
+    GameObject* clickMe = button(scene, panel, "Button Click Me", "Click me", { 0.f, 190.f }, Vector4(.24f, .36f, .68f, 1.f), true);
+    button(scene, panel, "Button Second", "Second button", { 0.f, 280.f }, Vector4(.20f, .55f, .35f, 1.f), true);
+    button(scene, panel, "Button Disabled", "Disabled", { 0.f, 370.f }, Vector4(.6f, .3f, .3f, 1.f), false);
+
+    // Count clicks on screen when the script DLL is loaded.
+    bool scripted = false;
+    if (hotReload){
+        for (const std::string& name : hotReload->getRegisteredClassNames()){
+            if (name != "UIDemoScript") continue;
+            auto comp = ComponentFactory::CreateComponent(Component::Type::Script, clickMe);
+            static_cast<ComponentScript*>(comp.get())->setScriptClass(name, hotReload);
+            clickMe->addComponent(std::move(comp));
+            scripted = true;
+        }
+    }
+    label(scene, panel, "Script Note", { { 0.f, 1.f }, { 1.f, 1.f }, { .5f, 1.f }, { 0.f, -14.f }, { -40.f, 40.f } },
+          scripted ? "UIDemoScript attached: clicks are counted" : "No UIDemoScript loaded (build GameScript)", 20.f,
+          scripted ? Vector4(.5f, 1.f, .5f, 1.f) : Vector4(1.f, .6f, .4f, 1.f));
+
+    // Corner anchors: these stay glued to the screen corners at any resolution.
+    label(scene, canvasGO, "Anchor TR", pinned(topRight, { -40.f, 40.f }, { 360.f, 50.f }), "Top Right anchor", 30.f, white,
+          ComponentLabel::HAlign::Right, ComponentLabel::VAlign::Top);
+    label(scene, canvasGO, "Anchor BL", pinned(bottomLeft, { 40.f, -110.f }, { 360.f, 50.f }), "Bottom Left anchor", 30.f, white,
+          ComponentLabel::HAlign::Left, ComponentLabel::VAlign::Bottom);
+    label(scene, canvasGO, "Anchor BR", pinned(bottomRight, { -40.f, -110.f }, { 360.f, 50.f }), "Bottom Right anchor", 30.f, white,
+          ComponentLabel::HAlign::Right, ComponentLabel::VAlign::Bottom);
+
+    // Centre crosshair, built from two thin images.
+    image(scene, canvasGO, "Crosshair H", pinned(center, Vector2::Zero, { 48.f, 4.f }), white);
+    image(scene, canvasGO, "Crosshair V", pinned(center, Vector2::Zero, { 4.f, 48.f }), white);
+
+    // Rotation about the pivot, off-centre.
+    GameObject* spinner = image(scene, canvasGO, "Rotated Image", pinned(center, { 360.f, -60.f }, { 170.f, 170.f }), Vector4(1.f, .55f, .1f, 1.f));
+    spinner->getComponent<ComponentTransform2D>()->rotation = 30.f;
+    label(scene, canvasGO, "Rotated Label", pinned(center, { 360.f, -60.f }, { 200.f, 40.f }), "rotated 30 deg", 26.f, white);
+
+    // Stretched along the bottom: anchors span the full width, size.x insets it.
+    GameObject* bar = image(scene, canvasGO, "Stretched Bar", { { 0.f, 1.f }, { 1.f, 1.f }, { .5f, 1.f }, { 0.f, -20.f }, { -500.f, 64.f } },
+                            Vector4(.15f, .15f, .25f, .85f));
+    label(scene, bar, "Bar Text", fill(), "Stretched bottom bar (anchors 0..1)", 28.f, white);
+
+    LOG("[UITest] Created camera, light and UI test canvas%s.", scripted ? " (UIDemoScript attached)" : "");
+}

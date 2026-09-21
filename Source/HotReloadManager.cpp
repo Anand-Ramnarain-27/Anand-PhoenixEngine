@@ -2,6 +2,8 @@
 #include "HotReloadManager.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
+#include "ModuleUI.h"
+#include "RuntimeCore.h"
 #include <filesystem>
 #include <algorithm>
 
@@ -27,6 +29,7 @@ bool HotReloadManager::reloadLibrary(const std::string& dllPath){
     std::string key = norm(dllPath);
     auto it = m_libraries.find(key);
     if (it != m_libraries.end()){
+        clearUIListeners();
         FreeLibrary(it->second.handle);
         m_libraries.erase(it);
     }
@@ -41,7 +44,14 @@ bool HotReloadManager::reloadLibrary(const std::string& dllPath){
     return true;
 }
 
+// UI listeners are std::function objects whose code lives in the script DLL; they must not outlive it.
+void HotReloadManager::clearUIListeners(){
+    if (!app || !app->getUI() || !app->getRuntimeCore()) return;
+    app->getUI()->clearAllListeners(app->getRuntimeCore()->getActiveModuleScene());
+}
+
 void HotReloadManager::unloadAll(){
+    clearUIListeners();
     for (auto& [k, lib] : m_libraries)
         if (lib.handle) FreeLibrary(lib.handle);
     m_libraries.clear();

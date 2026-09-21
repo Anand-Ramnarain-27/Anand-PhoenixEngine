@@ -12,6 +12,11 @@
 #include "ComponentBounds.h"
 #include "ComponentDecal.h"
 #include "ComponentBillboard.h"
+#include "ComponentTransform2D.h"
+#include "ComponentCanvas.h"
+#include "ComponentImage.h"
+#include "ComponentLabel.h"
+#include "ComponentButton.h"
 #include "ComponentParticleSystem.h"
 #include "ComponentTrail.h"
 #include "ComponentAIAgent.h"
@@ -35,6 +40,11 @@ std::unique_ptr<Component> ComponentFactory::CreateComponent(Component::Type typ
     case Component::Type::ParticleSystem: return std::make_unique<ComponentParticleSystem>(owner);
         case Component::Type::Trail: return std::make_unique<ComponentTrail>(owner);
     case Component::Type::AIAgent: return std::make_unique<ComponentAIAgent>(owner);
+    case Component::Type::Transform2D: return std::make_unique<ComponentTransform2D>(owner);
+    case Component::Type::Canvas: return std::make_unique<ComponentCanvas>(owner);
+    case Component::Type::Image: return std::make_unique<ComponentImage>(owner);
+    case Component::Type::Label: return std::make_unique<ComponentLabel>(owner);
+    case Component::Type::Button: return std::make_unique<ComponentButton>(owner);
     default: LOG("ComponentFactory: Unknown component type %d", (int)type); return nullptr;
     }
 }

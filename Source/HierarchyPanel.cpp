@@ -13,6 +13,11 @@
 #include "ComponentRigidbody.h"
 #include "ComponentDecal.h"
 #include "ComponentBillboard.h"
+#include "ComponentTransform2D.h"
+#include "ComponentCanvas.h"
+#include "ComponentImage.h"
+#include "ComponentLabel.h"
+#include "ComponentButton.h"
 #include "ComponentParticleSystem.h"
 #include "ComponentTrail.h"
 #include <algorithm>
@@ -284,6 +289,15 @@ void HierarchyPanel::itemContextMenu(GameObject* go){
             addIf("Billboard", Component::Type::Billboard, go->getComponent<ComponentBillboard>() != nullptr);
             addIf("Particle System", Component::Type::ParticleSystem, go->getComponent<ComponentParticleSystem>() != nullptr);
             addIf("Trail", Component::Type::Trail, go->getComponent<ComponentTrail>() != nullptr);
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("UI")){
+            addIf("Transform 2D", Component::Type::Transform2D, go->getComponent<ComponentTransform2D>() != nullptr);
+            addIf("Canvas", Component::Type::Canvas, go->getComponent<ComponentCanvas>() != nullptr);
+            addIf("Image", Component::Type::Image, go->getComponent<ComponentImage>() != nullptr);
+            addIf("Label", Component::Type::Label, go->getComponent<ComponentLabel>() != nullptr);
+            addIf("Button", Component::Type::Button, go->getComponent<ComponentButton>() != nullptr);
             ImGui::EndMenu();
         }
 

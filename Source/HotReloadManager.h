@@ -36,6 +36,7 @@ public:
     bool isLoaded(const std::string& dllPath) const;
 
 private:
+    void clearUIListeners();
     bool loadLibraryInternal(const std::string& dllPath, ScriptLibrary& out);
     std::string versionedPdbPath(const std::string& dllPath);
 

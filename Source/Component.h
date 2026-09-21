@@ -24,6 +24,11 @@ public:
         ParticleSystem = 14,
         Trail = 15,
         AIAgent = 16,
+        Transform2D = 17,
+        Canvas = 18,
+        Image = 19,
+        Label = 20,
+        Button = 21,
     };
 
     explicit Component(GameObject* owner) : owner(owner){}

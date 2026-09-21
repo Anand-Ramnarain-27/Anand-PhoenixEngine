@@ -166,6 +166,7 @@ xcopy "$(OutDir)GameScript.pdb" "$(SolutionDir)..\build\PhoenixEngine\$(Configur
     <ClInclude Include="EnemyScript.h" />
     <ClInclude Include="PlayerScript.h" />
       <ClInclude Include="Test.h" />
+    <ClInclude Include="UIDemoScript.h" />
     <ClInclude Include="$(SolutionDir)API\PhoenixAPI.h" />
     <ClInclude Include="$(SolutionDir)API\Phoenix_GameObject.h" />
     <ClCompile Include="Test.cpp" />
@@ -174,6 +175,7 @@ xcopy "$(OutDir)GameScript.pdb" "$(SolutionDir)..\build\PhoenixEngine\$(Configur
   <ItemGroup>
     <ClCompile Include="EnemyScript.cpp" />
     <ClCompile Include="PlayerScript.cpp" />
+    <ClCompile Include="UIDemoScript.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

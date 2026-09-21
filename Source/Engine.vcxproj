@@ -110,7 +110,7 @@
       <PreprocessorDefinitions>PHOENIX_EDITOR;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
-      <AdditionalIncludeDirectories>.;3rdParty/WinPixEventRunTime/Include;3rdParty/ImGuizmo;3rdParty/DirectXTex;3rdParty/tinygltf;3rdParty/mikktspace;3rdParty/imgui-docking;3rdParty/directX;3rdParty/imgui-node-editor-master</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;3rdParty/WinPixEventRunTime/Include;3rdParty/ImGuizmo;3rdParty/DirectXTex;3rdParty/DirectXTK12;3rdParty/tinygltf;3rdParty/mikktspace;3rdParty/imgui-docking;3rdParty/directX;3rdParty/imgui-node-editor-master</AdditionalIncludeDirectories>
       <PrecompiledHeaderFile>Globals.h</PrecompiledHeaderFile>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
@@ -118,8 +118,8 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>WinPixEventRuntime.lib;DirectXTex.lib;D3DCompiler.lib;dxgi.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>.\3rdParty\WinPixEventRunTime\bin\x64;.\3rdParty\DirectXTex\Bin\Desktop_2022_Win10\x64\Debug</AdditionalLibraryDirectories>
+      <AdditionalDependencies>WinPixEventRuntime.lib;DirectXTex.lib;DirectXTK12.lib;D3DCompiler.lib;dxgi.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>.\3rdParty\WinPixEventRunTime\bin\x64;.\3rdParty\DirectXTex\Bin\Desktop_2022_Win10\x64\Debug;$(SolutionDir)..\build\DirectXTK12\Debug\x64</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -151,7 +151,7 @@
       <PreprocessorDefinitions>PHOENIX_EDITOR;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
-      <AdditionalIncludeDirectories>.;3rdParty/WinPixEventRunTime/Include;3rdParty/ImGuizmo;3rdParty/DirectXTex;3rdParty/tinygltf;3rdParty/mikktspace;3rdParty/imgui-docking;3rdParty/directX;3rdParty/imgui-node-editor-master</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;3rdParty/WinPixEventRunTime/Include;3rdParty/ImGuizmo;3rdParty/DirectXTex;3rdParty/DirectXTK12;3rdParty/tinygltf;3rdParty/mikktspace;3rdParty/imgui-docking;3rdParty/directX;3rdParty/imgui-node-editor-master</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeaderFile>Globals.h</PrecompiledHeaderFile>
     </ClCompile>
@@ -160,8 +160,8 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>WinPixEventRuntime.lib;DirectXTex.lib;D3DCompiler.lib;dxgi.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>.\3rdParty\WinPixEventRunTime\bin\x64;.\3rdParty\DirectXTex\Bin\Desktop_2022_Win10\x64\Release</AdditionalLibraryDirectories>
+      <AdditionalDependencies>WinPixEventRuntime.lib;DirectXTex.lib;DirectXTK12.lib;D3DCompiler.lib;dxgi.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>.\3rdParty\WinPixEventRunTime\bin\x64;.\3rdParty\DirectXTex\Bin\Desktop_2022_Win10\x64\Release;$(SolutionDir)..\build\DirectXTK12\Release\x64</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -272,6 +272,18 @@
     <ClInclude Include="ComponentDecal.h" />
     <ClInclude Include="BillboardPass.h" />
     <ClInclude Include="ComponentBillboard.h" />
+    <ClInclude Include="ComponentTransform2D.h" />
+    <ClInclude Include="ComponentCanvas.h" />
+    <ClInclude Include="ComponentImage.h" />
+    <ClInclude Include="ComponentLabel.h" />
+    <ClInclude Include="ComponentButton.h" />
+    <ClInclude Include="UITestScene.h" />
+    <ClInclude Include="UITypes.h" />
+    <ClInclude Include="UIDrawItem.h" />
+    <ClInclude Include="API\Phoenix_UI.h" />
+    <ClInclude Include="UIJson.h" />
+    <ClInclude Include="UIPass.h" />
+    <ClInclude Include="ModuleUI.h" />
     <ClInclude Include="ComponentParticleSystem.h" />
     <ClInclude Include="Noise.h" />
     <ClInclude Include="ComponentTrail.h" />
@@ -489,6 +501,15 @@
     <ClCompile Include="ComponentDecal.cpp" />
     <ClCompile Include="BillboardPass.cpp" />
     <ClCompile Include="ComponentBillboard.cpp" />
+    <ClCompile Include="ComponentTransform2D.cpp" />
+    <ClCompile Include="ComponentCanvas.cpp" />
+    <ClCompile Include="ComponentImage.cpp" />
+    <ClCompile Include="ComponentLabel.cpp" />
+    <ClCompile Include="ComponentButton.cpp" />
+    <ClCompile Include="UITestScene.cpp" />
+    <ClCompile Include="API\Phoenix_UI.cpp" />
+    <ClCompile Include="UIPass.cpp" />
+    <ClCompile Include="ModuleUI.cpp" />
     <ClCompile Include="ComponentParticleSystem.cpp" />
     <ClCompile Include="ComponentTrail.cpp" />
     <ClCompile Include="TrailPass.cpp" />
@@ -983,6 +1004,12 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="fonts\UIFont.spritefont">
+      <DestinationFolders>$(OutDir)</DestinationFolders>
+      <FileType>Document</FileType>
+    </CopyFileToFolders>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

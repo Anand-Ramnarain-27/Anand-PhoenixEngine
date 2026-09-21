@@ -18,6 +18,7 @@
 #include "ModuleDSDescriptors.h"
 #include "ModuleStaticBuffer.h"
 #include "ModuleAssets.h"
+#include "ModuleUI.h"
 #include <algorithm>
 
 Application::Application(int argc, wchar_t** argv, void* hWnd){
@@ -33,6 +34,7 @@ Application::Application(int argc, wchar_t** argv, void* hWnd){
     modules.push_back(dsDescriptors = new ModuleDSDescriptors());
     modules.push_back(ringBuffer = new ModuleRingBuffer());
     modules.push_back(assets = new ModuleAssets());
+    modules.push_back(ui = new ModuleUI());
 
 #ifdef PHOENIX_EDITOR
     modules.push_back(runtimeCore = new RuntimeCore(/*standalone=*/false));

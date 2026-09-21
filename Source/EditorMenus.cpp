@@ -19,6 +19,13 @@
 #include "DecalPass.h"
 #include "ComponentDecal.h"
 #include "ComponentBillboard.h"
+#include "ComponentTransform2D.h"
+#include "ComponentCanvas.h"
+#include "ComponentImage.h"
+#include "ComponentLabel.h"
+#include "ComponentButton.h"
+#include "UITestScene.h"
+#include "HotReloadManager.h"
 #include "ComponentParticleSystem.h"
 #include "ComponentTrail.h"
 #include "RenderTexture.h"
@@ -135,6 +142,22 @@ void ModuleEditor::drawDockspace(){
     ImGui::End();
 }
 
+namespace {
+    bool isUnderCanvas(GameObject* go){
+        for (; go; go = go->getParent())
+            if (go->getComponent<ComponentCanvas>()) return true;
+        return false;
+    }
+
+    GameObject* findCanvas(GameObject* node){
+        if (!node) return nullptr;
+        if (node->getComponent<ComponentCanvas>()) return node;
+        for (GameObject* child : node->getChildren())
+            if (GameObject* found = findCanvas(child)) return found;
+        return nullptr;
+    }
+}
+
 void ModuleEditor::drawMenuBar(){
     if (!ImGui::BeginMainMenuBar()) return;
 
@@ -216,6 +239,64 @@ void ModuleEditor::drawMenuBar(){
                 spawnFireComet(Vector3(0.f, 1.5f, 0.f));
             ImGui::EndMenu();
         }
+        if (ImGui::BeginMenu("UI")){
+            // Widgets are created under the selected UI object, else under an existing Canvas, else a new one.
+            auto spawnUI = [&](const char* name, Component::Type type, Vector2 size){
+                SceneGraph* sc = getActiveModuleScene();
+                if (!sc) return;
+
+                GameObject* parent = m_selection.has() && isUnderCanvas(m_selection.object) ? m_selection.object : findCanvas(sc->getRoot());
+                if (!parent){
+                    parent = sc->createGameObject("Canvas");
+                    parent->addComponent(ComponentFactory::CreateComponent(Component::Type::Canvas, parent));
+                }
+                GameObject* go = sc->createGameObject(name, parent);
+                go->addComponent(ComponentFactory::CreateComponent(Component::Type::Transform2D, go));
+                go->getComponent<ComponentTransform2D>()->size = size;
+                go->addComponent(ComponentFactory::CreateComponent(type, go));
+                m_selection.object = go;
+                log((std::string("Created ") + name).c_str(), EditorColors::Success);
+            };
+            if (ImGui::MenuItem("Canvas")){
+                if (SceneGraph* sc = getActiveModuleScene()){
+                    GameObject* go = sc->createGameObject("Canvas");
+                    go->addComponent(ComponentFactory::CreateComponent(Component::Type::Canvas, go));
+                    m_selection.object = go;
+                    log("Created Canvas", EditorColors::Success);
+                }
+            }
+            if (ImGui::MenuItem("Image")) spawnUI("Image", Component::Type::Image, Vector2(100.f, 100.f));
+            if (ImGui::MenuItem("Label")) spawnUI("Label", Component::Type::Label, Vector2(300.f, 60.f));
+            ImGui::Separator();
+            if (ImGui::MenuItem("UI Test Scene (adds to current scene)")){
+                if (SceneGraph* sc = getActiveModuleScene()){
+                    CreateUITestScene(sc, getHotReloadManager());
+                    spawnPrimitive(PrimitiveType::Cube, Vector3(0.f, 0.5f, 0.f));
+                    log("Created UI test scene: check the Game view (press Play to interact)", EditorColors::Success);
+                }
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Button")){
+                spawnUI("Button", Component::Type::Button, Vector2(240.f, 64.f));
+                // A flat-colour button with a stretched text child, ready to click.
+                GameObject* go = m_selection.object;
+                if (go){
+                    go->addComponent(ComponentFactory::CreateComponent(Component::Type::Image, go));
+                    go->getComponent<ComponentImage>()->tint = Vector4(0.24f, 0.36f, 0.68f, 1.f);
+
+                    SceneGraph* sc = getActiveModuleScene();
+                    GameObject* text = sc->createGameObject("Text", go);
+                    text->addComponent(ComponentFactory::CreateComponent(Component::Type::Transform2D, text));
+                    auto* t = text->getComponent<ComponentTransform2D>();
+                    t->anchorMin = Vector2(0.f, 0.f);
+                    t->anchorMax = Vector2(1.f, 1.f);
+                    t->size = Vector2::Zero;
+                    text->addComponent(ComponentFactory::CreateComponent(Component::Type::Label, text));
+                    text->getComponent<ComponentLabel>()->text = "Button";
+                }
+            }
+            ImGui::EndMenu();
+        }
         ImGui::Separator();
         if (ImGui::MenuItem("Random Primitive + Physics", "Shift+P")){
             static int menuSpawnIdx = 0; ++menuSpawnIdx;
@@ -246,6 +327,12 @@ void ModuleEditor::drawMenuBar(){
         addToSel("Billboard", Component::Type::Billboard);
         addToSel("Particle System", Component::Type::ParticleSystem);
         addToSel("Trail", Component::Type::Trail);
+        ImGui::Separator();
+        addToSel("Transform 2D", Component::Type::Transform2D);
+        addToSel("Canvas", Component::Type::Canvas);
+        addToSel("Image", Component::Type::Image);
+        addToSel("Label", Component::Type::Label);
+        addToSel("Button", Component::Type::Button);
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Debug")){
