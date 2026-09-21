@@ -13,10 +13,7 @@ void Test::Start(GameObject* owner){
     m_owner = owner;
 }
 
-// Phase-2 link/compile smoke test: exercises every new script-facing API
-// surface (Navigation/Perception/Steering/tag) so a GameScript.dll build
-// failure here means the PhoenixCore split missed a dependency. Inert -
-// no gameplay effect, safe to leave in or delete once verified.
+// Exercises the Navigation/Perception/Steering/tag API surface as a link test.
 void Test::Update(float dt){
     if (!m_owner) return;
 

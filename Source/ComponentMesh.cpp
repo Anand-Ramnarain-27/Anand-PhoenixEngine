@@ -679,6 +679,4 @@ void ComponentMesh::resolveDeferredSkin(){
     m_pendingSkin = ResourceModel::Skin{};
 }
 
-// computeLocalAABB() / getWorldAABB() moved to ComponentMeshCore.cpp so
-// PhoenixCore/GameScript.dll can call them without this file's GPU-resource
-// dependencies.
+// computeLocalAABB() / getWorldAABB() are in ComponentMeshCore.cpp.

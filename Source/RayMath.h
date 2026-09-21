@@ -2,26 +2,19 @@
 #include "Globals.h"
 #include <cfloat>
 
-// Shared ray-vs-shape math - no engine dependencies beyond Vector3/Matrix.
-// Used by both MousePicker (editor click-selection) and CollisionSystem's
-// Raycast (gameplay/AI line-of-sight), rather than each keeping its own copy.
-//
-// Ray lives inside this namespace (not at global scope) because Globals.h
-// pulls in `using namespace DirectX::SimpleMath`, which already defines its
-// own ::Ray - a global one here would be ambiguous at every call site.
+// Shared ray-vs-shape math, used by MousePicker and CollisionSystem::Raycast.
 namespace RayMath {
+    // Namespaced, not global - DirectX::SimpleMath already has its own ::Ray.
     struct Ray {
         Vector3 origin;
         Vector3 direction; // expected normalized
     };
 
-    // All *Vs* functions return the hit distance along the ray within [0, maxDist],
-    // or FLT_MAX if there is no hit.
+    // Returns hit distance in [0, maxDist], or FLT_MAX if there's no hit.
     float RayVsAABB(const Ray& ray, const Vector3& mn, const Vector3& mx, float maxDist = FLT_MAX);
     float RayVsSphere(const Ray& ray, const Vector3& center, float radius, float maxDist = FLT_MAX);
 
-    // axes/halves as stored on CollisionBody (world-space orthonormal axes + half-extents).
-    // outNormal, if non-null, is filled with the world-space normal of the hit face.
+    // axes/halves as on CollisionBody. outNormal, if given, gets the hit face's world-space normal.
     float RayVsOBB(const Ray& ray, const Vector3& center, const Vector3 axes[3], const float halves[3],
                    float maxDist = FLT_MAX, Vector3* outNormal = nullptr);
 

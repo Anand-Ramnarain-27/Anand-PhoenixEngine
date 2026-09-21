@@ -1,7 +1,5 @@
-// Thin half of CollisionSystem - body-gathering and the on-demand Raycast
-// query - split out so PhoenixCore/GameScript.dll can call Raycast (e.g. for
-// AI line-of-sight) without this file's broad/mid/narrow-phase pipeline.
-// Mirrors the existing SceneManager/SceneManagerCore split.
+// Body-gathering + Raycast, split out so PhoenixCore/GameScript.dll can call
+// Raycast without the broad/mid/narrow-phase pipeline below.
 #include "Globals.h"
 #include "CollisionSystem.h"
 #include "SceneGraph.h"

@@ -5,9 +5,7 @@
 
 namespace Phoenix {
 
-// Thin flat-argument wrapper around SteeringBehaviors:: so scripts don't need
-// to know about SteeringBehaviors::SteeringParams - just pass maxSpeed/maxAccel
-// directly. Header-only (pure math, no engine singleton), like Phoenix_GameObject.h.
+// Flat-argument wrapper around SteeringBehaviors:: for scripts.
 struct Steering {
     static Vec3 Seek(Vec3 position, Vec3 target, float maxSpeed){
         SteeringBehaviors::SteeringParams p; p.maxSpeed = maxSpeed;

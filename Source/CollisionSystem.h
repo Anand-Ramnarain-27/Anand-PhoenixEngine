@@ -48,8 +48,7 @@ public:
 
     const CollisionResults& getResults() const { return m_results; }
 
-    // Stateless on-demand query, independent of run()/getResults() - gathers a
-    // fresh body list each call. Used for AI line-of-sight/perception.
+    // Independent of run()/getResults() - gathers bodies fresh each call.
     static bool Raycast(SceneGraph* scene, const Vector3& origin, const Vector3& dir,
                         float maxDistance, RaycastHit& outHit);
     static bool IsLineClear(SceneGraph* scene, const Vector3& from, const Vector3& to);

@@ -1,8 +1,5 @@
-// Thin AABB/transform-only half of ComponentMesh, split out so PhoenixCore/
-// GameScript.dll (which link this file, not ComponentMesh.cpp) can compute
-// mesh bounds - e.g. for CollisionSystem::Raycast - without pulling in
-// ComponentMesh.cpp's GPU-resource-creation code. Mirrors the existing
-// SceneManager/SceneManagerCore and PrefabManager/PrefabManagerCore split.
+// AABB-only half of ComponentMesh, split out so PhoenixCore/GameScript.dll
+// can compute mesh bounds without ComponentMesh.cpp's GPU-resource code.
 #include "Globals.h"
 #include "ComponentMesh.h"
 #include "GameObject.h"

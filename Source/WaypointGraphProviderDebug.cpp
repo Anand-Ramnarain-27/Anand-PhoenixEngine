@@ -1,7 +1,5 @@
-// drawDebug() split out from WaypointGraphProvider.cpp so PhoenixCore/
-// GameScript.dll (which link that file for Navigation::FindPath) don't have
-// to pull in debug_draw.hpp. Engine/Player only, same as CollisionDebugPanel
-// and other debug-draw call sites.
+// Split from WaypointGraphProvider.cpp so PhoenixCore/GameScript.dll don't
+// need debug_draw.hpp. Engine/Player only.
 #include "Globals.h"
 #include "WaypointGraphProvider.h"
 #include <algorithm>

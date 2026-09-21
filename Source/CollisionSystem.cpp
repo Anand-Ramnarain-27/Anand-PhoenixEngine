@@ -97,9 +97,7 @@ int CollisionSystem::getLastOctreeLeafCount() const{
     return o ? o->getLastLeafCount() : 0;
 }
 
-// buildOBB/applyBVType/gatherBodies/Raycast/IsLineClear moved to
-// CollisionSystemCore.cpp so PhoenixCore/GameScript.dll can call Raycast
-// without this file's broad/mid/narrow-phase dependencies.
+// buildOBB/applyBVType/gatherBodies/Raycast/IsLineClear are in CollisionSystemCore.cpp.
 
 void CollisionSystem::run(SceneGraph* scene, float dt){
     m_results = {};

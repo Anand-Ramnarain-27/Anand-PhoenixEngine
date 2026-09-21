@@ -29,9 +29,6 @@ int WaypointGraphProvider::findNearestNode(const Vector3& point) const{
 }
 
 bool WaypointGraphProvider::IsWalkable(const Vector3& /*point*/, const AgentProfile& /*profile*/) const{
-    // Phase 1: no geometry test against the graph, always considered walkable.
-    // Real occupancy/occlusion + profile-based clearance checks arrive with a
-    // grid/navmesh-backed provider.
     return !nodes.empty();
 }
 
@@ -147,5 +144,4 @@ bool WaypointGraphProvider::Load(const std::string& path){
     return !nodes.empty();
 }
 
-// drawDebug() lives in WaypointGraphProviderDebug.cpp (Engine/Player only) -
-// it needs debug_draw.hpp, which PhoenixCore/GameScript.dll doesn't link.
+// drawDebug() is in WaypointGraphProviderDebug.cpp - needs debug_draw.hpp.

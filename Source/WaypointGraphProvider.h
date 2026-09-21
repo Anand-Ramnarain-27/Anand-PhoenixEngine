@@ -3,9 +3,7 @@
 #include <string>
 #include <vector>
 
-// Hand-authored waypoint graph + A*. Phase-1 INavProvider backend: validates the
-// whole nav pipeline (agent -> provider -> steering) cheaply before a heavier
-// auto-generated backend (grid / Recast-Detour navmesh) is swapped in later.
+// Hand-authored waypoint graph + A*.
 class WaypointGraphProvider : public INavProvider {
 public:
     struct Node {
@@ -19,7 +17,6 @@ public:
     bool IsWalkable(const Vector3& point, const AgentProfile& profile) const override;
     const char* getName() const override { return "Waypoint Graph"; }
 
-    // Loads a hand-authored JSON graph asset (see WaypointGraphProvider.cpp for the format).
     bool Load(const std::string& path);
 
     void drawDebug() const;

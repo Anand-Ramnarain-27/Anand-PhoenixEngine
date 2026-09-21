@@ -5,12 +5,8 @@
 #include <vector>
 #include <cfloat>
 
-// Native AI navigation/movement component (engine-level, not a GameScript) -
-// perception + a hardcoded Idle/Patrol/Chase behavior drive path requests
-// against the active NavigationSystem, and SteeringBehaviors moves the agent
-// kinematically along the returned path. Phase 1: see plan "AI Navigation &
-// Movement" for what's deferred (behavior-tree/FSM resource, Recast backend,
-// Rigidbody-integrated movement, line-of-sight perception).
+// Idle/Patrol/Chase agent: requests paths from NavigationSystem and moves
+// kinematically along them via SteeringBehaviors.
 class ComponentAIAgent final : public Component {
 public:
     explicit ComponentAIAgent(GameObject* owner);

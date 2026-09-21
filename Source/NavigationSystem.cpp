@@ -32,8 +32,7 @@ int NavigationSystem::getDebugEdgeCount() const{
     return wp ? wp->getEdgeCount() : 0;
 }
 
-// drawDebug() lives in NavigationSystemDebug.cpp (Engine/Player only) - it
-// calls WaypointGraphProvider::drawDebug(), which needs debug_draw.hpp.
+// drawDebug() is in NavigationSystemDebug.cpp - needs debug_draw.hpp.
 
 bool NavigationSystem::LoadNamedGraph(const std::string& name, const std::string& path){
     auto provider = std::make_unique<WaypointGraphProvider>();
