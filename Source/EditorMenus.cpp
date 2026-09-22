@@ -27,7 +27,9 @@
 #include "ComponentProgressBar.h"
 #include "ComponentCheckBox.h"
 #include "ComponentSlider.h"
+#include "ComponentInputBox.h"
 #include "UITestScene.h"
+#include "ModuleUI.h"
 #include "HotReloadManager.h"
 #include "ComponentParticleSystem.h"
 #include "ComponentTrail.h"
@@ -272,6 +274,7 @@ void ModuleEditor::drawMenuBar(){
             if (ImGui::MenuItem("Label")) spawnUI("Label", Component::Type::Label, Vector2(300.f, 60.f));
             if (ImGui::MenuItem("Progress Bar")) spawnUI("Progress Bar", Component::Type::ProgressBar, Vector2(400.f, 32.f));
             if (ImGui::MenuItem("Slider")) spawnUI("Slider", Component::Type::Slider, Vector2(400.f, 34.f));
+            if (ImGui::MenuItem("Input Box")) spawnUI("Input Box", Component::Type::InputBox, Vector2(420.f, 48.f));
             if (ImGui::MenuItem("Checkbox")){
                 spawnUI("Checkbox", Component::Type::CheckBox, Vector2(300.f, 40.f));
                 // The box takes the row height on the left; a Label fills the rest and is part of the click target.
@@ -359,6 +362,7 @@ void ModuleEditor::drawMenuBar(){
         addToSel("Progress Bar", Component::Type::ProgressBar);
         addToSel("Checkbox", Component::Type::CheckBox);
         addToSel("Slider", Component::Type::Slider);
+        addToSel("Input Box", Component::Type::InputBox);
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Debug")){
@@ -601,6 +605,7 @@ void ModuleEditor::handleNewScenePopup(ID3D12GraphicsCommandList*){
 
 void ModuleEditor::handleShortcuts(){
     if (ImGui::GetIO().WantTextInput) return;
+    if (app->getUI() && app->getUI()->isTextInputActive()) return;   // typing into a UI input box
     ImGuiIO& io = ImGui::GetIO();
     bool ctrl = io.KeyCtrl;
     bool shift = io.KeyShift;

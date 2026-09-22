@@ -70,6 +70,21 @@ void GameViewPanel::onImageDrawn(){
         in.submitReleased = ImGui::IsKeyReleased(ImGuiKey_Enter) || ImGui::IsKeyReleased(ImGuiKey_Space);
         in.navX = (ImGui::IsKeyPressed(ImGuiKey_RightArrow) ? 1 : 0) - (ImGui::IsKeyPressed(ImGuiKey_LeftArrow) ? 1 : 0);
         in.navY = (ImGui::IsKeyPressed(ImGuiKey_UpArrow) ? 1 : 0) - (ImGui::IsKeyPressed(ImGuiKey_DownArrow) ? 1 : 0);
+
+        // Text entry: ImGui's platform backend already turned WM_CHAR into this queue.
+        ImGuiIO& io = ImGui::GetIO();
+        for (int i = 0; i < io.InputQueueCharacters.Size; ++i){
+            const ImWchar c = io.InputQueueCharacters[i];
+            if (c >= 32 && c < 127) in.text += static_cast<char>(c);
+        }
+        in.backspace = ImGui::IsKeyPressed(ImGuiKey_Backspace) ? 1 : 0;
+        in.deleteKey = ImGui::IsKeyPressed(ImGuiKey_Delete) ? 1 : 0;
+        in.home = ImGui::IsKeyPressed(ImGuiKey_Home, false);
+        in.end = ImGui::IsKeyPressed(ImGuiKey_End, false);
+        in.enterPressed = ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false);
+        in.escapePressed = ImGui::IsKeyPressed(ImGuiKey_Escape, false);
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V, false))
+            if (const char* clip = ImGui::GetClipboardText()) in.paste = clip;
     }
 
     ui->updateInteraction(app->getRuntimeCore()->getActiveModuleScene(),

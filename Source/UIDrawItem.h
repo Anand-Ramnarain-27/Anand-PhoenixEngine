@@ -12,6 +12,10 @@ struct UIDrawItem {
     float rotation = 0.f;               // radians, clockwise
     Vector4 color = Vector4(1.f, 1.f, 1.f, 1.f);
 
+    // Optional clip rectangle in screen pixels (x, y, w, h); nothing outside it is drawn.
+    bool clip = false;
+    Vector4 clipRect = Vector4::Zero;
+
     // Image: destination size, normalized pivot inside it, optional texel sub-rect. Empty texture = flat colour.
     std::string texture;
     Vector2 size = Vector2::Zero;

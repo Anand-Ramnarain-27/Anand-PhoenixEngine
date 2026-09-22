@@ -32,6 +32,7 @@ public:
         ProgressBar = 22,
         CheckBox = 23,
         Slider = 24,
+        InputBox = 25,
     };
 
     explicit Component(GameObject* owner) : owner(owner){}

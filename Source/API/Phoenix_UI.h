@@ -20,7 +20,7 @@ struct UIListener {
     bool valid() const { return id != 0; }
 };
 
-// Talks to the widgets of the UI system (Canvas / Button / CheckBox / Slider / ProgressBar / Image / Label).
+// Talks to the widgets of the UI system (Canvas / Button / CheckBox / Slider / InputBox / ProgressBar / Image / Label).
 //
 // Events are delegates: register in Start(), remove in Destroy() if the script can be destroyed while the button
 // lives, otherwise the callback would outlive the script. Listeners run after the frame's UI input is processed,
@@ -39,6 +39,10 @@ struct UI {
     // Value changes made by the user (not by SetChecked / SetSliderValue): a checkbox toggle, a slider drag or nudge.
     static UIListener OnToggled(GameObject* checkbox, std::function<void(bool checked)> callback);
     static UIListener OnValueChanged(GameObject* slider, std::function<void(float value)> callback);
+
+    // Text fields: every user edit, and Enter. (Not raised by SetInputText.)
+    static UIListener OnTextChanged(GameObject* inputBox, std::function<void(const std::string& text)> callback);
+    static UIListener OnSubmit(GameObject* inputBox, std::function<void(const std::string& text)> callback);
 
     static void RemoveListener(const UIListener& listener);
     static void RemoveAllListeners(GameObject* button);
@@ -67,6 +71,12 @@ struct UI {
 
     static void SetChecked(GameObject* checkbox, bool checked);
     static bool IsChecked(GameObject* checkbox);
+
+    static std::string GetInputText(GameObject* inputBox);
+    static void SetInputText(GameObject* inputBox, const std::string& text);   // filtered like typed input
+
+    // True while a text field has keyboard focus: ignore game hotkeys (WASD, Space...) while this is set.
+    static bool IsTypingText();
 
     // Sliders work in the slider's own range (0..1 unless SetSliderRange changed it).
     static void SetSliderValue(GameObject* slider, float value);

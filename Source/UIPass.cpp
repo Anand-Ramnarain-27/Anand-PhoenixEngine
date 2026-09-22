@@ -7,6 +7,7 @@
 #include <CommonStates.h>
 #include <ResourceUploadBatch.h>
 #include <RenderTargetState.h>
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 
@@ -113,12 +114,12 @@ bool UIPass::loadFont(const std::string& name, const std::wstring& path){
     return true;
 }
 
-Vector2 UIPass::measureText(const std::string& font, const std::string& text) const{
+Vector2 UIPass::measureText(const std::string& font, const std::string& text, bool ignoreWhitespace) const{
     auto it = m_fonts.find(font);
     if (it == m_fonts.end() || text.empty()) return Vector2::Zero;
 
     XMFLOAT2 size;
-    XMStoreFloat2(&size, it->second.font->MeasureString(text.c_str()));
+    XMStoreFloat2(&size, it->second.font->MeasureString(text.c_str(), ignoreWhitespace));
     return Vector2(size.x, size.y);
 }
 
@@ -165,7 +166,9 @@ void UIPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<UIDrawItem
     m_imageBatch->SetViewport(viewport);
     m_textBatch->SetViewport(viewport);
 
-    // Consecutive items of one kind share a Begin/End; a kind change flushes the previous batch.
+    // Consecutive items of one kind and one clip share a Begin/End; a change flushes the previous batch.
+    const D3D12_RECT fullRect = { 0, 0, (LONG)width, (LONG)height };
+    D3D12_RECT scissor = fullRect;
     SpriteBatch* open = nullptr;
     auto use = [&](SpriteBatch* batch){
         if (open == batch) return;
@@ -175,6 +178,19 @@ void UIPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<UIDrawItem
     };
 
     for (const UIDrawItem& item : items){
+        D3D12_RECT wanted = fullRect;
+        if (item.clip){
+            wanted.left = std::clamp((LONG)std::floor(item.clipRect.x), 0L, (LONG)width);
+            wanted.top = std::clamp((LONG)std::floor(item.clipRect.y), 0L, (LONG)height);
+            wanted.right = std::clamp((LONG)std::ceil(item.clipRect.x + item.clipRect.z), wanted.left, (LONG)width);
+            wanted.bottom = std::clamp((LONG)std::ceil(item.clipRect.y + item.clipRect.w), wanted.top, (LONG)height);
+        }
+        if (wanted.left != scissor.left || wanted.top != scissor.top || wanted.right != scissor.right || wanted.bottom != scissor.bottom){
+            if (open){ open->End(); open = nullptr; }
+            scissor = wanted;
+            cmd->RSSetScissorRects(1, &scissor);
+        }
+
         if (item.kind == UIDrawItem::Kind::Image){
             use(m_imageBatch.get());
 
@@ -210,4 +226,7 @@ void UIPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<UIDrawItem
     }
 
     if (open) open->End();
+
+    if (scissor.left != fullRect.left || scissor.top != fullRect.top || scissor.right != fullRect.right || scissor.bottom != fullRect.bottom)
+        cmd->RSSetScissorRects(1, &fullRect);
 }

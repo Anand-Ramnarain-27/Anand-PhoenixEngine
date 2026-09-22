@@ -66,6 +66,28 @@ UIListener UI::OnValueChanged(GameObject* go, std::function<void(float)> cb){
     return handle;
 }
 
+UIListener UI::OnTextChanged(GameObject* go, std::function<void(const std::string&)> cb){
+    UIListener handle;
+    auto* input = go ? go->getComponent<ComponentInputBox>() : nullptr;
+    if (!input || !cb) return handle;
+
+    handle.objectUid = go->getUID();
+    handle.event = (int)UIEventType::ValueChanged;
+    handle.id = input->onValueChanged.add(std::move(cb));
+    return handle;
+}
+
+UIListener UI::OnSubmit(GameObject* go, std::function<void(const std::string&)> cb){
+    UIListener handle;
+    auto* input = go ? go->getComponent<ComponentInputBox>() : nullptr;
+    if (!input || !cb) return handle;
+
+    handle.objectUid = go->getUID();
+    handle.event = (int)UIEventType::Submit;
+    handle.id = input->onSubmit.add(std::move(cb));
+    return handle;
+}
+
 void UI::RemoveListener(const UIListener& listener){
     if (!listener.valid() || !app || !app->getRuntimeCore()) return;
     SceneGraph* scene = app->getRuntimeCore()->getActiveModuleScene();
@@ -78,6 +100,10 @@ void UI::RemoveListener(const UIListener& listener){
     if ((UIEventType)listener.event == UIEventType::ValueChanged){
         if (auto* box = go->getComponent<ComponentCheckBox>()) box->onValueChanged.remove(listener.id);
         if (auto* slider = go->getComponent<ComponentSlider>()) slider->onValueChanged.remove(listener.id);
+        if (auto* input = go->getComponent<ComponentInputBox>()) input->onValueChanged.remove(listener.id);
+    }
+    else if ((UIEventType)listener.event == UIEventType::Submit){
+        if (auto* input = go->getComponent<ComponentInputBox>()) input->onSubmit.remove(listener.id);
     }
     else if (auto* w = widget(go)){
         w->delegateFor((UIEventType)listener.event).remove(listener.id);
@@ -124,6 +150,19 @@ void UI::SetTextColor(GameObject* go, Color color){
 
 void UI::SetImageTint(GameObject* go, Color color){
     if (auto* i = go ? go->getComponent<ComponentImage>() : nullptr) i->tint = Vector4(color.x, color.y, color.z, color.w);
+}
+
+std::string UI::GetInputText(GameObject* go){
+    auto* input = go ? go->getComponent<ComponentInputBox>() : nullptr;
+    return input ? input->text : std::string();
+}
+
+void UI::SetInputText(GameObject* go, const std::string& text){
+    if (auto* input = go ? go->getComponent<ComponentInputBox>() : nullptr) input->setText(text);
+}
+
+bool UI::IsTypingText(){
+    return app && app->getUI() && app->getUI()->isTextInputActive();
 }
 
 void UI::SetChecked(GameObject* go, bool checked){

@@ -21,6 +21,7 @@
 #include "ComponentProgressBar.h"
 #include "ComponentCheckBox.h"
 #include "ComponentSlider.h"
+#include "ComponentInputBox.h"
 #include "ComponentParticleSystem.h"
 #include "ComponentTrail.h"
 #include <algorithm>
@@ -304,6 +305,7 @@ void HierarchyPanel::itemContextMenu(GameObject* go){
             addIf("Progress Bar", Component::Type::ProgressBar, go->getComponent<ComponentProgressBar>() != nullptr);
             addIf("Checkbox", Component::Type::CheckBox, go->getComponent<ComponentCheckBox>() != nullptr);
             addIf("Slider", Component::Type::Slider, go->getComponent<ComponentSlider>() != nullptr);
+            addIf("Input Box", Component::Type::InputBox, go->getComponent<ComponentInputBox>() != nullptr);
             ImGui::EndMenu();
         }
 

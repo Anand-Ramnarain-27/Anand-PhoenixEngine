@@ -28,6 +28,7 @@
 #include "ComponentProgressBar.h"
 #include "ComponentCheckBox.h"
 #include "ComponentSlider.h"
+#include "ComponentInputBox.h"
 #include "ComponentFactory.h"
 #include "PrefabManager.h"
 #include "TextureImporter.h"
@@ -219,6 +220,7 @@ void InspectorPanel::drawContent(){
             comp->getType() == Component::Type::ProgressBar ? "Progress Bar" :
             comp->getType() == Component::Type::CheckBox ? "Checkbox" :
             comp->getType() == Component::Type::Slider ? "Slider" :
+            comp->getType() == Component::Type::InputBox ? "Input Box" :
             "Component";
 
         ImGui::PushID((int)comp->getType());
@@ -408,6 +410,7 @@ void InspectorPanel::drawAddComponentMenu(){
         addComp("Progress Bar", Component::Type::ProgressBar, go->getComponent<ComponentProgressBar>() != nullptr);
         addComp("Checkbox", Component::Type::CheckBox, go->getComponent<ComponentCheckBox>() != nullptr);
         addComp("Slider", Component::Type::Slider, go->getComponent<ComponentSlider>() != nullptr);
+        addComp("Input Box", Component::Type::InputBox, go->getComponent<ComponentInputBox>() != nullptr);
         ImGui::EndMenu();
     }
     ImGui::Separator();

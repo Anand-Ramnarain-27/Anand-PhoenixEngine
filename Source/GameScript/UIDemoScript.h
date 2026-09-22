@@ -32,6 +32,9 @@ private:
     Phoenix::UIListener m_onExit;
     Phoenix::UIListener m_onToggle;
     Phoenix::UIListener m_onSlide;
+    Phoenix::UIListener m_onText;
+    Phoenix::UIListener m_onSubmit;
+    GameObject* m_echo = nullptr;
 };
 
 extern "C" SCRIPT_API IScript* Create_UIDemoScript();

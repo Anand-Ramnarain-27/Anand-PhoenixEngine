@@ -17,9 +17,11 @@
 #include "ComponentProgressBar.h"
 #include "ComponentCheckBox.h"
 #include "ComponentSlider.h"
+#include "ComponentInputBox.h"
 #include "UISelectable.h"
 #include "UIPass.h"
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <functional>
 
@@ -155,6 +157,7 @@ void ModuleUI::emitNode(GameObject* node, const UIRect& parentRect, float scale)
 
     if (node->getComponent<ComponentCheckBox>()) emitCheckBox(node, rect, pivotPos, rotation, scale);
     if (node->getComponent<ComponentSlider>()) emitSlider(node, rect, pivotPos, rotation, scale);
+    if (node->getComponent<ComponentInputBox>()) emitInputBox(node, rect, pivotPos, rotation, scale);
 
     if (auto* label = node->getComponent<ComponentLabel>(); label && label->enabled && !label->text.empty())
         emitLabel(node, rect, scale);
@@ -252,6 +255,102 @@ void ModuleUI::emitSlider(GameObject* node, const UIRect& rect, const Vector2& p
     pushSubRect(hMin, hMin + hs, pivotPos, rotation, scale, std::string(), slider->handleColor * tint, nullptr);
 }
 
+void ModuleUI::pushText(const std::string& font, const std::string& text, const Vector4& color, const Vector2& topLeft,
+                        float fontScale, const Vector2& pivotPos, float rotation, float scale){
+    UIDrawItem item;
+    item.kind = UIDrawItem::Kind::Text;
+    item.text = text;
+    item.font = font;
+    item.color = color;
+    item.position = pivotPos * scale;
+    item.origin = (pivotPos - topLeft) / fontScale;   // rotate about the widget pivot
+    item.scale = fontScale * scale;
+    item.rotation = rotation;
+    m_items.push_back(std::move(item));
+}
+
+std::string ModuleUI::resolveFont(const std::string& name) const{
+    return m_pass->hasFont(name) ? name : std::string(kDefaultFont);
+}
+
+double ModuleUI::nowMs() const{
+    using namespace std::chrono;
+    return duration<double, std::milli>(steady_clock::now().time_since_epoch()).count();
+}
+
+int ModuleUI::caretIndexAt(const ComponentInputBox& box, const Hit& hit, const Vector2& pixel) const{
+    const std::string font = resolveFont(box.fontName);
+    const float lineSpacing = m_pass->getLineSpacing(font);
+    if (lineSpacing <= 0.f) return (int)box.text.size();
+    const float fontScale = box.fontSize / lineSpacing;
+
+    // Pointer x measured from where the text starts (accounting for scroll), then the nearest character boundary.
+    const float x = toLocal(hit, pixel).x - (hit.rect.min.x + box.padding.x - box.scrollX);
+    const std::string display = box.displayText();
+    int best = 0;
+    float bestDistance = std::abs(x);
+    for (int i = 1; i <= (int)display.size(); ++i){
+        const float w = m_pass->measureText(font, display.substr(0, i), false).x * fontScale;
+        const float d = std::abs(x - w);
+        if (d < bestDistance){ best = i; bestDistance = d; }
+    }
+    return best;
+}
+
+void ModuleUI::emitInputBox(GameObject* node, const UIRect& rect, const Vector2& pivotPos, float rotation, float scale){
+    auto* box = node->getComponent<ComponentInputBox>();
+    const Vector4 tint = ComponentSelectable::stateTint(box->state);
+
+    if (box->focused)
+        pushSubRect(rect.min - Vector2(2.f, 2.f), rect.max + Vector2(2.f, 2.f), pivotPos, rotation, scale, std::string(), box->focusColor, nullptr);
+    pushSubRect(rect.min, rect.max, pivotPos, rotation, scale, std::string(), box->backgroundColor * tint, nullptr);
+
+    const std::string font = resolveFont(box->fontName);
+    const float lineSpacing = m_pass->getLineSpacing(font);
+    UIRect inner;
+    inner.min = rect.min + box->padding;
+    inner.max = rect.max - box->padding;
+    const Vector2 innerSize = inner.size();
+    if (lineSpacing <= 0.f || innerSize.x <= 0.f || innerSize.y <= 0.f) return;
+
+    const float fontScale = box->fontSize / lineSpacing;
+    const std::string display = box->displayText();
+    const float textWidth = m_pass->measureText(font, display, false).x * fontScale;
+    const float caretX = m_pass->measureText(font, display.substr(0, box->caret), false).x * fontScale;
+
+    // Scroll just enough to keep the caret in view; text that fits does not scroll.
+    const float viewWidth = innerSize.x - 2.f;
+    if (textWidth <= viewWidth){
+        box->scrollX = 0.f;
+    }
+    else {
+        if (caretX - box->scrollX > viewWidth) box->scrollX = caretX - viewWidth;
+        if (caretX - box->scrollX < 0.f) box->scrollX = caretX;
+        box->scrollX = std::clamp(box->scrollX, 0.f, textWidth - viewWidth);
+    }
+
+    const size_t firstClipped = m_items.size();
+    const float top = inner.center().y - box->fontSize * 0.5f;
+    if (!display.empty())
+        pushText(font, display, box->textColor, Vector2(inner.min.x - box->scrollX, top), fontScale, pivotPos, rotation, scale);
+    else if (!box->placeholder.empty())
+        pushText(font, box->placeholder, box->placeholderColor, Vector2(inner.min.x, top), fontScale, pivotPos, rotation, scale);
+
+    // The caret blinks while focused, and stays solid for a moment after every edit.
+    if (box->focused && box->interactable && std::fmod(nowMs() - box->blinkStart, 1060.0) < 530.0){
+        const Vector2 caretMin(inner.min.x - box->scrollX + caretX, top + box->fontSize * 0.05f);
+        pushSubRect(caretMin, caretMin + Vector2(2.f, box->fontSize * 0.9f), pivotPos, rotation, scale, std::string(), box->caretColor, nullptr);
+    }
+
+    // Text and caret are clipped to the field. (The clip is axis-aligned, so rotated fields draw unclipped.)
+    if (rotation == 0.f){
+        for (size_t i = firstClipped; i < m_items.size(); ++i){
+            m_items[i].clip = true;
+            m_items[i].clipRect = Vector4(inner.min.x * scale, inner.min.y * scale, innerSize.x * scale, innerSize.y * scale);
+        }
+    }
+}
+
 void ModuleUI::emitLabel(GameObject* node, const UIRect& rect, float scale){
     auto* label = node->getComponent<ComponentLabel>();
     const std::string& fontName = m_pass->hasFont(label->fontName) ? label->fontName : std::string(kDefaultFont);
@@ -283,16 +382,7 @@ void ModuleUI::emitLabel(GameObject* node, const UIRect& rect, float scale){
         rotation = DirectX::XMConvertToRadians(t->rotation);
     }
 
-    UIDrawItem item;
-    item.kind = UIDrawItem::Kind::Text;
-    item.text = label->text;
-    item.font = fontName;
-    item.color = label->color;
-    item.position = pivotPos * scale;
-    item.origin = (pivotPos - topLeft) / fontScale;
-    item.scale = fontScale * scale;
-    item.rotation = rotation;
-    m_items.push_back(std::move(item));
+    pushText(fontName, label->text, label->color, topLeft, fontScale, pivotPos, rotation, scale);
 }
 
 Vector2 ModuleUI::toLocal(const Hit& hit, const Vector2& pixel) const{
@@ -374,6 +464,12 @@ void ModuleUI::updateInteraction(SceneGraph* scene, uint32_t width, uint32_t hei
                 w.sel->focused = w.sel->navigable;
                 w.sel->pressedThisFrame = true;
                 queue(w, UIEventType::Press);
+
+                if (auto* box = w.go->getComponent<ComponentInputBox>()){
+                    w.sel->focused = true;   // clicking a text field always starts editing
+                    box->setCaret(caretIndexAt(*box, *w.hit, in.pointer));
+                    box->blinkStart = nowMs();
+                }
             }
         }
     }
@@ -391,7 +487,8 @@ void ModuleUI::updateInteraction(SceneGraph* scene, uint32_t width, uint32_t hei
     std::vector<const Widget*> navigable;
     for (const Widget& w : widgets){
         if (w.sel->interactable && w.sel->navigable) navigable.push_back(&w);
-        else w.sel->focused = false;
+        const bool keepsFocus = w.sel->navigable || w.go->getComponent<ComponentInputBox>();
+        if (!w.sel->interactable || !keepsFocus) w.sel->focused = false;
     }
     if (in.tabPressed && !navigable.empty()){
         const int count = (int)navigable.size();
@@ -405,6 +502,7 @@ void ModuleUI::updateInteraction(SceneGraph* scene, uint32_t width, uint32_t hei
     if (in.submitPressed){
         for (const Widget* w : navigable){
             if (!w->sel->focused) continue;
+            if (w->go->getComponent<ComponentInputBox>()) continue;   // Space types a space, Enter submits
             w->sel->keyHeld = true;
             w->sel->pressedThisFrame = true;
             queue(*w, UIEventType::Press);
@@ -418,6 +516,27 @@ void ModuleUI::updateInteraction(SceneGraph* scene, uint32_t width, uint32_t hei
             queue(w, UIEventType::Release);
             onClicked(w);
         }
+    }
+
+    // Text: the focused InputBox takes typed characters, paste, and the editing keys.
+    m_textInputActive = false;
+    for (const Widget& w : widgets){
+        auto* box = w.go->getComponent<ComponentInputBox>();
+        if (!box || !w.sel->focused || !w.sel->interactable) continue;
+        m_textInputActive = true;
+
+        bool changed = box->insertText(in.text);
+        changed |= box->insertText(in.paste);
+        for (int i = 0; i < in.backspace; ++i) changed |= box->eraseBefore();
+        for (int i = 0; i < in.deleteKey; ++i) changed |= box->eraseAfter();
+        if (in.navX != 0) box->moveCaret(in.navX);
+        if (in.home) box->setCaret(0);
+        if (in.end) box->setCaret((int)box->text.size());
+        if (changed || in.navX != 0 || in.home || in.end) box->blinkStart = nowMs();   // caret stays solid while editing
+
+        if (changed) queue(w, UIEventType::ValueChanged);
+        if (in.enterPressed) queue(w, UIEventType::Submit);
+        if (in.escapePressed) w.sel->focused = false;
     }
 
     // Sliders: follow the pointer while it is held on one (clamped, so dragging past the ends is fine), and let
@@ -463,8 +582,14 @@ void ModuleUI::dispatch(SceneGraph* scene){
         ComponentSelectable* sel = selectableOf(go);
         if (!sel) continue;
 
-        if (e.type != UIEventType::ValueChanged){
+        if (e.type == UIEventType::Submit){
+            if (auto* input = go->getComponent<ComponentInputBox>()) input->onSubmit.invoke(input->text);
+        }
+        else if (e.type != UIEventType::ValueChanged){
             sel->delegateFor(e.type).invoke();
+        }
+        else if (auto* input = go->getComponent<ComponentInputBox>()){
+            input->onValueChanged.invoke(input->text);
         }
         else if (auto* box = go->getComponent<ComponentCheckBox>()){
             box->onValueChanged.invoke(box->checked);

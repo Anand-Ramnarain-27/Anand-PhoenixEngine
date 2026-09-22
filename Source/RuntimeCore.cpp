@@ -286,6 +286,21 @@ void RuntimeCore::tick(float dt, float aspectRatio){
     if (m_particlePass) m_particlePass->beginFrame();
 }
 
+namespace {
+    std::string readClipboardAscii(){
+        std::string out;
+        if (!OpenClipboard(nullptr)) return out;
+        if (HANDLE h = GetClipboardData(CF_UNICODETEXT)){
+            if (const wchar_t* w = static_cast<const wchar_t*>(GlobalLock(h))){
+                for (; *w; ++w) if (*w >= 32 && *w < 127) out += static_cast<char>(*w);
+                GlobalUnlock(h);
+            }
+        }
+        CloseClipboard();
+        return out;
+    }
+}
+
 void RuntimeCore::preRender(){
     if (!m_standalone) return;
     ModuleD3D12* d3d12 = app->getD3D12();
@@ -327,8 +342,17 @@ void RuntimeCore::preRender(){
         in.shiftDown = input->isKeyDown(Phoenix::Key::LeftShift) || input->isKeyDown(Phoenix::Key::RightShift);
         in.submitPressed = input->isKeyPressed(Phoenix::Key::Enter) || input->isKeyPressed(Phoenix::Key::Space);
         in.submitReleased = input->isKeyReleased(Phoenix::Key::Enter) || input->isKeyReleased(Phoenix::Key::Space);
-        in.navX = (input->isKeyPressed(Phoenix::Key::Right) ? 1 : 0) - (input->isKeyPressed(Phoenix::Key::Left) ? 1 : 0);
+        const ModuleUI::EditKeys keys = ui->takeEditKeys();
+        in.navX = keys.right - keys.left;
         in.navY = (input->isKeyPressed(Phoenix::Key::Up) ? 1 : 0) - (input->isKeyPressed(Phoenix::Key::Down) ? 1 : 0);
+        in.text = ui->takeTypedText();
+        in.backspace = keys.back;
+        in.deleteKey = keys.del;
+        in.home = keys.home;
+        in.end = keys.end;
+        in.enterPressed = keys.enter;
+        in.escapePressed = keys.escape;
+        if (keys.paste) in.paste = readClipboardAscii();
         ui->updateInteraction(getActiveModuleScene(), curW, curH, in);
     }
 }

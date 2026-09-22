@@ -281,6 +281,7 @@
     <ClInclude Include="ComponentSelectable.h" />
     <ClInclude Include="ComponentCheckBox.h" />
     <ClInclude Include="ComponentSlider.h" />
+    <ClInclude Include="ComponentInputBox.h" />
     <ClInclude Include="UIDelegate.h" />
     <ClInclude Include="UISelectable.h" />
     <ClInclude Include="UITestScene.h" />
@@ -515,6 +516,7 @@
     <ClCompile Include="ComponentProgressBar.cpp" />
     <ClCompile Include="ComponentCheckBox.cpp" />
     <ClCompile Include="ComponentSlider.cpp" />
+    <ClCompile Include="ComponentInputBox.cpp" />
     <ClCompile Include="UITestScene.cpp" />
     <ClCompile Include="API\Phoenix_UI.cpp" />
     <ClCompile Include="UIPass.cpp" />

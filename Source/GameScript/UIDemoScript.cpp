@@ -38,6 +38,16 @@ void UIDemoScript::Start(GameObject* owner){
         UI::SetText(m_healthText, "HP " + std::to_string((int)value) + " / 100");
     });
 
+    // The text field echoes what you type, and what you submit with Enter.
+    m_echo = Scene::Find("Echo Label");
+    GameObject* input = Scene::Find("Test Input");
+    m_onText = UI::OnTextChanged(input, [this](const std::string& text){
+        UI::SetText(m_echo, "Typing: " + text);
+    });
+    m_onSubmit = UI::OnSubmit(input, [this](const std::string& text){
+        UI::SetText(m_echo, "Submitted: " + text);
+    });
+
     refreshLabel();
 }
 
@@ -53,7 +63,9 @@ void UIDemoScript::Destroy(){
     UI::RemoveListener(m_onExit);
     UI::RemoveListener(m_onToggle);
     UI::RemoveListener(m_onSlide);
-    m_onClick = m_onEnter = m_onExit = m_onToggle = m_onSlide = {};
+    UI::RemoveListener(m_onText);
+    UI::RemoveListener(m_onSubmit);
+    m_onClick = m_onEnter = m_onExit = m_onToggle = m_onSlide = m_onText = m_onSubmit = {};
 }
 
 void UIDemoScript::refreshLabel(){

@@ -25,7 +25,8 @@ public:
     bool hasFont(const std::string& name) const { return m_fonts.count(name) != 0; }
 
     // Size of `text` in unscaled font pixels; zero if the font is unknown.
-    Vector2 measureText(const std::string& font, const std::string& text) const;
+    // `ignoreWhitespace` = false counts trailing spaces, which caret placement needs.
+    Vector2 measureText(const std::string& font, const std::string& text, bool ignoreWhitespace = true) const;
     float getLineSpacing(const std::string& font) const;
 
     // The target must already be bound as a render target and the shader descriptor heap set.

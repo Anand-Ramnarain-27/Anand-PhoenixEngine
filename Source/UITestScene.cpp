@@ -18,6 +18,7 @@
 #include "ComponentProgressBar.h"
 #include "ComponentCheckBox.h"
 #include "ComponentSlider.h"
+#include "ComponentInputBox.h"
 #include <algorithm>
 
 namespace {
@@ -84,6 +85,16 @@ namespace {
         s->maxValue = 100.f;
         s->wholeNumbers = true;
         s->value = value;
+        return go;
+    }
+
+    GameObject* input(SceneGraph* scene, GameObject* parent, const char* name, const Layout& l, const char* placeholder,
+                      ComponentInputBox::ContentType type = ComponentInputBox::ContentType::Standard){
+        GameObject* go = scene->createGameObject(name, parent);
+        place(go, l);
+        auto* box = add<ComponentInputBox>(go, Component::Type::InputBox);
+        box->placeholder = placeholder;
+        box->contentType = type;
         return go;
     }
 
@@ -167,6 +178,13 @@ void CreateUITestScene(SceneGraph* scene, HotReloadManager* hotReload){
     slider(scene, canvasGO, "Test Slider", pinned(topLeft, { 40.f, 730.f }, { 420.f, 36.f }), 70.f);
     label(scene, canvasGO, "Slider Text", pinned(topLeft, { 480.f, 730.f }, { 300.f, 36.f }), "<- sets the Health Bar", 26.f, grey,
           ComponentLabel::HAlign::Left);
+
+    // Text fields: free text (echoed by UIDemoScript) and a numbers-only one.
+    input(scene, canvasGO, "Test Input", pinned(topLeft, { 40.f, 790.f }, { 420.f, 48.f }), "Type here...");
+    label(scene, canvasGO, "Echo Label", pinned(topLeft, { 480.f, 790.f }, { 460.f, 48.f }), "Echo: (needs UIDemoScript)", 26.f, grey,
+          ComponentLabel::HAlign::Left);
+    input(scene, canvasGO, "Number Input", pinned(topLeft, { 40.f, 850.f }, { 420.f, 48.f }), "Numbers only",
+          ComponentInputBox::ContentType::Integer);
 
     // Corner anchors: these stay glued to the screen corners at any resolution.
     label(scene, canvasGO, "Anchor TR", pinned(topRight, { -40.f, 40.f }, { 360.f, 50.f }), "Top Right anchor", 30.f, white,

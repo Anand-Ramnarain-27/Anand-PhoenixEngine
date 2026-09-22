@@ -1,5 +1,6 @@
 #pragma once
 #include "Globals.h"
+#include <string>
 
 enum class UIEventType {
     HoverEnter = 0,
@@ -8,6 +9,7 @@ enum class UIEventType {
     Release,
     Click,
     ValueChanged,
+    Submit,
     Count
 };
 
@@ -26,4 +28,15 @@ struct UIInput {
     // Arrow keys pressed this frame: -1 / 0 / +1 (Right and Up are positive). Used to nudge focused sliders.
     int navX = 0;
     int navY = 0;
+
+    // Text editing for the focused InputBox. `text` is what was typed this frame (printable ASCII), `paste` is
+    // clipboard text for a Ctrl+V. Key flags include OS key-repeat.
+    std::string text;
+    std::string paste;
+    int backspace = 0;    // presses this frame
+    int deleteKey = 0;
+    bool home = false;
+    bool end = false;
+    bool enterPressed = false;
+    bool escapePressed = false;
 };

@@ -5,6 +5,7 @@
 
 #include "Application.h"
 #include "ModuleD3D12.h"
+#include "ModuleUI.h"
 
 #include "Keyboard.h"
 #include "Mouse.h"
@@ -63,8 +64,12 @@ LRESULT CALLBACK PlayerWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
             app->getD3D12()->toggleFullscreen();
         Keyboard::ProcessMessage(message, wParam, lParam);
         break;
+    case WM_CHAR:
+        if (app && app->getUI()) app->getUI()->pushTypedChar(static_cast<uint32_t>(wParam));
+        break;
     case WM_KEYDOWN:
         Keyboard::ProcessMessage(message, wParam, lParam);
+        if (app && app->getUI()) app->getUI()->pushEditKey(static_cast<uint32_t>(wParam), (GetKeyState(VK_CONTROL) & 0x8000) != 0);
         break;
     case WM_KEYUP:
     case WM_SYSKEYUP:
