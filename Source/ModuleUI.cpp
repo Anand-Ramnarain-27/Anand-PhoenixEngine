@@ -95,6 +95,7 @@ void ModuleUI::collectCanvases(GameObject* node, std::vector<GameObject*>& out) 
 void ModuleUI::buildDrawList(SceneGraph* scene, uint32_t width, uint32_t height){
     m_items.clear();
     m_hits.clear();
+    m_currentClip = ClipRect{};   // each canvas starts unclipped; masking only narrows within one canvas's tree
 
     std::vector<GameObject*> canvases;
     collectCanvases(scene->getRoot(), canvases);
@@ -118,16 +119,25 @@ void ModuleUI::emitNode(GameObject* node, const UIRect& parentRect, float scale)
     Vector2 pivot(0.5f, 0.5f);
     float rotation = 0.f;
 
-    if (auto* t = node->getComponent<ComponentTransform2D>()){
-        if (!t->visible) return;
-        t->computeLayout(parentRect);
-        rect = t->getRect();
-        pivotPos = t->getPivotPosition();
-        pivot = t->pivot;
-        rotation = DirectX::XMConvertToRadians(t->rotation);
+    ComponentTransform2D* t2d = node->getComponent<ComponentTransform2D>();
+    if (t2d){
+        if (!t2d->visible) return;
+        t2d->computeLayout(parentRect);
+        rect = t2d->getRect();
+        pivotPos = t2d->getPivotPosition();
+        pivot = t2d->pivot;
+        rotation = DirectX::XMConvertToRadians(t2d->rotation);
     }
     else {
         pivotPos = rect.center();
+    }
+
+    // A masking widget narrows the clip for itself and everything under it; restored once this subtree is done
+    // so a sibling outside the mask draws normally. Rotated masks are skipped: the clip is an axis-aligned rect.
+    const ClipRect savedClip = m_currentClip;
+    if (t2d && t2d->maskChildren && rotation == 0.f){
+        ClipRect own{ true, Vector4(rect.min.x * scale, rect.min.y * scale, rect.size().x * scale, rect.size().y * scale) };
+        m_currentClip = intersectClip(m_currentClip, own);
     }
 
     auto* button = node->getComponent<ComponentButton>();
@@ -136,7 +146,7 @@ void ModuleUI::emitNode(GameObject* node, const UIRect& parentRect, float scale)
 
     // Anything that can take the pointer is recorded in draw order; hit-testing walks it back to front.
     if (selectableOf(node) || (drawsImage && image->raycastTarget))
-        m_hits.push_back({ node, rect, pivotPos, rotation, scale });
+        m_hits.push_back({ node, rect, pivotPos, rotation, scale, m_currentClip });
 
     if (drawsImage){
         UIDrawItem item;
@@ -149,6 +159,7 @@ void ModuleUI::emitNode(GameObject* node, const UIRect& parentRect, float scale)
         item.color = button ? image->tint * button->currentColor() : image->tint;
         item.useSourceRect = image->useSourceRect;
         item.sourceRect = image->sourceRect;
+        applyClip(item);
         m_items.push_back(std::move(item));
     }
 
@@ -163,6 +174,8 @@ void ModuleUI::emitNode(GameObject* node, const UIRect& parentRect, float scale)
         emitLabel(node, rect, scale);
 
     for (GameObject* child : node->getChildren()) emitNode(child, rect, scale);
+
+    m_currentClip = savedClip;
 }
 
 // Draws a sub-rectangle of a widget. It is positioned by rotating its corner about the widget pivot, so a rotated
@@ -185,6 +198,7 @@ void ModuleUI::pushSubRect(const Vector2& mn, const Vector2& mx, const Vector2& 
         item.useSourceUV = true;
         item.sourceUV = *uv;
     }
+    applyClip(item);
     m_items.push_back(std::move(item));
 }
 
@@ -266,6 +280,7 @@ void ModuleUI::pushText(const std::string& font, const std::string& text, const 
     item.origin = (pivotPos - topLeft) / fontScale;   // rotate about the widget pivot
     item.scale = fontScale * scale;
     item.rotation = rotation;
+    applyClip(item);
     m_items.push_back(std::move(item));
 }
 
@@ -342,11 +357,15 @@ void ModuleUI::emitInputBox(GameObject* node, const UIRect& rect, const Vector2&
         pushSubRect(caretMin, caretMin + Vector2(2.f, box->fontSize * 0.9f), pivotPos, rotation, scale, std::string(), box->caretColor, nullptr);
     }
 
-    // Text and caret are clipped to the field. (The clip is axis-aligned, so rotated fields draw unclipped.)
+    // Text and caret are clipped to the field, narrowed further by any ambient mask from an ancestor panel.
+    // (The clip is axis-aligned, so rotated fields draw unclipped.)
     if (rotation == 0.f){
+        const ClipRect own{ true, Vector4(inner.min.x * scale, inner.min.y * scale, innerSize.x * scale, innerSize.y * scale) };
         for (size_t i = firstClipped; i < m_items.size(); ++i){
-            m_items[i].clip = true;
-            m_items[i].clipRect = Vector4(inner.min.x * scale, inner.min.y * scale, innerSize.x * scale, innerSize.y * scale);
+            const ClipRect existing{ m_items[i].clip, m_items[i].clipRect };
+            const ClipRect merged = intersectClip(existing, own);
+            m_items[i].clip = merged.active;
+            m_items[i].clipRect = merged.rect;
         }
     }
 }
@@ -397,7 +416,25 @@ Vector2 ModuleUI::toLocal(const Hit& hit, const Vector2& pixel) const{
 }
 
 bool ModuleUI::hitTest(const Hit& hit, const Vector2& pixel) const{
-    return hit.rect.contains(toLocal(hit, pixel));
+    // A widget scrolled out of view by an ancestor mask cannot be hit even where its own rect still covers it.
+    return hit.clip.contains(pixel) && hit.rect.contains(toLocal(hit, pixel));
+}
+
+ModuleUI::ClipRect ModuleUI::intersectClip(const ClipRect& a, const ClipRect& b){
+    if (!a.active) return b;
+    if (!b.active) return a;
+
+    const float x0 = std::max(a.rect.x, b.rect.x);
+    const float y0 = std::max(a.rect.y, b.rect.y);
+    const float x1 = std::min(a.rect.x + a.rect.z, b.rect.x + b.rect.z);
+    const float y1 = std::min(a.rect.y + a.rect.w, b.rect.y + b.rect.w);
+    return ClipRect{ true, Vector4(x0, y0, std::max(0.f, x1 - x0), std::max(0.f, y1 - y0)) };
+}
+
+void ModuleUI::applyClip(UIDrawItem& item) const{
+    const ClipRect merged = intersectClip(ClipRect{ item.clip, item.clipRect }, m_currentClip);
+    item.clip = merged.active;
+    item.clipRect = merged.rect;
 }
 
 void ModuleUI::updateInteraction(SceneGraph* scene, uint32_t width, uint32_t height, const UIInput& in){

@@ -60,6 +60,10 @@ void ComponentTransform2D::onEditor(){
     ImGui::DragFloat2("Pivot##t2d", &pivot.x, 0.01f, 0.f, 1.f);
     ImGui::DragFloat("Rotation##t2d", &rotation, 0.5f, -360.f, 360.f);
     ImGui::DragFloat2("Scale##t2d", &scale.x, 0.01f);
+
+    ImGui::Checkbox("Mask Children##t2d", &maskChildren);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Clips every descendant to this rect (scroll views, panels with overflowing content).\nIgnored while Rotation is non-zero.");
 }
 
 void ComponentTransform2D::onSave(std::string& outJson) const{
@@ -71,6 +75,7 @@ void ComponentTransform2D::onSave(std::string& outJson) const{
     UIJson::putFloat(outJson, "rotation", rotation);
     UIJson::putFloats(outJson, "scale", &scale.x, 2);
     UIJson::putBool(outJson, "visible", visible);
+    UIJson::putBool(outJson, "maskChildren", maskChildren);
 }
 
 void ComponentTransform2D::onLoad(const std::string& json){
@@ -83,4 +88,5 @@ void ComponentTransform2D::onLoad(const std::string& json){
     r.getFloat("rotation", rotation);
     r.getFloats("scale", &scale.x, 2);
     r.getBool("visible", visible);
+    r.getBool("maskChildren", maskChildren);
 }

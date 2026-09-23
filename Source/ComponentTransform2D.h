@@ -40,6 +40,11 @@ public:
     Vector2 scale = Vector2(1.f, 1.f);
     bool visible = true;
 
+    // Clips every descendant (recursively, until a nested mask narrows it further) to this rect. Useful for
+    // scroll views and panels with overflowing content. Ignored when the widget is rotated, since the clip is
+    // an axis-aligned screen rectangle.
+    bool maskChildren = false;
+
     void computeLayout(const UIRect& parent);
 
     const UIRect& getRect() const { return m_rect; }

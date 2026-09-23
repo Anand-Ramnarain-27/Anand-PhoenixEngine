@@ -81,6 +81,18 @@ public:
     static constexpr const char* kDefaultFont = "UIFont";
 
 private:
+    // A screen-pixel clip window (x, y, w, h), used both to clip drawing and to keep the pointer from reaching
+    // widgets scrolled out of view. `active = false` means "no restriction".
+    struct ClipRect {
+        bool active = false;
+        Vector4 rect = Vector4::Zero;
+
+        bool contains(const Vector2& pixel) const {
+            return !active || (pixel.x >= rect.x && pixel.x <= rect.x + rect.z &&
+                               pixel.y >= rect.y && pixel.y <= rect.y + rect.w);
+        }
+    };
+
     // A widget that can receive the pointer, in draw order (later = on top).
     struct Hit {
         GameObject* go = nullptr;
@@ -88,6 +100,7 @@ private:
         Vector2 pivot;            // canvas units
         float rotation = 0.f;     // radians
         float scale = 1.f;        // canvas units -> pixels
+        ClipRect clip;            // active ancestor mask, if any, in screen pixels
     };
 
     struct PendingEvent {
@@ -105,6 +118,8 @@ private:
     void pushSubRect(const Vector2& mn, const Vector2& mx, const Vector2& pivotPos, float rotation, float scale,
                      const std::string& texture, const Vector4& color, const Vector4* uv);
     Vector2 toLocal(const Hit& hit, const Vector2& pixel) const;
+    void applyClip(UIDrawItem& item) const;
+    static ClipRect intersectClip(const ClipRect& a, const ClipRect& b);
     void emitInputBox(GameObject* node, const UIRect& rect, const Vector2& pivotPos, float rotation, float scale);
     void pushText(const std::string& font, const std::string& text, const Vector4& color, const Vector2& topLeft,
                   float fontScale, const Vector2& pivotPos, float rotation, float scale);
@@ -118,6 +133,7 @@ private:
     std::vector<UIDrawItem> m_items;
     std::vector<Hit> m_hits;
     std::vector<PendingEvent> m_pending;
+    ClipRect m_currentClip;   // the active mask while walking the tree; see ComponentTransform2D::maskChildren
     bool m_pointerOverUI = false;
     bool m_textInputActive = false;
     std::string m_typed;

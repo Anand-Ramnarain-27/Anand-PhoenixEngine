@@ -186,6 +186,21 @@ void CreateUITestScene(SceneGraph* scene, HotReloadManager* hotReload){
     input(scene, canvasGO, "Number Input", pinned(topLeft, { 40.f, 850.f }, { 420.f, 48.f }), "Numbers only",
           ComponentInputBox::ContentType::Integer);
 
+    // A masked scroll panel: 8 stacked rows in a window tall enough for about four of them. Content past the
+    // panel's edge is clipped by ComponentTransform2D::maskChildren rather than laid out to fit.
+    GameObject* scrollPanel = image(scene, canvasGO, "Scroll Panel", pinned(center, { 0.f, 250.f }, { 380.f, 300.f }), Vector4(.06f, .06f, .09f, 1.f));
+    scrollPanel->getComponent<ComponentTransform2D>()->maskChildren = true;
+    label(scene, canvasGO, "Scroll Panel Label", pinned(center, { 0.f, 65.f }, { 380.f, 30.f }), "Masked scroll panel (8 rows, ~4 visible)", 22.f, grey);
+    static const Vector4 kRowColors[] = {
+        { .75f, .28f, .28f, 1.f }, { .28f, .62f, .32f, 1.f }, { .28f, .38f, .72f, 1.f }, { .68f, .62f, .22f, 1.f },
+        { .58f, .28f, .66f, 1.f }, { .26f, .62f, .62f, 1.f }, { .62f, .42f, .22f, 1.f }, { .42f, .42f, .42f, 1.f },
+    };
+    for (int i = 0; i < 8; ++i){
+        GameObject* row = image(scene, scrollPanel, ("Scroll Row " + std::to_string(i)).c_str(),
+                                { { 0.f, 0.f }, { 0.f, 0.f }, { 0.f, 0.f }, { 10.f, 10.f + i * 70.f }, { 360.f, 60.f } }, kRowColors[i]);
+        label(scene, row, "Text", fill(), ("Row " + std::to_string(i)).c_str(), 26.f, white);
+    }
+
     // Corner anchors: these stay glued to the screen corners at any resolution.
     label(scene, canvasGO, "Anchor TR", pinned(topRight, { -40.f, 40.f }, { 360.f, 50.f }), "Top Right anchor", 30.f, white,
           ComponentLabel::HAlign::Right, ComponentLabel::VAlign::Top);
