@@ -187,7 +187,9 @@
     <ClInclude Include="ComponentCheckBox.h" />
     <ClInclude Include="ComponentSlider.h" />
     <ClInclude Include="ComponentInputBox.h" />
+    <ClInclude Include="ComponentRadioGroup.h" />
     <ClInclude Include="UIDelegate.h" />
+    <ClInclude Include="UIRadioGroup.h" />
     <ClInclude Include="UISelectable.h" />
     <ClInclude Include="UITypes.h" />
     <ClInclude Include="UIDrawItem.h" />

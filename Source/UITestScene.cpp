@@ -19,6 +19,7 @@
 #include "ComponentCheckBox.h"
 #include "ComponentSlider.h"
 #include "ComponentInputBox.h"
+#include "ComponentRadioGroup.h"
 #include <algorithm>
 
 namespace {
@@ -185,6 +186,23 @@ void CreateUITestScene(SceneGraph* scene, HotReloadManager* hotReload){
           ComponentLabel::HAlign::Left);
     input(scene, canvasGO, "Number Input", pinned(topLeft, { 40.f, 850.f }, { 420.f, 48.f }), "Numbers only",
           ComponentInputBox::ContentType::Integer);
+
+    // A radio group: exactly one of the three options stays selected (the default "always one chosen"
+    // behaviour). UIDemoScript mirrors the choice into "Radio Selection Label" via UI::OnToggled per option.
+    GameObject* radioGroup = scene->createGameObject("Radio Group", canvasGO);
+    place(radioGroup, pinned(center, { 500.f, 150.f }, { 300.f, 170.f }));
+    add<ComponentRadioGroup>(radioGroup, Component::Type::RadioGroup);
+    label(scene, radioGroup, "Radio Title", { { 0.f, 0.f }, { 1.f, 0.f }, { .5f, 0.f }, { 0.f, 0.f }, { 0.f, 30.f } },
+          "Pick one:", 24.f, grey, ComponentLabel::HAlign::Left);
+    for (int i = 0; i < 3; ++i){
+        GameObject* option = checkbox(scene, radioGroup, ("Radio Option " + std::to_string(i + 1)).c_str(),
+                                      { { 0.f, 0.f }, { 0.f, 0.f }, { 0.f, 0.f }, { 0.f, 38.f + i * 44.f }, { 260.f, 36.f } },
+                                      "", i == 0);
+        label(scene, option, "Text", { { 0.f, 0.f }, { 1.f, 1.f }, { .5f, .5f }, { 27.f, 0.f }, { -30.f, 0.f } },
+              ("Option " + std::to_string(i + 1)).c_str(), 26.f, white, ComponentLabel::HAlign::Left);
+    }
+    label(scene, canvasGO, "Radio Selection Label", pinned(center, { 500.f, 330.f }, { 300.f, 26.f }),
+          "Selected: (needs UIDemoScript)", 20.f, grey, ComponentLabel::HAlign::Left);
 
     // A masked scroll panel: 8 stacked rows in a window tall enough for about four of them. Content past the
     // panel's edge is clipped by ComponentTransform2D::maskChildren rather than laid out to fit.

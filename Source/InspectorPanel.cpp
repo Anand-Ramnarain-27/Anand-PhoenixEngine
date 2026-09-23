@@ -29,6 +29,7 @@
 #include "ComponentCheckBox.h"
 #include "ComponentSlider.h"
 #include "ComponentInputBox.h"
+#include "ComponentRadioGroup.h"
 #include "ComponentFactory.h"
 #include "PrefabManager.h"
 #include "TextureImporter.h"
@@ -221,6 +222,7 @@ void InspectorPanel::drawContent(){
             comp->getType() == Component::Type::CheckBox ? "Checkbox" :
             comp->getType() == Component::Type::Slider ? "Slider" :
             comp->getType() == Component::Type::InputBox ? "Input Box" :
+            comp->getType() == Component::Type::RadioGroup ? "Radio Group" :
             "Component";
 
         ImGui::PushID((int)comp->getType());
@@ -411,6 +413,7 @@ void InspectorPanel::drawAddComponentMenu(){
         addComp("Checkbox", Component::Type::CheckBox, go->getComponent<ComponentCheckBox>() != nullptr);
         addComp("Slider", Component::Type::Slider, go->getComponent<ComponentSlider>() != nullptr);
         addComp("Input Box", Component::Type::InputBox, go->getComponent<ComponentInputBox>() != nullptr);
+        addComp("Radio Group", Component::Type::RadioGroup, go->getComponent<ComponentRadioGroup>() != nullptr);
         ImGui::EndMenu();
     }
     ImGui::Separator();

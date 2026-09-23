@@ -28,6 +28,7 @@
 #include "ComponentCheckBox.h"
 #include "ComponentSlider.h"
 #include "ComponentInputBox.h"
+#include "ComponentRadioGroup.h"
 #include "UITestScene.h"
 #include "ModuleUI.h"
 #include "HotReloadManager.h"
@@ -293,6 +294,37 @@ void ModuleEditor::drawMenuBar(){
                     label->hAlign = ComponentLabel::HAlign::Left;
                 }
             }
+            if (ImGui::MenuItem("Radio Group")){
+                spawnUI("Radio Group", Component::Type::RadioGroup, Vector2(300.f, 150.f));
+                // Three stacked options, each with the same row-is-the-click-target shape as a standalone
+                // Checkbox; the first one starts selected so the group never looks empty.
+                if (GameObject* group = m_selection.object){
+                    SceneGraph* sc = getActiveModuleScene();
+                    for (int i = 0; i < 3; ++i){
+                        GameObject* option = sc->createGameObject(("Option " + std::to_string(i + 1)).c_str(), group);
+                        option->addComponent(ComponentFactory::CreateComponent(Component::Type::Transform2D, option));
+                        auto* ot = option->getComponent<ComponentTransform2D>();
+                        ot->anchorMin = ot->anchorMax = ot->pivot = Vector2(0.f, 0.f);
+                        ot->position = Vector2(0.f, float(i) * 50.f);
+                        ot->size = Vector2(300.f, 40.f);
+                        option->addComponent(ComponentFactory::CreateComponent(Component::Type::CheckBox, option));
+                        option->getComponent<ComponentCheckBox>()->checked = (i == 0);
+
+                        GameObject* text = sc->createGameObject("Text", option);
+                        text->addComponent(ComponentFactory::CreateComponent(Component::Type::Transform2D, text));
+                        auto* t = text->getComponent<ComponentTransform2D>();
+                        t->anchorMin = Vector2(0.f, 0.f);
+                        t->anchorMax = Vector2(1.f, 1.f);
+                        t->size = Vector2(-50.f, 0.f);
+                        t->position = Vector2(25.f, 0.f);
+                        text->addComponent(ComponentFactory::CreateComponent(Component::Type::Label, text));
+                        auto* label = text->getComponent<ComponentLabel>();
+                        label->text = "Option " + std::to_string(i + 1);
+                        label->hAlign = ComponentLabel::HAlign::Left;
+                    }
+                    m_selection.object = group;
+                }
+            }
             ImGui::Separator();
             if (ImGui::MenuItem("UI Test Scene (adds to current scene)")){
                 if (SceneGraph* sc = getActiveModuleScene()){
@@ -363,6 +395,7 @@ void ModuleEditor::drawMenuBar(){
         addToSel("Checkbox", Component::Type::CheckBox);
         addToSel("Slider", Component::Type::Slider);
         addToSel("Input Box", Component::Type::InputBox);
+        addToSel("Radio Group", Component::Type::RadioGroup);
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Debug")){

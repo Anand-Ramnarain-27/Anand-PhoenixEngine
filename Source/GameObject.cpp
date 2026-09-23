@@ -25,6 +25,7 @@
 #include "ComponentCheckBox.h"
 #include "ComponentSlider.h"
 #include "ComponentInputBox.h"
+#include "ComponentRadioGroup.h"
 #include "PrefabManager.h"
 #include <algorithm>
 #include <random>
@@ -109,6 +110,7 @@ namespace {
     template<> struct CompTag<ComponentCheckBox>                { static constexpr Component::Type v = Component::Type::CheckBox; };
     template<> struct CompTag<ComponentSlider>                  { static constexpr Component::Type v = Component::Type::Slider; };
     template<> struct CompTag<ComponentInputBox>                { static constexpr Component::Type v = Component::Type::InputBox; };
+    template<> struct CompTag<ComponentRadioGroup>              { static constexpr Component::Type v = Component::Type::RadioGroup; };
 }
 
 template<typename T>
@@ -179,6 +181,7 @@ template ComponentProgressBar* GameObject::getComponent<ComponentProgressBar>() 
 template ComponentCheckBox* GameObject::getComponent<ComponentCheckBox>() const;
 template ComponentSlider* GameObject::getComponent<ComponentSlider>() const;
 template ComponentInputBox* GameObject::getComponent<ComponentInputBox>() const;
+template ComponentRadioGroup* GameObject::getComponent<ComponentRadioGroup>() const;
 
 template bool GameObject::removeComponent<ComponentMesh>();
 template bool GameObject::removeComponent<ComponentCamera>();
@@ -200,3 +203,4 @@ template bool GameObject::removeComponent<ComponentProgressBar>();
 template bool GameObject::removeComponent<ComponentCheckBox>();
 template bool GameObject::removeComponent<ComponentSlider>();
 template bool GameObject::removeComponent<ComponentInputBox>();
+template bool GameObject::removeComponent<ComponentRadioGroup>();

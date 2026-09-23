@@ -48,6 +48,14 @@ void UIDemoScript::Start(GameObject* owner){
         UI::SetText(m_echo, "Submitted: " + text);
     });
 
+    // Radio group: each option reports when IT turns on; the other two go quiet as the group deselects them.
+    m_radioLabel = Scene::Find("Radio Selection Label");
+    m_onRadio1 = UI::OnToggled(Scene::Find("Radio Option 1"), [this](bool on){ if (on) UI::SetText(m_radioLabel, "Selected: Radio Option 1"); });
+    m_onRadio2 = UI::OnToggled(Scene::Find("Radio Option 2"), [this](bool on){ if (on) UI::SetText(m_radioLabel, "Selected: Radio Option 2"); });
+    m_onRadio3 = UI::OnToggled(Scene::Find("Radio Option 3"), [this](bool on){ if (on) UI::SetText(m_radioLabel, "Selected: Radio Option 3"); });
+    if (GameObject* selected = UI::GetSelectedRadioOption(Scene::Find("Radio Group")))
+        UI::SetText(m_radioLabel, "Selected: " + std::string(GetName(selected)));
+
     refreshLabel();
 }
 
@@ -65,7 +73,10 @@ void UIDemoScript::Destroy(){
     UI::RemoveListener(m_onSlide);
     UI::RemoveListener(m_onText);
     UI::RemoveListener(m_onSubmit);
-    m_onClick = m_onEnter = m_onExit = m_onToggle = m_onSlide = m_onText = m_onSubmit = {};
+    UI::RemoveListener(m_onRadio1);
+    UI::RemoveListener(m_onRadio2);
+    UI::RemoveListener(m_onRadio3);
+    m_onClick = m_onEnter = m_onExit = m_onToggle = m_onSlide = m_onText = m_onSubmit = m_onRadio1 = m_onRadio2 = m_onRadio3 = {};
 }
 
 void UIDemoScript::refreshLabel(){

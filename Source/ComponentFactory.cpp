@@ -21,6 +21,7 @@
 #include "ComponentCheckBox.h"
 #include "ComponentSlider.h"
 #include "ComponentInputBox.h"
+#include "ComponentRadioGroup.h"
 #include "ComponentParticleSystem.h"
 #include "ComponentTrail.h"
 #include "ComponentAIAgent.h"
@@ -53,6 +54,7 @@ std::unique_ptr<Component> ComponentFactory::CreateComponent(Component::Type typ
     case Component::Type::CheckBox: return std::make_unique<ComponentCheckBox>(owner);
     case Component::Type::Slider: return std::make_unique<ComponentSlider>(owner);
     case Component::Type::InputBox: return std::make_unique<ComponentInputBox>(owner);
+    case Component::Type::RadioGroup: return std::make_unique<ComponentRadioGroup>(owner);
     default: LOG("ComponentFactory: Unknown component type %d", (int)type); return nullptr;
     }
 }

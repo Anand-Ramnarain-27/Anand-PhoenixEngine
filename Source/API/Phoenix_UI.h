@@ -20,7 +20,7 @@ struct UIListener {
     bool valid() const { return id != 0; }
 };
 
-// Talks to the widgets of the UI system (Canvas / Button / CheckBox / Slider / InputBox / ProgressBar / Image / Label).
+// Talks to the widgets of the UI system (Canvas / Button / CheckBox / RadioGroup / Slider / InputBox / ProgressBar / Image / Label).
 //
 // Events are delegates: register in Start(), remove in Destroy() if the script can be destroyed while the button
 // lives, otherwise the callback would outlive the script. Listeners run after the frame's UI input is processed,
@@ -71,6 +71,10 @@ struct UI {
 
     static void SetChecked(GameObject* checkbox, bool checked);
     static bool IsChecked(GameObject* checkbox);
+
+    // The GameObject carrying the ComponentRadioGroup — every CheckBox under it (recursively, unless owned by
+    // a nested group) is a member. Returns the currently-selected member's GameObject, or null if none is.
+    static GameObject* GetSelectedRadioOption(GameObject* radioGroup);
 
     static std::string GetInputText(GameObject* inputBox);
     static void SetInputText(GameObject* inputBox, const std::string& text);   // filtered like typed input

@@ -18,7 +18,9 @@
 #include "ComponentCheckBox.h"
 #include "ComponentSlider.h"
 #include "ComponentInputBox.h"
+#include "ComponentRadioGroup.h"
 #include "UISelectable.h"
+#include "UIRadioGroup.h"
 #include "UIPass.h"
 #include <algorithm>
 #include <chrono>
@@ -478,8 +480,15 @@ void ModuleUI::updateInteraction(SceneGraph* scene, uint32_t width, uint32_t hei
         w.sel->clicked = true;
         queue(w, UIEventType::Click);
         if (auto* box = w.go->getComponent<ComponentCheckBox>()){
+            // A strict radio group (the default) always keeps one option selected: clicking the option that
+            // is already chosen does nothing, rather than leaving the group with nothing picked.
+            GameObject* group = UIRadioGroup::find(w.go);
+            const bool locked = group && box->checked && !group->getComponent<ComponentRadioGroup>()->allowSwitchOff;
+            if (locked) return;
+
             box->checked = !box->checked;
             queue(w, UIEventType::ValueChanged);
+            if (box->checked) UIRadioGroup::applyExclusivity(scene, w.go);
         }
     };
 

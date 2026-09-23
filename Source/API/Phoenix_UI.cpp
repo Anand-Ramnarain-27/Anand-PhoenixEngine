@@ -10,6 +10,7 @@
 #include "ComponentImage.h"
 #include "ComponentLabel.h"
 #include "ComponentTransform2D.h"
+#include "UIRadioGroup.h"
 
 // Everything here works on component data and inline code only: GameScript.dll shares just the `app` pointer
 // with the engine, so it cannot call into renderer code.
@@ -166,12 +167,22 @@ bool UI::IsTypingText(){
 }
 
 void UI::SetChecked(GameObject* go, bool checked){
-    if (auto* box = go ? go->getComponent<ComponentCheckBox>() : nullptr) box->checked = checked;
+    auto* box = go ? go->getComponent<ComponentCheckBox>() : nullptr;
+    if (!box) return;
+    box->checked = checked;
+    // Selecting a radio option through script keeps the same "only one chosen" guarantee a click would.
+    if (checked && app && app->getRuntimeCore())
+        UIRadioGroup::applyExclusivity(app->getRuntimeCore()->getActiveModuleScene(), go);
 }
 
 bool UI::IsChecked(GameObject* go){
     auto* box = go ? go->getComponent<ComponentCheckBox>() : nullptr;
     return box && box->checked;
+}
+
+GameObject* UI::GetSelectedRadioOption(GameObject* radioGroup){
+    if (!radioGroup || !app || !app->getRuntimeCore()) return nullptr;
+    return UIRadioGroup::findSelected(app->getRuntimeCore()->getActiveModuleScene(), radioGroup);
 }
 
 void UI::SetSliderValue(GameObject* go, float value){

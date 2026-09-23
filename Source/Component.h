@@ -33,6 +33,7 @@ public:
         CheckBox = 23,
         Slider = 24,
         InputBox = 25,
+        RadioGroup = 26,
     };
 
     explicit Component(GameObject* owner) : owner(owner){}

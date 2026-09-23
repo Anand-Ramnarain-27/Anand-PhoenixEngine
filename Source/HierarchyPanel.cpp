@@ -22,6 +22,7 @@
 #include "ComponentCheckBox.h"
 #include "ComponentSlider.h"
 #include "ComponentInputBox.h"
+#include "ComponentRadioGroup.h"
 #include "ComponentParticleSystem.h"
 #include "ComponentTrail.h"
 #include <algorithm>
@@ -306,6 +307,7 @@ void HierarchyPanel::itemContextMenu(GameObject* go){
             addIf("Checkbox", Component::Type::CheckBox, go->getComponent<ComponentCheckBox>() != nullptr);
             addIf("Slider", Component::Type::Slider, go->getComponent<ComponentSlider>() != nullptr);
             addIf("Input Box", Component::Type::InputBox, go->getComponent<ComponentInputBox>() != nullptr);
+            addIf("Radio Group", Component::Type::RadioGroup, go->getComponent<ComponentRadioGroup>() != nullptr);
             ImGui::EndMenu();
         }
 

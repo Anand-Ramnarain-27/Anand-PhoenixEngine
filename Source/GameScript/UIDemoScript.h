@@ -35,6 +35,10 @@ private:
     Phoenix::UIListener m_onText;
     Phoenix::UIListener m_onSubmit;
     GameObject* m_echo = nullptr;
+    GameObject* m_radioLabel = nullptr;
+    Phoenix::UIListener m_onRadio1;
+    Phoenix::UIListener m_onRadio2;
+    Phoenix::UIListener m_onRadio3;
 };
 
 extern "C" SCRIPT_API IScript* Create_UIDemoScript();
