@@ -23,7 +23,43 @@ A DirectX 12 game engine built from scratch in modern C++ — deferred PBR rende
 | ![environment atmosphere](docs/media/environment-atmosphere.gif) |
 | Camera pulling back from a lit interior through an open roof into a dramatic HDR sky — shows the lighting, materials, and post-process stack working together on a full scene rather than an isolated test asset. |
 
-*Coming soon: skeletal animation and frustum-culling debug view — see [`docs/media/`](docs/media/) as they land.*
+### Inside the Editor
+
+Full-editor captures. Every change below is made live from the editor panels, with no restart or rebuild.
+
+**Volumetric lighting.** Ray-marched volumetric fog: point lights scatter through the room and produce visible light shafts. Steps, extinction, noise and Henyey-Greenstein anisotropy are all adjustable live.
+
+![volumetric lights](docs/media/volumetric-lights.gif)
+
+**Fog modes.** Switching between linear distance fog and exponential height fog on a full scene, then tuning colour, opacity, start/end distance and height falloff.
+
+![fog modes](docs/media/fog-modes.gif)
+
+**Exposure & chromatic aberration.** Exposure (in stops, applied before tonemapping) swept across a stylised interior, then the chromatic-aberration plugin effect toggled on.
+
+![exposure and chromatic aberration](docs/media/exposure-chromatic.gif)
+
+**Bloom on GPU VFX.** A comet particle/trail effect with bloom toggled on, followed by live changes to threshold and intensity.
+
+![bloom on vfx](docs/media/bloom-vfx.gif)
+
+**Post-process stack.** Bloom, fog, chromatic aberration and FXAA layered one at a time over an HDR environment.
+
+![post-process stack](docs/media/post-process-stack.gif)
+
+**Morph-target animation.** GPU morph-target blending driven by the animation component, with clips switched from the inspector and the state-machine graph shown alongside.
+
+![morph targets](docs/media/morph-targets.gif)
+
+**Skeletal animation in play mode.** A skinned goblin character animating in the game view.
+
+![skeletal animation](docs/media/skeletal-animation.gif)
+
+**Gameplay scene.** Goblin and paladin characters moving through a tiled dungeon level in play mode.
+
+![gameplay agents](docs/media/gameplay-agents.gif)
+
+*Coming soon: frustum-culling debug view. See [`docs/media/`](docs/media/) as captures land.*
 
 ---
 
