@@ -17,4 +17,5 @@ protected:
 
 private:
     void drawPlaymodeOverlay();
+    void drawUIDebugRects();
 };

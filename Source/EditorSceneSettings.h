@@ -22,6 +22,7 @@ struct EditorSceneSettings {
     bool debugDrawBounds = false;
     bool debugDrawGrid = false;
     bool debugDrawNav = false;
+    bool debugDrawUIRects = false;   // Game View: outline + pivot + anchors for every ComponentTransform2D
 
     bool debugDrawCameraFrustums = true;
     bool debugDrawEditorCameraRay = true;

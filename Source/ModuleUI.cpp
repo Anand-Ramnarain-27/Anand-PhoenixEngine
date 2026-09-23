@@ -97,6 +97,7 @@ void ModuleUI::collectCanvases(GameObject* node, std::vector<GameObject*>& out) 
 void ModuleUI::buildDrawList(SceneGraph* scene, uint32_t width, uint32_t height){
     m_items.clear();
     m_hits.clear();
+    m_debugRects.clear();
     m_currentClip = ClipRect{};   // each canvas starts unclipped; masking only narrows within one canvas's tree
 
     std::vector<GameObject*> canvases;
@@ -132,6 +133,28 @@ void ModuleUI::emitNode(GameObject* node, const UIRect& parentRect, float scale)
     }
     else {
         pivotPos = rect.center();
+    }
+
+    // Gizmo geometry for the "UI Rects / Anchors" editor overlay. Cheap (a handful of widgets, some vector
+    // math), so it is always collected rather than gated behind a flag ModuleUI would need to know about.
+    if (t2d){
+        const float cs = std::cos(rotation), sn = std::sin(rotation);
+        auto corner = [&](Vector2 c){
+            const Vector2 off = c - pivotPos;
+            return (pivotPos + Vector2(off.x * cs - off.y * sn, off.x * sn + off.y * cs)) * scale;
+        };
+        UIDebugRect dbg;
+        dbg.go = node;
+        dbg.name = node->getName();
+        dbg.corners[0] = corner(rect.min);
+        dbg.corners[1] = corner(Vector2(rect.max.x, rect.min.y));
+        dbg.corners[2] = corner(rect.max);
+        dbg.corners[3] = corner(Vector2(rect.min.x, rect.max.y));
+        dbg.pivotPx = pivotPos * scale;
+        dbg.anchorMinPx = (parentRect.min + parentRect.size() * t2d->anchorMin) * scale;
+        dbg.anchorMaxPx = (parentRect.min + parentRect.size() * t2d->anchorMax) * scale;
+        dbg.stretched = (t2d->anchorMin != t2d->anchorMax);
+        m_debugRects.push_back(std::move(dbg));
     }
 
     // A masking widget narrows the clip for itself and everything under it; restored once this subtree is done
@@ -295,6 +318,22 @@ double ModuleUI::nowMs() const{
     return duration<double, std::milli>(steady_clock::now().time_since_epoch()).count();
 }
 
+// Ctrl+C/Ctrl+X: writes ASCII text (widened to UTF-16, as the clipboard expects) to the OS clipboard. Reading
+// it back is already handled at the input-feed level (RuntimeCore's Ctrl+V, GameViewPanel's Ctrl+V).
+void ModuleUI::writeClipboardText(const std::string& text){
+    if (!OpenClipboard(nullptr)) return;
+    EmptyClipboard();
+    if (HGLOBAL mem = GlobalAlloc(GMEM_MOVEABLE, (text.size() + 1) * sizeof(wchar_t))){
+        if (wchar_t* dst = static_cast<wchar_t*>(GlobalLock(mem))){
+            for (size_t i = 0; i < text.size(); ++i) dst[i] = static_cast<wchar_t>(static_cast<unsigned char>(text[i]));
+            dst[text.size()] = 0;
+            GlobalUnlock(mem);
+            SetClipboardData(CF_UNICODETEXT, mem);
+        }
+    }
+    CloseClipboard();
+}
+
 int ModuleUI::caretIndexAt(const ComponentInputBox& box, const Hit& hit, const Vector2& pixel) const{
     const std::string font = resolveFont(box.fontName);
     const float lineSpacing = m_pass->getLineSpacing(font);
@@ -348,6 +387,15 @@ void ModuleUI::emitInputBox(GameObject* node, const UIRect& rect, const Vector2&
 
     const size_t firstClipped = m_items.size();
     const float top = inner.center().y - box->fontSize * 0.5f;
+
+    if (box->hasSelection()){
+        const float selLoX = m_pass->measureText(font, display.substr(0, box->selectionLo()), false).x * fontScale;
+        const float selHiX = m_pass->measureText(font, display.substr(0, box->selectionHi()), false).x * fontScale;
+        const Vector2 selMin(inner.min.x - box->scrollX + selLoX, top);
+        const Vector2 selMax(inner.min.x - box->scrollX + selHiX, top + box->fontSize);
+        pushSubRect(selMin, selMax, pivotPos, rotation, scale, std::string(), box->selectionColor, nullptr);
+    }
+
     if (!display.empty())
         pushText(font, display, box->textColor, Vector2(inner.min.x - box->scrollX, top), fontScale, pivotPos, rotation, scale);
     else if (!box->placeholder.empty())
@@ -513,7 +561,7 @@ void ModuleUI::updateInteraction(SceneGraph* scene, uint32_t width, uint32_t hei
 
                 if (auto* box = w.go->getComponent<ComponentInputBox>()){
                     w.sel->focused = true;   // clicking a text field always starts editing
-                    box->setCaret(caretIndexAt(*box, *w.hit, in.pointer));
+                    box->setCaret(caretIndexAt(*box, *w.hit, in.pointer), in.shiftDown);   // Shift+click extends
                     box->blinkStart = nowMs();
                 }
             }
@@ -575,14 +623,25 @@ void ModuleUI::updateInteraction(SceneGraph* scene, uint32_t width, uint32_t hei
         changed |= box->insertText(in.paste);
         for (int i = 0; i < in.backspace; ++i) changed |= box->eraseBefore();
         for (int i = 0; i < in.deleteKey; ++i) changed |= box->eraseAfter();
-        if (in.navX != 0) box->moveCaret(in.navX);
-        if (in.home) box->setCaret(0);
-        if (in.end) box->setCaret((int)box->text.size());
-        if (changed || in.navX != 0 || in.home || in.end) box->blinkStart = nowMs();   // caret stays solid while editing
+        if (in.copyPressed && box->hasSelection()) writeClipboardText(box->selectedText());
+        if (in.cutPressed && box->hasSelection()){ writeClipboardText(box->selectedText()); changed |= box->eraseSelection(); }
+        if (in.selectAllPressed) box->selectAll();
+        if (in.navX != 0) box->moveCaret(in.navX, in.shiftDown);
+        if (in.home) box->setCaret(0, in.shiftDown);
+        if (in.end) box->setCaret((int)box->text.size(), in.shiftDown);
+        if (changed || in.navX != 0 || in.home || in.end || in.selectAllPressed) box->blinkStart = nowMs();   // caret stays solid while editing
 
         if (changed) queue(w, UIEventType::ValueChanged);
         if (in.enterPressed) queue(w, UIEventType::Submit);
         if (in.escapePressed) w.sel->focused = false;
+    }
+
+    // InputBox: dragging with the mouse held extends the selection from the press point to the current pointer,
+    // independently of whatever else may have since taken focus.
+    for (const Widget& w : widgets){
+        auto* box = w.go->getComponent<ComponentInputBox>();
+        if (!box || !w.sel->mouseHeld || !in.pointerValid) continue;
+        box->setCaret(caretIndexAt(*box, *w.hit, in.pointer), true);
     }
 
     // Sliders: follow the pointer while it is held on one (clamped, so dragging past the ends is fine), and let

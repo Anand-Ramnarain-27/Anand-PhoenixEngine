@@ -129,6 +129,9 @@ public:
     void setupDefaultScene();
     void applySkyboxFromSettings();
     void deleteGameObject(GameObject* go);
+    // Pushes an undo/redo pair for a just-created GameObject subtree (a UI widget and whatever children the
+    // creation code added under it, e.g. a Button's Image+Label). Call once, after the whole subtree exists.
+    void pushCreateSubtreeUndo(GameObject* root, const char* label);
     void spawnAssetAtPath(const std::string& path);
     GameObject* spawnModel(const std::string& path);
 

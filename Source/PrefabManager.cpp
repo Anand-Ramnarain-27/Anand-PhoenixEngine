@@ -361,11 +361,15 @@ std::string PrefabManager::serializeGameObject(const GameObject* go){
 }
 
 GameObject* PrefabManager::deserializeGameObject(const std::string& data, SceneGraph* scene){
+    return deserializeGameObject(data, scene, nullptr);
+}
+
+GameObject* PrefabManager::deserializeGameObject(const std::string& data, SceneGraph* scene, GameObject* parent){
     if (data.empty() || !scene) return nullptr;
     Document doc;
     doc.Parse(data.c_str());
     if (doc.HasParseError() || !doc.HasMember("GameObject") || !doc["GameObject"].IsObject()) return nullptr;
-    return deserialiseNode(doc["GameObject"], scene, nullptr);
+    return deserialiseNode(doc["GameObject"], scene, parent);
 }
 
 bool PrefabManager::createVariant(const std::string& srcPrefabName, const std::string& dstPrefabName){

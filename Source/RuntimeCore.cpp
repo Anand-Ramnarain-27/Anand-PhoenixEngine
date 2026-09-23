@@ -338,20 +338,37 @@ void RuntimeCore::preRender(){
                           input->isMouseDown(Phoenix::MouseButton::Left);
         in.mousePressed = input->isMousePressed(Phoenix::MouseButton::Left);
         in.mouseReleased = input->isMouseReleased(Phoenix::MouseButton::Left);
-        in.tabPressed = input->isKeyPressed(Phoenix::Key::Tab);
-        in.shiftDown = input->isKeyDown(Phoenix::Key::LeftShift) || input->isKeyDown(Phoenix::Key::RightShift);
-        in.submitPressed = input->isKeyPressed(Phoenix::Key::Enter) || input->isKeyPressed(Phoenix::Key::Space);
-        in.submitReleased = input->isKeyReleased(Phoenix::Key::Enter) || input->isKeyReleased(Phoenix::Key::Space);
+        // Gamepad (player 0), alongside the keyboard: shoulder buttons cycle focus like Tab/Shift+Tab, D-pad
+        // nudges a focused slider or caret like the arrow keys, A submits like Enter/Space, B drops focus like
+        // Escape. Button state is safe to read even with nothing connected (reads as never pressed).
+        using Phoenix::GamepadButton;
+        const bool padNext = input->isButtonPressed(GamepadButton::RightShoulder, 0);
+        const bool padPrev = input->isButtonPressed(GamepadButton::LeftShoulder, 0);
+        const bool padRight = input->isButtonPressed(GamepadButton::DPadRight, 0);
+        const bool padLeft = input->isButtonPressed(GamepadButton::DPadLeft, 0);
+        const bool padUp = input->isButtonPressed(GamepadButton::DPadUp, 0);
+        const bool padDown = input->isButtonPressed(GamepadButton::DPadDown, 0);
+
+        in.tabPressed = input->isKeyPressed(Phoenix::Key::Tab) || padNext || padPrev;
+        in.submitPressed = input->isKeyPressed(Phoenix::Key::Enter) || input->isKeyPressed(Phoenix::Key::Space) || input->isButtonPressed(GamepadButton::A, 0);
+        in.submitReleased = input->isKeyReleased(Phoenix::Key::Enter) || input->isKeyReleased(Phoenix::Key::Space) || input->isButtonReleased(GamepadButton::A, 0);
         const ModuleUI::EditKeys keys = ui->takeEditKeys();
-        in.navX = keys.right - keys.left;
-        in.navY = (input->isKeyPressed(Phoenix::Key::Up) ? 1 : 0) - (input->isKeyPressed(Phoenix::Key::Down) ? 1 : 0);
+        // in.shiftDown normally reflects Shift's current polled state, but this loop only runs on WM_PAINT, so a
+        // fast Shift+Home/Left/Right can have Shift already released by the time we get here. keys.shiftForEdit
+        // was captured synchronously alongside those specific queued events, so OR it in to avoid losing them.
+        in.shiftDown = input->isKeyDown(Phoenix::Key::LeftShift) || input->isKeyDown(Phoenix::Key::RightShift) || padPrev || keys.shiftForEdit;
+        in.navX = (keys.right + (padRight ? 1 : 0)) - (keys.left + (padLeft ? 1 : 0));
+        in.navY = (input->isKeyPressed(Phoenix::Key::Up) || padUp ? 1 : 0) - (input->isKeyPressed(Phoenix::Key::Down) || padDown ? 1 : 0);
         in.text = ui->takeTypedText();
         in.backspace = keys.back;
         in.deleteKey = keys.del;
         in.home = keys.home;
         in.end = keys.end;
         in.enterPressed = keys.enter;
-        in.escapePressed = keys.escape;
+        in.escapePressed = keys.escape || input->isButtonPressed(GamepadButton::B, 0);
+        in.selectAllPressed = keys.selectAll;
+        in.copyPressed = keys.copy;
+        in.cutPressed = keys.cut;
         if (keys.paste) in.paste = readClipboardAscii();
         ui->updateInteraction(getActiveModuleScene(), curW, curH, in);
     }

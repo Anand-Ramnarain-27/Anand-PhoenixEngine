@@ -50,6 +50,9 @@ public:
 
     static std::string serializeGameObject(const GameObject* go);
     static GameObject* deserializeGameObject(const std::string& data, SceneGraph* scene);
+    // Same, but attached under `parent` instead of the scene root (the plain overload above never restores
+    // the original parent, since parentage isn't part of what gets serialized).
+    static GameObject* deserializeGameObject(const std::string& data, SceneGraph* scene, GameObject* parent);
 
     static bool isPrefabInstance(const GameObject* go);
     static std::string getPrefabName(const GameObject* go);

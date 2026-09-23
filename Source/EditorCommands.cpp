@@ -64,9 +64,20 @@
 #include "ModuleStaticBuffer.h"
 #include <filesystem>
 #include <algorithm>
+#include <vector>
 #include <functional>
 #include <unordered_set>
 #include <cfloat>
+
+namespace {
+    GameObject* findByUid(GameObject* node, uint32_t uid){
+        if (!node) return nullptr;
+        if (node->getUID() == uid) return node;
+        for (GameObject* child : node->getChildren())
+            if (GameObject* found = findByUid(child, uid)) return found;
+        return nullptr;
+    }
+}
 
 void ModuleEditor::pushCommand(EditorCommand cmd){
     m_redoStack.clear();
@@ -133,6 +144,49 @@ void ModuleEditor::pasteClipboard(){
             if (s) s->destroyGameObject(p);
             *livePtr = nullptr;
             log(("Undo paste: " + pastedName).c_str(), EditorColors::Warning);
+        }
+        });
+}
+
+void ModuleEditor::pushCreateSubtreeUndo(GameObject* root, const char* label){
+    if (!root) return;
+    std::string name = label ? label : root->getName();
+    auto serialized = std::make_shared<std::string>();
+    auto livePtr = std::make_shared<GameObject*>(root);
+    // Serializing captures the subtree's own contents, not where it sits in the tree, so the parent is tracked
+    // separately by UID and re-resolved on redo (falling back to the scene root if it is somehow gone by then).
+    const uint32_t parentUid = root->getParent() ? root->getParent()->getUID() : 0;
+
+    pushCommand({
+        [this, serialized, livePtr, name, parentUid](){
+            SceneGraph* s = getActiveModuleScene();
+            if (!s || serialized->empty()) return;
+            GameObject* parent = parentUid ? findByUid(s->getRoot(), parentUid) : nullptr;
+            GameObject* restored = PrefabManager::deserializeGameObject(*serialized, s, parent);
+            if (restored){ *livePtr = restored; m_selection.object = restored; log(("Redo create: " + name).c_str(), EditorColors::Success); }
+        },
+        [this, livePtr, serialized, name](){
+            GameObject* go = *livePtr;
+            if (!go) return;
+            *serialized = PrefabManager::serializeGameObject(go);
+            if (m_selection.object == go || isChildOf(go, m_selection.object)) m_selection.clear();
+            app->getD3D12()->flush();
+            SceneGraph* s = getActiveModuleScene();
+            if (s){
+                // SceneGraph::destroyGameObject only reparents a node's direct children rather than removing
+                // them, so a single call on the widget's root would silently orphan its own child widgets
+                // (a Button's Image+Label, a Checkbox's Text, a Radio Group's options). Collect the whole
+                // subtree first and destroy it bottom-up instead, same as ModuleEditor::deleteGameObject.
+                std::vector<GameObject*> subtree;
+                std::function<void(GameObject*)> collect = [&](GameObject* node){
+                    subtree.push_back(node);
+                    for (auto* c : node->getChildren()) collect(c);
+                };
+                collect(go);
+                for (int i = (int)subtree.size() - 1; i >= 0; --i) s->destroyGameObject(subtree[i]);
+            }
+            *livePtr = nullptr;
+            log(("Undo create: " + name).c_str(), EditorColors::Warning);
         }
         });
 }

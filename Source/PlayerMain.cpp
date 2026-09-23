@@ -69,7 +69,7 @@ LRESULT CALLBACK PlayerWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
         break;
     case WM_KEYDOWN:
         Keyboard::ProcessMessage(message, wParam, lParam);
-        if (app && app->getUI()) app->getUI()->pushEditKey(static_cast<uint32_t>(wParam), (GetKeyState(VK_CONTROL) & 0x8000) != 0);
+        if (app && app->getUI()) app->getUI()->pushEditKey(static_cast<uint32_t>(wParam), (GetKeyState(VK_CONTROL) & 0x8000) != 0, (GetKeyState(VK_SHIFT) & 0x8000) != 0);
         break;
     case WM_KEYUP:
     case WM_SYSKEYUP:

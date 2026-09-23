@@ -39,4 +39,10 @@ struct UIInput {
     bool end = false;
     bool enterPressed = false;
     bool escapePressed = false;
+
+    // Selection: Ctrl+A/Ctrl+C/Ctrl+X for the focused InputBox. Shift+click/drag/arrow/Home/End selection uses
+    // the fields above (mousePressed/pointer, navX, home, end) together with `shiftDown`.
+    bool selectAllPressed = false;
+    bool copyPressed = false;
+    bool cutPressed = false;
 };

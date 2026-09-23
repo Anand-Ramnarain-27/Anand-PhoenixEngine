@@ -52,19 +52,29 @@ public:
     struct EditKeys {
         int back = 0, del = 0, left = 0, right = 0;
         bool home = false, end = false, enter = false, escape = false, paste = false;
+        bool selectAll = false, copy = false, cut = false;
+        // Whether Shift was down (per GetKeyState, read synchronously in the same WM_KEYDOWN handler that
+        // queued the events above) at the moment any of Home/End/Left/Right fired. The player's main loop is
+        // WM_PAINT-driven, so a live poll of Shift later in the frame can race against - and lose to - a
+        // synthetic or fast Shift-up that already landed; this flag avoids that by capturing Shift at the
+        // same instant as the key it's meant to modify, exactly like ctrlDown already does for Ctrl+V/A/C/X.
+        bool shiftForEdit = false;
     };
-    void pushEditKey(uint32_t virtualKey, bool ctrlDown){
+    void pushEditKey(uint32_t virtualKey, bool ctrlDown, bool shiftDown = false){
         using Phoenix::Key;
         switch (static_cast<Key>(virtualKey)){
         case Key::Back:   ++m_keys.back; break;
         case Key::Delete: ++m_keys.del; break;
-        case Key::Left:   ++m_keys.left; break;
-        case Key::Right:  ++m_keys.right; break;
-        case Key::Home:   m_keys.home = true; break;
-        case Key::End:    m_keys.end = true; break;
+        case Key::Left:   ++m_keys.left; if (shiftDown) m_keys.shiftForEdit = true; break;
+        case Key::Right:  ++m_keys.right; if (shiftDown) m_keys.shiftForEdit = true; break;
+        case Key::Home:   m_keys.home = true; if (shiftDown) m_keys.shiftForEdit = true; break;
+        case Key::End:    m_keys.end = true; if (shiftDown) m_keys.shiftForEdit = true; break;
         case Key::Enter:  m_keys.enter = true; break;
         case Key::Escape: m_keys.escape = true; break;
         case Key::V:      if (ctrlDown) m_keys.paste = true; break;
+        case Key::A:      if (ctrlDown) m_keys.selectAll = true; break;
+        case Key::C:      if (ctrlDown) m_keys.copy = true; break;
+        case Key::X:      if (ctrlDown) m_keys.cut = true; break;
         default: break;
         }
     }
@@ -77,6 +87,19 @@ public:
     bool isPointerOverUI() const { return m_pointerOverUI; }
 
     UIPass* getPass() const { return m_pass.get(); }
+
+    // One widget's gizmo geometry, in the same screen-pixel space renderUI draws into, refreshed every
+    // renderUI/updateInteraction call whether or not anything reads it. Editor-only (a debug overlay tool).
+    struct UIDebugRect {
+        GameObject* go = nullptr;
+        std::string name;
+        Vector2 corners[4];      // rect corners (rotated), clockwise from top-left
+        Vector2 pivotPx;
+        Vector2 anchorMinPx;     // anchorMin/anchorMax mapped into the PARENT rect
+        Vector2 anchorMaxPx;
+        bool stretched = false;  // anchorMin != anchorMax: two handles + a dashed box, rather than one pin
+    };
+    const std::vector<UIDebugRect>& getDebugRects() const { return m_debugRects; }
 
     static constexpr const char* kDefaultFont = "UIFont";
 
@@ -126,12 +149,14 @@ private:
     std::string resolveFont(const std::string& name) const;
     double nowMs() const;
     int caretIndexAt(const ComponentInputBox& box, const Hit& hit, const Vector2& pixel) const;
+    static void writeClipboardText(const std::string& text);
     bool hitTest(const Hit& hit, const Vector2& pixel) const;
     void dispatch(SceneGraph* scene);
 
     std::unique_ptr<UIPass> m_pass;
     std::vector<UIDrawItem> m_items;
     std::vector<Hit> m_hits;
+    std::vector<UIDebugRect> m_debugRects;
     std::vector<PendingEvent> m_pending;
     ClipRect m_currentClip;   // the active mask while walking the tree; see ComponentTransform2D::maskChildren
     bool m_pointerOverUI = false;

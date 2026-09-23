@@ -38,6 +38,7 @@ void ComponentInputBox::onEditor(){
     ImGui::ColorEdit4("Text##input", &textColor.x);
     ImGui::ColorEdit4("Placeholder##inputColor", &placeholderColor.x);
     ImGui::ColorEdit4("Caret##input", &caretColor.x);
+    ImGui::ColorEdit4("Selection##input", &selectionColor.x);
 }
 
 void ComponentInputBox::onSave(std::string& outJson) const{
@@ -55,6 +56,7 @@ void ComponentInputBox::onSave(std::string& outJson) const{
     UIJson::putFloats(outJson, "textColor", &textColor.x, 4);
     UIJson::putFloats(outJson, "placeholderColor", &placeholderColor.x, 4);
     UIJson::putFloats(outJson, "caretColor", &caretColor.x, 4);
+    UIJson::putFloats(outJson, "selectionColor", &selectionColor.x, 4);
 }
 
 void ComponentInputBox::onLoad(const std::string& json){
@@ -73,6 +75,7 @@ void ComponentInputBox::onLoad(const std::string& json){
     r.getFloats("textColor", &textColor.x, 4);
     r.getFloats("placeholderColor", &placeholderColor.x, 4);
     r.getFloats("caretColor", &caretColor.x, 4);
+    r.getFloats("selectionColor", &selectionColor.x, 4);
 
     // Applied after the limits and content type above are known, so a saved value is filtered like typed input.
     std::string saved;

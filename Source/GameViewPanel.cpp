@@ -13,6 +13,7 @@
 #include "RenderTexture.h"
 #include "ModuleUI.h"
 #include "RuntimeCore.h"
+#include "EditorSceneSettings.h"
 #include <functional>
 
 GameViewPanel::GameViewPanel(ModuleEditor* editor) : ViewportPanel(editor){
@@ -64,12 +65,24 @@ void GameViewPanel::onImageDrawn(){
     in.mousePressed = hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
     in.mouseReleased = ImGui::IsMouseReleased(ImGuiMouseButton_Left);   // even outside, so a held button lets go
     if (ImGui::IsWindowFocused()){
-        in.tabPressed = ImGui::IsKeyPressed(ImGuiKey_Tab);
-        in.shiftDown = ImGui::GetIO().KeyShift;
-        in.submitPressed = ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_Space, false);
-        in.submitReleased = ImGui::IsKeyReleased(ImGuiKey_Enter) || ImGui::IsKeyReleased(ImGuiKey_Space);
-        in.navX = (ImGui::IsKeyPressed(ImGuiKey_RightArrow) ? 1 : 0) - (ImGui::IsKeyPressed(ImGuiKey_LeftArrow) ? 1 : 0);
-        in.navY = (ImGui::IsKeyPressed(ImGuiKey_UpArrow) ? 1 : 0) - (ImGui::IsKeyPressed(ImGuiKey_DownArrow) ? 1 : 0);
+        // Gamepad (player 0), alongside the keyboard: shoulder buttons cycle focus like Tab/Shift+Tab, D-pad
+        // nudges a focused slider or caret like the arrow keys, A submits like Enter/Space, B drops focus like
+        // Escape. Read via ModuleInput (updated regardless of editor/player), not ImGui.
+        using Phoenix::GamepadButton;
+        ModuleInput* input = app->getInput();
+        const bool padNext = input->isButtonPressed(GamepadButton::RightShoulder, 0);
+        const bool padPrev = input->isButtonPressed(GamepadButton::LeftShoulder, 0);
+        const bool padRight = input->isButtonPressed(GamepadButton::DPadRight, 0);
+        const bool padLeft = input->isButtonPressed(GamepadButton::DPadLeft, 0);
+        const bool padUp = input->isButtonPressed(GamepadButton::DPadUp, 0);
+        const bool padDown = input->isButtonPressed(GamepadButton::DPadDown, 0);
+
+        in.tabPressed = ImGui::IsKeyPressed(ImGuiKey_Tab) || padNext || padPrev;
+        in.shiftDown = ImGui::GetIO().KeyShift || padPrev;
+        in.submitPressed = ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_Space, false) || input->isButtonPressed(GamepadButton::A, 0);
+        in.submitReleased = ImGui::IsKeyReleased(ImGuiKey_Enter) || ImGui::IsKeyReleased(ImGuiKey_Space) || input->isButtonReleased(GamepadButton::A, 0);
+        in.navX = (ImGui::IsKeyPressed(ImGuiKey_RightArrow) || padRight ? 1 : 0) - (ImGui::IsKeyPressed(ImGuiKey_LeftArrow) || padLeft ? 1 : 0);
+        in.navY = (ImGui::IsKeyPressed(ImGuiKey_UpArrow) || padUp ? 1 : 0) - (ImGui::IsKeyPressed(ImGuiKey_DownArrow) || padDown ? 1 : 0);
 
         // Text entry: ImGui's platform backend already turned WM_CHAR into this queue.
         ImGuiIO& io = ImGui::GetIO();
@@ -82,9 +95,12 @@ void GameViewPanel::onImageDrawn(){
         in.home = ImGui::IsKeyPressed(ImGuiKey_Home, false);
         in.end = ImGui::IsKeyPressed(ImGuiKey_End, false);
         in.enterPressed = ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false);
-        in.escapePressed = ImGui::IsKeyPressed(ImGuiKey_Escape, false);
+        in.escapePressed = ImGui::IsKeyPressed(ImGuiKey_Escape, false) || input->isButtonPressed(GamepadButton::B, 0);
         if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V, false))
             if (const char* clip = ImGui::GetClipboardText()) in.paste = clip;
+        in.selectAllPressed = io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_A, false);
+        in.copyPressed = io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C, false);
+        in.cutPressed = io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_X, false);
     }
 
     ui->updateInteraction(app->getRuntimeCore()->getActiveModuleScene(),
@@ -93,12 +109,49 @@ void GameViewPanel::onImageDrawn(){
 
 void GameViewPanel::onDrawOverlays(){
     drawPlaymodeOverlay();
+    drawUIDebugRects();
 
     if (!app->getCamera()->getActiveCamera()){
         ImGuiWindow* win = ImGui::FindWindowByName("Game View");
         if (win)
             ImGui::GetForegroundDrawList()->AddText({ win->Pos.x + 10, win->Pos.y + 48 }, IM_COL32(255, 200, 80, 220),
                 "No active camera - showing UI only (tick 'Is Active Camera' on a Camera)");
+    }
+}
+
+// "UI Rects / Anchors" debug toggle (Menu > Debug): outlines every ComponentTransform2D's rect, marks its
+// pivot, and marks where its anchors sit in the parent rect. Runs every frame regardless of play state, since
+// it is meant for authoring, not just for watching the game run.
+void GameViewPanel::drawUIDebugRects(){
+    ModuleUI* ui = app->getUI();
+    SceneManager* sm = m_editor->getSceneManager();
+    if (!ui || !sm || !sm->getSettings().debugDrawUIRects) return;
+    if (!viewport.display || !viewport.display->isValid()) return;
+
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    const ImVec2 origin = viewport.pos;
+    const ImU32 rectColor = IM_COL32(80, 200, 255, 200);
+    const ImU32 pivotColor = IM_COL32(255, 220, 60, 230);
+    const ImU32 anchorColor = IM_COL32(255, 110, 220, 220);
+
+    auto toScreen = [&](const Vector2& p){ return ImVec2(origin.x + p.x, origin.y + p.y); };
+    auto drawAnchorHandle = [&](ImVec2 p){
+        dl->AddTriangleFilled(ImVec2(p.x, p.y - 6.f), ImVec2(p.x - 5.f, p.y + 5.f), ImVec2(p.x + 5.f, p.y + 5.f), anchorColor);
+    };
+
+    for (const ModuleUI::UIDebugRect& r : ui->getDebugRects()){
+        ImVec2 pts[4];
+        for (int i = 0; i < 4; ++i) pts[i] = toScreen(r.corners[i]);
+        dl->AddLine(pts[0], pts[1], rectColor, 1.5f);
+        dl->AddLine(pts[1], pts[2], rectColor, 1.5f);
+        dl->AddLine(pts[2], pts[3], rectColor, 1.5f);
+        dl->AddLine(pts[3], pts[0], rectColor, 1.5f);
+
+        const ImVec2 pv = toScreen(r.pivotPx);
+        dl->AddQuadFilled(ImVec2(pv.x, pv.y - 5.f), ImVec2(pv.x + 5.f, pv.y), ImVec2(pv.x, pv.y + 5.f), ImVec2(pv.x - 5.f, pv.y), pivotColor);
+
+        drawAnchorHandle(toScreen(r.anchorMinPx));
+        if (r.stretched) drawAnchorHandle(toScreen(r.anchorMaxPx));
     }
 }
 

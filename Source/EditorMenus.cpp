@@ -247,6 +247,8 @@ void ModuleEditor::drawMenuBar(){
         }
         if (ImGui::BeginMenu("UI")){
             // Widgets are created under the selected UI object, else under an existing Canvas, else a new one.
+            // Undo below only covers the widget itself: if this call also auto-creates the Canvas, that Canvas
+            // is left behind by an undo (reasonable, since later widgets may already be relying on it).
             auto spawnUI = [&](const char* name, Component::Type type, Vector2 size){
                 SceneGraph* sc = getActiveModuleScene();
                 if (!sc) return;
@@ -269,13 +271,14 @@ void ModuleEditor::drawMenuBar(){
                     go->addComponent(ComponentFactory::CreateComponent(Component::Type::Canvas, go));
                     m_selection.object = go;
                     log("Created Canvas", EditorColors::Success);
+                    pushCreateSubtreeUndo(go, "Canvas");
                 }
             }
-            if (ImGui::MenuItem("Image")) spawnUI("Image", Component::Type::Image, Vector2(100.f, 100.f));
-            if (ImGui::MenuItem("Label")) spawnUI("Label", Component::Type::Label, Vector2(300.f, 60.f));
-            if (ImGui::MenuItem("Progress Bar")) spawnUI("Progress Bar", Component::Type::ProgressBar, Vector2(400.f, 32.f));
-            if (ImGui::MenuItem("Slider")) spawnUI("Slider", Component::Type::Slider, Vector2(400.f, 34.f));
-            if (ImGui::MenuItem("Input Box")) spawnUI("Input Box", Component::Type::InputBox, Vector2(420.f, 48.f));
+            if (ImGui::MenuItem("Image")){ spawnUI("Image", Component::Type::Image, Vector2(100.f, 100.f)); pushCreateSubtreeUndo(m_selection.object, "Image"); }
+            if (ImGui::MenuItem("Label")){ spawnUI("Label", Component::Type::Label, Vector2(300.f, 60.f)); pushCreateSubtreeUndo(m_selection.object, "Label"); }
+            if (ImGui::MenuItem("Progress Bar")){ spawnUI("Progress Bar", Component::Type::ProgressBar, Vector2(400.f, 32.f)); pushCreateSubtreeUndo(m_selection.object, "Progress Bar"); }
+            if (ImGui::MenuItem("Slider")){ spawnUI("Slider", Component::Type::Slider, Vector2(400.f, 34.f)); pushCreateSubtreeUndo(m_selection.object, "Slider"); }
+            if (ImGui::MenuItem("Input Box")){ spawnUI("Input Box", Component::Type::InputBox, Vector2(420.f, 48.f)); pushCreateSubtreeUndo(m_selection.object, "Input Box"); }
             if (ImGui::MenuItem("Checkbox")){
                 spawnUI("Checkbox", Component::Type::CheckBox, Vector2(300.f, 40.f));
                 // The box takes the row height on the left; a Label fills the rest and is part of the click target.
@@ -292,6 +295,7 @@ void ModuleEditor::drawMenuBar(){
                     auto* label = text->getComponent<ComponentLabel>();
                     label->text = "Checkbox";
                     label->hAlign = ComponentLabel::HAlign::Left;
+                    pushCreateSubtreeUndo(go, "Checkbox");
                 }
             }
             if (ImGui::MenuItem("Radio Group")){
@@ -323,6 +327,7 @@ void ModuleEditor::drawMenuBar(){
                         label->hAlign = ComponentLabel::HAlign::Left;
                     }
                     m_selection.object = group;
+                    pushCreateSubtreeUndo(group, "Radio Group");
                 }
             }
             ImGui::Separator();
@@ -351,6 +356,7 @@ void ModuleEditor::drawMenuBar(){
                     t->size = Vector2::Zero;
                     text->addComponent(ComponentFactory::CreateComponent(Component::Type::Label, text));
                     text->getComponent<ComponentLabel>()->text = "Button";
+                    pushCreateSubtreeUndo(go, "Button");
                 }
             }
             ImGui::EndMenu();
@@ -404,6 +410,9 @@ void ModuleEditor::drawMenuBar(){
             ImGui::MenuItem("AABB Bounding Volumes", nullptr, &s.debugDrawBounds);
             ImGui::MenuItem("Broadphase Grid", nullptr, &s.debugDrawGrid);
             ImGui::MenuItem("Show Light Proxies", nullptr, &s.debugDrawLights);
+            ImGui::MenuItem("UI Rects / Anchors", nullptr, &s.debugDrawUIRects);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Game View: outlines every widget's rect, and marks its pivot and anchors.");
         }
         ImGui::Separator();
         if (ImGui::BeginMenu("Camera & Culling")){
