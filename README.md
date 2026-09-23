@@ -8,13 +8,22 @@ A DirectX 12 game engine built from scratch in modern C++ — deferred PBR rende
 
 ## Engine in Action
 
-*GIFs and screenshots showing the systems below in motion go here — see [`docs/media/`](docs/media/).*
+| PBR materials & reflections | Deferred lighting |
+|---|---|
+| ![reflections](docs/media/reflections.gif) | ![deferred lighting](docs/media/deferred-lighting.gif) |
+| A roughness/metalness reference grid under image-based lighting — each sphere row sweeps smooth→rough, each column swaps dielectric↔metallic, showing the PBR material pipeline responding correctly to both. | Five simultaneous point/spot lights of different colours and intensities, lighting a furnished interior in real time through the deferred pipeline. |
 
-<!--
-| Deferred lighting | GPU particles & bloom | PBR reflections |
-|---|---|---|
-| ![deferred](docs/media/deferred-lighting.gif) | ![particles](docs/media/particles-vfx.gif) | ![reflections](docs/media/reflections.gif) |
--->
+| GPU particle VFX | Trail/ribbon VFX |
+|---|---|
+| ![particles](docs/media/particles-vfx.gif) | ![trail vfx](docs/media/trail-vfx.gif) |
+| A comet effect combining two GPU particle emitters (embers + core flame) with a colour-over-lifetime trail, all simulated on the GPU via compute shaders. | The same trail renderer driven by a swinging sword — width and colour interpolate over the ribbon's lifetime to produce the swoosh. |
+
+| Atmosphere & environment |
+|---|
+| ![environment atmosphere](docs/media/environment-atmosphere.gif) |
+| Camera pulling back from a lit interior through an open roof into a dramatic HDR sky — shows the lighting, materials, and post-process stack working together on a full scene rather than an isolated test asset. |
+
+*Coming soon: skeletal animation and frustum-culling debug view — see [`docs/media/`](docs/media/) as they land.*
 
 ---
 
