@@ -16,6 +16,7 @@
 #include "VolumetricFogPass.h"
 #include "PostProcessChain.h"
 #include "ColorLUT.h"
+#include "XRayPass.h"
 
 #include <memory>
 #include <vector>
@@ -134,4 +135,6 @@ private:
     void debugDrawLights(SceneGraph* scene, float lightSize);
 
     void renderStandaloneFrame();
+
+    std::unique_ptr<XRayPass> m_xrayPass;
 };

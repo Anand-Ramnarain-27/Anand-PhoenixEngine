@@ -195,6 +195,7 @@
     <ClInclude Include="API\Phoenix_Time.h" />
     <ClInclude Include="API\Phoenix_Input.h" />
     <ClInclude Include="API\Phoenix_Scene.h" />
+    <ClInclude Include="API\Phoenix_Render.h" />
     <ClInclude Include="API\Phoenix_GameObject.h" />
     <ClInclude Include="API\Phoenix_Navigation.h" />
     <ClInclude Include="API\Phoenix_Perception.h" />
@@ -275,6 +276,7 @@
     <ClInclude Include="ParticlePass.h" />
     <ClInclude Include="GBuffer.h" />
     <ClInclude Include="GBufferPass.h" />
+    <ClInclude Include="XRayPass.h" />
     <ClInclude Include="ShadowMapPass.h" />
     <ClInclude Include="ShadowMath.h" />
     <ClInclude Include="MeshPipeline.h" />
@@ -382,6 +384,7 @@
     <ClCompile Include="API\Phoenix_Time.cpp" />
     <ClCompile Include="API\Phoenix_Input.cpp" />
     <ClCompile Include="API\Phoenix_Scene.cpp" />
+    <ClCompile Include="API\Phoenix_Render.cpp" />
     <ClCompile Include="API\Phoenix_Navigation.cpp" />
     <ClCompile Include="API\Phoenix_Perception.cpp" />
     <ClCompile Include="CommandContext.cpp" />
@@ -458,6 +461,7 @@
     <ClCompile Include="ParticlePass.cpp" />
     <ClCompile Include="GBuffer.cpp" />
     <ClCompile Include="GBufferPass.cpp" />
+    <ClCompile Include="XRayPass.cpp" />
     <ClCompile Include="ShadowMapPass.cpp" />
     <ClCompile Include="ShadowMath.cpp" />
     <ClCompile Include="MeshPipeline.cpp" />
@@ -782,6 +786,20 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
     </FxCompile>
     <FxCompile Include="shaders\GBufferPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="shaders\XRayMaskPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="shaders\XRayCompositePS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>

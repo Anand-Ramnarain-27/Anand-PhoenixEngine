@@ -193,6 +193,8 @@ void GBufferPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj
         if (!mat) mat = entry.material;
         if (!mat && entry.materialRes) mat = entry.materialRes->getMaterial();
         inst.material = toGpuMaterial(mat);
+        // Tagged (x-ray) meshes are the focus of the occlusion fade: they must never cut themselves.
+        if (entry.xrayGroup != 0) inst.material.flags |= MAT_FLAG_NO_OCCLUSION_CUT;
 
         memcpy(static_cast<char*>(m_instanceMapped[s]) + (UINT64)slot * instSz, &inst, sizeof(inst));
     }
@@ -205,7 +207,8 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
                           const std::vector<MeshEntry*>& meshes,
                           const Matrix& viewProj,
                           uint32_t width, uint32_t height,
-                          int viewportIndex){
+                          int viewportIndex,
+                          const OcclusionParams& occlusion){
     if (width == 0 || height == 0) return;
 
     viewportIndex = (viewportIndex >= 0 && viewportIndex < NUM_VIEWPORTS) ? viewportIndex : 0;
@@ -230,6 +233,8 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
         cmd->SetDescriptorHeaps(2, heaps);
         cmd->SetGraphicsRootDescriptorTable(GBufferPipeline::SLOT_SAMPLER,
                                              samplerHeap->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));
+        cmd->SetGraphicsRoot32BitConstants(GBufferPipeline::SLOT_OCCLUSION,
+                                           sizeof(OcclusionParams) / 4, &occlusion, 0);
 
         ID3D12PipelineState* boundPso = m_pipeline.getPSO();
         UINT slot = 0;
@@ -265,8 +270,13 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
                 boundPso = pso;
             }
 
-            cmd->SetGraphicsRootDescriptorTable(GBufferPipeline::SLOT_MAT_TEXTURES,
-                                                 getMaterialTableHandle(mat));
+            const D3D12_GPU_DESCRIPTOR_HANDLE matTable = getMaterialTableHandle(mat);
+            cmd->SetGraphicsRootDescriptorTable(GBufferPipeline::SLOT_MAT_TEXTURES, matTable);
+
+            entry->gbMvpVA = mvpVA;
+            entry->gbInstVA = instVA;
+            entry->gbMatTable = matTable;
+            entry->gbDoubleSided = doubleSided;
             if (entry->skinnedVA != 0)
                 mesh->drawSkinned(cmd, entry->skinnedVA);
             else
@@ -298,11 +308,12 @@ bool GBufferPipeline::createRootSignature(ID3D12Device* device){
     CD3DX12_DESCRIPTOR_RANGE samplerRange;
     samplerRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, ModuleSamplerHeap::COUNT, 0);
 
-    CD3DX12_ROOT_PARAMETER params[4];
+    CD3DX12_ROOT_PARAMETER params[5];
     params[SLOT_MVP_CB].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
     params[SLOT_INSTANCE_CB].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_ALL);
     params[SLOT_MAT_TEXTURES].InitAsDescriptorTable(1, &matRange, D3D12_SHADER_VISIBILITY_PIXEL);
     params[SLOT_SAMPLER].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[SLOT_OCCLUSION].InitAsConstants(sizeof(OcclusionParams) / 4, 2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 
     CD3DX12_ROOT_SIGNATURE_DESC desc;
     desc.Init(_countof(params), params, 0, nullptr,

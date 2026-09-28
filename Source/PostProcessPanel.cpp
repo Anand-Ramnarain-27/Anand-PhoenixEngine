@@ -18,6 +18,7 @@ void PostProcessPanel::drawContent(){
     drawBloomSection();
     drawFogSection();
     drawLutSection();
+    drawOcclusionXRaySection();
     drawPluginEffectsSection();
 }
 
@@ -214,6 +215,76 @@ void PostProcessPanel::drawLutSection(){
 
     ImGui::BeginDisabled(pp.lutPath.empty());
     ImGui::Checkbox("Enabled##lut", &pp.lutEnabled);
+    ImGui::EndDisabled();
+}
+
+void PostProcessPanel::drawOcclusionXRaySection(){
+    if (!ImGui::CollapsingHeader("Occlusion & X-Ray", ImGuiTreeNodeFlags_DefaultOpen)) return;
+    EditorSceneSettings& s = m_editor->getSceneManager()->getSettings();
+    auto& of = s.occlusionFade;
+    auto& xr = s.xray;
+
+    ImGui::Checkbox("Preview in Scene View##occ_preview", &of.previewInSceneView);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Both effects always run in the Game view and the standalone player. Tick to also see them\nin the Scene view, cut from the editor camera.");
+
+    ImGui::Spacing();
+    textMuted("Occlusion Fade");
+    ImGui::Checkbox("Enabled##occ", &of.enabled);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Dithers away walls between the camera and the first object tagged with the first x-ray tag.");
+
+    ImGui::BeginDisabled(!of.enabled);
+    auto row = [](const char* label, const char* id, float* v, float mn, float mx, const char* fmt, const char* tip){
+        ImGui::Text("%s", label);
+        ImGui::SameLine(120.f);
+        ImGui::SetNextItemWidth(-1.f);
+        ImGui::SliderFloat(id, v, mn, mx, fmt);
+        if (tip && ImGui::IsItemHovered()) ImGui::SetTooltip("%s", tip);
+    };
+    row("Radius", "##occ_radius", &of.radius, 0.f, 5.f, "%.2f m", "Hole radius at the focus.");
+    row("Feather", "##occ_feather", &of.feather, 0.f, 2.f, "%.2f m", "Width of the dithered edge.");
+    row("Floor Clear.", "##occ_floor", &of.floorClearance, 0.f, 2.f, "%.2f m", "Nothing lower than the focus' feet plus this is ever cut (keeps floors).");
+    row("Focus Height", "##occ_height", &of.focusHeight, 0.f, 3.f, "%.2f m", "Height above the tagged object's pivot the hole aims at.");
+    row("Cone Near", "##occ_cone", &of.coneNearScale, 0.f, 1.f, "%.2f", "Radius multiplier at the camera end. Lower keeps the hole a steadier size on screen.");
+    ImGui::EndDisabled();
+
+    ImGui::Spacing();
+    textMuted("X-Ray Silhouette");
+    ImGui::Checkbox("Enabled##xray", &xr.enabled);
+
+    ImGui::BeginDisabled(!xr.enabled);
+    int removeIdx = -1;
+    for (int i = 0; i < (int)xr.tags.size(); ++i){
+        auto& t = xr.tags[i];
+        ImGui::PushID(i);
+        ImGui::Separator();
+        ImGui::Checkbox("##on", &t.enabled);
+        ImGui::SameLine();
+        char tagBuf[128];
+        strncpy_s(tagBuf, t.tag.c_str(), sizeof(tagBuf) - 1);
+        ImGui::SetNextItemWidth(-60.f);
+        if (ImGui::InputText("##tag", tagBuf, sizeof(tagBuf))) t.tag = tagBuf;
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Remove")) removeIdx = i;
+
+        ImGui::BeginDisabled(!t.enabled);
+        ImGui::Text("Colour"); ImGui::SameLine(120.f); ImGui::SetNextItemWidth(-1.f);
+        ImGui::ColorEdit3("##col", &t.color.x);
+        ImGui::Text("Fill Alpha"); ImGui::SameLine(120.f); ImGui::SetNextItemWidth(-1.f);
+        ImGui::SliderFloat("##fill", &t.fillAlpha, 0.f, 1.f, "%.2f");
+        ImGui::Text("Outline"); ImGui::SameLine(120.f); ImGui::SetNextItemWidth(-1.f);
+        ImGui::SliderFloat("##outline", &t.outlineWidth, 0.f, 4.f, "%.1f px");
+        ImGui::EndDisabled();
+        if (i == 0) textMuted("First tag is also the occlusion-fade focus.");
+        ImGui::PopID();
+    }
+    if (removeIdx >= 0) xr.tags.erase(xr.tags.begin() + removeIdx);
+
+    ImGui::BeginDisabled((int)xr.tags.size() >= EditorSceneSettings::kMaxXRayGroups);
+    if (ImGui::Button("Add Tag##xray")) xr.tags.push_back({ "", Vector4(1.f, 1.f, 1.f, 1.f), 0.45f, 1.5f, true });
+    ImGui::EndDisabled();
+    ImGui::SameLine(); textMuted("%d / %d", (int)xr.tags.size(), EditorSceneSettings::kMaxXRayGroups);
     ImGui::EndDisabled();
 }
 

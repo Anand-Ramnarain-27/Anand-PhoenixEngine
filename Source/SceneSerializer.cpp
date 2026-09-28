@@ -123,6 +123,32 @@ bool SceneSerializer::SaveScene(const SceneGraph* scene, const std::string& file
             fogObj.AddMember("boundedRayLength", settings->fog.boundedRayLength, a);
             set.AddMember("Fog", fogObj, a);
 
+            Value xrObj(kObjectType);
+            xrObj.AddMember("enabled", settings->xray.enabled, a);
+            Value xrTags(kArrayType);
+            for (const auto& xt : settings->xray.tags){
+                Value t(kObjectType);
+                t.AddMember("tag", Value(xt.tag.c_str(), a), a);
+                Value c(kArrayType); c.PushBack(xt.color.x, a).PushBack(xt.color.y, a).PushBack(xt.color.z, a).PushBack(xt.color.w, a);
+                t.AddMember("color", c, a);
+                t.AddMember("fillAlpha", xt.fillAlpha, a);
+                t.AddMember("outlineWidth", xt.outlineWidth, a);
+                t.AddMember("enabled", xt.enabled, a);
+                xrTags.PushBack(t, a);
+            }
+            xrObj.AddMember("tags", xrTags, a);
+            set.AddMember("XRay", xrObj, a);
+
+            Value ofObj(kObjectType);
+            ofObj.AddMember("enabled", settings->occlusionFade.enabled, a);
+            ofObj.AddMember("radius", settings->occlusionFade.radius, a);
+            ofObj.AddMember("feather", settings->occlusionFade.feather, a);
+            ofObj.AddMember("floorClearance", settings->occlusionFade.floorClearance, a);
+            ofObj.AddMember("focusHeight", settings->occlusionFade.focusHeight, a);
+            ofObj.AddMember("coneNearScale", settings->occlusionFade.coneNearScale, a);
+            ofObj.AddMember("previewInSceneView", settings->occlusionFade.previewInSceneView, a);
+            set.AddMember("OcclusionFade", ofObj, a);
+
             sceneObj.AddMember("Settings", set, a);
         }
 
@@ -218,6 +244,8 @@ bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, 
         settings->gravityY = defaults.gravityY;
         settings->postProcess = defaults.postProcess;
         settings->fog = defaults.fog;
+        settings->xray = defaults.xray;
+        settings->occlusionFade = defaults.occlusionFade;
 
         if (doc["Scene"].HasMember("Settings")){
             const Value& set = doc["Scene"]["Settings"];
@@ -265,6 +293,37 @@ bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, 
                 if (fg.HasMember("anisotropyG")) settings->fog.anisotropyG = fg["anisotropyG"].GetFloat();
                 if (fg.HasMember("halfResolution")) settings->fog.halfResolution = fg["halfResolution"].GetBool();
                 if (fg.HasMember("boundedRayLength")) settings->fog.boundedRayLength = fg["boundedRayLength"].GetBool();
+            }
+            if (set.HasMember("XRay") && set["XRay"].IsObject()){
+                const Value& xr = set["XRay"];
+                if (xr.HasMember("enabled")) settings->xray.enabled = xr["enabled"].GetBool();
+                if (xr.HasMember("tags") && xr["tags"].IsArray()){
+                    settings->xray.tags.clear();
+                    const Value& tags = xr["tags"];
+                    for (SizeType i = 0; i < tags.Size(); ++i){
+                        const Value& t = tags[i];
+                        EditorSceneSettings::XRayTag xt;
+                        if (t.HasMember("tag") && t["tag"].IsString()) xt.tag = t["tag"].GetString();
+                        if (t.HasMember("color") && t["color"].IsArray() && t["color"].Size() >= 4){
+                            const auto& c = t["color"];
+                            xt.color = { c[0].GetFloat(), c[1].GetFloat(), c[2].GetFloat(), c[3].GetFloat() };
+                        }
+                        if (t.HasMember("fillAlpha")) xt.fillAlpha = t["fillAlpha"].GetFloat();
+                        if (t.HasMember("outlineWidth")) xt.outlineWidth = t["outlineWidth"].GetFloat();
+                        if (t.HasMember("enabled")) xt.enabled = t["enabled"].GetBool();
+                        settings->xray.tags.push_back(std::move(xt));
+                    }
+                }
+            }
+            if (set.HasMember("OcclusionFade") && set["OcclusionFade"].IsObject()){
+                const Value& of = set["OcclusionFade"];
+                if (of.HasMember("enabled")) settings->occlusionFade.enabled = of["enabled"].GetBool();
+                if (of.HasMember("radius")) settings->occlusionFade.radius = of["radius"].GetFloat();
+                if (of.HasMember("feather")) settings->occlusionFade.feather = of["feather"].GetFloat();
+                if (of.HasMember("floorClearance")) settings->occlusionFade.floorClearance = of["floorClearance"].GetFloat();
+                if (of.HasMember("focusHeight")) settings->occlusionFade.focusHeight = of["focusHeight"].GetFloat();
+                if (of.HasMember("coneNearScale")) settings->occlusionFade.coneNearScale = of["coneNearScale"].GetFloat();
+                if (of.HasMember("previewInSceneView")) settings->occlusionFade.previewInSceneView = of["previewInSceneView"].GetBool();
             }
         }
     }

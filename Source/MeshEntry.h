@@ -29,4 +29,14 @@ struct MeshEntry {
     Vector3 aabbMin = {};
     Vector3 aabbMax = {};
     bool hasWorldAABB = false;
+
+    // X-ray: 0 = none, 1..N = 1 + index into EditorSceneSettings::xray.tags (inherited from tagged ancestors).
+    uint8_t xrayGroup = 0;
+
+    // Filled by GBufferPass::render for the draws it issued this frame, so XRayPass can redraw the same
+    // entries with the exact same per-draw CBs (identical depth) without its own upload rings.
+    D3D12_GPU_VIRTUAL_ADDRESS gbMvpVA = 0;
+    D3D12_GPU_VIRTUAL_ADDRESS gbInstVA = 0;
+    D3D12_GPU_DESCRIPTOR_HANDLE gbMatTable = {};
+    bool gbDoubleSided = false;
 };

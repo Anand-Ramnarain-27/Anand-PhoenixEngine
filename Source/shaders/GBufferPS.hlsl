@@ -5,6 +5,7 @@ struct PSInput {
     float2 uv : TEXCOORD;
     float3 normal : NORMAL0;
     float4 tangent : TANGENT;
+    float4 svPos : SV_Position;
     bool isFrontFace : SV_IsFrontFace;
 };
 
@@ -16,6 +17,7 @@ struct PSOutput {
 
 PSOutput main(PSInput input){
     ClipAlphaMask(InstanceMaterial, BaseColorTex, input.uv);
+    ApplyOcclusionCut(input.worldPos, input.svPos.xy, InstanceMaterial.Flags);
 
     float3 N = normalize(input.normal);
     float3 T = normalize(input.tangent.xyz);

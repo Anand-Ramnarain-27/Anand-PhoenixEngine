@@ -36,6 +36,7 @@ void SceneManager::clearScene(){
     m_pendingScenePath.clear();
     m_pendingSpawns.clear();
     m_runtimeSceneChanged = false;
+    m_renderOverrides.reset();
 }
 
 // SceneManager::getModuleScene() and requestSceneLoad()/requestPrefabSpawn()
@@ -59,7 +60,9 @@ void SceneManager::play(){
         if (auto* ms = activeScene->getModuleScene()) hasSerializedState = SceneSerializer::SaveTempScene(ms);
         m_runtimeSceneChanged = false;
         m_scenePathAtPlay = m_currentScenePath;
-        m_lookAtPlay = { settings.skybox, settings.ambient, settings.gravityY, settings.postProcess, settings.fog };
+        m_lookAtPlay = { settings.skybox, settings.ambient, settings.gravityY, settings.postProcess, settings.fog,
+                          settings.xray, settings.occlusionFade };
+        m_renderOverrides.reset();
         m_pendingScenePath.clear();
         m_pendingSpawns.clear();
     }
@@ -89,6 +92,7 @@ void SceneManager::stop(){
     }
     else activeScene->reset();
     state = PlayState::Stopped;
+    m_renderOverrides.reset();
 
     // A script loaded other scenes during Play: the temp scene above only restores GameObjects, so put the
     // scene path and the look settings (skybox, fog, ...) of the scene Play started in back as well.
@@ -100,6 +104,8 @@ void SceneManager::stop(){
         settings.gravityY = m_lookAtPlay.gravityY;
         settings.postProcess = m_lookAtPlay.postProcess;
         settings.fog = m_lookAtPlay.fog;
+        settings.xray = m_lookAtPlay.xray;
+        settings.occlusionFade = m_lookAtPlay.occlusionFade;
         if (RuntimeCore* rc = app->getRuntimeCore()) rc->applySkyboxFromSettings();
     }
 }
@@ -206,6 +212,7 @@ bool SceneManager::loadScene(const std::string& filePath){
     app->getD3D12()->flush();
     if (!SceneSerializer::LoadScene(filePath, ms, &settings)) return false;
     m_currentScenePath = filePath;
+    m_renderOverrides.reset();
     return true;
 }
 

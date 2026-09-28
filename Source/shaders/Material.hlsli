@@ -12,6 +12,7 @@
 #define HAS_ALPHA_MASK            0x40
 #define HAS_DOUBLE_SIDED          0x80
 #define HAS_ALPHA_BLEND           0x100
+#define NO_OCCLUSION_CUT          0x200
 
 struct Material {
     float4 BaseColor;

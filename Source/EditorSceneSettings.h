@@ -62,4 +62,45 @@ struct EditorSceneSettings {
         bool halfResolution = true;
         bool boundedRayLength = false;
     } fog;
+
+    // Silhouette drawn wherever scene geometry hides a mesh whose GameObject (or an ancestor) has one of these tags.
+    struct XRayTag {
+        std::string tag;
+        Vector4 color = Vector4(0.35f, 0.85f, 1.0f, 1.0f);
+        float fillAlpha = 0.45f;
+        float outlineWidth = 1.5f;   // pixels
+        bool enabled = true;
+    };
+    static constexpr int kMaxXRayGroups = 4;
+
+    struct XRay {
+        bool enabled = true;
+        std::vector<XRayTag> tags = {
+            { "Player", Vector4(0.35f, 0.85f, 1.0f, 1.0f), 0.45f, 1.5f, true },
+            { "Enemy",  Vector4(1.0f, 0.25f, 0.2f, 1.0f),  0.45f, 1.5f, false },
+        };
+    } xray;
+
+    // Dithered hole cut in opaque geometry between the camera and the focus (first object with xray.tags[0]).
+    struct OcclusionFade {
+        bool enabled = true;
+        float radius = 1.6f;
+        float feather = 0.5f;
+        float floorClearance = 0.25f;
+        float focusHeight = 1.1f;
+        float coneNearScale = 0.35f;   // radius multiplier at the camera end (keeps the hole a steady size on screen)
+        bool previewInSceneView = false;
+    } occlusionFade;
+};
+
+// Script-set overrides layered on top of the scene's saved settings (Phoenix::Render). Cleared on scene load and
+// when Play mode stops.
+struct RenderOverrides {
+    int occlusionEnabled = -1;       // -1 = scene setting, 0 = off, 1 = on
+    float occlusionRadius = -1.0f;   // < 0 = scene setting
+    bool useFocusOverride = false;
+    Vector3 focusOverride = Vector3::Zero;
+    int xrayEnabled = -1;            // -1 = scene setting, 0 = off, 1 = on
+
+    void reset(){ *this = RenderOverrides(); }
 };

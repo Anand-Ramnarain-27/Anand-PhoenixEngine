@@ -12,6 +12,7 @@ public:
     static constexpr UINT SLOT_INSTANCE_CB = 1;
     static constexpr UINT SLOT_MAT_TEXTURES = 2;
     static constexpr UINT SLOT_SAMPLER = 3;
+    static constexpr UINT SLOT_OCCLUSION = 4;   // b2, root constants (OcclusionParams)
 
     bool init(ID3D12Device* device);
 
@@ -38,6 +39,20 @@ private:
 
 class Material;
 
+// Occlusion fade (wall cut-out) parameters, set once per GBuffer pass as root constants (b2).
+// Layout must match cbuffer OcclusionCB in GBufferPass.hlsli.
+struct OcclusionParams {
+    Vector3 cameraPos = Vector3::Zero;
+    float radius = 1.6f;
+    Vector3 focusPos = Vector3::Zero;
+    float feather = 0.5f;
+    float focusFeetY = 0.0f;
+    float floorClearance = 0.25f;
+    float coneNearScale = 0.35f;
+    float enabled = 0.0f;
+};
+static_assert(sizeof(OcclusionParams) == 12 * sizeof(float), "OcclusionParams must stay 12 DWORDs");
+
 using Microsoft::WRL::ComPtr;
 
 class GBufferPass {
@@ -51,7 +66,8 @@ public:
                 const std::vector<MeshEntry*>& meshes,
                 const Matrix& viewProj,
                 uint32_t width, uint32_t height,
-                int viewportIndex);
+                int viewportIndex,
+                const OcclusionParams& occlusion = OcclusionParams());
 
     GBuffer& getGBuffer(){ return m_gbuffer[m_activeIndex]; }
     GBufferPipeline& getPipeline(){ return m_pipeline; }

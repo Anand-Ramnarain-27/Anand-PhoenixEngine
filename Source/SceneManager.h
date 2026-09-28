@@ -65,6 +65,10 @@ public:
     EditorSceneSettings& getSettings(){ return settings; }
     const EditorSceneSettings& getSettings() const { return settings; }
 
+    // Runtime overrides written by Phoenix::Render (inline so GameScript.dll writes the engine's instance).
+    RenderOverrides& getRenderOverrides(){ return m_renderOverrides; }
+    const RenderOverrides& getRenderOverrides() const { return m_renderOverrides; }
+
 private:
     struct PendingSpawn {
         std::string prefabName;
@@ -80,6 +84,8 @@ private:
         float gravityY = -9.81f;
         EditorSceneSettings::PostProcess postProcess;
         EditorSceneSettings::Fog fog;
+        EditorSceneSettings::XRay xray;
+        EditorSceneSettings::OcclusionFade occlusionFade;
     };
 
     std::unique_ptr<IScene> activeScene;
@@ -101,4 +107,6 @@ private:
     bool m_runtimeSceneChanged = false;
     std::string m_scenePathAtPlay;
     SceneLook m_lookAtPlay;
+
+    RenderOverrides m_renderOverrides;
 };

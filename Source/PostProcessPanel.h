@@ -16,6 +16,7 @@ private:
     void drawBloomSection();
     void drawFogSection();
     void drawLutSection();
+    void drawOcclusionXRaySection();
     void drawPluginEffectsSection();
 
     std::vector<std::string> m_lutFiles;

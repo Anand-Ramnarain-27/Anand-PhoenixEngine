@@ -114,6 +114,12 @@ bool RuntimeCore::init(){
         m_particlePass.reset();
     }
 
+    m_xrayPass = std::make_unique<XRayPass>();
+    if (!m_xrayPass->init(device)){
+        LOG("RuntimeCore: XRayPass init failed (non-fatal)");
+        m_xrayPass.reset();
+    }
+
     m_tonemapPass = std::make_unique<TonemapPass>();
     if (!m_tonemapPass->init(device)) return false;
 
@@ -178,6 +184,7 @@ bool RuntimeCore::cleanUp(){
     m_debugDraw.reset();
     m_sceneManager.reset();
     m_gbufferPass.reset();
+    if (m_xrayPass){ m_xrayPass->cleanUp(); m_xrayPass.reset(); }
     m_deferredLightingPass.reset();
     m_decalPass.reset();
     m_tonemapPass.reset();
@@ -589,14 +596,32 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
     const Matrix lodViewProj = view * proj;
     const int forceLODIndex = (int)camera->forceLOD - 1;
 
+    // X-ray / occlusion-fade tagging: a node whose tag matches xray.tags[i] puts itself and its subtree in
+    // group i+1. The first node carrying tags[0] is the occlusion-fade focus.
+    const std::vector<EditorSceneSettings::XRayTag>& xrayTags = s.xray.tags;
+    const int xrayGroupCount = std::min((int)xrayTags.size(), EditorSceneSettings::kMaxXRayGroups);
+    GameObject* focusNode = nullptr;
+
     if (moduleScene){
-        std::function<void(GameObject*)> collectMeshes = [&](GameObject* node){
+        std::function<void(GameObject*, uint8_t)> collectMeshes = [&](GameObject* node, uint8_t inheritedGroup){
             if (!node || !node->isActive()) return;
+
+            uint8_t group = inheritedGroup;
+            if (xrayGroupCount > 0){
+                const std::string& tag = node->getTag();
+                if (!tag.empty()){
+                    for (int i = 0; i < xrayGroupCount; ++i)
+                        if (xrayTags[i].tag == tag){ group = uint8_t(i + 1); break; }
+                    if (!focusNode && tag == xrayTags[0].tag) focusNode = node;
+                }
+            }
+            const size_t entriesBefore = ownedEntries.size();
+
             if (auto* cm = node->getComponent<ComponentMesh>()){
                 cm->flushDeferredReleases();
 
                 if (!editorExtras && camera->cullMode == ModuleCamera::CullMode::Frustum && !cm->isVisible()){
-                    for (auto* child : node->getChildren()) collectMeshes(child);
+                    for (auto* child : node->getChildren()) collectMeshes(child, group);
                     return;
                 }
 
@@ -707,9 +732,11 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
                     }
                 }
             }
-            for (auto* child : node->getChildren()) collectMeshes(child);
+            if (group != 0)
+                for (size_t i = entriesBefore; i < ownedEntries.size(); ++i) ownedEntries[i].xrayGroup = group;
+            for (auto* child : node->getChildren()) collectMeshes(child, group);
             };
-        collectMeshes(moduleScene->getRoot());
+        collectMeshes(moduleScene->getRoot(), 0);
 
         for (auto& e : ownedEntries){
             Mesh* m = e.meshRes ? e.meshRes->getMesh() : e.mesh;
@@ -970,9 +997,38 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
     }
     m_frameShadowData = shadowData;
 
+    // Occlusion fade + x-ray: always on in the Game view / standalone player, Scene view only when previewing.
+    const RenderOverrides& renderOverrides = m_sceneManager->getRenderOverrides();
+    const bool viewAllowsOcclusionFx = !editorExtras || s.occlusionFade.previewInSceneView;
+    const bool occlusionEnabled = renderOverrides.occlusionEnabled >= 0 ? renderOverrides.occlusionEnabled != 0
+                                                                        : s.occlusionFade.enabled;
+    const bool xrayEnabled = renderOverrides.xrayEnabled >= 0 ? renderOverrides.xrayEnabled != 0 : s.xray.enabled;
+
+    OcclusionParams occlusion;
+    if (viewAllowsOcclusionFx && occlusionEnabled && (renderOverrides.useFocusOverride || focusNode)){
+        const EditorSceneSettings::OcclusionFade& of = s.occlusionFade;
+        Vector3 focusPos, feetPos;
+        if (renderOverrides.useFocusOverride){
+            // The override is the focus point itself (e.g. the player's chest); feet sit focusHeight below it.
+            focusPos = renderOverrides.focusOverride;
+            feetPos = focusPos - Vector3(0.f, of.focusHeight, 0.f);
+        } else {
+            feetPos = focusNode->getTransform()->getGlobalMatrix().Translation();
+            focusPos = feetPos + Vector3(0.f, of.focusHeight, 0.f);
+        }
+        occlusion.cameraPos = viewCamPos;
+        occlusion.focusPos = focusPos;
+        occlusion.radius = renderOverrides.occlusionRadius >= 0.f ? renderOverrides.occlusionRadius : of.radius;
+        occlusion.feather = std::max(0.f, of.feather);
+        occlusion.focusFeetY = feetPos.y;
+        occlusion.floorClearance = of.floorClearance;
+        occlusion.coneNearScale = std::clamp(of.coneNearScale, 0.f, 1.f);
+        occlusion.enabled = occlusion.radius > 0.f ? 1.f : 0.f;
+    }
+
     if (m_gbufferPass && (!opaqueMeshes.empty() || !translucentMeshes.empty() || !billboards.empty())){
         const int gbufferViewportIndex = editorExtras ? 0 : 1;
-        m_gbufferPass->render(cmd, opaqueMeshes, viewProj, w, h, gbufferViewportIndex);
+        m_gbufferPass->render(cmd, opaqueMeshes, viewProj, w, h, gbufferViewportIndex, occlusion);
 
         if (outputRT && outputRT->isValid()){
             auto rtv = outputRT->getRtvHandle();
@@ -1123,6 +1179,29 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
                                    camera->getRight(), camera->getUp(),
                                    (float)app->getElapsedMilis() / 1000.f,
                                    w, h);
+        }
+
+        // X-ray silhouette: last in the scene pass so it overlays transparents/particles; before fog, bloom and
+        // tonemap (those run in each caller), so both the standalone player and the editor Game view get it.
+        if (m_xrayPass && viewAllowsOcclusionFx && xrayEnabled && xrayGroupCount > 0 && outputRT && outputRT->isValid()){
+            std::vector<MeshEntry*> xrayMeshes;
+            for (MeshEntry* e : opaqueMeshes)
+                if (e->xrayGroup != 0 && e->xrayGroup <= xrayGroupCount && xrayTags[e->xrayGroup - 1].enabled)
+                    xrayMeshes.push_back(e);
+
+            if (!xrayMeshes.empty()){
+                // Tonemap scales by 2^exposure; undo it so the configured colour reads the same at any exposure.
+                const float exposureComp = exp2f(-s.postProcess.exposure);
+                XRayGroupStyle styles[XRayPass::kMaxGroups];
+                for (int i = 0; i < xrayGroupCount; ++i){
+                    const auto& xt = xrayTags[i];
+                    styles[i].color = Vector3(xt.color.x, xt.color.y, xt.color.z) * exposureComp;
+                    styles[i].fillAlpha = std::clamp(xt.fillAlpha * xt.color.w, 0.f, 1.f);
+                    styles[i].outlineWidth = std::max(0.f, xt.outlineWidth);
+                }
+                m_xrayPass->render(cmd, *m_gbufferPass, xrayMeshes, styles, xrayGroupCount,
+                                   outputRT, w, h, gbufferViewportIndex);
+            }
         }
 
         ID3D12DescriptorHeap* heaps2[] = { app->getShaderDescriptors()->getHeap(),

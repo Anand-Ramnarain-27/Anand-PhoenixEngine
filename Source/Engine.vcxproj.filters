@@ -95,6 +95,9 @@
     <ClCompile Include="API\Phoenix_Scene.cpp">
       <Filter>Engine\Scripting\API</Filter>
     </ClCompile>
+    <ClCompile Include="API\Phoenix_Render.cpp">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClCompile>
     <ClCompile Include="API\Phoenix_Navigation.cpp">
       <Filter>Engine\Scripting\API</Filter>
     </ClCompile>
@@ -312,6 +315,9 @@
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
     <ClCompile Include="GBufferPass.cpp">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClCompile>
+    <ClCompile Include="XRayPass.cpp">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClCompile>
     <ClCompile Include="ShadowMapPass.cpp">
@@ -653,6 +659,9 @@
     <ClInclude Include="API\Phoenix_Scene.h">
       <Filter>Engine\Scripting\API</Filter>
     </ClInclude>
+    <ClInclude Include="API\Phoenix_Render.h">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClInclude>
     <ClInclude Include="API\Phoenix_GameObject.h">
       <Filter>Engine\Scripting\API</Filter>
     </ClInclude>
@@ -909,6 +918,9 @@
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
     <ClInclude Include="GBufferPass.h">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClInclude>
+    <ClInclude Include="XRayPass.h">
       <Filter>Engine\Rendering\Passes</Filter>
     </ClInclude>
     <ClInclude Include="ShadowMapPass.h">
@@ -1240,6 +1252,12 @@
     <!-- Shaders\GBuffer -->
     <FxCompile Include="shaders\GBufferPS.hlsl">
       <Filter>Shaders\GBuffer</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\XRayMaskPS.hlsl">
+      <Filter>Shaders\GBuffer</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\XRayCompositePS.hlsl">
+      <Filter>Shaders\PostProcess</Filter>
     </FxCompile>
     <FxCompile Include="shaders\GBufferVS.hlsl">
       <Filter>Shaders\GBuffer</Filter>
