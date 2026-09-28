@@ -57,8 +57,15 @@ public:
     GBufferPipeline& getPipeline(){ return m_pipeline; }
 
     static constexpr int NUM_VIEWPORTS = 2;
+    // Buffers the CPU writes every frame exist once per (frame in flight, viewport): the CPU records up to
+    // FRAMES_IN_FLIGHT-1 frames ahead of the GPU, so with a single copy per viewport the next frame's
+    // writes land in data the GPU is still reading (seen as Game view frames drawn with the wrong
+    // matrices or lighting). GPU-written resources stay one per viewport - commands run in order.
+    static constexpr int NUM_UPLOAD_SLOTS = NUM_VIEWPORTS * FRAMES_IN_FLIGHT;
 
 private:
+    // Index into the NUM_UPLOAD_SLOTS arrays for this frame's copy of `viewportIndex`'s buffers.
+    static int uploadSlot(int viewportIndex);
     bool createUploadBuffers(ID3D12Device* device);
     bool createFallbackTexture(ID3D12Device* device);
     bool createFallbackTable();
@@ -77,11 +84,11 @@ private:
     // Per-frame draw cap for the geometry pass (one MVP CB + one instance CB per slot).
     static constexpr UINT MAX_INSTANCES = 4096;
 
-    ComPtr<ID3D12Resource> m_mvpRing[NUM_VIEWPORTS];
-    void* m_mvpMapped[NUM_VIEWPORTS] = {};
+    ComPtr<ID3D12Resource> m_mvpRing[NUM_UPLOAD_SLOTS];
+    void* m_mvpMapped[NUM_UPLOAD_SLOTS] = {};
 
-    ComPtr<ID3D12Resource> m_instanceRing[NUM_VIEWPORTS];
-    void* m_instanceMapped[NUM_VIEWPORTS] = {};
+    ComPtr<ID3D12Resource> m_instanceRing[NUM_UPLOAD_SLOTS];
+    void* m_instanceMapped[NUM_UPLOAD_SLOTS] = {};
 
     ComPtr<ID3D12Resource> m_fallbackTex;
     ShaderTableDesc m_fallbackTable;

@@ -77,6 +77,11 @@ public:
     };
 
     static constexpr int NUM_VIEWPORTS = 2;
+    // Buffers the CPU writes every frame exist once per (frame in flight, viewport): the CPU records up to
+    // FRAMES_IN_FLIGHT-1 frames ahead of the GPU, so with a single copy per viewport the next frame's
+    // writes land in data the GPU is still reading (seen as Game view frames drawn with the wrong
+    // matrices or lighting). GPU-written resources stay one per viewport - commands run in order.
+    static constexpr int NUM_UPLOAD_SLOTS = NUM_VIEWPORTS * FRAMES_IN_FLIGHT;
 
     bool init(ID3D12Device* device);
 
@@ -93,6 +98,8 @@ public:
                 const ShadowRenderData& shadow);
 
 private:
+    // Index into the NUM_UPLOAD_SLOTS arrays for this frame's copy of `viewportIndex`'s buffers.
+    static int uploadSlot(int viewportIndex);
     bool createUploadBuffers(ID3D12Device* device);
     bool createLightSRVs();
     bool createFallbackIBL(ID3D12Device* device);
@@ -106,19 +113,19 @@ private:
     DeferredLightingPipeline m_pipeline;
     LightCullingPass m_lightCulling;
 
-    ComPtr<ID3D12Resource> m_perFrameCB[NUM_VIEWPORTS];
-    void* m_perFrameMapped[NUM_VIEWPORTS] = {};
+    ComPtr<ID3D12Resource> m_perFrameCB[NUM_UPLOAD_SLOTS];
+    void* m_perFrameMapped[NUM_UPLOAD_SLOTS] = {};
 
-    ComPtr<ID3D12Resource> m_dirLightBuf[NUM_VIEWPORTS];
-    ComPtr<ID3D12Resource> m_pointLightBuf[NUM_VIEWPORTS];
-    ComPtr<ID3D12Resource> m_spotLightBuf[NUM_VIEWPORTS];
-    void* m_dirLightMapped[NUM_VIEWPORTS] = {};
-    void* m_pointLightMapped[NUM_VIEWPORTS] = {};
-    void* m_spotLightMapped[NUM_VIEWPORTS] = {};
+    ComPtr<ID3D12Resource> m_dirLightBuf[NUM_UPLOAD_SLOTS];
+    ComPtr<ID3D12Resource> m_pointLightBuf[NUM_UPLOAD_SLOTS];
+    ComPtr<ID3D12Resource> m_spotLightBuf[NUM_UPLOAD_SLOTS];
+    void* m_dirLightMapped[NUM_UPLOAD_SLOTS] = {};
+    void* m_pointLightMapped[NUM_UPLOAD_SLOTS] = {};
+    void* m_spotLightMapped[NUM_UPLOAD_SLOTS] = {};
 
-    ShaderTableDesc m_dirLightSRV[NUM_VIEWPORTS];
-    ShaderTableDesc m_pointLightSRV[NUM_VIEWPORTS];
-    ShaderTableDesc m_spotLightSRV[NUM_VIEWPORTS];
+    ShaderTableDesc m_dirLightSRV[NUM_UPLOAD_SLOTS];
+    ShaderTableDesc m_pointLightSRV[NUM_UPLOAD_SLOTS];
+    ShaderTableDesc m_spotLightSRV[NUM_UPLOAD_SLOTS];
 
     ComPtr<ID3D12Resource> m_fallbackCube;
     ComPtr<ID3D12Resource> m_fallbackTex2D;

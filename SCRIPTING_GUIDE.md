@@ -67,6 +67,7 @@ IScript* Create_PlayerController(){ return new PlayerController(); }
 | `Destroy()` | When the GameObject is destroyed. Clean up anything you allocated. |
 | `Editor()` *(optional)* | Every frame in editor mode. Use `ImGui::` calls here to add inspector UI. |
 | `Save() / Load()` *(optional)* | Serialise script state to/from a JSON string for scene saving. |
+| `GetFields()` *(optional)* | List members to show in the Inspector and save with the scene/prefab - see [Serializable fields](#serializable-fields). |
 
 ---
 
@@ -323,6 +324,50 @@ dir.Normalize();
 
 ---
 
+## Serializable fields
+
+For tuning values and references you want to set **per object in the editor**, list them from
+`GetFields()` instead of hand-writing `Save()`/`Load()`. The engine then:
+
+- draws each field in the Inspector under the script's class name,
+- saves them into the scene / prefab JSON (a `"Fields"` object next to `ClassName`),
+- writes them back into the new script instance when the scene or prefab loads, before `Start()`,
+  and keeps them across a DLL hot reload.
+
+```cpp
+// In your .h
+#include "ScriptFields.h"
+void GetFields(ScriptFieldList& out) override;
+
+std::string m_targetScene;            // member initialisers are the defaults
+Vector3     m_size{ 3.f, 4.f, 3.f };
+float       m_speed = 5.f;
+```
+
+```cpp
+// In your .cpp
+void MyScript::GetFields(ScriptFieldList& out){
+    out.push_back(ScriptFields::Scene("TargetScene", m_targetScene, "Level to load"));
+    out.push_back(ScriptFields::Vec3("Size", m_size));
+    out.push_back(ScriptFields::Float("Speed", m_speed));
+}
+```
+
+| Builder | Member type | Inspector widget |
+|---------|-------------|------------------|
+| `ScriptFields::Int` | `int` | drag |
+| `ScriptFields::Float` | `float` | drag |
+| `ScriptFields::Bool` | `bool` | checkbox |
+| `ScriptFields::String` | `std::string` | text box |
+| `ScriptFields::Vec3` | `Vector3` | 3 drags |
+| `ScriptFields::Scene` | `std::string` | picker over `Library/Scenes/` (stores the name, e.g. `AF_KraugsDen`) |
+| `ScriptFields::Prefab` | `std::string` | picker over `Library/Prefabs/` (stores the name, e.g. `Sera`) |
+
+The field name is the JSON key: renaming it drops previously saved values. A saved value whose field no
+longer exists is kept in the file rather than thrown away.
+
+---
+
 ## Optional: Save & Load
 
 If your script has state that should persist across scene saves, override `Save()` and `Load()`:
@@ -359,6 +404,9 @@ void PlayerController::Load(const std::string& json){
 ---
 
 ## Optional: Inspector UI
+
+> Note: `GameScript.dll` doesn't have its own ImGui context, so ImGui calls made from `Editor()` in the
+> script DLL don't render (see `CharacterBase::Editor`). Use serializable fields (above) for inspector UI.
 
 Override `Editor()` to add custom controls in the Inspector panel using ImGui:
 

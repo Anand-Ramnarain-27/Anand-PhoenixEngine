@@ -2,13 +2,31 @@
 #include "API/Phoenix_Scene.h"
 #include "Application.h"
 #include "RuntimeCore.h"
+#include "SceneManager.h"
 #include "SceneGraph.h"
+#include "ModuleCamera.h"
+#include "ModuleFileSystem.h"
+#include <filesystem>
 
 namespace Phoenix {
 
 static SceneGraph* getScene(){
     if (!app || !app->getRuntimeCore()) return nullptr;
     return app->getRuntimeCore()->getActiveModuleScene();
+}
+
+static SceneManager* getSceneManager(){
+    if (!app || !app->getRuntimeCore()) return nullptr;
+    return app->getRuntimeCore()->getSceneManager();
+}
+
+// "AF_KraugsDen" -> <Library>/Scenes/AF_KraugsDen.json; anything that already looks like a path is kept.
+static std::string resolveScenePath(const std::string& nameOrPath){
+    if (nameOrPath.empty()) return nameOrPath;
+    if (nameOrPath.find_first_of("/\\") != std::string::npos ||
+        std::filesystem::path(nameOrPath).extension() == ".json")
+        return nameOrPath;
+    return app->getFileSystem()->GetLibraryPath() + "Scenes/" + nameOrPath + ".json";
 }
 
 GameObject* Scene::Find(const std::string& name){
@@ -27,6 +45,43 @@ void Scene::Destroy(GameObject* go){
     if (!go) return;
     if (SceneGraph* sg = getScene())
         sg->destroyGameObject(go);
+}
+
+void Scene::LoadScene(const std::string& sceneNameOrPath){
+    if (SceneManager* sm = getSceneManager())
+        sm->requestSceneLoad(resolveScenePath(sceneNameOrPath));
+}
+
+bool Scene::SceneExists(const std::string& sceneNameOrPath){
+    if (!app || sceneNameOrPath.empty()) return false;
+    return app->getFileSystem()->Exists(resolveScenePath(sceneNameOrPath).c_str());
+}
+
+void Scene::InstantiatePrefab(const std::string& prefabName, Vec3 position, Quat rotation){
+    if (SceneManager* sm = getSceneManager())
+        sm->requestPrefabSpawn(prefabName, position, rotation);
+}
+
+std::string Scene::GetActiveScenePath(){
+    SceneManager* sm = getSceneManager();
+    return sm ? sm->getCurrentScenePath() : std::string();
+}
+
+std::string Scene::GetActiveSceneName(){
+    const std::string path = GetActiveScenePath();
+    return path.empty() ? path : std::filesystem::path(path).stem().string();
+}
+
+GameObject* Scene::GetActiveCamera(){
+    ModuleCamera* cam = app ? app->getCamera() : nullptr;
+    return cam ? cam->getActiveCamera() : nullptr;
+}
+
+void Scene::SetActiveCamera(GameObject* cameraObject){
+    ModuleCamera* cam = app ? app->getCamera() : nullptr;
+    if (!cam) return;
+    cam->setActiveCamera(cameraObject);
+    if (!cameraObject) cam->clearGameCameraFrustum();
 }
 
 } // namespace Phoenix

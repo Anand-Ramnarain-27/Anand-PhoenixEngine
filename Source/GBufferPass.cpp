@@ -82,7 +82,7 @@ bool GBufferPass::createUploadBuffers(ID3D12Device* device){
     const UINT mvpSz = cbAlign(sizeof(MeshPipeline::CbMVP));
     const UINT instSz = cbAlign(sizeof(MeshPipeline::CbPerInstance));
 
-    for (int i = 0; i < NUM_VIEWPORTS; ++i){
+    for (int i = 0; i < NUM_UPLOAD_SLOTS; ++i){
         m_mvpRing[i] = makeUploadBuf(device, (UINT64)mvpSz * MAX_INSTANCES,
                                       &m_mvpMapped[i], L"GBufferPass_MVPRing");
         if (!m_mvpRing[i]) return false;
@@ -93,6 +93,10 @@ bool GBufferPass::createUploadBuffers(ID3D12Device* device){
     }
 
     return true;
+}
+
+int GBufferPass::uploadSlot(int viewportIndex){
+    return (int)app->getD3D12()->getCurrentBackBufferIdx() * NUM_VIEWPORTS + viewportIndex;
 }
 
 bool GBufferPass::createFallbackTexture(ID3D12Device* device){
@@ -167,6 +171,7 @@ void GBufferPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj
                                    D3D12_GPU_VIRTUAL_ADDRESS& outInstVA){
     const UINT mvpSz = cbAlign(sizeof(MeshPipeline::CbMVP));
     const UINT instSz = cbAlign(sizeof(MeshPipeline::CbPerInstance));
+    const int s = uploadSlot(viewportIndex);
 
     Matrix world;
     memcpy(&world, entry.worldMatrix, sizeof(float) * 16);
@@ -174,7 +179,7 @@ void GBufferPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj
     {
         MeshPipeline::CbMVP mvp;
         mvp.mvp = (world * viewProj).Transpose();
-        memcpy(static_cast<char*>(m_mvpMapped[viewportIndex]) + (UINT64)slot * mvpSz, &mvp, sizeof(mvp));
+        memcpy(static_cast<char*>(m_mvpMapped[s]) + (UINT64)slot * mvpSz, &mvp, sizeof(mvp));
     }
 
     {
@@ -189,11 +194,11 @@ void GBufferPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj
         if (!mat && entry.materialRes) mat = entry.materialRes->getMaterial();
         inst.material = toGpuMaterial(mat);
 
-        memcpy(static_cast<char*>(m_instanceMapped[viewportIndex]) + (UINT64)slot * instSz, &inst, sizeof(inst));
+        memcpy(static_cast<char*>(m_instanceMapped[s]) + (UINT64)slot * instSz, &inst, sizeof(inst));
     }
 
-    outMvpVA = m_mvpRing[viewportIndex]->GetGPUVirtualAddress() + (UINT64)slot * mvpSz;
-    outInstVA = m_instanceRing[viewportIndex]->GetGPUVirtualAddress() + (UINT64)slot * instSz;
+    outMvpVA = m_mvpRing[s]->GetGPUVirtualAddress() + (UINT64)slot * mvpSz;
+    outInstVA = m_instanceRing[s]->GetGPUVirtualAddress() + (UINT64)slot * instSz;
 }
 
 void GBufferPass::render(ID3D12GraphicsCommandList* cmd,

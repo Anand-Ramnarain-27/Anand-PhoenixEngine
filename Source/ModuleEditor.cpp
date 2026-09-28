@@ -101,6 +101,14 @@ bool ModuleEditor::init(){
     runtimeCore->getHotReloadManager()->setReloadCallback([this](const std::string& dllPath){
         notifyScriptComponentsReload(dllPath);
         });
+    // A script changing levels during Play replaces every GameObject, same as Stop does.
+    runtimeCore->getSceneManager()->setOnRuntimeSceneChange([this](){
+        m_selection.clear();
+        m_selection.renaming = nullptr;
+        m_undoStack.clear();
+        m_redoStack.clear();
+        m_savePointIndex = 0;
+        });
 
     std::string scriptDir = app->getFileSystem()->GetAssetsPath() + std::string("Scripts/");
     app->getFileSystem()->CreateDir(scriptDir.c_str());

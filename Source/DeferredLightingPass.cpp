@@ -79,7 +79,7 @@ bool DeferredLightingPass::init(ID3D12Device* device){
 
 bool DeferredLightingPass::createUploadBuffers(ID3D12Device* device){
     const UINT cbSz = cbAlign(sizeof(CbPerFrame));
-    for (int i = 0; i < NUM_VIEWPORTS; ++i){
+    for (int i = 0; i < NUM_UPLOAD_SLOTS; ++i){
         m_perFrameCB[i] = makeUploadBuf(device, cbSz, &m_perFrameMapped[i], L"DeferredLight_PerFrameCB");
         if (!m_perFrameCB[i]) return false;
 
@@ -98,9 +98,13 @@ bool DeferredLightingPass::createUploadBuffers(ID3D12Device* device){
     return true;
 }
 
+int DeferredLightingPass::uploadSlot(int viewportIndex){
+    return (int)app->getD3D12()->getCurrentBackBufferIdx() * NUM_VIEWPORTS + viewportIndex;
+}
+
 bool DeferredLightingPass::createLightSRVs(){
     auto* sd = app->getShaderDescriptors();
-    for (int i = 0; i < NUM_VIEWPORTS; ++i){
+    for (int i = 0; i < NUM_UPLOAD_SLOTS; ++i){
         m_dirLightSRV[i] = sd->allocTable("DeferredLight_DirSRV");
         m_pointLightSRV[i] = sd->allocTable("DeferredLight_PointSRV");
         m_spotLightSRV[i] = sd->allocTable("DeferredLight_SpotSRV");
@@ -192,11 +196,11 @@ void DeferredLightingPass::uploadLights(const FrameLightData& lights, int viewpo
         UINT n = static_cast<UINT>(std::min(count, maxCount));
         if (n > 0) memcpy(dst, src, n * stride);
     };
-    copy(m_dirLightMapped[viewportIndex], lights.dirLights.data(), lights.dirLights.size(),
+    copy(m_dirLightMapped[uploadSlot(viewportIndex)], lights.dirLights.data(), lights.dirLights.size(),
          sizeof(MeshPipeline::GPUDirectionalLight), MeshPipeline::MAX_DIR_LIGHTS);
-    copy(m_pointLightMapped[viewportIndex], lights.pointLights.data(), lights.pointLights.size(),
+    copy(m_pointLightMapped[uploadSlot(viewportIndex)], lights.pointLights.data(), lights.pointLights.size(),
          sizeof(MeshPipeline::GPUPointLight), MeshPipeline::MAX_POINT_LIGHTS);
-    copy(m_spotLightMapped[viewportIndex], lights.spotLights.data(), lights.spotLights.size(),
+    copy(m_spotLightMapped[uploadSlot(viewportIndex)], lights.spotLights.data(), lights.spotLights.size(),
          sizeof(MeshPipeline::GPUSpotLight), MeshPipeline::MAX_SPOT_LIGHTS);
 }
 
@@ -242,7 +246,7 @@ void DeferredLightingPass::uploadPerFrameCB(const FrameLightData& lights,
                                    invRange, 0.0f);
     cb.pointShadowPos = Vector4(shadow.pointPos.x, shadow.pointPos.y, shadow.pointPos.z, 0.0f);
 
-    memcpy(m_perFrameMapped[viewportIndex], &cb, sizeof(cb));
+    memcpy(m_perFrameMapped[uploadSlot(viewportIndex)], &cb, sizeof(cb));
 }
 
 void DeferredLightingPass::render(ID3D12GraphicsCommandList* cmd,
@@ -282,14 +286,14 @@ void DeferredLightingPass::render(ID3D12GraphicsCommandList* cmd,
     cmd->SetDescriptorHeaps(2, heaps);
 
     cmd->SetGraphicsRootConstantBufferView(DeferredLightingPipeline::SLOT_PERFRAME_CB,
-                                            m_perFrameCB[viewportIndex]->GetGPUVirtualAddress());
+                                            m_perFrameCB[uploadSlot(viewportIndex)]->GetGPUVirtualAddress());
 
     cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_DIR_LIGHTS,
-                                         m_dirLightSRV[viewportIndex].getGPUHandle(0));
+                                         m_dirLightSRV[uploadSlot(viewportIndex)].getGPUHandle(0));
     cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_POINT_LIGHTS,
-                                         m_pointLightSRV[viewportIndex].getGPUHandle(0));
+                                         m_pointLightSRV[uploadSlot(viewportIndex)].getGPUHandle(0));
     cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_SPOT_LIGHTS,
-                                         m_spotLightSRV[viewportIndex].getGPUHandle(0));
+                                         m_spotLightSRV[uploadSlot(viewportIndex)].getGPUHandle(0));
 
     if (env && env->hasIBL()){
         const EnvironmentMap* map = env->getEnvironmentMap();
@@ -342,7 +346,7 @@ void DeferredLightingPass::render(ID3D12GraphicsCommandList* cmd,
     cmd->SetGraphicsRootConstantBufferView(DeferredLightingPipeline::SLOT_GPU_VP,
                                            (shadow.gpuMode && shadow.gpuVpVA)
                                                ? shadow.gpuVpVA
-                                               : m_perFrameCB[viewportIndex]->GetGPUVirtualAddress());
+                                               : m_perFrameCB[uploadSlot(viewportIndex)]->GetGPUVirtualAddress());
 
     cmd->SetGraphicsRootDescriptorTable(DeferredLightingPipeline::SLOT_SAMPLER,
                                          samplerHeap->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));

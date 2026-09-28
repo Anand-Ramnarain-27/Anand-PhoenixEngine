@@ -10,6 +10,10 @@
 #include "SceneSerializer.h"
 #include "BuildSettings.h"
 #include "ModuleFileSystem.h"
+#include "ModuleCamera.h"
+#include "ComponentTransform.h"
+#include "PrefabManager.h"
+#include "RuntimeCore.h"
 #include <filesystem>
 
 SceneManager::~SceneManager(){ clearScene(); }
@@ -28,17 +32,36 @@ void SceneManager::clearScene(){
     }
     state = PlayState::Stopped;
     hasSerializedState = false;
+    m_currentScenePath.clear();
+    m_pendingScenePath.clear();
+    m_pendingSpawns.clear();
+    m_runtimeSceneChanged = false;
 }
 
-// SceneManager::getModuleScene() lives in SceneManagerCore.cpp now - kept
-// separate from this file's render()/updateAnimations()/play()/loadScene()
-// so it can be linked into GameScript.dll (via PhoenixCore) without
+// SceneManager::getModuleScene() and requestSceneLoad()/requestPrefabSpawn()
+// live in SceneManagerCore.cpp now - kept separate from this file's
+// render()/updateAnimations()/play()/loadScene() so they can be linked into
+// GameScript.dll (via PhoenixCore) without
 // ComponentMesh/ComponentAnimation/SceneSerializer/ModuleD3D12.
+
+// The active game camera is a raw GameObject*; drop it before its scene is replaced. A loaded scene
+// re-sets it from whichever camera is saved with IsMainCamera.
+static void clearActiveCamera(){
+    if (ModuleCamera* cam = app->getCamera()){
+        cam->setActiveCamera(nullptr);
+        cam->clearGameCameraFrustum();
+    }
+}
 
 void SceneManager::play(){
     if (!activeScene || m_editingPrefab) return;
     if (state == PlayState::Stopped){
         if (auto* ms = activeScene->getModuleScene()) hasSerializedState = SceneSerializer::SaveTempScene(ms);
+        m_runtimeSceneChanged = false;
+        m_scenePathAtPlay = m_currentScenePath;
+        m_lookAtPlay = { settings.skybox, settings.ambient, settings.gravityY, settings.postProcess, settings.fog };
+        m_pendingScenePath.clear();
+        m_pendingSpawns.clear();
     }
     state = PlayState::Playing;
 }
@@ -53,6 +76,12 @@ void SceneManager::stop(){
 
     if (auto* d3d = app->getD3D12()) d3d->flush();
 
+    m_pendingScenePath.clear();
+    m_pendingSpawns.clear();
+    // Play may have made a spawned object (e.g. a follow camera) the active camera; the temp scene
+    // restore below destroys it.
+    clearActiveCamera();
+
     auto* ms = activeScene->getModuleScene();
     if (hasSerializedState && ms){
         if (!SceneSerializer::LoadTempScene(ms)){ LOG("SceneManager: Failed to restore temp scene, falling back to reset()"); activeScene->reset(); }
@@ -60,6 +89,62 @@ void SceneManager::stop(){
     }
     else activeScene->reset();
     state = PlayState::Stopped;
+
+    // A script loaded other scenes during Play: the temp scene above only restores GameObjects, so put the
+    // scene path and the look settings (skybox, fog, ...) of the scene Play started in back as well.
+    if (m_runtimeSceneChanged){
+        m_runtimeSceneChanged = false;
+        m_currentScenePath = m_scenePathAtPlay;
+        settings.skybox = m_lookAtPlay.skybox;
+        settings.ambient = m_lookAtPlay.ambient;
+        settings.gravityY = m_lookAtPlay.gravityY;
+        settings.postProcess = m_lookAtPlay.postProcess;
+        settings.fog = m_lookAtPlay.fog;
+        if (RuntimeCore* rc = app->getRuntimeCore()) rc->applySkyboxFromSettings();
+    }
+}
+
+bool SceneManager::processRuntimeRequests(){
+    bool loaded = false;
+
+    if (!m_pendingScenePath.empty()){
+        const std::string path = m_pendingScenePath;
+        m_pendingScenePath.clear();
+        m_pendingSpawns.clear();   // queued for the scene being left
+
+        if (m_editingPrefab){
+            LOG("SceneManager: ignoring script scene load '%s' while editing a prefab", path.c_str());
+        }
+        else if (!app->getFileSystem()->Exists(path.c_str())){
+            LOG("SceneManager: script scene load failed, file not found: %s", path.c_str());
+        }
+        else {
+            if (m_onRuntimeSceneChange) m_onRuntimeSceneChange();
+            clearActiveCamera();
+            if (loadScene(path)){
+                if (state != PlayState::Stopped) m_runtimeSceneChanged = true;
+                loaded = true;
+                LOG("SceneManager: script loaded scene %s", path.c_str());
+            }
+            else LOG("SceneManager: script scene load failed: %s", path.c_str());
+        }
+    }
+
+    if (!m_pendingSpawns.empty()){
+        std::vector<PendingSpawn> spawns = std::move(m_pendingSpawns);
+        m_pendingSpawns.clear();
+        SceneGraph* ms = getModuleScene();
+        for (const PendingSpawn& s : spawns){
+            GameObject* go = ms ? PrefabManager::instantiatePrefab(s.prefabName, ms) : nullptr;
+            if (!go){ LOG("SceneManager: script prefab spawn failed: '%s'", s.prefabName.c_str()); continue; }
+            ComponentTransform* t = go->getTransform();
+            t->position = s.position;
+            t->rotation = s.rotation;
+            t->markDirty();
+        }
+    }
+
+    return loaded;
 }
 
 void SceneManager::update(float deltaTime){
@@ -106,7 +191,12 @@ bool SceneManager::saveCurrentScene(const std::string& filePath){
     if (m_editingPrefab){ LOG("SceneManager: Cannot save scene while editing a prefab"); return false; }
     auto* ms = activeScene ? activeScene->getModuleScene() : nullptr;
     if (!ms){ LOG("SceneManager: No active scene to save"); return false; }
-    return SceneSerializer::SaveScene(ms, filePath, &settings);
+    // The editor's "current scene" file is still the one Play started in; saving now would write another
+    // level's contents over it.
+    if (m_runtimeSceneChanged){ LOG("SceneManager: Cannot save - a script changed scenes during Play. Stop first."); return false; }
+    if (!SceneSerializer::SaveScene(ms, filePath, &settings)) return false;
+    if (state == PlayState::Stopped) m_currentScenePath = filePath;
+    return true;
 }
 
 bool SceneManager::loadScene(const std::string& filePath){
@@ -114,7 +204,9 @@ bool SceneManager::loadScene(const std::string& filePath){
     auto* ms = activeScene ? activeScene->getModuleScene() : nullptr;
     if (!ms){ LOG("SceneManager: No active scene to load into"); return false; }
     app->getD3D12()->flush();
-    return SceneSerializer::LoadScene(filePath, ms, &settings);
+    if (!SceneSerializer::LoadScene(filePath, ms, &settings)) return false;
+    m_currentScenePath = filePath;
+    return true;
 }
 
 bool SceneManager::loadSceneByBuildIndex(int index, const BuildSettings& buildSettings){

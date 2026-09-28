@@ -50,6 +50,11 @@ public:
     };
 
     static constexpr int NUM_VIEWPORTS = 2;
+    // Buffers the CPU writes every frame exist once per (frame in flight, viewport): the CPU records up to
+    // FRAMES_IN_FLIGHT-1 frames ahead of the GPU, so with a single copy per viewport the next frame's
+    // writes land in data the GPU is still reading (seen as Game view frames drawn with the wrong
+    // matrices or lighting). GPU-written resources stay one per viewport - commands run in order.
+    static constexpr int NUM_UPLOAD_SLOTS = NUM_VIEWPORTS * FRAMES_IN_FLIGHT;
 
     bool init(ID3D12Device* device);
 
@@ -72,6 +77,8 @@ public:
     uint32_t getNumTilesY(uint32_t h) const { return (h + TILE_SIZE - 1) / TILE_SIZE; }
 
 private:
+    // Index into the NUM_UPLOAD_SLOTS arrays for this frame's copy of `viewportIndex`'s buffers.
+    static int uploadSlot(int viewportIndex);
     bool createBuffers(ID3D12Device* device);
     bool createDescriptors();
     bool createUploadBuffers(ID3D12Device* device);
@@ -89,16 +96,16 @@ private:
     ShaderTableDesc m_pointListSRV[NUM_VIEWPORTS];
     ShaderTableDesc m_spotListSRV[NUM_VIEWPORTS];
 
-    ComPtr<ID3D12Resource> m_pointLightBuf[NUM_VIEWPORTS];
-    ComPtr<ID3D12Resource> m_spotLightBuf[NUM_VIEWPORTS];
-    void* m_pointLightMapped[NUM_VIEWPORTS] = {};
-    void* m_spotLightMapped[NUM_VIEWPORTS] = {};
+    ComPtr<ID3D12Resource> m_pointLightBuf[NUM_UPLOAD_SLOTS];
+    ComPtr<ID3D12Resource> m_spotLightBuf[NUM_UPLOAD_SLOTS];
+    void* m_pointLightMapped[NUM_UPLOAD_SLOTS] = {};
+    void* m_spotLightMapped[NUM_UPLOAD_SLOTS] = {};
 
-    ShaderTableDesc m_pointLightSRV[NUM_VIEWPORTS];
-    ShaderTableDesc m_spotLightSRV[NUM_VIEWPORTS];
+    ShaderTableDesc m_pointLightSRV[NUM_UPLOAD_SLOTS];
+    ShaderTableDesc m_spotLightSRV[NUM_UPLOAD_SLOTS];
 
-    ComPtr<ID3D12Resource> m_cb[NUM_VIEWPORTS];
-    void* m_cbMapped[NUM_VIEWPORTS] = {};
+    ComPtr<ID3D12Resource> m_cb[NUM_UPLOAD_SLOTS];
+    void* m_cbMapped[NUM_UPLOAD_SLOTS] = {};
 
     uint32_t m_lastWidth[NUM_VIEWPORTS] = {};
     uint32_t m_lastHeight[NUM_VIEWPORTS] = {};

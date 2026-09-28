@@ -62,7 +62,7 @@ bool LightCullingPass::createUploadBuffers(ID3D12Device* device){
     const UINT cbSz = cbAlign(sizeof(CbCulling));
     auto* sd = app->getShaderDescriptors();
 
-    for (int i = 0; i < NUM_VIEWPORTS; ++i){
+    for (int i = 0; i < NUM_UPLOAD_SLOTS; ++i){
         m_cb[i] = makeUploadBuf(device, cbSz, &m_cbMapped[i], L"LightCulling_CB");
         if (!m_cb[i]) return false;
 
@@ -86,6 +86,10 @@ bool LightCullingPass::createUploadBuffers(ID3D12Device* device){
                           MeshPipeline::MAX_SPOT_LIGHTS, sizeof(MeshPipeline::GPUSpotLight));
     }
     return true;
+}
+
+int LightCullingPass::uploadSlot(int viewportIndex){
+    return (int)app->getD3D12()->getCurrentBackBufferIdx() * NUM_VIEWPORTS + viewportIndex;
 }
 
 static bool allocTileBuffers(ID3D12Device* device, UINT numTiles, UINT maxPerTile,
@@ -113,6 +117,8 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
                              bool ignoreNearDepth){
     if (width == 0 || height == 0) return;
     viewportIndex = (viewportIndex >= 0 && viewportIndex < NUM_VIEWPORTS) ? viewportIndex : 0;
+
+    const int upload = uploadSlot(viewportIndex);
 
     const uint32_t tilesX = getNumTilesX(width);
     const uint32_t tilesY = getNumTilesY(height);
@@ -151,8 +157,8 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
     {
         UINT nP = (UINT)std::min(lights.pointLights.size(), (size_t)MeshPipeline::MAX_POINT_LIGHTS);
         UINT nS = (UINT)std::min(lights.spotLights.size(), (size_t)MeshPipeline::MAX_SPOT_LIGHTS);
-        if (nP) memcpy(m_pointLightMapped[viewportIndex], lights.pointLights.data(), nP * sizeof(MeshPipeline::GPUPointLight));
-        if (nS) memcpy(m_spotLightMapped[viewportIndex], lights.spotLights.data(), nS * sizeof(MeshPipeline::GPUSpotLight));
+        if (nP) memcpy(m_pointLightMapped[upload], lights.pointLights.data(), nP * sizeof(MeshPipeline::GPUPointLight));
+        if (nS) memcpy(m_spotLightMapped[upload], lights.spotLights.data(), nS * sizeof(MeshPipeline::GPUSpotLight));
     }
 
     {
@@ -164,7 +170,7 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
         cb.projection = projection.Transpose();
         cb.view = view.Transpose();
         cb.ignoreNearDepth = ignoreNearDepth ? 1u : 0u;
-        memcpy(m_cbMapped[viewportIndex], &cb, sizeof(cb));
+        memcpy(m_cbMapped[upload], &cb, sizeof(cb));
     }
 
     BEGIN_EVENT(cmd, L"Light Culling Pass");
@@ -197,14 +203,14 @@ void LightCullingPass::cull(ID3D12GraphicsCommandList* cmd,
     ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap() };
     cmd->SetDescriptorHeaps(1, heaps);
 
-    cmd->SetComputeRootConstantBufferView(LightCullingPipeline::SLOT_CB, m_cb[viewportIndex]->GetGPUVirtualAddress());
+    cmd->SetComputeRootConstantBufferView(LightCullingPipeline::SLOT_CB, m_cb[upload]->GetGPUVirtualAddress());
 
     cmd->SetComputeRootDescriptorTable(LightCullingPipeline::SLOT_DEPTH,
                                         gbufferPass.getGBuffer().getDepthSrvHandle());
     cmd->SetComputeRootDescriptorTable(LightCullingPipeline::SLOT_POINT_LIGHTS,
-                                        m_pointLightSRV[viewportIndex].getGPUHandle(0));
+                                        m_pointLightSRV[upload].getGPUHandle(0));
     cmd->SetComputeRootDescriptorTable(LightCullingPipeline::SLOT_SPOT_LIGHTS,
-                                        m_spotLightSRV[viewportIndex].getGPUHandle(0));
+                                        m_spotLightSRV[upload].getGPUHandle(0));
     cmd->SetComputeRootDescriptorTable(LightCullingPipeline::SLOT_POINT_UAV,
                                         m_pointListUAV[viewportIndex].getGPUHandle(0));
     cmd->SetComputeRootDescriptorTable(LightCullingPipeline::SLOT_SPOT_UAV,

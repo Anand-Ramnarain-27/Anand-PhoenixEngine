@@ -48,6 +48,14 @@ public:
     const Vector3& getLocalAABBMax() const { return m_localAABBMax; }
     void getWorldAABB(Vector3& outMin, Vector3& outMax) const;
 
+    // Ray tests against the mesh's actual triangles (both faces), for collision that needs more than the
+    // bounding box - stairs, doorways, low props. Skinned meshes have none to offer (their CPU vertices are
+    // the bind pose), nor do meshes without CPU-side geometry; callers fall back to the bounds for those.
+    bool hasRaycastTriangles() const;
+    // World-space ray, `dir` normalized. On a hit within maxDist: true, distance and world-space normal
+    // (facing against the ray).
+    bool raycastTriangles(const Vector3& origin, const Vector3& dir, float maxDist, float& outDist, Vector3& outNormal) const;
+
     bool isVisible() const { return m_isVisible; }
     void setVisible(bool v){ m_isVisible = v; }
 

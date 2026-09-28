@@ -209,6 +209,9 @@ void RuntimeCore::applySkyboxFromSettings(){
 void RuntimeCore::tick(float dt, float aspectRatio){
     if (m_sceneManager){
         m_sceneManager->update(dt);
+        // Scene loads / prefab spawns that scripts asked for during update(), now that nothing is iterating.
+        if (m_sceneManager->processRuntimeRequests())
+            applySkyboxFromSettings();
         m_sceneManager->updateAnimations(dt);
     }
 

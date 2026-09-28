@@ -9,6 +9,7 @@
 #include "ComponentBounds.h"
 #include "ComponentRigidbody.h"
 #include "RayMath.h"
+#include <algorithm>
 #include <functional>
 #include <cfloat>
 #include <cmath>
@@ -97,22 +98,42 @@ std::vector<CollisionBody> CollisionSystem::gatherBodies(SceneGraph* scene, floa
     return bodies;
 }
 
-bool CollisionSystem::Raycast(SceneGraph* scene, const Vector3& origin, const Vector3& dir,
-                              float maxDistance, RaycastHit& outHit){
+// One ray against already-gathered bodies. See Raycast() for what meshPrecise changes.
+static bool raycastBodies(const std::vector<CollisionBody>& bodies, const Vector3& origin, const Vector3& dir,
+                          float maxDistance, RaycastHit& outHit, bool meshPrecise){
     outHit = RaycastHit{};
-    if (!scene || maxDistance <= 0.f) return false;
+    if (maxDistance <= 0.f) return false;
 
     Vector3 d = dir;
     if (d.LengthSquared() < 1e-8f) return false;
     d.Normalize();
     RayMath::Ray ray{ origin, d };
 
-    std::vector<CollisionBody> bodies = gatherBodies(scene, 0.f);
-
     float closest = maxDistance;
     for (const auto& body : bodies){
-        if (RayMath::RayVsAABB(ray, body.worldAABB.min, body.worldAABB.max, closest) == FLT_MAX)
+        const Vector3& mn = body.worldAABB.min;
+        const Vector3& mx = body.worldAABB.max;
+        const bool originInside = origin.x >= mn.x && origin.x <= mx.x && origin.y >= mn.y && origin.y <= mx.y &&
+                                  origin.z >= mn.z && origin.z <= mx.z;
+        // RayVsAABB reports the exit distance when the origin is inside the box, which can lie past `closest`
+        // while a triangle inside the box is nearer - so precise mode doesn't cull on it then.
+        if (!(meshPrecise && originInside) && RayMath::RayVsAABB(ray, mn, mx, closest) == FLT_MAX)
             continue;
+
+        const ComponentMesh* cm = meshPrecise ? body.go->getComponent<ComponentMesh>() : nullptr;
+        if (cm && cm->hasRaycastTriangles()){
+            float tt;
+            Vector3 tn;
+            if (cm->raycastTriangles(origin, d, closest, tt, tn) && tt < closest){
+                closest = tt;
+                outHit.hit = true;
+                outHit.distance = tt;
+                outHit.point = origin + d * tt;
+                outHit.normal = tn;
+                outHit.object = body.go;
+            }
+            continue;
+        }
 
         Vector3 normal;
         float t;
@@ -138,6 +159,30 @@ bool CollisionSystem::Raycast(SceneGraph* scene, const Vector3& origin, const Ve
     }
 
     return outHit.hit;
+}
+
+static std::vector<CollisionBody> filterIgnored(std::vector<CollisionBody> bodies, const std::function<bool(GameObject*)>& ignore){
+    if (ignore)
+        bodies.erase(std::remove_if(bodies.begin(), bodies.end(),
+                                    [&](const CollisionBody& b){ return ignore(b.go); }), bodies.end());
+    return bodies;
+}
+
+bool CollisionSystem::Raycast(SceneGraph* scene, const Vector3& origin, const Vector3& dir,
+                              float maxDistance, RaycastHit& outHit, bool meshPrecise,
+                              const std::function<bool(GameObject*)>& ignore){
+    outHit = RaycastHit{};
+    if (!scene) return false;
+    return raycastBodies(filterIgnored(gatherBodies(scene, 0.f), ignore), origin, dir, maxDistance, outHit, meshPrecise);
+}
+
+void CollisionSystem::RaycastBatch(SceneGraph* scene, const std::vector<RayQuery>& rays, std::vector<RaycastHit>& outHits,
+                                   bool meshPrecise, const std::function<bool(GameObject*)>& ignore){
+    outHits.assign(rays.size(), RaycastHit{});
+    if (!scene || rays.empty()) return;
+    const std::vector<CollisionBody> bodies = filterIgnored(gatherBodies(scene, 0.f), ignore);
+    for (size_t i = 0; i < rays.size(); ++i)
+        raycastBodies(bodies, rays[i].origin, rays[i].direction, rays[i].maxDistance, outHits[i], meshPrecise);
 }
 
 bool CollisionSystem::IsLineClear(SceneGraph* scene, const Vector3& from, const Vector3& to){
