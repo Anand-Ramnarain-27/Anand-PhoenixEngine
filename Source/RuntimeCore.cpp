@@ -758,7 +758,8 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
         const Material* mat = e->instanceMaterial.get();
         if (!mat) mat = e->material;
         if (!mat && e->materialRes) mat = e->materialRes->getMaterial();
-        bool isTranslucent = mat && mat->getData().baseColor.w < 0.999f;
+        bool isTranslucent = mat && (mat->getData().baseColor.w < 0.999f ||
+                                     (mat->getData().flags & MAT_FLAG_ALPHA_BLEND));
         (isTranslucent ? translucentMeshes : opaqueMeshes).push_back(e);
     }
 

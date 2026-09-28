@@ -50,7 +50,7 @@ private:
 	                      uint32_t envRoughLevels, const ShadowRenderData& shadow);
 	void writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj, UINT slot, D3D12_GPU_VIRTUAL_ADDRESS& outMvpVA, D3D12_GPU_VIRTUAL_ADDRESS& outInstVA);
 
-	void renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pso,
+	void renderWithPSO(ID3D12GraphicsCommandList* cmd, bool transparent,
 	                   const std::vector<MeshEntry*>& meshes,
 	                   const FrameLightData& lights, const Vector3& cameraPos,
 	                   const Matrix& viewProj, const EnvironmentSystem* env,

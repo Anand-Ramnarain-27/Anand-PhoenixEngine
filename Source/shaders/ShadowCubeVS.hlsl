@@ -9,6 +9,7 @@ cbuffer CubeMVP : register(b0){
 struct VSOut {
     float4 position : SV_POSITION;
     float3 worldPos : POSITION;
+    float2 uv : TEXCOORD;
 };
 
 VSOut main(float3 position : POSITION, float2 uv : TEXCOORD,
@@ -16,5 +17,6 @@ VSOut main(float3 position : POSITION, float2 uv : TEXCOORD,
     VSOut o;
     o.position = mul(float4(position, 1.0f), WorldLightViewProj);
     o.worldPos = mul(float4(position, 1.0f), World).xyz;
+    o.uv = uv;
     return o;
 }

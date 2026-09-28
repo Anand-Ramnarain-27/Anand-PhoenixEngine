@@ -1178,6 +1178,9 @@
     <None Include="shaders\Material.hlsli">
       <Filter>Shaders\Common</Filter>
     </None>
+    <None Include="shaders\ShadowAlphaMask.hlsli">
+      <Filter>Shaders\Common</Filter>
+    </None>
     <None Include="shaders\Samplers.hlsli">
       <Filter>Shaders\Common</Filter>
     </None>
@@ -1252,6 +1255,15 @@
       <Filter>Shaders\Deferred</Filter>
     </FxCompile>
     <FxCompile Include="shaders\ShadowDepthPS.hlsl">
+      <Filter>Shaders\Deferred</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ShadowDepthMaskedPS.hlsl">
+      <Filter>Shaders\Deferred</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ShadowMomentsMaskedPS.hlsl">
+      <Filter>Shaders\Deferred</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ShadowCubeMaskedPS.hlsl">
       <Filter>Shaders\Deferred</Filter>
     </FxCompile>
     <FxCompile Include="shaders\ShadowMomentsPS.hlsl">

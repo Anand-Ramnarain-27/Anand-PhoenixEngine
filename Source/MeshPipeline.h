@@ -98,8 +98,12 @@ public:
 	bool init(ID3D12Device* device, bool useMSAA = false);
 	void bindIBL(ID3D12GraphicsCommandList* cmd, const EnvironmentSystem* env) const;
 
-	ID3D12PipelineState* getPSO() const { return m_pso.Get(); }
-	ID3D12PipelineState* getTransparentPSO() const { return m_transparentPso.Get(); }
+	ID3D12PipelineState* getPSO(bool doubleSided = false) const {
+		return doubleSided ? m_psoDoubleSided.Get() : m_pso.Get();
+	}
+	ID3D12PipelineState* getTransparentPSO(bool doubleSided = false) const {
+		return doubleSided ? m_transparentPsoDoubleSided.Get() : m_transparentPso.Get();
+	}
 	ID3D12RootSignature* getRootSig() const { return m_rootSig.Get(); }
 
 private:
@@ -109,5 +113,7 @@ private:
 
 	ComPtr<ID3D12RootSignature> m_rootSig;
 	ComPtr<ID3D12PipelineState> m_pso;
+	ComPtr<ID3D12PipelineState> m_psoDoubleSided;
 	ComPtr<ID3D12PipelineState> m_transparentPso;
+	ComPtr<ID3D12PipelineState> m_transparentPsoDoubleSided;
 };

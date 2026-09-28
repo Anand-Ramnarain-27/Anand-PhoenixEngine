@@ -15,7 +15,9 @@ public:
 
     bool init(ID3D12Device* device);
 
-    ID3D12PipelineState* getPSO() const { return m_pso.Get(); }
+    ID3D12PipelineState* getPSO(bool doubleSided = false) const {
+        return doubleSided ? m_psoDoubleSided.Get() : m_pso.Get();
+    }
     ID3D12RootSignature* getRootSig() const { return m_rootSig.Get(); }
 
 private:
@@ -24,6 +26,7 @@ private:
 
     ComPtr<ID3D12RootSignature> m_rootSig;
     ComPtr<ID3D12PipelineState> m_pso;
+    ComPtr<ID3D12PipelineState> m_psoDoubleSided;
 };
 #include "MeshEntry.h"
 #include "MeshPipeline.h"

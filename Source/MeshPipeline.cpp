@@ -98,6 +98,13 @@ bool MeshPipeline::createPSO(ID3D12Device* device, bool useMSAA){
 		LOG("MeshPipeline: CreateGraphicsPipelineState failed 0x%08X", hr);
 		return false;
 	}
+
+	desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_psoDoubleSided));
+	if (FAILED(hr)){
+		LOG("MeshPipeline: CreateGraphicsPipelineState (double-sided) failed 0x%08X", hr);
+		return false;
+	}
 	return true;
 }
 
@@ -139,6 +146,13 @@ bool MeshPipeline::createTransparentPSO(ID3D12Device* device){
 	HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_transparentPso));
 	if (FAILED(hr)){
 		LOG("MeshPipeline: CreateGraphicsPipelineState (transparent) failed 0x%08X", hr);
+		return false;
+	}
+
+	desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_transparentPsoDoubleSided));
+	if (FAILED(hr)){
+		LOG("MeshPipeline: CreateGraphicsPipelineState (transparent, double-sided) failed 0x%08X", hr);
 		return false;
 	}
 	return true;

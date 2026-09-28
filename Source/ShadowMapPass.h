@@ -7,6 +7,7 @@
 #include "ShadowMath.h"
 #include <SimpleMath.h>
 #include <vector>
+#include <unordered_map>
 #include <d3d12.h>
 #include <wrl.h>
 
@@ -14,6 +15,7 @@ using Microsoft::WRL::ComPtr;
 using namespace DirectX::SimpleMath;
 
 class GBuffer;
+class Material;
 
 struct ShadowRenderData {
     bool enabled = false;
@@ -54,9 +56,12 @@ struct ShadowRenderData {
 class ShadowMapPipeline {
 public:
     static constexpr UINT SLOT_MVP_CB = 0;
+    static constexpr UINT SLOT_MASK_CB = 1;
+    static constexpr UINT SLOT_MASK_TEX = 2;
 
     bool init(ID3D12Device* device);
     ID3D12PipelineState* getPSO() const { return m_pso.Get(); }
+    ID3D12PipelineState* getMaskedPSO() const { return m_maskedPso.Get(); }
     ID3D12RootSignature* getRootSig() const { return m_rootSig.Get(); }
 
 private:
@@ -65,33 +70,42 @@ private:
 
     ComPtr<ID3D12RootSignature> m_rootSig;
     ComPtr<ID3D12PipelineState> m_pso;
+    ComPtr<ID3D12PipelineState> m_maskedPso;
 };
 
 class ShadowMomentsPipeline {
 public:
     static constexpr UINT SLOT_MVP_CB = 0;
     static constexpr UINT SLOT_MOMENT_CONSTS = 1;
+    static constexpr UINT SLOT_MASK_CB = 2;
+    static constexpr UINT SLOT_MASK_TEX = 3;
 
     bool init(ID3D12Device* device);
     ID3D12PipelineState* getPSO() const { return m_pso.Get(); }
+    ID3D12PipelineState* getMaskedPSO() const { return m_maskedPso.Get(); }
     ID3D12RootSignature* getRootSig() const { return m_rootSig.Get(); }
 
 private:
     ComPtr<ID3D12RootSignature> m_rootSig;
     ComPtr<ID3D12PipelineState> m_pso;
+    ComPtr<ID3D12PipelineState> m_maskedPso;
 };
 
 class ShadowCubePipeline {
 public:
     static constexpr UINT SLOT_MVP_CB = 0;
+    static constexpr UINT SLOT_MASK_CB = 1;
+    static constexpr UINT SLOT_MASK_TEX = 2;
 
     bool init(ID3D12Device* device);
     ID3D12PipelineState* getPSO() const { return m_pso.Get(); }
+    ID3D12PipelineState* getMaskedPSO() const { return m_maskedPso.Get(); }
     ID3D12RootSignature* getRootSig() const { return m_rootSig.Get(); }
 
 private:
     ComPtr<ID3D12RootSignature> m_rootSig;
     ComPtr<ID3D12PipelineState> m_pso;
+    ComPtr<ID3D12PipelineState> m_maskedPso;
 };
 
 class ShadowReducePipeline {
@@ -130,14 +144,18 @@ class ShadowDepthGpuPipeline {
 public:
     static constexpr UINT SLOT_WORLD_CB = 0;
     static constexpr UINT SLOT_VP_CB = 1;
+    static constexpr UINT SLOT_MASK_CB = 2;
+    static constexpr UINT SLOT_MASK_TEX = 3;
 
     bool init(ID3D12Device* device);
     ID3D12PipelineState* getPSO() const { return m_pso.Get(); }
+    ID3D12PipelineState* getMaskedPSO() const { return m_maskedPso.Get(); }
     ID3D12RootSignature* getRootSig() const { return m_rootSig.Get(); }
 
 private:
     ComPtr<ID3D12RootSignature> m_rootSig;
     ComPtr<ID3D12PipelineState> m_pso;
+    ComPtr<ID3D12PipelineState> m_maskedPso;
 };
 
 class ShadowBlurPipeline {
@@ -210,6 +228,13 @@ private:
                        const bool* skip);
     void blurMoments(ID3D12GraphicsCommandList* cmd);
 
+    // Picks the opaque or masked PSO for a caster and binds its alpha-mask state.
+    // Returns false when the caster is fully cut out and should not be drawn.
+    bool bindCaster(ID3D12GraphicsCommandList* cmd, const MeshEntry* entry,
+                    ID3D12PipelineState* opaquePso, ID3D12PipelineState* maskedPso,
+                    UINT maskCbSlot, UINT maskTexSlot, ID3D12PipelineState*& boundPso);
+    D3D12_GPU_DESCRIPTOR_HANDLE getMaskTextureTable(ID3D12Resource* baseColor);
+
     ShadowMapPipeline m_pipeline;
     ShadowMomentsPipeline m_momentPipeline;
     ShadowCubePipeline m_cubePipeline;
@@ -271,6 +296,13 @@ private:
     uint32_t m_frameIndex = 0;
     Matrix m_cachedVP[ShadowMath::kMaxCascades];
     bool m_cacheValid[ShadowMath::kMaxCascades] = {};
+
+    struct MaskTexEntry {
+        ComPtr<ID3D12Resource> texture;
+        ShaderTableDesc table;
+    };
+    std::unordered_map<ID3D12Resource*, MaskTexEntry> m_maskTexTables;
+    ShaderTableDesc m_nullMaskSrv;
 
     ComPtr<ID3D12Resource> m_previewTex;
     ShaderTableDesc m_previewSrv;

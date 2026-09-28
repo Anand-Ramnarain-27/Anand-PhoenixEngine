@@ -26,7 +26,7 @@ static bool materialsNeedReimport(const std::string& matFolder, uint32_t materia
     if (!ImporterUtils::LoadBlob(firstMat, header, buf)) return true;
     if (!ImporterUtils::ValidateHeader(header, 0x4D415452)) return true;
 
-    return header.version < 7;
+    return header.version < 9;
 }
 
 bool Model::load(const char* fileName, ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer){

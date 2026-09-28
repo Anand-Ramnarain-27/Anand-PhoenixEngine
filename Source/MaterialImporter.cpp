@@ -78,6 +78,16 @@ bool MaterialImporter::Import(const tinygltf::Material& gltfMat, const tinygltf:
 	header.emissiveG = (float)gltfMat.emissiveFactor[1];
 	header.emissiveB = (float)gltfMat.emissiveFactor[2];
 
+	if (gltfMat.alphaMode == "MASK"){
+		header.flags |= MAT_FLAG_ALPHA_MASK;
+		header.alphaCutoff = (float)gltfMat.alphaCutoff;
+	}
+	else if (gltfMat.alphaMode == "BLEND"){
+		header.flags |= MAT_FLAG_ALPHA_BLEND;
+	}
+
+	if (gltfMat.doubleSided) header.flags |= MAT_FLAG_DOUBLE_SIDED;
+
 	std::string baseColorPath = importTexture(pbr.baseColorTexture.index, model, sceneName, basePath, TextureImporter::TextureType::Color);
 
 	if (!baseColorPath.empty()){
@@ -148,7 +158,7 @@ bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& 
 	std::string emissivePath;
 	std::string metalRoughPath;
 
-	if (header.version != 7){
+	if (header.version != 9){
 		LOG("MaterialImporter: Version mismatch (%u), forcing reimport: %s",
 			header.version, file.c_str());
 		return false;
@@ -167,6 +177,7 @@ bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& 
 	data.aoStrength = header.aoStrength;
 	data.emissiveFactor = Vector3(header.emissiveR, header.emissiveG, header.emissiveB);
 	data.baseColor = Vector4(header.baseColorR, header.baseColorG, header.baseColorB, header.baseColorA);
+	data.alphaCutoff = header.alphaCutoff;
 	data.flags = header.flags;
 
 	auto loadTex = [&](const std::string& path,

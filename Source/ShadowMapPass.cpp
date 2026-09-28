@@ -8,6 +8,8 @@
 #include "ModuleShaderDescriptors.h"
 #include "GBuffer.h"
 #include "ResourceMesh.h"
+#include "ResourceMaterial.h"
+#include "Material.h"
 #include "Mesh.h"
 #include "Frustum.h"
 #include "ReadData.h"
@@ -33,6 +35,53 @@ namespace {
         return !e->hasWorldAABB || fr.intersectsAABB(e->aabbMin, e->aabbMax);
     }
 
+    struct AlphaMaskConsts {
+        float cutoff;
+        float baseAlpha;
+        uint32_t hasTexture;
+        uint32_t pad;
+    };
+
+    // Root params for the masked PSOs: 4 root constants at b2 + base-colour SRV at t0,
+    // sampled through the static sampler at s0 (see ShadowAlphaMask.hlsli).
+    void initMaskParams(CD3DX12_ROOT_PARAMETER* params, UINT cbSlot, UINT texSlot,
+                        CD3DX12_DESCRIPTOR_RANGE& texRange){
+        texRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+        params[cbSlot].InitAsConstants(4, 2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+        params[texSlot].InitAsDescriptorTable(1, &texRange, D3D12_SHADER_VISIBILITY_PIXEL);
+    }
+
+    D3D12_STATIC_SAMPLER_DESC maskSampler(){
+        D3D12_STATIC_SAMPLER_DESC s = {};
+        s.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+        s.AddressU = s.AddressV = s.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        s.MaxLOD = D3D12_FLOAT32_MAX;
+        s.ShaderRegister = 0;
+        s.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        return s;
+    }
+
+    // Same state as the opaque PSO, but with the alpha-clipping PS and no culling so
+    // double-sided and cut-out casters shadow from both sides.
+    ComPtr<ID3D12PipelineState> makeMaskedPSO(ID3D12Device* device,
+                                              D3D12_GRAPHICS_PIPELINE_STATE_DESC desc,
+                                              const wchar_t* psFile){
+        auto ps = DX::ReadData(psFile);
+        desc.PS = { ps.data(), ps.size() };
+        desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+        ComPtr<ID3D12PipelineState> pso;
+        HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pso));
+        if (FAILED(hr)) LOG("ShadowMapPass: masked PSO (%ls) failed 0x%08X", psFile, hr);
+        return pso;
+    }
+
+    const Material* casterMaterial(const MeshEntry* e){
+        const Material* mat = e->instanceMaterial.get();
+        if (!mat) mat = e->material;
+        if (!mat && e->materialRes) mat = e->materialRes->getMaterial();
+        return mat;
+    }
+
     inline float distSqPointAABB(const Vector3& p, const Vector3& mn, const Vector3& mx){
         float d = 0.f;
         for (int i = 0; i < 3; ++i){
@@ -50,11 +99,14 @@ bool ShadowMapPipeline::init(ID3D12Device* device){
 }
 
 bool ShadowMapPipeline::createRootSignature(ID3D12Device* device){
-    CD3DX12_ROOT_PARAMETER params[1];
+    CD3DX12_ROOT_PARAMETER params[3];
+    CD3DX12_DESCRIPTOR_RANGE maskRange;
     params[SLOT_MVP_CB].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+    initMaskParams(params, SLOT_MASK_CB, SLOT_MASK_TEX, maskRange);
 
+    const D3D12_STATIC_SAMPLER_DESC samp = maskSampler();
     CD3DX12_ROOT_SIGNATURE_DESC desc;
-    desc.Init(_countof(params), params, 0, nullptr,
+    desc.Init(_countof(params), params, 1, &samp,
               D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     ComPtr<ID3DBlob> blob, error;
@@ -104,16 +156,20 @@ bool ShadowMapPipeline::createPSO(ID3D12Device* device){
         LOG("ShadowMapPipeline: CreateGraphicsPipelineState failed 0x%08X", hr);
         return false;
     }
-    return true;
+    m_maskedPso = makeMaskedPSO(device, desc, L"ShadowDepthMaskedPS.cso");
+    return m_maskedPso != nullptr;
 }
 
 bool ShadowMomentsPipeline::init(ID3D12Device* device){
-    CD3DX12_ROOT_PARAMETER params[2];
+    CD3DX12_ROOT_PARAMETER params[4];
+    CD3DX12_DESCRIPTOR_RANGE maskRange;
     params[SLOT_MVP_CB].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
     params[SLOT_MOMENT_CONSTS].InitAsConstants(4, 1, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+    initMaskParams(params, SLOT_MASK_CB, SLOT_MASK_TEX, maskRange);
 
+    const D3D12_STATIC_SAMPLER_DESC samp = maskSampler();
     CD3DX12_ROOT_SIGNATURE_DESC desc;
-    desc.Init(_countof(params), params, 0, nullptr,
+    desc.Init(_countof(params), params, 1, &samp,
               D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     ComPtr<ID3DBlob> blob, error;
@@ -148,15 +204,19 @@ bool ShadowMomentsPipeline::init(ID3D12Device* device){
 
     hr = device->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(&m_pso));
     if (FAILED(hr)){ LOG("ShadowMomentsPipeline: CreatePSO failed 0x%08X", hr); return false; }
-    return true;
+    m_maskedPso = makeMaskedPSO(device, pso, L"ShadowMomentsMaskedPS.cso");
+    return m_maskedPso != nullptr;
 }
 
 bool ShadowCubePipeline::init(ID3D12Device* device){
-    CD3DX12_ROOT_PARAMETER params[1];
+    CD3DX12_ROOT_PARAMETER params[3];
+    CD3DX12_DESCRIPTOR_RANGE maskRange;
     params[SLOT_MVP_CB].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
+    initMaskParams(params, SLOT_MASK_CB, SLOT_MASK_TEX, maskRange);
 
+    const D3D12_STATIC_SAMPLER_DESC samp = maskSampler();
     CD3DX12_ROOT_SIGNATURE_DESC desc;
-    desc.Init(_countof(params), params, 0, nullptr,
+    desc.Init(_countof(params), params, 1, &samp,
               D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     ComPtr<ID3DBlob> blob, error;
@@ -191,7 +251,8 @@ bool ShadowCubePipeline::init(ID3D12Device* device){
 
     hr = device->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(&m_pso));
     if (FAILED(hr)){ LOG("ShadowCubePipeline: CreatePSO failed 0x%08X", hr); return false; }
-    return true;
+    m_maskedPso = makeMaskedPSO(device, pso, L"ShadowCubeMaskedPS.cso");
+    return m_maskedPso != nullptr;
 }
 
 bool ShadowBlurPipeline::init(ID3D12Device* device){
@@ -282,11 +343,14 @@ bool ShadowLightMatrixPipeline::init(ID3D12Device* device){
 }
 
 bool ShadowDepthGpuPipeline::init(ID3D12Device* device){
-    CD3DX12_ROOT_PARAMETER p[2];
+    CD3DX12_ROOT_PARAMETER p[4];
+    CD3DX12_DESCRIPTOR_RANGE maskRange;
     p[SLOT_WORLD_CB].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
     p[SLOT_VP_CB].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+    initMaskParams(p, SLOT_MASK_CB, SLOT_MASK_TEX, maskRange);
+    const D3D12_STATIC_SAMPLER_DESC samp = maskSampler();
     CD3DX12_ROOT_SIGNATURE_DESC desc;
-    desc.Init(_countof(p), p, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    desc.Init(_countof(p), p, 1, &samp, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
     ComPtr<ID3DBlob> blob, err;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err);
     if (FAILED(hr)){ if (err) OutputDebugStringA((char*)err->GetBufferPointer());
@@ -312,7 +376,9 @@ bool ShadowDepthGpuPipeline::init(ID3D12Device* device){
     d.RasterizerState.SlopeScaledDepthBias = 1.5f;
     d.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     d.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-    return SUCCEEDED(device->CreateGraphicsPipelineState(&d, IID_PPV_ARGS(&m_pso)));
+    if (FAILED(device->CreateGraphicsPipelineState(&d, IID_PPV_ARGS(&m_pso)))) return false;
+    m_maskedPso = makeMaskedPSO(device, d, L"ShadowDepthMaskedPS.cso");
+    return m_maskedPso != nullptr;
 }
 
 bool ShadowMapPass::init(ID3D12Device* device){
@@ -391,6 +457,10 @@ bool ShadowMapPass::init(ID3D12Device* device){
         m_lightMatrixCB->SetName(L"ShadowMap_LightMatrixCB");
         m_lightMatrixCB->Map(0, nullptr, &m_lightMatrixMapped);
     }
+
+    m_nullMaskSrv = app->getShaderDescriptors()->allocTable("ShadowMap_NullMaskSRV");
+    if (!m_nullMaskSrv.isValid()){ LOG("ShadowMapPass: null mask SRV alloc failed"); return false; }
+    m_nullMaskSrv.createNullSRV(0);
 
     if (!ensureResources(2048, 1)) return false;
     LOG("ShadowMapPass: init OK");
@@ -532,6 +602,9 @@ void ShadowMapPass::renderDepth(ID3D12GraphicsCommandList* cmd,
 
     cmd->SetPipelineState(m_pipeline.getPSO());
     cmd->SetGraphicsRootSignature(m_pipeline.getRootSig());
+    ID3D12DescriptorHeap* maskHeaps[] = { app->getShaderDescriptors()->getHeap() };
+    cmd->SetDescriptorHeaps(1, maskHeaps);
+    ID3D12PipelineState* boundPso = m_pipeline.getPSO();
 
     const UINT mvpSz = cbAlign(sizeof(Matrix));
     for (int c = 0; c < cascadeCount; ++c){
@@ -558,6 +631,9 @@ void ShadowMapPass::renderDepth(ID3D12GraphicsCommandList* cmd,
             cmd->SetGraphicsRootConstantBufferView(
                 ShadowMapPipeline::SLOT_MVP_CB,
                 m_mvpRing->GetGPUVirtualAddress() + (UINT64)slot * mvpSz);
+            if (!bindCaster(cmd, entry, m_pipeline.getPSO(), m_pipeline.getMaskedPSO(),
+                            ShadowMapPipeline::SLOT_MASK_CB, ShadowMapPipeline::SLOT_MASK_TEX,
+                            boundPso)) continue;
 
             if (entry->skinnedVA != 0) mesh->drawSkinned(cmd, entry->skinnedVA);
             else                       mesh->draw(cmd);
@@ -658,6 +734,9 @@ void ShadowMapPass::renderMoments(ID3D12GraphicsCommandList* cmd,
 
     cmd->SetPipelineState(m_momentPipeline.getPSO());
     cmd->SetGraphicsRootSignature(m_momentPipeline.getRootSig());
+    ID3D12DescriptorHeap* maskHeaps[] = { app->getShaderDescriptors()->getHeap() };
+    cmd->SetDescriptorHeaps(1, maskHeaps);
+    ID3D12PipelineState* boundPso = m_momentPipeline.getPSO();
 
     const uint32_t useExp = (mode == 2) ? 1u : 0u;
     uint32_t consts[4];
@@ -697,11 +776,60 @@ void ShadowMapPass::renderMoments(ID3D12GraphicsCommandList* cmd,
             cmd->SetGraphicsRootConstantBufferView(
                 ShadowMomentsPipeline::SLOT_MVP_CB,
                 m_mvpRing->GetGPUVirtualAddress() + (UINT64)slot * mvpSz);
+            if (!bindCaster(cmd, entry, m_momentPipeline.getPSO(), m_momentPipeline.getMaskedPSO(),
+                            ShadowMomentsPipeline::SLOT_MASK_CB, ShadowMomentsPipeline::SLOT_MASK_TEX,
+                            boundPso)) continue;
 
             if (entry->skinnedVA != 0) mesh->drawSkinned(cmd, entry->skinnedVA);
             else                       mesh->draw(cmd);
         }
     }
+}
+
+bool ShadowMapPass::bindCaster(ID3D12GraphicsCommandList* cmd, const MeshEntry* entry,
+                               ID3D12PipelineState* opaquePso, ID3D12PipelineState* maskedPso,
+                               UINT maskCbSlot, UINT maskTexSlot, ID3D12PipelineState*& boundPso){
+    const Material* mat = casterMaterial(entry);
+    const uint32_t flags = mat ? mat->getData().flags : 0u;
+    const bool doubleSided = (flags & MAT_FLAG_DOUBLE_SIDED) != 0;
+    const bool masked = (flags & MAT_FLAG_ALPHA_MASK) != 0;
+    const bool hasTexture = mat && mat->hasTexture() && mat->getBaseColorResource();
+
+    // A mask with no texture is either fully visible or fully cut out.
+    if (masked && !hasTexture && mat->getData().baseColor.w < mat->getData().alphaCutoff)
+        return false;
+
+    const bool clipAlpha = masked && hasTexture;
+    const bool useMasked = clipAlpha || doubleSided;
+    ID3D12PipelineState* pso = useMasked ? maskedPso : opaquePso;
+    if (pso != boundPso){
+        cmd->SetPipelineState(pso);
+        boundPso = pso;
+    }
+    if (!useMasked) return true;
+
+    AlphaMaskConsts consts = {};
+    consts.cutoff = clipAlpha ? mat->getData().alphaCutoff : -1.0f;
+    consts.baseAlpha = mat->getData().baseColor.w;
+    consts.hasTexture = clipAlpha ? 1u : 0u;
+    cmd->SetGraphicsRoot32BitConstants(maskCbSlot, 4, &consts, 0);
+    cmd->SetGraphicsRootDescriptorTable(maskTexSlot,
+        clipAlpha ? getMaskTextureTable(mat->getBaseColorResource())
+                  : m_nullMaskSrv.getGPUHandle(0));
+    return true;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE ShadowMapPass::getMaskTextureTable(ID3D12Resource* baseColor){
+    auto it = m_maskTexTables.find(baseColor);
+    if (it == m_maskTexTables.end()){
+        MaskTexEntry e;
+        e.texture = baseColor;
+        e.table = app->getShaderDescriptors()->allocTable("ShadowMap_MaskTex");
+        if (!e.table.isValid()) return m_nullMaskSrv.getGPUHandle(0);
+        e.table.createTexture2DSRV(baseColor, 0);
+        it = m_maskTexTables.emplace(baseColor, std::move(e)).first;
+    }
+    return it->second.table.getGPUHandle(0);
 }
 
 void ShadowMapPass::blurMoments(ID3D12GraphicsCommandList* cmd){
@@ -802,6 +930,9 @@ void ShadowMapPass::renderSpot(ID3D12GraphicsCommandList* cmd,
 
     cmd->SetPipelineState(m_pipeline.getPSO());
     cmd->SetGraphicsRootSignature(m_pipeline.getRootSig());
+    ID3D12DescriptorHeap* maskHeaps[] = { app->getShaderDescriptors()->getHeap() };
+    cmd->SetDescriptorHeaps(1, maskHeaps);
+    ID3D12PipelineState* boundPso = m_pipeline.getPSO();
 
     const Frustum spotFr = Frustum::fromViewProj(spotViewProj);
     const UINT mvpSz = cbAlign(sizeof(Matrix));
@@ -818,6 +949,9 @@ void ShadowMapPass::renderSpot(ID3D12GraphicsCommandList* cmd,
         memcpy(static_cast<char*>(m_mvpMapped) + (UINT64)slot * mvpSz, &wvp, sizeof(wvp));
         cmd->SetGraphicsRootConstantBufferView(ShadowMapPipeline::SLOT_MVP_CB,
             m_mvpRing->GetGPUVirtualAddress() + (UINT64)slot * mvpSz);
+        if (!bindCaster(cmd, entry, m_pipeline.getPSO(), m_pipeline.getMaskedPSO(),
+                        ShadowMapPipeline::SLOT_MASK_CB, ShadowMapPipeline::SLOT_MASK_TEX,
+                        boundPso)) continue;
         if (entry->skinnedVA != 0) mesh->drawSkinned(cmd, entry->skinnedVA);
         else                       mesh->draw(cmd);
     }
@@ -914,6 +1048,9 @@ void ShadowMapPass::renderPoint(ID3D12GraphicsCommandList* cmd,
 
     cmd->SetPipelineState(m_cubePipeline.getPSO());
     cmd->SetGraphicsRootSignature(m_cubePipeline.getRootSig());
+    ID3D12DescriptorHeap* maskHeaps[] = { app->getShaderDescriptors()->getHeap() };
+    cmd->SetDescriptorHeaps(1, maskHeaps);
+    ID3D12PipelineState* boundPso = m_cubePipeline.getPSO();
 
     const UINT cubeSz = cbAlign(sizeof(CubeMVP));
     const float invRange = (range > 1e-4f) ? 1.0f / range : 1.0f;
@@ -948,6 +1085,9 @@ void ShadowMapPass::renderPoint(ID3D12GraphicsCommandList* cmd,
             memcpy(static_cast<char*>(m_cubeMapped) + (UINT64)slot * cubeSz, &c, sizeof(c));
             cmd->SetGraphicsRootConstantBufferView(ShadowCubePipeline::SLOT_MVP_CB,
                 m_cubeRing->GetGPUVirtualAddress() + (UINT64)slot * cubeSz);
+            if (!bindCaster(cmd, entry, m_cubePipeline.getPSO(), m_cubePipeline.getMaskedPSO(),
+                            ShadowCubePipeline::SLOT_MASK_CB, ShadowCubePipeline::SLOT_MASK_TEX,
+                            boundPso)) continue;
 
             if (entry->skinnedVA != 0) mesh->drawSkinned(cmd, entry->skinnedVA);
             else                       mesh->draw(cmd);
@@ -1126,6 +1266,9 @@ void ShadowMapPass::renderDirectionalGpu(ID3D12GraphicsCommandList* cmd,
 
     cmd->SetPipelineState(m_depthGpuPipeline.getPSO());
     cmd->SetGraphicsRootSignature(m_depthGpuPipeline.getRootSig());
+    ID3D12DescriptorHeap* maskHeaps[] = { app->getShaderDescriptors()->getHeap() };
+    cmd->SetDescriptorHeaps(1, maskHeaps);
+    ID3D12PipelineState* boundPso = m_depthGpuPipeline.getPSO();
     cmd->SetGraphicsRootConstantBufferView(ShadowDepthGpuPipeline::SLOT_VP_CB,
         m_vpBuffer->GetGPUVirtualAddress());
 
@@ -1142,6 +1285,9 @@ void ShadowMapPass::renderDirectionalGpu(ID3D12GraphicsCommandList* cmd,
         memcpy(static_cast<char*>(m_mvpMapped) + (UINT64)slot * mvpSz, &wt, sizeof(wt));
         cmd->SetGraphicsRootConstantBufferView(ShadowDepthGpuPipeline::SLOT_WORLD_CB,
             m_mvpRing->GetGPUVirtualAddress() + (UINT64)slot * mvpSz);
+        if (!bindCaster(cmd, entry, m_depthGpuPipeline.getPSO(), m_depthGpuPipeline.getMaskedPSO(),
+                        ShadowDepthGpuPipeline::SLOT_MASK_CB, ShadowDepthGpuPipeline::SLOT_MASK_TEX,
+                        boundPso)) continue;
 
         if (entry->skinnedVA != 0) mesh->drawSkinned(cmd, entry->skinnedVA);
         else                       mesh->draw(cmd);

@@ -9,6 +9,9 @@
 #define HAS_COMPRESSED_NORMALS    0x8
 #define HAS_OCCLUSION_TEX         0x10
 #define HAS_EMISSIVE_TEX          0x20
+#define HAS_ALPHA_MASK            0x40
+#define HAS_DOUBLE_SIDED          0x80
+#define HAS_ALPHA_BLEND           0x100
 
 struct Material {
     float4 BaseColor;
@@ -21,6 +24,17 @@ struct Material {
     uint Flags;
     uint Padding;
 };
+
+void ClipAlphaMask(in Material material, in Texture2D baseColorTex, in float2 uv){
+    if (!(material.Flags & HAS_ALPHA_MASK))
+        return;
+
+    float alpha = material.BaseColor.a;
+    if (material.Flags & HAS_BASECOLOUR_TEX)
+        alpha *= baseColorTex.Sample(BilinearWrap, uv).a;
+
+    clip(alpha - material.AlphaCutoff);
+}
 
 float ComputeSpecularAO(float NdotV, float ao, float roughness){
     return clamp(pow(NdotV + ao, exp2(-16.0 * roughness - 1.0)) - 1.0 + ao, 0.0, 1.0);

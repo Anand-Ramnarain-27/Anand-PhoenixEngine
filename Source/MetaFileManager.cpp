@@ -89,11 +89,8 @@ bool MetaFileManager::exists(const std::string& assetPath){
 UID MetaFileManager::getOrCreateUID(const std::string& assetPath, ResourceBase::Type type){
 	MetaData meta;
 	if (load(assetPath, meta)){
-		uint64_t currentMod = getLastModified(assetPath);
-		if (currentMod != meta.lastModified){
-			meta.lastModified = currentMod;
-			save(assetPath, meta);
-		}
+		// lastModified is only advanced by a successful import; refreshing it here
+		// would hide on-disk edits from needsReimport().
 		return meta.uid;
 	}
 	meta.uid = generateUID();

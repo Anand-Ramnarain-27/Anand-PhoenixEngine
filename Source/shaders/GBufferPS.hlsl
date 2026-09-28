@@ -5,6 +5,7 @@ struct PSInput {
     float2 uv : TEXCOORD;
     float3 normal : NORMAL0;
     float4 tangent : TANGENT;
+    bool isFrontFace : SV_IsFrontFace;
 };
 
 struct PSOutput {
@@ -14,10 +15,13 @@ struct PSOutput {
 };
 
 PSOutput main(PSInput input){
+    ClipAlphaMask(InstanceMaterial, BaseColorTex, input.uv);
+
     float3 N = normalize(input.normal);
     float3 T = normalize(input.tangent.xyz);
     float3 B = normalize(cross(N, T)) * input.tangent.w;
     N = SampleNormal(InstanceMaterial, NormalTex, input.uv, N, T, B);
+    if (!input.isFrontFace) N = -N;
 
     float3 baseColor;
     float roughness, alphaRoughness, metallic;

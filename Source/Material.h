@@ -12,6 +12,9 @@ static constexpr uint32_t MAT_FLAG_NORMAL_TEX = 0x04;
 static constexpr uint32_t MAT_FLAG_COMPRESSED_NORMS = 0x08;
 static constexpr uint32_t MAT_FLAG_OCCLUSION_TEX = 0x10;
 static constexpr uint32_t MAT_FLAG_EMISSIVE_TEX = 0x20;
+static constexpr uint32_t MAT_FLAG_ALPHA_MASK = 0x40;
+static constexpr uint32_t MAT_FLAG_DOUBLE_SIDED = 0x80;
+static constexpr uint32_t MAT_FLAG_ALPHA_BLEND = 0x100;
 
 class Material {
 public:

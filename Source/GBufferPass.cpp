@@ -226,6 +226,7 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
         cmd->SetGraphicsRootDescriptorTable(GBufferPipeline::SLOT_SAMPLER,
                                              samplerHeap->getGPUHandle(ModuleSamplerHeap::LINEAR_WRAP));
 
+        ID3D12PipelineState* boundPso = m_pipeline.getPSO();
         UINT slot = 0;
         for (MeshEntry* entry : meshes){
             if (!entry) continue;
@@ -251,6 +252,13 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
             const Material* mat = entry->instanceMaterial.get();
             if (!mat) mat = entry->material;
             if (!mat && entry->materialRes) mat = entry->materialRes->getMaterial();
+
+            const bool doubleSided = mat && (mat->getData().flags & MAT_FLAG_DOUBLE_SIDED);
+            ID3D12PipelineState* pso = m_pipeline.getPSO(doubleSided);
+            if (pso != boundPso){
+                cmd->SetPipelineState(pso);
+                boundPso = pso;
+            }
 
             cmd->SetGraphicsRootDescriptorTable(GBufferPipeline::SLOT_MAT_TEXTURES,
                                                  getMaterialTableHandle(mat));
@@ -346,6 +354,13 @@ bool GBufferPipeline::createPSO(ID3D12Device* device){
     HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_pso));
     if (FAILED(hr)){
         LOG("GBufferPipeline: CreateGraphicsPipelineState failed 0x%08X", hr);
+        return false;
+    }
+
+    desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+    hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_psoDoubleSided));
+    if (FAILED(hr)){
+        LOG("GBufferPipeline: CreateGraphicsPipelineState (double-sided) failed 0x%08X", hr);
         return false;
     }
     return true;

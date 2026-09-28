@@ -300,7 +300,7 @@ void ForwardMeshPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<M
                              const FrameLightData& lights, const Vector3& cameraPos,
                              const Matrix& viewProj, const EnvironmentSystem* env,
                              const ShadowRenderData& shadow, int samplerType){
-	renderWithPSO(cmd, m_pipeline.getPSO(), meshes, lights, cameraPos, viewProj, env, shadow,
+	renderWithPSO(cmd, false, meshes, lights, cameraPos, viewProj, env, shadow,
 	              samplerType, 0, MAX_OPAQUE);
 }
 
@@ -308,11 +308,11 @@ void ForwardMeshPass::renderTransparent(ID3D12GraphicsCommandList* cmd, const st
                                         const FrameLightData& lights, const Vector3& cameraPos,
                                         const Matrix& viewProj, const EnvironmentSystem* env,
                                         const ShadowRenderData& shadow, int samplerType){
-	renderWithPSO(cmd, m_pipeline.getTransparentPSO(), meshes, lights, cameraPos, viewProj, env, shadow,
+	renderWithPSO(cmd, true, meshes, lights, cameraPos, viewProj, env, shadow,
 	              samplerType, MAX_OPAQUE, MAX_TRANSPARENT);
 }
 
-void ForwardMeshPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pso,
+void ForwardMeshPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, bool transparent,
                                     const std::vector<MeshEntry*>& meshes,
                                     const FrameLightData& lights, const Vector3& cameraPos,
                                     const Matrix& viewProj, const EnvironmentSystem* env,
@@ -327,7 +327,11 @@ void ForwardMeshPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12Pipeli
 
 	uploadPerFrameCB(lights, cameraPos, roughLevels, shadow);
 
-	cmd->SetPipelineState(pso);
+	auto psoFor = [&](bool doubleSided){
+		return transparent ? m_pipeline.getTransparentPSO(doubleSided) : m_pipeline.getPSO(doubleSided);
+	};
+	ID3D12PipelineState* boundPso = psoFor(false);
+	cmd->SetPipelineState(boundPso);
 	cmd->SetGraphicsRootSignature(m_pipeline.getRootSig());
 
 	auto* samplerHeap = app->getSamplerHeap();
@@ -382,6 +386,12 @@ void ForwardMeshPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, ID3D12Pipeli
 		const Material* mat = entry->instanceMaterial.get();
 		if (!mat) mat = entry->material;
 		if (!mat && entry->materialRes) mat = entry->materialRes->getMaterial();
+
+		ID3D12PipelineState* pso = psoFor(mat && (mat->getData().flags & MAT_FLAG_DOUBLE_SIDED));
+		if (pso != boundPso){
+			cmd->SetPipelineState(pso);
+			boundPso = pso;
+		}
 
 		writeFallbackTex2DSRV(matTable, MAT_SLOT_BASECOLOR, m_fallbackTex2D.Get());
 		writeFallbackTex2DSRV(matTable, MAT_SLOT_METALROUGH, m_fallbackTex2D.Get());

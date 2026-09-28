@@ -236,7 +236,7 @@ static bool materialCacheNeedsUpgrade(const std::string& sceneName){
     memcpy(&magic, buf, 4);
     memcpy(&version, buf + 4, 4);
     delete[] buf;
-    return magic != 0x4D415452 || version < 7;
+    return magic != 0x4D415452 || version < 9;
 }
 
 static bool animCacheNeedsUpgrade(const std::string& sceneName){

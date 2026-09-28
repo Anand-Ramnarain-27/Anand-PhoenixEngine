@@ -15,7 +15,7 @@ class MaterialImporter {
 public:
 	struct MaterialHeader {
 		uint32_t magic = 0x4D415452;
-		uint32_t version = 7;
+		uint32_t version = 9;
 
 		uint32_t hasTexture = 0;
 		uint32_t texturePathLength = 0;
@@ -35,7 +35,7 @@ public:
 		float emissiveB = 0.f;
 		float metallic = 0.f;
 		float roughness = 0.5f;
-		float _pad = 0.f;
+		float alphaCutoff = 0.f;
 		uint32_t flags = 0;
 		uint32_t _pad2 = 0;
 		float baseColorR = 1.f;
