@@ -5,8 +5,11 @@
 #include "SceneManager.h"
 #include "SceneGraph.h"
 #include "ModuleCamera.h"
+#include "GameObject.h"
+#include "ComponentCamera.h"
 #include "ModuleFileSystem.h"
 #include <filesystem>
+#include <algorithm>
 
 namespace Phoenix {
 
@@ -82,6 +85,21 @@ void Scene::SetActiveCamera(GameObject* cameraObject){
     if (!cam) return;
     cam->setActiveCamera(cameraObject);
     if (!cameraObject) cam->clearGameCameraFrustum();
+}
+
+static ComponentCamera* getActiveCameraComponent(){
+    GameObject* go = Scene::GetActiveCamera();
+    return go ? go->getComponent<ComponentCamera>() : nullptr;
+}
+
+float Scene::GetActiveCameraFOV(){
+    ComponentCamera* cam = getActiveCameraComponent();
+    return cam ? cam->getFOV() : 0.f;
+}
+
+void Scene::SetActiveCameraFOV(float radians){
+    if (ComponentCamera* cam = getActiveCameraComponent())
+        cam->setFOV(std::clamp(radians, 0.0174533f, 3.0f));   // 1 deg .. ~172 deg
 }
 
 } // namespace Phoenix

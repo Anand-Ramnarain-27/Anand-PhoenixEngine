@@ -30,6 +30,12 @@ struct Scene {
     // The camera the Game view renders through (a GameObject with a Camera component).
     static GameObject* GetActiveCamera();
     static void SetActiveCamera(GameObject* cameraObject);
+
+    // Vertical field of view of the active camera, in radians. Get returns 0 when there is no active camera;
+    // Set is ignored then, and clamps to a sane range otherwise. Not saved: the camera's authored FOV comes back
+    // when the scene reloads.
+    static float GetActiveCameraFOV();
+    static void SetActiveCameraFOV(float radians);
 };
 
 } // namespace Phoenix
