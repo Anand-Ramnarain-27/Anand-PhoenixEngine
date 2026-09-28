@@ -30,6 +30,7 @@
 #include "ComponentInputBox.h"
 #include "ComponentRadioGroup.h"
 #include "UITestScene.h"
+#include "AshfallHUDBuilder.h"
 #include "ModuleUI.h"
 #include "HotReloadManager.h"
 #include "ComponentParticleSystem.h"
@@ -336,6 +337,16 @@ void ModuleEditor::drawMenuBar(){
                     CreateUITestScene(sc, getHotReloadManager());
                     spawnPrimitive(PrimitiveType::Cube, Vector3(0.f, 0.5f, 0.f));
                     log("Created UI test scene: check the Game view (press Play to interact)", EditorColors::Success);
+                }
+            }
+            const bool playing = getSceneManager() && getSceneManager()->isPlaying();
+            if (ImGui::MenuItem("Build HUD Prefab (from hud_layout.json)", nullptr, false, !playing)){
+                if (SceneGraph* sc = getActiveModuleScene()){
+                    std::string message;
+                    if (BuildAshfallHUDPrefab(sc, getHotReloadManager(), message))
+                        log(("HUD prefab saved: " + message).c_str(), EditorColors::Success);
+                    else
+                        log(("HUD prefab not built: " + message).c_str(), EditorColors::Danger);
                 }
             }
             ImGui::Separator();

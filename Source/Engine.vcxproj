@@ -287,6 +287,7 @@
     <ClInclude Include="UIRadioGroup.h" />
     <ClInclude Include="UISelectable.h" />
     <ClInclude Include="UITestScene.h" />
+    <ClInclude Include="AshfallHUDBuilder.h" />
     <ClInclude Include="UITypes.h" />
     <ClInclude Include="UIDrawItem.h" />
     <ClInclude Include="API\Phoenix_UI.h" />
@@ -521,6 +522,7 @@
     <ClCompile Include="ComponentInputBox.cpp" />
     <ClCompile Include="ComponentRadioGroup.cpp" />
     <ClCompile Include="UITestScene.cpp" />
+    <ClCompile Include="AshfallHUDBuilder.cpp" />
     <ClCompile Include="API\Phoenix_UI.cpp" />
     <ClCompile Include="UIPass.cpp" />
     <ClCompile Include="ModuleUI.cpp" />

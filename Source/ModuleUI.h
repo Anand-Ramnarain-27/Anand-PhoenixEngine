@@ -131,6 +131,7 @@ private:
         UIEventType type;
     };
 
+    void loadProjectFonts();
     void buildDrawList(SceneGraph* scene, uint32_t width, uint32_t height);
     void collectCanvases(GameObject* node, std::vector<GameObject*>& out) const;
     void emitNode(GameObject* node, const UIRect& parentRect, float scale);

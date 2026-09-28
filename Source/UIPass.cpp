@@ -205,6 +205,16 @@ void UIPass::render(ID3D12GraphicsCommandList* cmd, const std::vector<UIDrawItem
                 src = { (LONG)std::lround(item.sourceUV.x * tw), (LONG)std::lround(item.sourceUV.y * th),
                         (LONG)std::lround((item.sourceUV.x + item.sourceUV.z) * tw),
                         (LONG)std::lround((item.sourceUV.y + item.sourceUV.w) * th) };
+                // A crop narrower than half a texel would round to nothing and drop the sprite, so a small
+                // fill (a bar at 5% on an 8-texel fill texture) keeps at least one texel, stretched to fit.
+                if (item.sourceUV.z > 0.f && src.right <= src.left){
+                    if (src.left >= (LONG)tex.size.x) src.left = (LONG)tex.size.x - 1;
+                    src.right = src.left + 1;
+                }
+                if (item.sourceUV.w > 0.f && src.bottom <= src.top){
+                    if (src.top >= (LONG)tex.size.y) src.top = (LONG)tex.size.y - 1;
+                    src.bottom = src.top + 1;
+                }
             }
             const float srcW = float(src.right - src.left);
             const float srcH = float(src.bottom - src.top);

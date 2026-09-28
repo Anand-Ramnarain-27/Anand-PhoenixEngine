@@ -22,9 +22,11 @@
 #include "UISelectable.h"
 #include "UIRadioGroup.h"
 #include "UIPass.h"
+#include "ModuleFileSystem.h"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <filesystem>
 #include <functional>
 
 namespace {
@@ -56,7 +58,34 @@ bool ModuleUI::init(){
 
     // Font baked by tools/MakeSpriteFont.py and copied next to the executable.
     m_pass->loadFont(kDefaultFont, L"UIFont.spritefont");
+    loadProjectFonts();
     return true;
+}
+
+// Every .spritefont in any Assets/**/Fonts/SpriteFont/ folder, registered under its file stem so a Label can
+// name it (fontName = "MyGameTitle"). The first one found wins if two folders ship the same stem.
+void ModuleUI::loadProjectFonts(){
+    namespace fs = std::filesystem;
+    const fs::path assets = app->getFileSystem()->GetAssetsPath();
+    std::error_code ec;
+    if (!fs::is_directory(assets, ec)) return;
+
+    for (auto it = fs::recursive_directory_iterator(assets, fs::directory_options::skip_permission_denied, ec);
+         !ec && it != fs::recursive_directory_iterator(); it.increment(ec)){
+        const fs::path& file = it->path();
+        if (!it->is_regular_file(ec) || _wcsicmp(file.extension().c_str(), L".spritefont") != 0) continue;
+        const fs::path dir = file.parent_path();
+        if (_wcsicmp(dir.filename().c_str(), L"SpriteFont") != 0 || _wcsicmp(dir.parent_path().filename().c_str(), L"Fonts") != 0)
+            continue;
+
+        const std::string name = file.stem().string();
+        if (m_pass->hasFont(name)){
+            LOG("ModuleUI: skipping font '%s' (%s): a font with that name is already loaded", name.c_str(), file.string().c_str());
+            continue;
+        }
+        if (m_pass->loadFont(name, file.wstring()))
+            LOG("ModuleUI: font '%s' from %s", name.c_str(), file.string().c_str());
+    }
 }
 
 bool ModuleUI::cleanUp(){
