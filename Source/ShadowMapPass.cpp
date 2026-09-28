@@ -94,6 +94,16 @@ namespace {
     }
 }
 
+UINT ShadowMapPass::nextMvpSlot(){
+    if (m_ringCursor >= MAX_DRAWS) m_ringCursor = 0;
+    return app->getD3D12()->getCurrentBackBufferIdx() * MAX_DRAWS + m_ringCursor++;
+}
+
+UINT ShadowMapPass::nextCubeSlot(){
+    if (m_cubeCursor >= MAX_DRAWS) m_cubeCursor = 0;
+    return app->getD3D12()->getCurrentBackBufferIdx() * MAX_DRAWS + m_cubeCursor++;
+}
+
 bool ShadowMapPipeline::init(ID3D12Device* device){
     return createRootSignature(device) && createPSO(device);
 }
@@ -424,7 +434,7 @@ bool ShadowMapPass::init(ID3D12Device* device){
 
     const UINT mvpSz = cbAlign(sizeof(Matrix));
     auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-    auto bd = CD3DX12_RESOURCE_DESC::Buffer((UINT64)mvpSz * MAX_DRAWS);
+    auto bd = CD3DX12_RESOURCE_DESC::Buffer((UINT64)mvpSz * MAX_DRAWS * FRAMES_IN_FLIGHT);
     HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                                                  D3D12_RESOURCE_STATE_GENERIC_READ,
                                                  nullptr, IID_PPV_ARGS(&m_mvpRing));
@@ -436,7 +446,7 @@ bool ShadowMapPass::init(ID3D12Device* device){
     m_mvpRing->Map(0, nullptr, &m_mvpMapped);
 
     const UINT cubeSz = cbAlign(sizeof(CubeMVP));
-    auto cbd = CD3DX12_RESOURCE_DESC::Buffer((UINT64)cubeSz * MAX_DRAWS);
+    auto cbd = CD3DX12_RESOURCE_DESC::Buffer((UINT64)cubeSz * MAX_DRAWS * FRAMES_IN_FLIGHT);
     hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &cbd,
                                          D3D12_RESOURCE_STATE_GENERIC_READ,
                                          nullptr, IID_PPV_ARGS(&m_cubeRing));
@@ -449,7 +459,7 @@ bool ShadowMapPass::init(ID3D12Device* device){
 
     {
         const UINT sz = cbAlign(sizeof(LightMatrixCB));
-        auto lbd = CD3DX12_RESOURCE_DESC::Buffer(sz);
+        auto lbd = CD3DX12_RESOURCE_DESC::Buffer((UINT64)sz * FRAMES_IN_FLIGHT);
         if (FAILED(device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &lbd,
                 D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_lightMatrixCB)))){
             LOG("ShadowMapPass: light-matrix CB create failed"); return false;
@@ -620,8 +630,7 @@ void ShadowMapPass::renderDepth(ID3D12GraphicsCommandList* cmd,
             Mesh* mesh = entry->meshRes ? entry->meshRes->getMesh() : entry->mesh;
             if (!mesh) continue;
             if (!entryVisible(entry, lightFr)) continue;
-            if (m_ringCursor >= MAX_DRAWS) m_ringCursor = 0;
-            const UINT slot = m_ringCursor++;
+            const UINT slot = nextMvpSlot();
 
             Matrix world;
             memcpy(&world, entry->worldMatrix, sizeof(float) * 16);
@@ -765,8 +774,7 @@ void ShadowMapPass::renderMoments(ID3D12GraphicsCommandList* cmd,
             Mesh* mesh = entry->meshRes ? entry->meshRes->getMesh() : entry->mesh;
             if (!mesh) continue;
             if (!entryVisible(entry, lightFr)) continue;
-            if (m_ringCursor >= MAX_DRAWS) m_ringCursor = 0;
-            const UINT slot = m_ringCursor++;
+            const UINT slot = nextMvpSlot();
 
             Matrix world;
             memcpy(&world, entry->worldMatrix, sizeof(float) * 16);
@@ -941,8 +949,7 @@ void ShadowMapPass::renderSpot(ID3D12GraphicsCommandList* cmd,
         Mesh* mesh = entry->meshRes ? entry->meshRes->getMesh() : entry->mesh;
         if (!mesh) continue;
         if (!entryVisible(entry, spotFr)) continue;
-        if (m_ringCursor >= MAX_DRAWS) m_ringCursor = 0;
-        const UINT slot = m_ringCursor++;
+        const UINT slot = nextMvpSlot();
 
         Matrix world; memcpy(&world, entry->worldMatrix, sizeof(float) * 16);
         Matrix wvp = (world * spotViewProj).Transpose();
@@ -1073,8 +1080,7 @@ void ShadowMapPass::renderPoint(ID3D12GraphicsCommandList* cmd,
                 if (distSqPointAABB(lightPos, entry->aabbMin, entry->aabbMax) > rangeSq) continue;
                 if (!faceFr.intersectsAABB(entry->aabbMin, entry->aabbMax)) continue;
             }
-            if (m_cubeCursor >= MAX_DRAWS) m_cubeCursor = 0;
-            const UINT slot = m_cubeCursor++;
+            const UINT slot = nextCubeSlot();
 
             Matrix world; memcpy(&world, entry->worldMatrix, sizeof(float) * 16);
             CubeMVP c;
@@ -1214,7 +1220,9 @@ bool ShadowMapPass::computeGpuLightMatrix(ID3D12GraphicsCommandList* cmd, GBuffe
     lcb.invViewProj = invViewProj.Transpose();
     lcb.lightDir = lightDir;
     lcb.sunDistance = sunDistance;
-    memcpy(m_lightMatrixMapped, &lcb, sizeof(lcb));
+    const UINT lcbSz = cbAlign(sizeof(LightMatrixCB));
+    const UINT64 lcbOffset = (UINT64)app->getD3D12()->getCurrentBackBufferIdx() * lcbSz;
+    memcpy(static_cast<char*>(m_lightMatrixMapped) + lcbOffset, &lcb, sizeof(lcb));
 
     cmd->SetComputeRootSignature(m_lightMatrixPipeline.getRootSig());
     cmd->SetPipelineState(m_lightMatrixPipeline.getPSO());
@@ -1222,7 +1230,7 @@ bool ShadowMapPass::computeGpuLightMatrix(ID3D12GraphicsCommandList* cmd, GBuffe
         D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     cmd->ResourceBarrier(1, &vpToUav);
     cmd->SetComputeRootConstantBufferView(ShadowLightMatrixPipeline::SLOT_CB,
-        m_lightMatrixCB->GetGPUVirtualAddress());
+        m_lightMatrixCB->GetGPUVirtualAddress() + lcbOffset);
     cmd->SetComputeRootDescriptorTable(ShadowLightMatrixPipeline::SLOT_INPUT,
         (resultInA ? m_reduceSrvA : m_reduceSrvB).getGPUHandle(0));
     cmd->SetComputeRootDescriptorTable(ShadowLightMatrixPipeline::SLOT_OUTPUT, m_vpUav.getGPUHandle(0));
@@ -1277,8 +1285,7 @@ void ShadowMapPass::renderDirectionalGpu(ID3D12GraphicsCommandList* cmd,
         if (!entry) continue;
         Mesh* mesh = entry->meshRes ? entry->meshRes->getMesh() : entry->mesh;
         if (!mesh) continue;
-        if (m_ringCursor >= MAX_DRAWS) m_ringCursor = 0;
-        const UINT slot = m_ringCursor++;
+        const UINT slot = nextMvpSlot();
 
         Matrix world; memcpy(&world, entry->worldMatrix, sizeof(float) * 16);
         Matrix wt = world.Transpose();

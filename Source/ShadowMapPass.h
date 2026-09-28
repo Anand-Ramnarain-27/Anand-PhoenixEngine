@@ -283,6 +283,11 @@ private:
     UINT m_ringCursor = 0;
     UINT m_cubeCursor = 0;
 
+    // Each back buffer owns a MAX_DRAWS region of the upload rings, so the CPU never
+    // overwrites matrices the GPU is still reading for a frame that is in flight.
+    UINT nextMvpSlot();
+    UINT nextCubeSlot();
+
     ComPtr<ID3D12Resource> m_reduceA;
     ComPtr<ID3D12Resource> m_reduceB;
     ShaderTableDesc m_reduceSrvA, m_reduceUavA, m_reduceSrvB, m_reduceUavB;

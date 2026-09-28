@@ -616,16 +616,22 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
                 }
             }
             const size_t entriesBefore = ownedEntries.size();
+            bool frustumCulledNode = false;
 
             if (auto* cm = node->getComponent<ComponentMesh>()){
                 cm->flushDeferredReleases();
 
-                if (!editorExtras && camera->cullMode == ModuleCamera::CullMode::Frustum && !cm->isVisible()){
+                const bool frustumCulled = !editorExtras &&
+                    camera->cullMode == ModuleCamera::CullMode::Frustum && !cm->isVisible();
+                frustumCulledNode = frustumCulled;
+                // Culled skinned/morphed meshes are skipped outright rather than paying for a skinning job
+                // just to cast a shadow; static culled meshes stay in as shadow-only casters.
+                if (frustumCulled && (cm->hasSkinData() || cm->getProceduralModel())){
                     for (auto* child : node->getChildren()) collectMeshes(child, group);
                     return;
                 }
 
-                if (cm->hasLODLevels() && cm->hasAABB()){
+                if (!frustumCulled && cm->hasLODLevels() && cm->hasAABB()){
                     Vector3 mn, mx;
                     cm->getWorldAABB(mn, mx);
                     float coverage = computeScreenCoverage(mn, mx, lodViewProj);
@@ -653,6 +659,7 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
                         e.materialCB = src.materialCB;
 
                         Mesh* mesh = src.meshRes->getMesh();
+                        if (frustumCulled && mesh->hasMorphTargets()) continue;
                         const bool hasBones = isSkinned && mesh && mesh->getBoneWeightBufferVA() != 0;
 
                         bool shouldMorph = false;
@@ -732,8 +739,10 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
                     }
                 }
             }
-            if (group != 0)
-                for (size_t i = entriesBefore; i < ownedEntries.size(); ++i) ownedEntries[i].xrayGroup = group;
+            for (size_t i = entriesBefore; i < ownedEntries.size(); ++i){
+                ownedEntries[i].xrayGroup = group;
+                ownedEntries[i].shadowOnly = frustumCulledNode;
+            }
             for (auto* child : node->getChildren()) collectMeshes(child, group);
             };
         collectMeshes(moduleScene->getRoot(), 0);
@@ -761,7 +770,8 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
         for (auto& e : ownedEntries) visibleMeshes.push_back(&e);
     }
 
-    m_frameDrawCalls = (int)visibleMeshes.size();
+    m_frameDrawCalls = 0;
+    for (const MeshEntry* e : visibleMeshes) if (!e->shadowOnly) ++m_frameDrawCalls;
     m_frameMeshCount = m_frameDrawCalls;
 
     if (!skinJobs.empty() && m_skinningPass){
@@ -782,14 +792,18 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
 
     std::vector<MeshEntry*> opaqueMeshes;
     std::vector<MeshEntry*> translucentMeshes;
+    std::vector<MeshEntry*> shadowCasters;   // visible opaque + off-screen (shadowOnly) opaque
     opaqueMeshes.reserve(visibleMeshes.size());
     translucentMeshes.reserve(visibleMeshes.size());
+    shadowCasters.reserve(visibleMeshes.size());
     for (MeshEntry* e : visibleMeshes){
         const Material* mat = e->instanceMaterial.get();
         if (!mat) mat = e->material;
         if (!mat && e->materialRes) mat = e->materialRes->getMaterial();
         bool isTranslucent = mat && (mat->getData().baseColor.w < 0.999f ||
                                      (mat->getData().flags & MAT_FLAG_ALPHA_BLEND));
+        if (!isTranslucent) shadowCasters.push_back(e);
+        if (e->shadowOnly) continue;
         (isTranslucent ? translucentMeshes : opaqueMeshes).push_back(e);
     }
 
@@ -814,7 +828,7 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
     }
 
     ShadowRenderData shadowData;
-    if (m_shadowMapPass && !opaqueMeshes.empty()){
+    if (m_shadowMapPass && !shadowCasters.empty()){
         ComponentDirectionalLight* caster = nullptr;
         if (moduleScene){
             std::function<void(GameObject*)> findCaster = [&](GameObject* n){
@@ -839,7 +853,7 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
                 Vector3 ld = caster->direction; ld.Normalize();
                 if (m_shadowMapPass->computeGpuLightMatrix(cmd, m_gbufferPass->getGBuffer(),
                                                            ivp, ld, caster->shadowSunDistance)){
-                    m_shadowMapPass->renderDirectionalGpu(cmd, opaqueMeshes, res);
+                    m_shadowMapPass->renderDirectionalGpu(cmd, shadowCasters, res);
                     shadowData.enabled = true;
                     shadowData.cascadeCount = 1;
                     shadowData.gpuMode = true;
@@ -913,7 +927,7 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
                     dd::sphere(ddConvert(sm.center), kCascadeColors[c % 4], sm.radius);
             }
 
-            m_shadowMapPass->render(cmd, opaqueMeshes, cascadeVP, count, res,
+            m_shadowMapPass->render(cmd, shadowCasters, cascadeVP, count, res,
                                     caster->shadowMode, caster->shadowExpK,
                                     caster->shadowLightBleed,
                                     caster->shadowStaggerCascades);
@@ -956,7 +970,7 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
                 Vector3 pos = spotGO->getTransform()->getGlobalMatrix().Translation();
                 Matrix vp = ShadowMath::SpotLightViewProj(pos, spot->direction,
                                 spot->outerAngle * 3.14159265f / 180.f, spot->radius);
-                m_shadowMapPass->renderSpot(cmd, opaqueMeshes, vp, (uint32_t)spot->shadowResolution);
+                m_shadowMapPass->renderSpot(cmd, shadowCasters, vp, (uint32_t)spot->shadowResolution);
                 shadowData.spotEnabled = true;
                 shadowData.spotViewProj = vp;
                 shadowData.spotPos = pos;
@@ -981,7 +995,7 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
                 Vector3 pos = ptGO->getTransform()->getGlobalMatrix().Translation();
                 Matrix faces[6];
                 ShadowMath::PointLightFaceViewProj(pos, 0.05f, pt->radius, faces);
-                m_shadowMapPass->renderPoint(cmd, opaqueMeshes, faces, pos, pt->radius,
+                m_shadowMapPass->renderPoint(cmd, shadowCasters, faces, pos, pt->radius,
                                              (uint32_t)pt->shadowResolution);
                 shadowData.pointEnabled = true;
                 shadowData.pointPos = pos;

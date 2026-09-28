@@ -33,6 +33,10 @@ struct MeshEntry {
     // X-ray: 0 = none, 1..N = 1 + index into EditorSceneSettings::xray.tags (inherited from tagged ancestors).
     uint8_t xrayGroup = 0;
 
+    // Outside the game camera's frustum: not drawn to screen, but still a shadow caster, since an
+    // off-screen object can cast onto visible ground.
+    bool shadowOnly = false;
+
     // Filled by GBufferPass::render for the draws it issued this frame, so XRayPass can redraw the same
     // entries with the exact same per-draw CBs (identical depth) without its own upload rings.
     D3D12_GPU_VIRTUAL_ADDRESS gbMvpVA = 0;
