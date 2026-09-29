@@ -29,6 +29,7 @@ struct ID3D12Device;
 struct ID3D12GraphicsCommandList;
 
 class SceneManager;
+class SceneTransition;
 class EnvironmentSystem;
 class DebugDrawPass;
 class CollisionSystem;
@@ -137,4 +138,7 @@ private:
     void renderStandaloneFrame();
 
     std::unique_ptr<XRayPass> m_xrayPass;
+
+    std::unique_ptr<SceneTransition> m_sceneTransition;
+    bool m_clampNextDt = false;   // the next tick's delta includes a blocking transition load
 };

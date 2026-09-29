@@ -23,6 +23,28 @@ void ModuleInput::update(){
     }
 }
 
+void ModuleInput::resetState(){
+    // The trackers are re-based on the current state twice: the first Update after a Reset reports everything
+    // held as newly pressed, the second leaves no edges. A key held through the reset then reads as down but
+    // never as "pressed", and the mouse delta is zero.
+    mouse->ResetScrollWheelValue();
+    mouseCurr = mouse->GetState();
+    mousePrev = mouseCurr;
+    const Keyboard::State keys = keyboard->GetState();
+    kbTracker.Reset();
+    kbTracker.Update(keys);
+    kbTracker.Update(keys);
+    mouseTracker.Reset();
+    mouseTracker.Update(mouseCurr);
+    mouseTracker.Update(mouseCurr);
+    for (int i = 0; i < kMaxPlayers; ++i){
+        padState[i] = gamePad->GetState(i, GamePad::DEAD_ZONE_CIRCULAR);
+        padTracker[i].Reset();
+        padTracker[i].Update(padState[i]);
+        padTracker[i].Update(padState[i]);
+    }
+}
+
 // ----- Keyboard -----
 
 bool ModuleInput::isKeyDown(Key k) const {

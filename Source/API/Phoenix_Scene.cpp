@@ -60,6 +60,30 @@ bool Scene::SceneExists(const std::string& sceneNameOrPath){
     return app->getFileSystem()->Exists(resolveScenePath(sceneNameOrPath).c_str());
 }
 
+bool Scene::RequestLevelTransition(const std::string& sceneNameOrPath){
+    SceneManager* sm = getSceneManager();
+    if (!sm) return false;
+    if (!SceneExists(sceneNameOrPath)){
+        LOG("Phoenix::Scene: transition target '%s' not found", sceneNameOrPath.c_str());
+        return false;
+    }
+    return sm->requestTransition(resolveScenePath(sceneNameOrPath));
+}
+
+bool Scene::IsTransitionActive(){
+    SceneManager* sm = getSceneManager();
+    return sm && sm->isTransitionActive();
+}
+
+bool Scene::IsTransitionInputLocked(){
+    SceneManager* sm = getSceneManager();
+    return sm && sm->isTransitionInputLocked();
+}
+
+void Scene::NotifyTransitionReady(){
+    if (SceneManager* sm = getSceneManager()) sm->notifyTransitionReady();
+}
+
 void Scene::InstantiatePrefab(const std::string& prefabName, Vec3 position, Quat rotation){
     if (SceneManager* sm = getSceneManager())
         sm->requestPrefabSpawn(prefabName, position, rotation);

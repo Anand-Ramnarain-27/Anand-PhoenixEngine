@@ -23,6 +23,7 @@
 #include "EmptyScene.h"
 #include "SceneGraph.h"
 #include "SceneManager.h"
+#include "SceneTransition.h"
 #include "EditorSceneSettings.h"
 #include "EnvironmentSystem.h"
 #include "GameObject.h"
@@ -65,6 +66,7 @@ bool RuntimeCore::init(){
     m_collisionResponse = std::make_unique<CollisionResponse>();
     m_navigationSystem = std::make_unique<NavigationSystem>();
     m_sceneManager = std::make_unique<SceneManager>();
+    m_sceneTransition = std::make_unique<SceneTransition>();
     m_meshRenderPass = std::make_unique<ForwardMeshPass>();
     m_hotReload = std::make_unique<HotReloadManager>();
 
@@ -214,8 +216,19 @@ void RuntimeCore::applySkyboxFromSettings(){
 }
 
 void RuntimeCore::tick(float dt, float aspectRatio){
+    // The frame after a transition's blocking load gets the load time as its delta; hand the scene, scripts,
+    // collision and animation at most one 60 Hz frame instead.
+    if (m_clampNextDt){
+        m_clampNextDt = false;
+        dt = std::min(dt, 1.f / 60.f);
+    }
+
     if (m_sceneManager){
         m_sceneManager->update(dt);
+        // A level transition advances here: after the scene update, before anything is recorded for this
+        // frame's rendering, so its scene swap happens at a frame boundary.
+        if (m_sceneTransition && m_sceneTransition->update(*m_sceneManager, *this))
+            m_clampNextDt = true;
         // Scene loads / prefab spawns that scripts asked for during update(), now that nothing is iterating.
         if (m_sceneManager->processRuntimeRequests())
             applySkyboxFromSettings();
@@ -427,8 +440,10 @@ void RuntimeCore::renderStandaloneFrame(){
         RenderTexture* display = m_playerViewport->display.get();
         display->beginRender(cmd);
         display->endRender(cmd);
-        if (ModuleUI* ui = app->getUI())
+        if (ModuleUI* ui = app->getUI()){
             ui->renderUI(cmd, display, getActiveModuleScene());
+            ui->renderTransitionFade(cmd, display);
+        }
         presentToBackBuffer(display);
         return;
     }
@@ -522,8 +537,10 @@ void RuntimeCore::renderStandaloneFrame(){
     if (chain && nPostGamma > 0)
         finalTarget = chain->run(cmd, PostProcessEffectDef::Domain::PostGamma, tonemapTarget, tonemapOther);
 
-    if (ModuleUI* ui = app->getUI())
+    if (ModuleUI* ui = app->getUI()){
         ui->renderUI(cmd, finalTarget, getActiveModuleScene());
+        ui->renderTransitionFade(cmd, finalTarget);
+    }
 
     presentToBackBuffer(finalTarget);
 }

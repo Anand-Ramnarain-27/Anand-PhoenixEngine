@@ -198,7 +198,7 @@ void ModuleEditor::spawnAssetAtPath(const std::string& path){
         if (GameObject* go = spawnModel(path)) m_selection.object = go;
     }
     else if (ext == ".json"){
-        if (getSceneManager() && getSceneManager()->loadScene(path)){ applySkyboxFromSettings(); log(("Loaded scene: " + path).c_str(), EditorColors::Success); }
+        if (getSceneManager() && getSceneManager()->replaceScene(path)){ applySkyboxFromSettings(); log(("Loaded scene: " + path).c_str(), EditorColors::Success); }
     }
     else if (ext == ".prefab"){
         if (!scene) return;

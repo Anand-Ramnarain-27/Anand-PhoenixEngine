@@ -101,7 +101,8 @@ bool ModuleEditor::init(){
     runtimeCore->getHotReloadManager()->setReloadCallback([this](const std::string& dllPath){
         notifyScriptComponentsReload(dllPath);
         });
-    // A script changing levels during Play replaces every GameObject, same as Stop does.
+    // Loading a scene (from a script during Play, or from the editor's own Load / Asset Browser actions, all via
+    // SceneManager::replaceScene) replaces every GameObject, same as Stop does.
     runtimeCore->getSceneManager()->setOnRuntimeSceneChange([this](){
         m_selection.clear();
         m_selection.renaming = nullptr;

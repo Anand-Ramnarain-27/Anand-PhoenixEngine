@@ -330,6 +330,7 @@
     <ClInclude Include="SceneImporter.h" />
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="SceneSerializer.h" />
+    <ClInclude Include="SceneTransition.h" />
     <ClInclude Include="ResourceStateMachine.h" />
     <ClInclude Include="ScriptExport.h" />
     <ClInclude Include="ShaderTableDesc.h" />
@@ -522,6 +523,7 @@
     <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="SceneManagerCore.cpp" />
     <ClCompile Include="SceneSerializer.cpp" />
+    <ClCompile Include="SceneTransition.cpp" />
     <ClCompile Include="3rdParty\imgui-node-editor-master\imgui_node_editor.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />

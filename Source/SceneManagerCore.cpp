@@ -23,3 +23,21 @@ void SceneManager::requestSceneLoad(const std::string& filePath){
 void SceneManager::requestPrefabSpawn(const std::string& prefabName, const Vector3& position, const Quaternion& rotation){
     m_pendingSpawns.push_back({ prefabName, position, rotation });
 }
+
+bool SceneManager::requestTransition(const std::string& filePath){
+    if (isTransitionActive()){
+        LOG("SceneManager: transition to '%s' ignored - another transition is running", filePath.c_str());
+        return false;
+    }
+    if (m_editingPrefab){
+        LOG("SceneManager: transition to '%s' ignored while editing a prefab", filePath.c_str());
+        return false;
+    }
+    m_transition.requestedPath = filePath;
+    m_transition.readySignalled = false;
+    return true;
+}
+
+void SceneManager::notifyTransitionReady(){
+    if (m_transition.phase == SceneTransitionState::Phase::WarmUp) m_transition.readySignalled = true;
+}

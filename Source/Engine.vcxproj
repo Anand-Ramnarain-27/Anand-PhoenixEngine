@@ -361,6 +361,7 @@
     <ClInclude Include="SceneImporter.h" />
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="SceneSerializer.h" />
+    <ClInclude Include="SceneTransition.h" />
     <ClInclude Include="SceneSettingsPanel.h" />
     <ClInclude Include="SceneViewPanel.h" />
     <ClInclude Include="MousePicker.h" />
@@ -607,6 +608,7 @@
     <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="SceneManagerCore.cpp" />
     <ClCompile Include="SceneSerializer.cpp" />
+    <ClCompile Include="SceneTransition.cpp" />
     <ClCompile Include="SceneSettingsPanel.cpp" />
     <ClCompile Include="SceneViewPanel.cpp" />
     <ClCompile Include="MousePicker.cpp" />

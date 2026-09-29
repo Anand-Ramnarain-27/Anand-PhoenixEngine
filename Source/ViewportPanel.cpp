@@ -31,6 +31,7 @@ void ViewportPanel::renderToTexture(ID3D12GraphicsCommandList* cmd){
                 viewport.display->beginRender(cmd);
                 viewport.display->endRender(cmd);
                 ui->renderUI(cmd, viewport.display.get(), app->getRuntimeCore()->getActiveModuleScene());
+                ui->renderTransitionFade(cmd, viewport.display.get());
             }
         }
         return;
@@ -117,8 +118,10 @@ void ViewportPanel::renderToTexture(ID3D12GraphicsCommandList* cmd){
 
     // The post-gamma chain always leaves the finished image in `display`.
     if (drawsUI())
-        if (ModuleUI* ui = app->getUI())
+        if (ModuleUI* ui = app->getUI()){
             ui->renderUI(cmd, viewport.display.get(), app->getRuntimeCore()->getActiveModuleScene());
+            ui->renderTransitionFade(cmd, viewport.display.get());
+        }
 }
 
 void ViewportPanel::handleResize(){

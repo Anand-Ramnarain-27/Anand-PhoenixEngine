@@ -650,7 +650,7 @@ void ModuleEditor::handleDialogs(){
     }
     if (m_loadDialog->draw() && getSceneManager()->getActiveScene()){
         const std::string& p = m_loadDialog->getSelectedPath();
-        if (getSceneManager()->loadScene(p)){ m_currentScenePath = p; applySkyboxFromSettings(); tryScene(true, "Scene loaded!", ""); }
+        if (getSceneManager()->replaceScene(p)){ m_currentScenePath = p; applySkyboxFromSettings(); tryScene(true, "Scene loaded!", ""); }
         else tryScene(false, "", "Failed to load scene.");
     }
 }

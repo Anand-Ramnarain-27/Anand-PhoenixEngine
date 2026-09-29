@@ -12,6 +12,10 @@ public:
 
     void update() override;
 
+    // Drops pending pressed/released edges and the mouse delta, e.g. at the end of a scene transition: anything
+    // held down through it reads as held, never as a fresh press.
+    void resetState();
+
     // ----- Keyboard -----
     bool isKeyDown    (Phoenix::Key k) const;
     bool isKeyPressed (Phoenix::Key k) const;

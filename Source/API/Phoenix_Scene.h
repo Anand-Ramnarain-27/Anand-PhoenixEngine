@@ -19,6 +19,18 @@ struct Scene {
     static void LoadScene(const std::string& sceneNameOrPath);
     static bool SceneExists(const std::string& sceneNameOrPath);
 
+    // Faded level change: fades the game view to black, loads the scene between frames, keeps the screen black
+    // while the new level warms up (see NotifyTransitionReady), then fades back in. Timings come from
+    // Assets/Settings/scene_transition.json. Returns false and does nothing if the scene doesn't exist or a
+    // transition is already running; a plain LoadScene() is ignored while one runs.
+    static bool RequestLevelTransition(const std::string& sceneNameOrPath);
+    static bool IsTransitionActive();
+    // True from the request until the fade-in starts: player input should be ignored and the player left alone.
+    static bool IsTransitionInputLocked();
+    // Called by the new level once its player and camera are placed; the fade-in starts a few frames later
+    // (or after a timeout if it is never called).
+    static void NotifyTransitionReady();
+
     // Instantiates a prefab (by name, from Library/Prefabs/) at the end of this frame's update. Queued
     // spawns are dropped if a LoadScene() is processed in the same frame.
     static void InstantiatePrefab(const std::string& prefabName, Vec3 position, Quat rotation = Quat::Identity);

@@ -116,6 +116,9 @@
     <ClCompile Include="SceneManager.cpp">
       <Filter>Engine\Scene</Filter>
     </ClCompile>
+    <ClCompile Include="SceneTransition.cpp">
+      <Filter>Engine\Scene</Filter>
+    </ClCompile>
     <!-- Engine\Scene\Components -->
     <ClCompile Include="ComponentFactory.cpp">
       <Filter>Engine\Scene\Components</Filter>
@@ -693,6 +696,9 @@
       <Filter>Engine\Scene</Filter>
     </ClInclude>
     <ClInclude Include="SceneManager.h">
+      <Filter>Engine\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneTransition.h">
       <Filter>Engine\Scene</Filter>
     </ClInclude>
     <ClInclude Include="EditorSceneSettings.h">

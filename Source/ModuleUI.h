@@ -39,6 +39,10 @@ public:
     // is currently in the pixel-shader-resource state, as left by the tonemap pass).
     void renderUI(ID3D12GraphicsCommandList* cmd, RenderTexture* target, SceneGraph* scene);
 
+    // The level-transition fade (SceneTransitionState::fadeAlpha) over everything, UI included. Call right
+    // after renderUI() on the same target; draws nothing while no transition is fading.
+    void renderTransitionFade(ID3D12GraphicsCommandList* cmd, RenderTexture* target);
+
     // Drops every script-registered listener. Must run before script code is unloaded.
     void clearAllListeners(SceneGraph* scene);
 

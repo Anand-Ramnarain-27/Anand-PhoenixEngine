@@ -37,6 +37,7 @@ void SceneManager::clearScene(){
     m_pendingSpawns.clear();
     m_runtimeSceneChanged = false;
     m_renderOverrides.reset();
+    m_transition = {};
 }
 
 // SceneManager::getModuleScene() and requestSceneLoad()/requestPrefabSpawn()
@@ -65,6 +66,7 @@ void SceneManager::play(){
         m_renderOverrides.reset();
         m_pendingScenePath.clear();
         m_pendingSpawns.clear();
+        m_transition = {};
     }
     state = PlayState::Playing;
 }
@@ -81,6 +83,7 @@ void SceneManager::stop(){
 
     m_pendingScenePath.clear();
     m_pendingSpawns.clear();
+    m_transition = {};   // Stop mid-fade: no overlay, no input lock
     // Play may have made a spawned object (e.g. a follow camera) the active camera; the temp scene
     // restore below destroys it.
     clearActiveCamera();
@@ -116,23 +119,14 @@ bool SceneManager::processRuntimeRequests(){
     if (!m_pendingScenePath.empty()){
         const std::string path = m_pendingScenePath;
         m_pendingScenePath.clear();
-        m_pendingSpawns.clear();   // queued for the scene being left
 
-        if (m_editingPrefab){
-            LOG("SceneManager: ignoring script scene load '%s' while editing a prefab", path.c_str());
+        if (isTransitionActive()){
+            // The transition owns the next scene change; a second, unfaded one would pop mid-fade.
+            LOG("SceneManager: ignoring script scene load '%s' during a level transition", path.c_str());
         }
-        else if (!app->getFileSystem()->Exists(path.c_str())){
-            LOG("SceneManager: script scene load failed, file not found: %s", path.c_str());
-        }
-        else {
-            if (m_onRuntimeSceneChange) m_onRuntimeSceneChange();
-            clearActiveCamera();
-            if (loadScene(path)){
-                if (state != PlayState::Stopped) m_runtimeSceneChanged = true;
-                loaded = true;
-                LOG("SceneManager: script loaded scene %s", path.c_str());
-            }
-            else LOG("SceneManager: script scene load failed: %s", path.c_str());
+        else if (replaceScene(path)){
+            loaded = true;
+            LOG("SceneManager: script loaded scene %s", path.c_str());
         }
     }
 
@@ -209,10 +203,33 @@ bool SceneManager::loadScene(const std::string& filePath){
     if (m_editingPrefab){ LOG("SceneManager: Cannot load scene while editing a prefab"); return false; }
     auto* ms = activeScene ? activeScene->getModuleScene() : nullptr;
     if (!ms){ LOG("SceneManager: No active scene to load into"); return false; }
+    // The old scene's meshes, textures and material buffers are freed as its GameObjects are destroyed, with
+    // no fence tracking of their own: wait for every submitted frame that could still reference them. Callers
+    // load between frames (no command list open), so this covers everything in flight.
     app->getD3D12()->flush();
     if (!SceneSerializer::LoadScene(filePath, ms, &settings)) return false;
     m_currentScenePath = filePath;
     m_renderOverrides.reset();
+    return true;
+}
+
+bool SceneManager::replaceScene(const std::string& filePath){
+    m_pendingSpawns.clear();   // queued for the scene being left
+    if (m_editingPrefab){
+        LOG("SceneManager: ignoring scene load '%s' while editing a prefab", filePath.c_str());
+        return false;
+    }
+    if (!app->getFileSystem()->Exists(filePath.c_str())){
+        LOG("SceneManager: scene load failed, file not found: %s", filePath.c_str());
+        return false;
+    }
+    if (m_onRuntimeSceneChange) m_onRuntimeSceneChange();
+    clearActiveCamera();
+    if (!loadScene(filePath)){
+        LOG("SceneManager: scene load failed: %s", filePath.c_str());
+        return false;
+    }
+    if (state != PlayState::Stopped) m_runtimeSceneChanged = true;
     return true;
 }
 

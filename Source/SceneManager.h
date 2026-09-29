@@ -11,6 +11,17 @@ class ModuleCamera;
 class SceneGraph;
 struct BuildSettings;
 
+// A faded level change (Phoenix::Scene::RequestLevelTransition), driven one step per frame by the engine's
+// SceneTransition controller. Lives here, as plain data with inline getters, so GameScript.dll can read the
+// phase and the input lock without linking the controller.
+struct SceneTransitionState {
+    enum class Phase { Idle, FadingOut, HoldBlack, Loading, WarmUp, FadingIn };
+    Phase phase = Phase::Idle;
+    float fadeAlpha = 0.f;          // black overlay opacity drawn over the game view, 0..1
+    std::string requestedPath;      // set by requestTransition(), taken by the controller when it starts
+    bool readySignalled = false;    // the new level said its player and camera are in place (NotifyTransitionReady)
+};
+
 class SceneManager {
 public:
     enum class PlayState { Stopped, Playing, Paused };
@@ -38,6 +49,10 @@ public:
 
     bool saveCurrentScene(const std::string& filePath);
     bool loadScene(const std::string& filePath);
+    // loadScene() for a scene that replaces the running one: first tells tools holding GameObject pointers
+    // (setOnRuntimeSceneChange) and drops the active camera, and during Play records that the scene changed so
+    // stop() restores the one Play started in. Drops queued prefab spawns (they belong to the scene being left).
+    bool replaceScene(const std::string& filePath);
     bool loadSceneByBuildIndex(int index, const BuildSettings& buildSettings);
 
     // Path of the scene file last loaded (or saved) into the active scene; empty for an unsaved scene.
@@ -50,11 +65,27 @@ public:
     // so they link into GameScript.dll.
     void requestSceneLoad(const std::string& filePath);
     void requestPrefabSpawn(const std::string& prefabName, const Vector3& position, const Quaternion& rotation);
-    // Returns true if it loaded a scene (the caller re-applies the skybox).
+    // Returns true if it loaded a scene (the caller re-applies the skybox). A LoadScene request made while a
+    // level transition is running is dropped.
     bool processRuntimeRequests();
 
-    // Called right before a script-requested scene load replaces every GameObject, so tools holding
-    // GameObject pointers (editor selection, undo) can drop them.
+    // Faded level transitions. requestTransition() only records the target (false, and nothing recorded, while
+    // another transition is running or a prefab is being edited); the engine's SceneTransition controller runs
+    // the fade, the load and the warm-up. Both live in SceneManagerCore.cpp so they link into GameScript.dll.
+    bool requestTransition(const std::string& filePath);
+    void notifyTransitionReady();
+    SceneTransitionState& getTransition(){ return m_transition; }
+    const SceneTransitionState& getTransition() const { return m_transition; }
+    bool isTransitionActive() const {
+        return m_transition.phase != SceneTransitionState::Phase::Idle || !m_transition.requestedPath.empty();
+    }
+    // Player input is locked from the request until the fade-in begins.
+    bool isTransitionInputLocked() const {
+        return isTransitionActive() && m_transition.phase != SceneTransitionState::Phase::FadingIn;
+    }
+
+    // Called right before replaceScene() swaps every GameObject out (a script's LoadScene, a level transition, or
+    // an editor scene load), so tools holding GameObject pointers (editor selection, undo) can drop them.
     void setOnRuntimeSceneChange(std::function<void()> callback){ m_onRuntimeSceneChange = std::move(callback); }
 
     void enterPrefabEdit(SceneGraph* prefabScene, const std::string& prefabName);
@@ -109,4 +140,6 @@ private:
     SceneLook m_lookAtPlay;
 
     RenderOverrides m_renderOverrides;
+
+    SceneTransitionState m_transition;
 };

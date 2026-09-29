@@ -23,6 +23,8 @@
 #include "UIRadioGroup.h"
 #include "UIPass.h"
 #include "ModuleFileSystem.h"
+#include "RuntimeCore.h"
+#include "SceneManager.h"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -109,6 +111,29 @@ void ModuleUI::renderUI(ID3D12GraphicsCommandList* cmd, RenderTexture* target, S
 
     target->beginRender(cmd, /*clear=*/false);
     m_pass->render(cmd, m_items, target->getWidth(), target->getHeight());
+    target->endRender(cmd);
+}
+
+void ModuleUI::renderTransitionFade(ID3D12GraphicsCommandList* cmd, RenderTexture* target){
+    const RuntimeCore* rc = app->getRuntimeCore();
+    const SceneManager* sm = rc ? rc->getSceneManager() : nullptr;
+    const float alpha = sm ? std::clamp(sm->getTransition().fadeAlpha, 0.f, 1.f) : 0.f;
+    if (!m_pass || alpha <= 0.f || !target || !target->isValid()) return;
+
+    // One flat black quad over the whole target (an empty texture draws flat colour). Owned by the engine
+    // rather than a scene canvas, so it stays up while the scene under it is replaced.
+    UIDrawItem fade;
+    fade.kind = UIDrawItem::Kind::Image;
+    fade.position = Vector2::Zero;
+    fade.pivot = Vector2::Zero;
+    fade.size = Vector2(float(target->getWidth()), float(target->getHeight()));
+    fade.color = Vector4(0.f, 0.f, 0.f, alpha);
+
+    ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap(), app->getSamplerHeap()->getHeap() };
+    cmd->SetDescriptorHeaps(2, heaps);
+
+    target->beginRender(cmd, /*clear=*/false);
+    m_pass->render(cmd, { fade }, target->getWidth(), target->getHeight());
     target->endRender(cmd);
 }
 
