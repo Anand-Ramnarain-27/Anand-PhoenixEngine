@@ -31,6 +31,7 @@
 #include "ComponentRadioGroup.h"
 #include "UITestScene.h"
 #include "AshfallHUDBuilder.h"
+#include "AshfallHubBuilder.h"
 #include "ModuleUI.h"
 #include "HotReloadManager.h"
 #include "ComponentParticleSystem.h"
@@ -349,6 +350,15 @@ void ModuleEditor::drawMenuBar(){
                         log(("HUD prefab not built: " + message).c_str(), EditorColors::Danger);
                 }
             }
+            if (ImGui::MenuItem("Build Hub Pages Prefab (from hub_pages_layout.json)", nullptr, false, !playing)){
+                if (SceneGraph* sc = getActiveModuleScene()){
+                    std::string message;
+                    if (BuildAshfallHubPagesPrefab(sc, getHotReloadManager(), message))
+                        log(("Hub pages prefab saved: " + message).c_str(), EditorColors::Success);
+                    else
+                        log(("Hub pages prefab not built: " + message).c_str(), EditorColors::Danger);
+                }
+            }
             ImGui::Separator();
             if (ImGui::MenuItem("Button")){
                 spawnUI("Button", Component::Type::Button, Vector2(240.f, 64.f));
@@ -368,6 +378,19 @@ void ModuleEditor::drawMenuBar(){
                     text->addComponent(ComponentFactory::CreateComponent(Component::Type::Label, text));
                     text->getComponent<ComponentLabel>()->text = "Button";
                     pushCreateSubtreeUndo(go, "Button");
+                }
+            }
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Ashfall")){
+            const bool playing = getSceneManager() && getSceneManager()->isPlaying();
+            if (ImGui::MenuItem("Build Hub NPC Prefabs", nullptr, false, !playing)){
+                if (SceneGraph* sc = getActiveModuleScene()){
+                    std::string message;
+                    if (BuildAshfallHubNPCPrefabs(sc, getHotReloadManager(), message))
+                        log(("Hub NPC prefabs saved: " + message).c_str(), EditorColors::Success);
+                    else
+                        log(("Hub NPC prefabs not built: " + message).c_str(), EditorColors::Danger);
                 }
             }
             ImGui::EndMenu();
