@@ -169,8 +169,11 @@ bool RuntimeCore::init(){
         BuildSettings buildSettings;
         const std::string bsPath = app->getFileSystem()->GetLibraryPath() + "BuildSettings.json";
         if (buildSettings.Load(bsPath)){
-            if (m_sceneManager->loadSceneByBuildIndex(0, buildSettings))
+            if (m_sceneManager->loadSceneByBuildIndex(0, buildSettings)){
                 applySkyboxFromSettings();
+                // The player has no Play button: scripts only update while playing, so start right away.
+                m_sceneManager->play();
+            }
             else
                 LOG("RuntimeCore: BuildSettings.json found but scene 0 failed to load");
         } else {
