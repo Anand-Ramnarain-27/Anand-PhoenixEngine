@@ -225,7 +225,8 @@ bool BuildAshfallHUDPrefab(SceneGraph* scene, HotReloadManager* hotReload, std::
         const float statusGap = num(member(pf, "statusRow"), "gap", 8.f);
         const float textX = medallion + gap;
 
-        GameObject* player = b.node(main, "HUD_Player", pinned({ 0.f, 0.f }, offset, { textX + hpBar.x, medallion + 8.f }));
+        // Tall enough for the benched-partner widget under the medallion.
+        GameObject* player = b.node(main, "HUD_Player", pinned({ 0.f, 0.f }, offset, { textX + hpBar.x, medallion + 20.f + 50.f }));
 
         GameObject* med = b.node(player, "HUD_Medallion", at(0.f, 0.f, medallion, medallion));
         b.image(med, "HUD_VowTrack", inset(0.f), tex("HUD/Portrait/medallion_track_120.png"));
@@ -248,10 +249,35 @@ bool BuildAshfallHUDPrefab(SceneGraph* scene, HotReloadManager* hotReload, std::
         b.label(hp, "HUD_HPText", { { 0.f, 0.f }, { 1.f, 1.f }, { .5f, .5f }, { 0.f, 0.f }, { -16.f, 0.f } },
                 "100 / 100", "AshfallUI", 15.f, parchment, H::Right);
 
+        // Resource bar (Oskar's Mana) under the HP bar; AshfallHUD shows it only for a character with a resource.
+        const Vector2 resourceBar = vec2(pf, "resourceBar", Vector2(343.f, 10.f));
+        const float resourceY = 40.f + hpBar.y + 6.f;
+        GameObject* res = b.image(player, "HUD_ManaFrame", at(textX, resourceY, resourceBar.x, resourceBar.y),
+                                  tex("HUD/Sized/resource_frame_343x10.png"), white, false);
+        b.bar(res, "HUD_Mana", inset(1.f), tex("HUD/Bars/bar_fill_mana.png"), Dir::LeftToRight, 1.f);
+
         static const char* kStatus[] = { "status_aegis", "status_marked", "status_snare", "status_stagger" };
         for (int i = 0; i < 4; ++i)
-            b.image(player, "HUD_Status" + std::to_string(i), at(textX + i * (statusSize + statusGap), 40.f + hpBar.y + 10.f, statusSize, statusSize),
+            b.image(player, "HUD_Status" + std::to_string(i), at(textX + i * (statusSize + statusGap), resourceY + resourceBar.y + 8.f, statusSize, statusSize),
                     tex((std::string("HUD/Status/") + kStatus[i] + ".png").c_str()), white, false);
+
+        // Benched partner (tag-swap): small portrait with a swap-cooldown overlay, name, thin HP bar with the
+        // recoverable part as a ghost segment, and the swap key. PLACEHOLDER art: monogram portraits.
+        const float partner = 50.f;
+        GameObject* pw = b.node(player, "HUD_Partner", at(0.f, medallion + 20.f, partner + 8.f + 140.f, partner), false);
+        b.image(pw, "HUD_PartnerPortraitBg", at(0.f, 0.f, partner, partner), tex("HUD/Portrait/portrait_bg_50.png"));
+        b.image(pw, "HUD_PartnerPortrait", at(0.f, 0.f, partner, partner), tex("HUD/Portrait/monogram_O_50.png"));
+        b.bar(pw, "HUD_PartnerSwapCD", at(0.f, 0.f, partner, partner), tex("HUD/Slots/slot_overlay_cooldown.png"), Dir::TopToBottom, 0.f);
+        b.image(pw, "HUD_PartnerRim", at(0.f, 0.f, partner, partner), tex("HUD/Portrait/portrait_rim_brass_50.png"));
+        b.image(pw, "HUD_PartnerDown", at(0.f, 0.f, partner, partner), tex("HUD/Portrait/portrait_rim_low_50.png"), white, false);
+        b.label(pw, "HUD_PartnerName", at(partner + 8.f, 0.f, 140.f, 20.f), "", "AshfallUI", 15.f, parchment);
+        GameObject* php = b.image(pw, "HUD_PartnerHPFrame", at(partner + 8.f, 24.f, 132.f, 8.f), tex("HUD/Sized/elite_frame_bone_132x8.png"));
+        b.bar(php, "HUD_PartnerHPHeal", inset(1.f), tex("HUD/Bars/bar_fill_heal_ghost.png"), Dir::LeftToRight, 1.f);
+        b.bar(php, "HUD_PartnerHP", inset(1.f), tex("HUD/Bars/bar_fill_blood.png"), Dir::LeftToRight, 1.f);
+        GameObject* pkey = b.node(pw, "HUD_PartnerKey", at(partner + 8.f, 36.f, 24.f, 20.f));
+        b.image(pkey, "HUD_PartnerKeyBg", inset(0.f), tex("HUD/Slots/keychip.png"));
+        b.label(pkey, "HUD_PartnerKeyText", inset(0.f), "Q", "AshfallUI", 12.f, brassLight, H::Center);
+        b.label(pw, "HUD_PartnerSwapText", at(partner + 38.f, 36.f, 110.f, 20.f), "SWAP", "AshfallLabel", 12.f, ash);
     }
 
     // ---- area title (top-right) ----
