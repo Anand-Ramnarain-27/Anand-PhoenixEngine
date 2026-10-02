@@ -31,6 +31,12 @@ public:
         Fps = 2,            // plays at sheetFps from the particle's start tile; loops or holds the last tile
     };
 
+    // Which way a new particle flies.
+    enum class DirectionMode {
+        Random = 0,   // the shape's own direction (cone: inside the cone; sphere: any way; box/point: +Y)
+        Radial = 1,   // straight out from the emitter's centre through the spawn point (negative speed = inwards)
+    };
+
     explicit ComponentParticleSystem(GameObject* owner);
     ~ComponentParticleSystem() override = default;
 
@@ -50,6 +56,7 @@ public:
     EmitterShape shape = EmitterShape::Cone;
     float shapeRadius = 0.5f;
     float coneAngleDeg = 25.f;
+    DirectionMode directionMode = DirectionMode::Random;
 
     bool worldSpace = true;
 

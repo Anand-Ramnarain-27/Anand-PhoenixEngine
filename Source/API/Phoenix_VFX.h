@@ -16,6 +16,7 @@ struct VfxParticleSettings {
     int   shape = 2;                 // 0 point, 1 box, 2 sphere, 3 cone (opens along local +Y)
     float shapeRadius = 0.1f;
     float coneAngleDeg = 25.f;
+    int   direction = 0;             // 0 random (the shape's), 1 radial (out from the centre; negative speed = inwards)
     bool  worldSpace = true;
     Vec2  life = Vec2(0.3f, 0.6f);   // random range per particle (seconds)
     Vec2  speed = Vec2(2.f, 5.f);

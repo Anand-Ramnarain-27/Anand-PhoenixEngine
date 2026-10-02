@@ -32,6 +32,7 @@
 #include "UITestScene.h"
 #include "AshfallHUDBuilder.h"
 #include "AshfallHubBuilder.h"
+#include "AshfallVfxBuilder.h"
 #include "ModuleUI.h"
 #include "HotReloadManager.h"
 #include "ComponentParticleSystem.h"
@@ -392,6 +393,14 @@ void ModuleEditor::drawMenuBar(){
                     else
                         log(("Hub NPC prefabs not built: " + message).c_str(), EditorColors::Danger);
                 }
+            }
+            if (ImGui::MenuItem("Build VFX Test Scene (on a new scene)", nullptr, false, !playing)){
+                std::string message;
+                auto floor = [this](){ return spawnPrimitive(PrimitiveType::Cube); };
+                if (BuildAshfallVfxTestScene(getSceneManager(), getHotReloadManager(), floor, message))
+                    log(("VFX test scene saved: " + message).c_str(), EditorColors::Success);
+                else
+                    log(("VFX test scene not built: " + message).c_str(), EditorColors::Danger);
             }
             ImGui::EndMenu();
         }

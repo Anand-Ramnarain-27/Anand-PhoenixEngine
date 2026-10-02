@@ -85,6 +85,8 @@ void VFX::ConfigureParticles(GameObject* go, const VfxParticleSettings& s){
     ps->shape = (ComponentParticleSystem::EmitterShape)std::clamp(s.shape, 0, 3);
     ps->shapeRadius = std::max(0.f, s.shapeRadius);
     ps->coneAngleDeg = s.coneAngleDeg;
+    ps->directionMode = s.direction == 1 ? ComponentParticleSystem::DirectionMode::Radial
+                                         : ComponentParticleSystem::DirectionMode::Random;
     ps->worldSpace = s.worldSpace;
     ps->lifeRange = s.life;
     ps->speedRange = s.speed;
