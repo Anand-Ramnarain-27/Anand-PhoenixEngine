@@ -55,8 +55,10 @@ void GameObject::setParent(GameObject* newParent){
 
 void GameObject::update(float deltaTime){
     if (!active) return;
-    for (auto& c : components) c->update(deltaTime);
-    for (auto* child : children) child->update(deltaTime);
+    // By index: a script may add components or create objects (Phoenix::Scene::Spawn, Phoenix::VFX) during its
+    // update, which grows these vectors; anything added is updated this frame too.
+    for (size_t i = 0; i < components.size(); ++i) components[i]->update(deltaTime);
+    for (size_t i = 0; i < children.size(); ++i) children[i]->update(deltaTime);
 }
 
 void GameObject::render(ID3D12GraphicsCommandList* cmd){

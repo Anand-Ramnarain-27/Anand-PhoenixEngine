@@ -193,6 +193,7 @@ void GBufferPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj
         if (!mat) mat = entry.material;
         if (!mat && entry.materialRes) mat = entry.materialRes->getMaterial();
         inst.material = toGpuMaterial(mat);
+        MeshPipeline::applyVfx(inst.material, entry.vfx);
         // Tagged (x-ray) meshes are the focus of the occlusion fade: they must never cut themselves.
         if (entry.xrayGroup != 0) inst.material.flags |= MAT_FLAG_NO_OCCLUSION_CUT;
 

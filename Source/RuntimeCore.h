@@ -118,7 +118,10 @@ private:
 
     std::unique_ptr<EditorViewport> m_playerViewport;
 
-    void gatherLights(GameObject* node, FrameLightData& out) const;
+    // Transient point lights (Phoenix::VFX, at most kMaxTransientLights) are gathered in a first pass so they always
+    // get a slot ahead of the level's lights; the light pass budgets levels to 28 of the 32 point slots.
+    static constexpr int kMaxTransientLights = 4;
+    void gatherLights(GameObject* node, FrameLightData& out, bool transientPass) const;
     void gatherDecals(GameObject* node, std::vector<DecalInstance>& out,
                       const Matrix& view, const Matrix& proj,
                       uint32_t w, uint32_t h) const;
@@ -141,4 +144,5 @@ private:
 
     std::unique_ptr<SceneTransition> m_sceneTransition;
     bool m_clampNextDt = false;   // the next tick's delta includes a blocking transition load
+    float m_vfxClock = 0.f;       // scaled game time, for VFX UV scroll
 };

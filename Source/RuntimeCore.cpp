@@ -42,6 +42,7 @@
 #include "Mesh.h"
 #include "MeshEntry.h"
 #include "ResourceMesh.h"
+#include "ComponentFactory.h"
 #include <d3dx12.h>
 #include <filesystem>
 #include <algorithm>
@@ -66,6 +67,27 @@ bool RuntimeCore::init(){
     m_collisionResponse = std::make_unique<CollisionResponse>();
     m_navigationSystem = std::make_unique<NavigationSystem>();
     m_sceneManager = std::make_unique<SceneManager>();
+    {
+        EngineHooks& hooks = m_sceneManager->getEngineHooks();
+        hooks.addComponent = [](GameObject* owner, int type) -> Component* {
+            if (!owner) return nullptr;
+            for (const auto& c : owner->getComponents())
+                if ((int)c->getType() == type) return c.get();
+            auto comp = ComponentFactory::CreateComponent((Component::Type)type, owner);
+            Component* raw = comp.get();
+            if (raw) owner->addComponent(std::move(comp));
+            return raw;
+        };
+        hooks.loadModel = [](GameObject* owner, const char* assetPath) -> bool {
+            if (!owner || !assetPath) return false;
+            auto* cm = owner->getComponent<ComponentMesh>();
+            if (!cm){
+                owner->addComponent(ComponentFactory::CreateComponent(Component::Type::Mesh, owner));
+                cm = owner->getComponent<ComponentMesh>();
+            }
+            return cm && cm->loadModel(assetPath);
+        };
+    }
     m_sceneTransition = std::make_unique<SceneTransition>();
     m_meshRenderPass = std::make_unique<ForwardMeshPass>();
     m_hotReload = std::make_unique<HotReloadManager>();
@@ -224,6 +246,17 @@ void RuntimeCore::tick(float dt, float aspectRatio){
     if (m_clampNextDt){
         m_clampNextDt = false;
         dt = std::min(dt, 1.f / 60.f);
+    }
+
+    // Time scale (Phoenix::VFX hit-stop / slow-mo): everything below runs on the scaled delta; scripts that must
+    // keep real time (HUD, camera shake, the hit-stop timer) read the unscaled one.
+    if (m_sceneManager){
+        RuntimeTime& rt = m_sceneManager->getRuntimeTime();
+        rt.unscaledDeltaTime = dt;
+        rt.unscaledTime += dt;
+        dt *= std::clamp(rt.timeScale, 0.f, 4.f);
+        rt.scaledTime += dt;
+        m_vfxClock = rt.scaledTime;
     }
 
     if (m_sceneManager){
@@ -602,7 +635,10 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
     m_frameLights.dirLights.clear();
     m_frameLights.pointLights.clear();
     m_frameLights.spotLights.clear();
-    if (moduleScene) gatherLights(moduleScene->getRoot(), m_frameLights);
+    if (moduleScene){
+        gatherLights(moduleScene->getRoot(), m_frameLights, true);
+        gatherLights(moduleScene->getRoot(), m_frameLights, false);
+    }
 
     std::vector<MeshEntry> ownedEntries;
     std::vector<MeshEntry*> visibleMeshes;
@@ -637,9 +673,11 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
             }
             const size_t entriesBefore = ownedEntries.size();
             bool frustumCulledNode = false;
+            const MeshVfxParams* nodeVfx = nullptr;
 
             if (auto* cm = node->getComponent<ComponentMesh>()){
                 cm->flushDeferredReleases();
+                if (!cm->vfx.isDefault()) nodeVfx = &cm->vfx;
 
                 const bool frustumCulled = !editorExtras &&
                     camera->cullMode == ModuleCamera::CullMode::Frustum && !cm->isVisible();
@@ -762,6 +800,13 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
             for (size_t i = entriesBefore; i < ownedEntries.size(); ++i){
                 ownedEntries[i].xrayGroup = group;
                 ownedEntries[i].shadowOnly = frustumCulledNode;
+                if (nodeVfx){
+                    MeshVfxParams& v = ownedEntries[i].vfx;
+                    v = *nodeVfx;
+                    v.uvOffset += nodeVfx->uvScroll * m_vfxClock;
+                    v.uvOffset.x -= floorf(v.uvOffset.x);
+                    v.uvOffset.y -= floorf(v.uvOffset.y);
+                }
             }
             for (auto* child : node->getChildren()) collectMeshes(child, group);
             };
@@ -820,8 +865,11 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
         const Material* mat = e->instanceMaterial.get();
         if (!mat) mat = e->material;
         if (!mat && e->materialRes) mat = e->materialRes->getMaterial();
-        bool isTranslucent = mat && (mat->getData().baseColor.w < 0.999f ||
-                                     (mat->getData().flags & MAT_FLAG_ALPHA_BLEND));
+        // VFX overrides (MeshVfxParams) can make a mesh see-through: a fade draws through the transparent forward pass.
+        float alpha = mat ? mat->getData().baseColor.w : 1.f;
+        if (e->vfx.baseColor.w > 0.f) alpha = e->vfx.baseColor.w;
+        alpha *= e->vfx.tint.w;
+        bool isTranslucent = alpha < 0.999f || (mat && (mat->getData().flags & MAT_FLAG_ALPHA_BLEND));
         if (!isTranslucent) shadowCasters.push_back(e);
         if (e->shadowOnly) continue;
         (isTranslucent ? translucentMeshes : opaqueMeshes).push_back(e);
@@ -1039,6 +1087,7 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
     const bool xrayEnabled = renderOverrides.xrayEnabled >= 0 ? renderOverrides.xrayEnabled != 0 : s.xray.enabled;
 
     OcclusionParams occlusion;
+    occlusion.cameraPos = viewCamPos;   // also the eye point for VFX rims in GBufferPS, so set even with the fade off
     if (viewAllowsOcclusionFx && occlusionEnabled && (renderOverrides.useFocusOverride || focusNode)){
         const EditorSceneSettings::OcclusionFade& of = s.occlusionFade;
         Vector3 focusPos, feetPos;
@@ -1541,8 +1590,22 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
     }
 }
 
-void RuntimeCore::gatherLights(GameObject* node, FrameLightData& out) const{
+void RuntimeCore::gatherLights(GameObject* node, FrameLightData& out, bool transientPass) const{
     if (!node || !node->isActive()) return;
+
+    if (transientPass){
+        if (auto* pl = node->getComponent<ComponentPointLight>(); pl && pl->enabled && pl->transient &&
+            pl->intensity > 0.f && out.pointLights.size() < (size_t)kMaxTransientLights){
+            MeshPipeline::GPUPointLight p;
+            p.position = node->getTransform()->getGlobalMatrix().Translation();
+            p.squaredRadius = pl->radius * pl->radius;
+            p.color = pl->color;
+            p.intensity = pl->intensity;
+            out.pointLights.push_back(p);
+        }
+        for (auto* c : node->getChildren()) gatherLights(c, out, true);
+        return;
+    }
 
     if (auto* dl = node->getComponent<ComponentDirectionalLight>(); dl && dl->enabled){
         if (out.dirLights.size() < MeshPipeline::MAX_DIR_LIGHTS){
@@ -1556,7 +1619,7 @@ void RuntimeCore::gatherLights(GameObject* node, FrameLightData& out) const{
         }
     }
 
-    if (auto* pl = node->getComponent<ComponentPointLight>(); pl && pl->enabled){
+    if (auto* pl = node->getComponent<ComponentPointLight>(); pl && pl->enabled && !pl->transient){
         if (out.pointLights.size() < MeshPipeline::MAX_POINT_LIGHTS){
             MeshPipeline::GPUPointLight p;
             p.position = node->getTransform()->getGlobalMatrix().Translation();
@@ -1583,7 +1646,7 @@ void RuntimeCore::gatherLights(GameObject* node, FrameLightData& out) const{
         }
     }
 
-    for (auto* c : node->getChildren()) gatherLights(c, out);
+    for (auto* c : node->getChildren()) gatherLights(c, out, false);
 }
 
 void RuntimeCore::gatherDecals(GameObject* node, std::vector<DecalInstance>& out,
@@ -1606,8 +1669,10 @@ void RuntimeCore::gatherDecals(GameObject* node, std::vector<DecalInstance>& out
             inst.invViewProj = invVP.Transpose();
 
             inst.colourOpacity = Vector4(dc->colour.x, dc->colour.y, dc->colour.z, dc->opacity);
+            inst.emissiveAlbedoMix = Vector4(dc->emissive, dc->emissive, dc->emissive, dc->albedoMix);
+            inst.texturePath = dc->texturePath;
 
-            out.push_back(inst);
+            out.push_back(std::move(inst));
         }
     }
 
@@ -1715,24 +1780,45 @@ void RuntimeCore::gatherParticleSystems(GameObject* node, std::vector<BillboardI
             const float size = p.baseSize * ps->sizeMultiplierAt(t);
             const Vector4 color = ps->colorAt(t);
 
-            const float rad = p.rotationDeg * (3.14159265358979323846f / 180.f);
-            const float cs = std::cos(rad), sn = std::sin(rad);
-            const Vector3 right = camRight * cs + camUp * sn;
-            const Vector3 up = camUp * cs - camRight * sn;
+            Vector3 right, up;
+            float halfHeight = size * 0.5f;
+            bool stretched = false;
+            if (ps->velocityStretch > 0.f){
+                // Stretch along the velocity as seen on screen: 'up' follows the projected velocity, 'right' stays
+                // in the camera plane, and the sprite grows in length with speed.
+                const Vector3 camFwd = camUp.Cross(camRight);
+                Vector3 v = p.velocity - camFwd * p.velocity.Dot(camFwd);
+                const float speed = v.Length();
+                if (speed > 1e-3f){
+                    up = v / speed;
+                    right = up.Cross(camFwd);
+                    right.Normalize();
+                    halfHeight *= 1.f + ps->velocityStretch * p.velocity.Length();
+                    stretched = true;
+                }
+            }
+            if (!stretched){
+                const float rad = p.rotationDeg * (3.14159265358979323846f / 180.f);
+                const float cs = std::cos(rad), sn = std::sin(rad);
+                right = camRight * cs + camUp * sn;
+                up = camUp * cs - camRight * sn;
+            }
 
-            const Vector4 frameA = tileRect(p.frameIndex % totalTiles);
+            const Vector4 frameA = tileRect(ps->frameAt(p));
+            const bool premultiplied = (ps->blendMode == ComponentParticleSystem::BlendMode::Premultiplied);
 
             BillboardInstance inst;
             inst.cb.viewProj = viewProj.Transpose();
             inst.cb.centerHalfWidth = Vector4(p.position.x, p.position.y, p.position.z, size * 0.5f);
-            inst.cb.rightHalfHeight = Vector4(right.x, right.y, right.z, size * 0.5f);
+            inst.cb.rightHalfHeight = Vector4(right.x, right.y, right.z, halfHeight);
             inst.cb.up = Vector4(up.x, up.y, up.z, 0.f);
             inst.cb.tint = color;
             inst.cb.frameRectA = frameA;
             inst.cb.frameRectB = frameA;
-            inst.cb.blendFactor = Vector4(0.f, 0.f, 0.f, 0.f);
+            inst.cb.blendFactor = Vector4(0.f, premultiplied ? 1.f : 0.f, 0.f, 0.f);
             inst.texturePath = ps->texturePath;
             inst.additive = (ps->blendMode == ComponentParticleSystem::BlendMode::Additive);
+            inst.premultiplied = premultiplied;
 
             out.push_back(std::move(inst));
         }
@@ -1789,7 +1875,7 @@ void RuntimeCore::gatherGPUParticles(GameObject* node,
         req.emitterKey = reinterpret_cast<size_t>(ps);
         req.maxParticles = ps->maxParticles;
         req.texturePath = ps->texturePath;
-        req.additive = (ps->blendMode == ComponentParticleSystem::BlendMode::Additive);
+        req.additive = (ps->blendMode != ComponentParticleSystem::BlendMode::Alpha);
         req.gpuTurbulence = ps->useTurbulence;
         req.turbFrequency = ps->turbulenceFrequency;
         req.turbStrength = ps->turbulenceStrength;
@@ -1805,7 +1891,7 @@ void RuntimeCore::gatherGPUParticles(GameObject* node,
             const float size = p.baseSize * ps->sizeMultiplierAt(t);
             const Vector4 col = ps->colorAt(t);
 
-            auto [uvMin, uvMax] = tileUV(p.frameIndex % totalTiles);
+            auto [uvMin, uvMax] = tileUV(ps->frameAt(p));
 
             GpuParticle gp;
             gp.position[0] = p.position.x;

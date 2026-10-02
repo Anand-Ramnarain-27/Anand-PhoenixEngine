@@ -27,16 +27,22 @@ private:
 #include <d3d12.h>
 #include <wrl.h>
 #include <vector>
+#include <string>
+#include <unordered_map>
 using Microsoft::WRL::ComPtr;
 
 class GBufferPass;
 
+// Everything up to texturePath is the shader's CbDecal (Decal.hlsli) and is copied as-is.
 struct DecalInstance {
     Matrix mvp;
     Matrix invModel;
     Matrix invViewProj;
     Vector4 colourOpacity;
+    Vector4 emissiveAlbedoMix;   // rgb = emissive strength per channel (x colour), w = how much it tints albedo (0..1)
+    std::string texturePath;
 };
+static constexpr size_t kDecalCBBytes = sizeof(Matrix) * 3 + sizeof(Vector4) * 2;
 
 class DecalPass {
 public:
@@ -68,5 +74,12 @@ private:
 
     ComPtr<ID3D12Resource> m_fallbackTex;
     ShaderTableDesc m_fallbackSRV;
+
+    D3D12_GPU_DESCRIPTOR_HANDLE getOrLoadTexture(const std::string& path);
+    struct CachedTexture {
+        ComPtr<ID3D12Resource> resource;
+        ShaderTableDesc srv;
+    };
+    std::unordered_map<std::string, CachedTexture> m_textureCache;
 };
 

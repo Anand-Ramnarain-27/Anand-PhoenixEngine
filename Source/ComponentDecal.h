@@ -18,4 +18,9 @@ public:
 
     float opacity = 1.0f;
     bool enabled = true;
+
+    // Glow added into the G-buffer's emissive target (colour x texture x emissive), so a ring or glyph reads
+    // without a light. albedoMix 0 leaves the surface colour alone (a pure glow decal).
+    float emissive = 0.0f;
+    float albedoMix = 1.0f;
 };

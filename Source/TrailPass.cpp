@@ -6,6 +6,7 @@
 #include "ModuleShaderDescriptors.h"
 #include "ModuleSamplerHeap.h"
 #include "ModuleEditor.h"
+#include "EffectTextureLoader.h"
 #include <imgui.h>
 #include <d3dx12.h>
 #include <algorithm>
@@ -92,8 +93,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE TrailPass::getOrLoadTexture(const std::string& path)
     if (it != m_textureCache.end())
         return it->second.srv.getGPUHandle(0);
 
-    auto* gpu = app->getGPUResources();
-    ComPtr<ID3D12Resource> tex = gpu ? gpu->createTextureFromFile(path, true) : nullptr;
+    ComPtr<ID3D12Resource> tex = loadEffectTexture(path);
     if (!tex){
         LOG("TrailPass: failed to load texture '%s', using fallback", path.c_str());
         m_textureCache.emplace(path, CachedTexture{ nullptr, m_fallbackSRV });

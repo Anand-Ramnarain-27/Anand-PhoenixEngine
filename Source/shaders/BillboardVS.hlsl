@@ -16,6 +16,7 @@ struct VS_OUTPUT {
     float2 uvB : TEXCOORD1;
     float blend : TEXCOORD2;
     float4 tint : COLOR0;
+    float premultiplied : TEXCOORD3;
 };
 
 static const float2 kCorners[4] = {
@@ -45,5 +46,6 @@ VS_OUTPUT main(uint vid : SV_VertexID){
     o.uvB = lerp(FrameRectB.xy, FrameRectB.zw, localUV);
     o.blend = BlendFactor.x;
     o.tint = Tint;
+    o.premultiplied = BlendFactor.y;
     return o;
 }

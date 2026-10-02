@@ -49,7 +49,20 @@ public:
 		float alphaCutoff = 0.f;
 		uint32_t flags = 0;
 		uint32_t padding = 0;
+		Vector2 uvOffset = { 0.f, 0.f };           // VFX UV scroll (Material.hlsli UVOffset)
+		Vector4 vfxEmissive = { 0.f, 0.f, 0.f, 0.f }; // VFX glow: rgb, w = rim power (0 = flat)
 	};
+	static_assert(sizeof(GpuMaterial) == 80, "GpuMaterial must match Material in shaders/Material.hlsli");
+
+	// Folds a mesh's per-object VFX overrides (MeshVfxParams, MeshEntry.h) into its GPU material.
+	template<class VfxParamsT>
+	static void applyVfx(GpuMaterial& gm, const VfxParamsT& v){
+		if (v.baseColor.w > 0.f) gm.baseColor = v.baseColor;
+		gm.baseColor = Vector4(gm.baseColor.x * v.tint.x, gm.baseColor.y * v.tint.y,
+		                       gm.baseColor.z * v.tint.z, gm.baseColor.w * v.tint.w);
+		gm.uvOffset = v.uvOffset;
+		gm.vfxEmissive = v.emissive;
+	}
 
 	struct CbPerInstance {
 		Matrix modelMatrix;

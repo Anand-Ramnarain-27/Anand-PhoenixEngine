@@ -13,6 +13,7 @@ public:
 
     ID3D12PipelineState* getPSO() const { return m_pso.Get(); }
     ID3D12PipelineState* getAdditivePSO() const { return m_additivePso.Get(); }
+    ID3D12PipelineState* getPremultipliedPSO() const { return m_premultipliedPso.Get(); }
     ID3D12RootSignature* getRootSig() const { return m_rootSig.Get(); }
 
 private:
@@ -22,6 +23,7 @@ private:
     ComPtr<ID3D12RootSignature> m_rootSig;
     ComPtr<ID3D12PipelineState> m_pso;
     ComPtr<ID3D12PipelineState> m_additivePso;
+    ComPtr<ID3D12PipelineState> m_premultipliedPso;
 };
 #include "ShaderTableDesc.h"
 #include "Globals.h"
@@ -50,6 +52,7 @@ struct BillboardInstance {
     BillboardInstanceCB cb;
     std::string texturePath;
     bool additive = false;
+    bool premultiplied = false;   // wins over additive
 };
 
 class BillboardPass {

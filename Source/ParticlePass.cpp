@@ -6,6 +6,7 @@
 #include "ModuleShaderDescriptors.h"
 #include "ModuleSamplerHeap.h"
 #include "ModuleEditor.h"
+#include "EffectTextureLoader.h"
 #include <imgui.h>
 #include <d3dx12.h>
 #include <algorithm>
@@ -72,8 +73,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE ParticlePass::getOrLoadTexture(const std::string& pa
     auto it = m_textureCache.find(path);
     if (it != m_textureCache.end()) return it->second.srv.getGPUHandle(0);
 
-    auto* gpu = app->getGPUResources();
-    ComPtr<ID3D12Resource> tex = gpu ? gpu->createTextureFromFile(path, true) : nullptr;
+    ComPtr<ID3D12Resource> tex = loadEffectTexture(path);
     if (!tex){
         LOG("ParticlePass: failed to load texture '%s', using fallback", path.c_str());
         m_textureCache.emplace(path, CachedTexture{ nullptr, m_fallbackSRV });

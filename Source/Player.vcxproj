@@ -196,6 +196,7 @@
     <ClInclude Include="API\Phoenix_Input.h" />
     <ClInclude Include="API\Phoenix_Scene.h" />
     <ClInclude Include="API\Phoenix_Render.h" />
+    <ClInclude Include="API\Phoenix_VFX.h" />
     <ClInclude Include="API\Phoenix_GameObject.h" />
     <ClInclude Include="API\Phoenix_Navigation.h" />
     <ClInclude Include="API\Phoenix_Perception.h" />
@@ -248,6 +249,7 @@
     <ClInclude Include="ColorLUT.h" />
     <ClInclude Include="ComponentDecal.h" />
     <ClInclude Include="BillboardPass.h" />
+    <ClInclude Include="EffectTextureLoader.h" />
     <ClInclude Include="ComponentBillboard.h" />
     <ClInclude Include="ComponentTransform2D.h" />
     <ClInclude Include="ComponentCanvas.h" />
@@ -386,6 +388,7 @@
     <ClCompile Include="API\Phoenix_Input.cpp" />
     <ClCompile Include="API\Phoenix_Scene.cpp" />
     <ClCompile Include="API\Phoenix_Render.cpp" />
+    <ClCompile Include="API\Phoenix_VFX.cpp" />
     <ClCompile Include="API\Phoenix_Navigation.cpp" />
     <ClCompile Include="API\Phoenix_Perception.cpp" />
     <ClCompile Include="CommandContext.cpp" />

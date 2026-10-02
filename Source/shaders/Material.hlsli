@@ -24,7 +24,19 @@ struct Material {
     float AlphaCutoff;
     uint Flags;
     uint Padding;
+    float2 UVOffset;     // per-object VFX UV scroll
+    float4 VfxEmissive;  // per-object VFX glow: rgb, w = rim power (0 = flat)
 };
+
+// Per-object VFX glow (MeshVfxParams): flat over the surface, or a fresnel rim when VfxEmissive.w > 0.
+float3 VfxGlow(in Material material, float3 N, float3 V){
+    if (max(material.VfxEmissive.r, max(material.VfxEmissive.g, material.VfxEmissive.b)) <= 0.0f)
+        return float3(0.0f, 0.0f, 0.0f);
+    if (material.VfxEmissive.w <= 0.0f)
+        return material.VfxEmissive.rgb;
+    float rim = pow(1.0f - saturate(abs(dot(N, V))), material.VfxEmissive.w);
+    return material.VfxEmissive.rgb * rim;
+}
 
 void ClipAlphaMask(in Material material, in Texture2D baseColorTex, in float2 uv){
     if (!(material.Flags & HAS_ALPHA_MASK))

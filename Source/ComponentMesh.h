@@ -59,6 +59,9 @@ public:
     bool isVisible() const { return m_isVisible; }
     void setVisible(bool v){ m_isVisible = v; }
 
+    // Runtime-only VFX overrides for every entry of this mesh (not saved). Set through Phoenix::VFX.
+    MeshVfxParams vfx;
+
     void setSkinData(const ResourceModel::Skin& skin, std::vector<GameObject*> joints);
 
     void resolveDeferredSkin();

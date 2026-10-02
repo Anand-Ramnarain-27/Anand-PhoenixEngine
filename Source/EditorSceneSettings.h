@@ -104,3 +104,25 @@ struct RenderOverrides {
 
     void reset(){ *this = RenderOverrides(); }
 };
+
+class GameObject;
+class Component;
+
+// Engine functions handed to GameScript.dll through SceneManager (set by RuntimeCore::init). Component
+// constructors and model loading live in the engine executable, not in PhoenixCore.lib, so a script can't call
+// them directly; it calls these pointers instead (Phoenix::VFX).
+struct EngineHooks {
+    Component* (*addComponent)(GameObject* owner, int componentType) = nullptr;   // Component::Type; existing one is returned
+    bool (*loadModel)(GameObject* owner, const char* assetPath) = nullptr;        // adds/reuses a ComponentMesh
+};
+
+// Game-time scaling (Phoenix::VFX hit-stop / slow-mo). RuntimeCore::tick multiplies the frame delta by timeScale
+// before the scene, scripts, collision and animation see it; the unscaled delta stays readable for things that
+// must keep real time (HUD, camera shake, the hit-stop timer itself). timeScale returns to 1 on scene load and
+// when Play mode stops.
+struct RuntimeTime {
+    float timeScale = 1.0f;
+    float unscaledDeltaTime = 0.0f;   // this frame, before scaling
+    float scaledTime = 0.0f;          // sum of scaled deltas (drives VFX UV scroll)
+    float unscaledTime = 0.0f;
+};

@@ -6,6 +6,7 @@
 #include "ModuleShaderDescriptors.h"
 #include "ModuleSamplerHeap.h"
 #include "ModuleEditor.h"
+#include "EffectTextureLoader.h"
 #include <imgui.h>
 #include <d3dx12.h>
 #include <algorithm>
@@ -79,21 +80,8 @@ D3D12_GPU_DESCRIPTOR_HANDLE BillboardPass::getOrLoadTexture(const std::string& p
     if (it != m_textureCache.end())
         return it->second.srv.getGPUHandle(0);
 
-    auto* gpu = app->getGPUResources();
-
     std::string resolvedPath = path;
-    ComPtr<ID3D12Resource> tex = gpu ? gpu->createTextureFromFile(path, true) : nullptr;
-    if (!tex){
-        namespace fs = std::filesystem;
-        fs::path fp(path);
-        std::string ext = fp.extension().string();
-        for (auto& c : ext) c = (char)std::tolower((unsigned char)c);
-        if (ext != ".dds"){
-            std::string ddsCandidate = "Library/Textures/" + fp.stem().string() + ".dds";
-            tex = gpu ? gpu->createTextureFromFile(ddsCandidate, true) : nullptr;
-            if (tex) resolvedPath = ddsCandidate;
-        }
-    }
+    ComPtr<ID3D12Resource> tex = loadEffectTexture(path, &resolvedPath);
     if (!tex){
         LOG("BillboardPass: failed to load texture '%s', using fallback", path.c_str());
 #ifdef PHOENIX_EDITOR
@@ -157,15 +145,18 @@ void BillboardPass::render(ID3D12GraphicsCommandList* cmd,
     const UINT remaining = (m_frameCBCursor < MAX_BILLBOARDS) ? MAX_BILLBOARDS - m_frameCBCursor : 0u;
     const UINT count = std::min((UINT)billboards.size(), remaining);
 
-    bool additiveBound = false;
+    // 0 = alpha, 1 = additive, 2 = premultiplied
+    int blendBound = 0;
     cmd->SetPipelineState(m_pipeline.getPSO());
 
     for (UINT i = 0; i < count; ++i){
         const BillboardInstance& bb = billboards[i];
 
-        if (bb.additive != additiveBound){
-            additiveBound = bb.additive;
-            cmd->SetPipelineState(additiveBound ? m_pipeline.getAdditivePSO() : m_pipeline.getPSO());
+        const int blend = bb.premultiplied ? 2 : (bb.additive ? 1 : 0);
+        if (blend != blendBound){
+            blendBound = blend;
+            cmd->SetPipelineState(blend == 2 ? m_pipeline.getPremultipliedPSO()
+                                 : blend == 1 ? m_pipeline.getAdditivePSO() : m_pipeline.getPSO());
         }
 
         const UINT slot = m_frameCBCursor + i;
@@ -264,6 +255,13 @@ bool BillboardPipeline::createPSO(ID3D12Device* device){
     art.DestBlend = D3D12_BLEND_ONE;
     hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_additivePso));
     if (FAILED(hr)){ LOG("BillboardPipeline: CreateGraphicsPipelineState (additive) failed 0x%08X", hr); return false; }
+
+    // Premultiplied: colour adds, alpha only occludes. A particle fading its tint alpha to 0 turns from a normal
+    // alpha blend into a pure additive glow with the same texture.
+    art.SrcBlend = D3D12_BLEND_ONE;
+    art.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+    hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_premultipliedPso));
+    if (FAILED(hr)){ LOG("BillboardPipeline: CreateGraphicsPipelineState (premultiplied) failed 0x%08X", hr); return false; }
 
     return true;
 }

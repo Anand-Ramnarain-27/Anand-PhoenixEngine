@@ -37,6 +37,7 @@ void SceneManager::clearScene(){
     m_pendingSpawns.clear();
     m_runtimeSceneChanged = false;
     m_renderOverrides.reset();
+    m_runtimeTime.timeScale = 1.f;
     m_transition = {};
 }
 
@@ -64,6 +65,7 @@ void SceneManager::play(){
         m_lookAtPlay = { settings.skybox, settings.ambient, settings.gravityY, settings.postProcess, settings.fog,
                           settings.xray, settings.occlusionFade };
         m_renderOverrides.reset();
+        m_runtimeTime.timeScale = 1.f;
         m_pendingScenePath.clear();
         m_pendingSpawns.clear();
         m_transition = {};
@@ -96,6 +98,7 @@ void SceneManager::stop(){
     else activeScene->reset();
     state = PlayState::Stopped;
     m_renderOverrides.reset();
+    m_runtimeTime.timeScale = 1.f;
 
     // A script loaded other scenes during Play: the temp scene above only restores GameObjects, so put the
     // scene path and the look settings (skybox, fog, ...) of the scene Play started in back as well.
@@ -210,6 +213,7 @@ bool SceneManager::loadScene(const std::string& filePath){
     if (!SceneSerializer::LoadScene(filePath, ms, &settings)) return false;
     m_currentScenePath = filePath;
     m_renderOverrides.reset();
+    m_runtimeTime.timeScale = 1.f;
     return true;
 }
 

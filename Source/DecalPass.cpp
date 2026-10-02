@@ -6,6 +6,7 @@
 #include "ModuleD3D12.h"
 #include "ModuleShaderDescriptors.h"
 #include "ModuleSamplerHeap.h"
+#include "EffectTextureLoader.h"
 #include <d3dx12.h>
 #include <algorithm>
 #include <cstring>
@@ -110,7 +111,7 @@ bool DecalPass::init(ID3D12Device* device){
 }
 
 bool DecalPass::createUploadBuffers(ID3D12Device* device){
-    const UINT stride = cbAlign(sizeof(DecalInstance));
+    const UINT stride = cbAlign(kDecalCBBytes);
     const UINT64 total = stride * MAX_DECALS;
     auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     auto bd = CD3DX12_RESOURCE_DESC::Buffer(total);
@@ -187,23 +188,27 @@ void DecalPass::render(ID3D12GraphicsCommandList* cmd,
     BEGIN_EVENT(cmd, L"Decal Pass");
 
     {
-        CD3DX12_RESOURCE_BARRIER barriers[2] = {
+        CD3DX12_RESOURCE_BARRIER barriers[3] = {
             CD3DX12_RESOURCE_BARRIER::Transition(gb.getColorTexture(GBuffer::Albedo),
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_RENDER_TARGET),
             CD3DX12_RESOURCE_BARRIER::Transition(gb.getColorTexture(GBuffer::NormalMetalRough),
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                D3D12_RESOURCE_STATE_RENDER_TARGET),
+            CD3DX12_RESOURCE_BARRIER::Transition(gb.getColorTexture(GBuffer::EmissiveAO),
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_RENDER_TARGET)
         };
-        cmd->ResourceBarrier(2, barriers);
+        cmd->ResourceBarrier(3, barriers);
     }
 
-    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2] = {
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[3] = {
         gb.getRtvHandle(GBuffer::Albedo),
-        gb.getRtvHandle(GBuffer::NormalMetalRough)
+        gb.getRtvHandle(GBuffer::NormalMetalRough),
+        gb.getRtvHandle(GBuffer::EmissiveAO)
     };
     D3D12_CPU_DESCRIPTOR_HANDLE roDsv = gb.getReadOnlyDsvHandle();
-    cmd->OMSetRenderTargets(2, rtvHandles, FALSE, &roDsv);
+    cmd->OMSetRenderTargets(3, rtvHandles, FALSE, &roDsv);
 
     D3D12_VIEWPORT vp = { 0.f, 0.f, float(width), float(height), 0.f, 1.f };
     D3D12_RECT sc = { 0, 0, LONG(width), LONG(height) };
@@ -228,36 +233,65 @@ void DecalPass::render(ID3D12GraphicsCommandList* cmd,
     cmd->IASetVertexBuffers(0, 1, &m_vbv);
     cmd->IASetIndexBuffer(&m_ibv);
 
-    const UINT cbStride = cbAlign(sizeof(DecalInstance));
+    const UINT cbStride = cbAlign(kDecalCBBytes);
     const UINT maxDecals = std::min((UINT)decals.size(), MAX_DECALS);
 
     for (UINT i = 0; i < maxDecals; ++i){
         void* dst = reinterpret_cast<uint8_t*>(m_cbMapped) + i * cbStride;
-        memcpy(dst, &decals[i], sizeof(DecalInstance));
+        memcpy(dst, &decals[i], kDecalCBBytes);
 
         D3D12_GPU_VIRTUAL_ADDRESS cbVA =
             m_cbRing->GetGPUVirtualAddress() + i * cbStride;
         cmd->SetGraphicsRootConstantBufferView(DecalPipeline::SLOT_CB, cbVA);
 
         cmd->SetGraphicsRootDescriptorTable(DecalPipeline::SLOT_ALBEDO,
-                                             m_fallbackSRV.getGPUHandle(0));
+                                             getOrLoadTexture(decals[i].texturePath));
 
         cmd->DrawIndexedInstanced(m_indexCount, 1, 0, 0, 0);
     }
 
     {
-        CD3DX12_RESOURCE_BARRIER barriers[2] = {
+        CD3DX12_RESOURCE_BARRIER barriers[3] = {
             CD3DX12_RESOURCE_BARRIER::Transition(gb.getColorTexture(GBuffer::Albedo),
                 D3D12_RESOURCE_STATE_RENDER_TARGET,
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
             CD3DX12_RESOURCE_BARRIER::Transition(gb.getColorTexture(GBuffer::NormalMetalRough),
                 D3D12_RESOURCE_STATE_RENDER_TARGET,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+            CD3DX12_RESOURCE_BARRIER::Transition(gb.getColorTexture(GBuffer::EmissiveAO),
+                D3D12_RESOURCE_STATE_RENDER_TARGET,
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
         };
-        cmd->ResourceBarrier(2, barriers);
+        cmd->ResourceBarrier(3, barriers);
     }
 
     END_EVENT(cmd);
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE DecalPass::getOrLoadTexture(const std::string& path){
+    if (path.empty()) return m_fallbackSRV.getGPUHandle(0);
+
+    auto it = m_textureCache.find(path);
+    if (it != m_textureCache.end()) return it->second.srv.getGPUHandle(0);
+
+    ComPtr<ID3D12Resource> tex = loadEffectTexture(path);
+    if (!tex){
+        LOG("DecalPass: failed to load texture '%s', using fallback", path.c_str());
+        m_textureCache.emplace(path, CachedTexture{ nullptr, m_fallbackSRV });
+        return m_fallbackSRV.getGPUHandle(0);
+    }
+
+    ShaderTableDesc srv = app->getShaderDescriptors()->allocTable(("Decal_SRV_" + path).c_str());
+    if (!srv.isValid()){
+        LOG("DecalPass: SRV alloc failed for '%s', using fallback", path.c_str());
+        m_textureCache.emplace(path, CachedTexture{ nullptr, m_fallbackSRV });
+        return m_fallbackSRV.getGPUHandle(0);
+    }
+    srv.createTexture2DSRV(tex.Get(), 0);
+
+    auto handle = srv.getGPUHandle(0);
+    m_textureCache.emplace(path, CachedTexture{ std::move(tex), std::move(srv) });
+    return handle;
 }
 
 #include "Globals.h"
@@ -315,9 +349,10 @@ bool DecalPipeline::createPSO(ID3D12Device* device){
     desc.InputLayout = { layout, _countof(layout) };
     desc.PrimitiveTopologyType= D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
-    desc.NumRenderTargets = 2;
+    desc.NumRenderTargets = 3;
     desc.RTVFormats[0] = GBuffer::kAlbedoFormat;
     desc.RTVFormats[1] = GBuffer::kNormalMetalRoughFormat;
+    desc.RTVFormats[2] = GBuffer::kEmissiveAOFormat;
     desc.DSVFormat = GBuffer::kDepthFormat;
     desc.SampleDesc = { 1, 0 };
     desc.SampleMask = UINT_MAX;
@@ -336,6 +371,16 @@ bool DecalPipeline::createPSO(ID3D12Device* device){
     desc.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
     desc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
     desc.BlendState.RenderTarget[1].RenderTargetWriteMask = 0;
+    // Emissive adds on top (scaled by the decal's alpha); the AO channel is left alone.
+    desc.BlendState.RenderTarget[2].BlendEnable = TRUE;
+    desc.BlendState.RenderTarget[2].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+    desc.BlendState.RenderTarget[2].DestBlend = D3D12_BLEND_ONE;
+    desc.BlendState.RenderTarget[2].BlendOp = D3D12_BLEND_OP_ADD;
+    desc.BlendState.RenderTarget[2].SrcBlendAlpha = D3D12_BLEND_ZERO;
+    desc.BlendState.RenderTarget[2].DestBlendAlpha = D3D12_BLEND_ONE;
+    desc.BlendState.RenderTarget[2].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    desc.BlendState.RenderTarget[2].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_RED |
+        D3D12_COLOR_WRITE_ENABLE_GREEN | D3D12_COLOR_WRITE_ENABLE_BLUE;
 
     desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
     desc.DepthStencilState.DepthEnable = FALSE;

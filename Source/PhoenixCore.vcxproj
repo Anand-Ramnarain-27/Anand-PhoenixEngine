@@ -204,6 +204,7 @@
     <ClInclude Include="IScene.h" />
     <ClInclude Include="API\Phoenix_Scene.h" />
     <ClInclude Include="API\Phoenix_Render.h" />
+    <ClInclude Include="API\Phoenix_VFX.h" />
     <ClInclude Include="ResourceStateMachine.h" />
     <ClInclude Include="ModuleAssets.h" />
     <ClInclude Include="ModuleResources.h" />
@@ -244,6 +245,7 @@
     <ClCompile Include="SteeringBehaviors.cpp" />
     <ClCompile Include="API\Phoenix_Scene.cpp" />
     <ClCompile Include="API\Phoenix_Render.cpp" />
+    <ClCompile Include="API\Phoenix_VFX.cpp" />
     <ClCompile Include="API\Phoenix_Navigation.cpp" />
     <ClCompile Include="API\Phoenix_UI.cpp" />
     <ClCompile Include="API\Phoenix_Perception.cpp" />

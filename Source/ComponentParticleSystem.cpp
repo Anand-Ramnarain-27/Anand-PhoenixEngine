@@ -153,6 +153,12 @@ void ComponentParticleSystem::update(float dt){
         m_lastOwnerWorld = owner->getTransform()->getGlobalMatrix();
     }
 
+    if (pendingBurst > 0){
+        const int n = std::min(pendingBurst, std::max(1, maxParticles));
+        pendingBurst = 0;
+        for (int i = 0; i < n; ++i) spawnParticle();
+    }
+
     if (playing){
         m_age += dt;
         if (looping || m_age <= duration){
@@ -279,8 +285,18 @@ void ComponentParticleSystem::onEditor(){
         ImGui::DragInt("Sheet columns", &sheetColumns, 1.f, 1, 64);
         ImGui::DragInt("Sheet rows", &sheetRows, 1.f, 1, 64);
         ImGui::Checkbox("Random sub-image per particle", &randomFrame);
+        static const char* kSheetModes[] = { "Fixed", "Over lifetime", "Frames per second" };
+        int sheetIdx = (int)sheetMode;
+        if (ImGui::Combo("Sheet animation", &sheetIdx, kSheetModes, IM_ARRAYSIZE(kSheetModes)))
+            sheetMode = (SheetMode)sheetIdx;
+        if (sheetMode == SheetMode::Fps){
+            ImGui::DragFloat("Sheet FPS", &sheetFps, 0.5f, 0.f, 120.f);
+            ImGui::Checkbox("Loop sheet", &sheetLoop);
+        }
+        ImGui::DragFloat("Velocity stretch", &velocityStretch, 0.01f, 0.f, 10.f);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("CPU path: stretch each sprite along its on-screen velocity");
 
-        static const char* kBlend[] = { "Alpha", "Additive" };
+        static const char* kBlend[] = { "Alpha", "Additive", "Premultiplied" };
         int blendIdx = (int)blendMode;
         if (ImGui::Combo("Blend mode", &blendIdx, kBlend, IM_ARRAYSIZE(kBlend)))
             blendMode = (BlendMode)blendIdx;
@@ -367,6 +383,10 @@ void ComponentParticleSystem::onSave(std::string& outJson) const{
     outJson += "\"sheetColumns\":" + std::to_string(sheetColumns) + ",";
     outJson += "\"sheetRows\":" + std::to_string(sheetRows) + ",";
     outJson += "\"randomFrame\":" + std::string(randomFrame ? "true" : "false") + ",";
+    outJson += "\"sheetMode\":" + std::to_string((int)sheetMode) + ",";
+    outJson += "\"sheetFps\":" + std::to_string(sheetFps) + ",";
+    outJson += "\"sheetLoop\":" + std::string(sheetLoop ? "true" : "false") + ",";
+    outJson += "\"velocityStretch\":" + std::to_string(velocityStretch) + ",";
     outJson += "\"blendMode\":" + std::to_string((int)blendMode) + ",";
     outJson += "\"layer\":" + std::to_string(layer) + ",";
     outJson += "\"useGPU\":" + std::string(useGPU ? "true" : "false");
@@ -441,6 +461,10 @@ void ComponentParticleSystem::onLoad(const std::string& json){
     sheetColumns = getInt("sheetColumns", sheetColumns);
     sheetRows = getInt("sheetRows", sheetRows);
     randomFrame = getBool("randomFrame", randomFrame);
+    sheetMode = (SheetMode)getInt("sheetMode", (int)sheetMode);
+    sheetFps = getFloat("sheetFps", sheetFps);
+    sheetLoop = getBool("sheetLoop", sheetLoop);
+    velocityStretch = getFloat("velocityStretch", velocityStretch);
     blendMode = (BlendMode)getInt("blendMode", (int)blendMode);
     layer = getInt("layer", layer);
     useGPU = getBool("useGPU", useGPU);

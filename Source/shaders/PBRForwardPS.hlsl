@@ -8,6 +8,7 @@ float4 main(
     float3 normal : NORMAL0,
     float4 tangent : TANGENT,
     bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
+    texCoord += InstanceMaterial.UVOffset;
     ClipAlphaMask(InstanceMaterial, BaseColorTex, texCoord);
 
     float3 V = normalize(CameraPosition - worldPos);
@@ -62,6 +63,7 @@ float4 main(
                                     baseColour, alphaRoughness, metallic);
 
     colour += SampleEmissive(InstanceMaterial, EmissiveTex, texCoord);
+    colour += VfxGlow(InstanceMaterial, N, V);
 
     return float4(colour, 1.0);
 }

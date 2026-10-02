@@ -100,6 +100,11 @@ public:
     RenderOverrides& getRenderOverrides(){ return m_renderOverrides; }
     const RenderOverrides& getRenderOverrides() const { return m_renderOverrides; }
 
+    // Time scale and real-time delta (Phoenix::VFX), inline for the same reason.
+    RuntimeTime& getRuntimeTime(){ return m_runtimeTime; }
+    const RuntimeTime& getRuntimeTime() const { return m_runtimeTime; }
+    EngineHooks& getEngineHooks(){ return m_engineHooks; }
+
 private:
     struct PendingSpawn {
         std::string prefabName;
@@ -140,6 +145,8 @@ private:
     SceneLook m_lookAtPlay;
 
     RenderOverrides m_renderOverrides;
+    RuntimeTime m_runtimeTime;
+    EngineHooks m_engineHooks;
 
     SceneTransitionState m_transition;
 };

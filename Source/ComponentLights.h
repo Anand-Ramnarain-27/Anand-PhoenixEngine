@@ -55,6 +55,10 @@ public:
     bool castShadows = false;
     int shadowResolution = 1024;
     float shadowBias = 0.01f;
+
+    // Runtime-only (not saved): a short-lived VFX light (Phoenix::VFX). Up to 4 are gathered before every other
+    // point light, so a hit flash never loses its slot to the level's lights; a transient light never casts shadows.
+    bool transient = false;
 };
 
 class ComponentSpotLight : public Component {

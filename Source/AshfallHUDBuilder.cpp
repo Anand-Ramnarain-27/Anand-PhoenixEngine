@@ -29,6 +29,7 @@ namespace {
     constexpr const char* kPack = "Assets/Ashfall_UI/";
 
     std::string tex(const char* relative){ return std::string(kPack) + relative; }
+    std::string tex(const std::string& relative){ return std::string(kPack) + relative; }
 
     // ---- data files ----
     bool readJson(const std::string& path, Document& doc){
@@ -141,17 +142,25 @@ namespace {
 
     struct SlotDef {
         const char* id;
-        const char* icon;
+        const char* icon;      // path under Assets/Ashfall_UI/
         bool signature;
+        bool party = false;    // the Q / R group: nodes are HUD_SlotQ / HUD_SlotR, not HUD_Slot_<id>
     };
     // Group separators ("|" in hud_layout.json's abilityBar.order) are the null ids.
     const SlotDef kSlots[] = {
-        { "Light", "icon_sword", false }, { "Heavy", "icon_heavy", false }, { nullptr, nullptr, false },
-        { "Dodge", "icon_dodge", false }, { "Block", "icon_shield", false }, { nullptr, nullptr, false },
-        { "A1", "icon_bash", false }, { "A2", "icon_smite", false }, { "A3", "icon_aegis", false }, { "A4", "icon_rally", false },
+        { "Light", "Icons/icon_sword.png", false }, { "Heavy", "Icons/icon_heavy.png", false }, { nullptr, nullptr, false },
+        { "Dodge", "Icons/icon_dodge.png", false }, { "Block", "Icons/icon_shield.png", false }, { nullptr, nullptr, false },
+        { "A1", "Icons/icon_bash.png", false }, { "A2", "Icons/icon_smite.png", false }, { "A3", "Icons/icon_aegis.png", false },
+        { "A4", "Icons/icon_rally.png", false },
         { nullptr, nullptr, false },
-        { "Signature", "icon_vow", true },
+        // Party (HUD_PARTY.md): Q swap shows who comes in; R is the Duo Finisher (locked / charging / ready).
+        { "Q", "HUD/Party/icon_swap.png", false, true }, { "R", "HUD/Party/icon_duo_locked.png", false, true },
+        { nullptr, nullptr, false },
+        { "Signature", "Icons/icon_vow.png", true },
     };
+    // Every group divider takes this much width; the plate is as wide as its slots need (ability_plate_<W>x122.png,
+    // made by Assets/Ashfall_UI/_tools/make_party_hud.py for the same sum).
+    constexpr float kDividerSpan = 35.f;
 
     void destroySubtree(SceneGraph* scene, GameObject* root){
         // destroyGameObject only reparents a node's children, so collect the subtree and remove it bottom-up.
@@ -225,8 +234,12 @@ bool BuildAshfallHUDPrefab(SceneGraph* scene, HotReloadManager* hotReload, std::
         const float statusGap = num(member(pf, "statusRow"), "gap", 8.f);
         const float textX = medallion + gap;
 
-        // Tall enough for the benched-partner widget under the medallion.
-        GameObject* player = b.node(main, "HUD_Player", pinned({ 0.f, 0.f }, offset, { textX + hpBar.x, medallion + 20.f + 50.f }));
+        // Tall enough for the benched portrait row under the medallion (hud_layout.json "party.bench").
+        const Value* party = member(layout, "party");
+        const Value* bench = member(party, "bench");
+        const Vector2 benchAt = vec2(bench, "offset", Vector2(52.f, 134.f));
+        const float benchPortrait = num(bench, "portrait", 64.f);
+        GameObject* player = b.node(main, "HUD_Player", pinned({ 0.f, 0.f }, offset, { textX + hpBar.x, benchAt.y + benchPortrait + 8.f }));
 
         GameObject* med = b.node(player, "HUD_Medallion", at(0.f, 0.f, medallion, medallion));
         b.image(med, "HUD_VowTrack", inset(0.f), tex("HUD/Portrait/medallion_track_120.png"));
@@ -237,9 +250,16 @@ bool BuildAshfallHUDPrefab(SceneGraph* scene, HotReloadManager* hotReload, std::
         b.image(med, "HUD_PortraitBg", at(portraitAt, portraitAt, portrait, portrait), tex("HUD/Portrait/portrait_bg_94.png"));
         b.image(med, "HUD_Portrait", at(portraitAt, portraitAt, portrait, portrait), tex("HUD/Portrait/monogram_S_94.png"));   // placeholder art
         b.image(med, "HUD_PortraitRim", at(portraitAt, portraitAt, portrait, portrait), tex("HUD/Portrait/portrait_rim_brass_94.png"));
+        // Link swap flash: a brass edge on the incoming portrait (link_edge_94 carries 16 px of glow on every side).
+        b.image(med, "HUD_LinkEdge", at(portraitAt - 16.f, portraitAt - 16.f, portrait + 32.f, portrait + 32.f),
+                tex("HUD/Party/link_edge_94.png"), white, false);
 
         b.label(player, "HUD_Name", at(textX, 0.f, hpBar.x, nameSize + 6.f), "Sera Vantry", "AshfallDisplay", nameSize, parchment);
         b.label(player, "HUD_Class", at(textX, 0.f, hpBar.x, nameSize + 6.f), "PALADIN", "AshfallLabel", 15.f, ash, H::Right);
+        // "LINK · <name>" for a moment after a Link swap, in the class label's place (right end of the name row).
+        GameObject* linkTag = b.image(player, "HUD_LinkTag", at(textX + hpBar.x - 220.f, 4.f, 220.f, 24.f), tex("HUD/Party/link_tag_220x24.png"), white, false);
+        b.label(linkTag, "HUD_LinkTagKicker", at(10.f, 0.f, 44.f, 24.f), "LINK", "AshfallLabel", 12.f, brassLight);
+        b.label(linkTag, "HUD_LinkTagName", at(54.f, 0.f, 158.f, 24.f), "", "AshfallUI", 16.f, parchment);
 
         // The frame's 2 px border stays visible: the bars sit inside it.
         GameObject* hp = b.image(player, "HUD_HPFrame", at(textX, 40.f, hpBar.x, hpBar.y), tex("HUD/Sized/hp_frame_440x24.png"));
@@ -261,23 +281,50 @@ bool BuildAshfallHUDPrefab(SceneGraph* scene, HotReloadManager* hotReload, std::
             b.image(player, "HUD_Status" + std::to_string(i), at(textX + i * (statusSize + statusGap), resourceY + resourceBar.y + 8.f, statusSize, statusSize),
                     tex((std::string("HUD/Status/") + kStatus[i] + ".png").c_str()), white, false);
 
-        // Benched partner (tag-swap): small portrait with a swap-cooldown overlay, name, thin HP bar with the
-        // recoverable part as a ghost segment, and the swap key. PLACEHOLDER art: monogram portraits.
-        const float partner = 50.f;
-        GameObject* pw = b.node(player, "HUD_Partner", at(0.f, medallion + 20.f, partner + 8.f + 140.f, partner), false);
-        b.image(pw, "HUD_PartnerPortraitBg", at(0.f, 0.f, partner, partner), tex("HUD/Portrait/portrait_bg_50.png"));
-        b.image(pw, "HUD_PartnerPortrait", at(0.f, 0.f, partner, partner), tex("HUD/Portrait/monogram_O_50.png"));
-        b.bar(pw, "HUD_PartnerSwapCD", at(0.f, 0.f, partner, partner), tex("HUD/Slots/slot_overlay_cooldown.png"), Dir::TopToBottom, 0.f);
-        b.image(pw, "HUD_PartnerRim", at(0.f, 0.f, partner, partner), tex("HUD/Portrait/portrait_rim_brass_50.png"));
-        b.image(pw, "HUD_PartnerDown", at(0.f, 0.f, partner, partner), tex("HUD/Portrait/portrait_rim_low_50.png"), white, false);
-        b.label(pw, "HUD_PartnerName", at(partner + 8.f, 0.f, 140.f, 20.f), "", "AshfallUI", 15.f, parchment);
-        GameObject* php = b.image(pw, "HUD_PartnerHPFrame", at(partner + 8.f, 24.f, 132.f, 8.f), tex("HUD/Sized/elite_frame_bone_132x8.png"));
-        b.bar(php, "HUD_PartnerHPHeal", inset(1.f), tex("HUD/Bars/bar_fill_heal_ghost.png"), Dir::LeftToRight, 1.f);
-        b.bar(php, "HUD_PartnerHP", inset(1.f), tex("HUD/Bars/bar_fill_blood.png"), Dir::LeftToRight, 1.f);
-        GameObject* pkey = b.node(pw, "HUD_PartnerKey", at(partner + 8.f, 36.f, 24.f, 20.f));
-        b.image(pkey, "HUD_PartnerKeyBg", inset(0.f), tex("HUD/Slots/keychip.png"));
-        b.label(pkey, "HUD_PartnerKeyText", inset(0.f), "Q", "AshfallUI", 12.f, brassLight, H::Center);
-        b.label(pw, "HUD_PartnerSwapText", at(partner + 38.f, 36.f, 110.f, 20.f), "SWAP", "AshfallLabel", 12.f, ash);
+        // ---- benched character (HUD_PARTY.md): 64 px portrait with a Q badge, name + state, its own HP (with the
+        // slow ember-trail recovery as a ghost), Mana when it has one, and the five Kinship pips beside it.
+        // PLACEHOLDER art: monogram portraits.
+        {
+            const float gapB = num(bench, "gap", 12.f);
+            const float nameB = num(member(bench, "name"), "size", 18.f);
+            const Vector2 hpB = vec2(bench, "hpBar", Vector2(200.f, 10.f));
+            const Vector2 manaB = vec2(bench, "manaBar", Vector2(200.f, 5.f));
+            const Value* kin = member(party, "kinship");
+            const float pip = num(kin, "pip", 14.f), pipGap = num(kin, "gap", 10.f), kinMargin = num(kin, "marginLeft", 10.f);
+            const float colX = benchPortrait + gapB;
+            const float pitch = pip + pipGap;
+            const float kinW = 4.f * pitch + 30.f;
+
+            GameObject* bw = b.node(player, "HUD_Bench", at(benchAt.x, benchAt.y, colX + hpB.x + kinMargin + kinW, benchPortrait), false);
+            GameObject* bp = b.node(bw, "HUD_BenchPortrait", at(0.f, 0.f, benchPortrait, benchPortrait));
+            b.image(bp, "HUD_BenchTrack", inset(0.f), tex("HUD/Party/bench_track_64.png"));
+            b.image(bp, "HUD_BenchVowRing", inset(0.f), tex("HUD/Party/VowFill64/vow_ring_fill_000_64.png"), Vector4(1.f, 1.f, 1.f, .55f), false);
+            const float inner = 50.f, innerAt = (benchPortrait - inner) * 0.5f;
+            b.image(bp, "HUD_BenchPortraitBg", at(innerAt, innerAt, inner, inner), tex("HUD/Portrait/portrait_bg_50.png"));
+            b.image(bp, "HUD_BenchMonogram", at(innerAt, innerAt, inner, inner), tex("HUD/Portrait/monogram_O_50.png"));
+            b.bar(bp, "HUD_BenchSwapCD", at(innerAt, innerAt, inner, inner), tex("HUD/Slots/slot_overlay_cooldown.png"), Dir::TopToBottom, 0.f);
+            b.image(bp, "HUD_BenchRim", at(innerAt, innerAt, inner, inner), tex("HUD/Portrait/portrait_rim_brass_50.png"));
+            b.image(bp, "HUD_BenchDown", at(innerAt, innerAt, inner, inner), tex("HUD/Portrait/portrait_rim_low_50.png"), white, false);
+            GameObject* q = b.image(bp, "HUD_BenchQ", at(benchPortrait - 18.f, benchPortrait - 12.f, 24.f, 18.f), tex("HUD/Party/badge_key_24x18.png"));
+            b.label(q, "HUD_BenchQText", inset(0.f), "Q", "AshfallUI", 12.f, brassLight, H::Center);
+
+            const float colH = nameB + 4.f + 4.f + hpB.y + 4.f + manaB.y;
+            const float y0 = std::max(0.f, (benchPortrait - colH) * 0.5f);
+            b.label(bw, "HUD_BenchName", at(colX, y0 - 2.f, hpB.x, nameB + 4.f), "", "AshfallDisplay", nameB, parchment);
+            b.label(bw, "HUD_BenchState", at(colX, y0 - 2.f, hpB.x, nameB + 4.f), "", "AshfallLabel", 12.f, ash, H::Right);
+            const float hpY = y0 + nameB + 8.f;
+            GameObject* bhp = b.image(bw, "HUD_BenchHP", at(colX, hpY, hpB.x, hpB.y), tex("HUD/Party/bench_hp_frame_200x10.png"));
+            b.bar(bhp, "HUD_BenchHPHeal", inset(1.f), tex("HUD/Bars/bar_fill_heal_ghost.png"), Dir::LeftToRight, 1.f);
+            b.bar(bhp, "HUD_BenchHPFill", inset(1.f), tex("HUD/Bars/bar_fill_blood.png"), Dir::LeftToRight, 1.f);
+            GameObject* bmana = b.image(bw, "HUD_BenchMana", at(colX, hpY + hpB.y + 4.f, manaB.x, manaB.y), tex("HUD/Party/bench_mana_frame_200x5.png"), white, false);
+            b.bar(bmana, "HUD_BenchManaFill", inset(1.f), tex("HUD/Bars/bar_fill_mana.png"), Dir::LeftToRight, 1.f);
+
+            // Kinship: 14 px diamonds on 30 px textures (8 px of glow padding), with the label under them.
+            GameObject* kinGO = b.node(bw, "HUD_Kinship", at(colX + hpB.x + kinMargin, 0.f, kinW, benchPortrait), false);
+            for (int i = 0; i < 5; ++i)
+                b.image(kinGO, "HUD_Kinship_" + std::to_string(i), at(i * pitch, 12.f, 30.f, 30.f), tex("HUD/Party/kinship_pip_empty.png"));
+            b.label(kinGO, "HUD_KinshipLabel", at(0.f, 42.f, kinW, 16.f), "KINSHIP", "AshfallLabel", 11.f, brassLight, H::Center);
+        }
     }
 
     // ---- area title (top-right) ----
@@ -306,11 +353,8 @@ bool BuildAshfallHUDPrefab(SceneGraph* scene, HotReloadManager* hotReload, std::
         const Vector4 pad = edges(ab, "padding", Vector4(22.f, 16.f, 22.f, 22.f));   // top, right, bottom, left
         const float slot = num(ab, "slot", 68.f);
         const float sigSlot = num(ab, "signatureSlot", 84.f);
-        const Vector2 plate(821.f, 122.f);   // HUD/Sized/ability_plate_821x122.png
 
-        GameObject* barGO = b.image(main, "HUD_AbilityBar", pinned({ .5f, 1.f }, offset, plate), tex("HUD/Sized/ability_plate_821x122.png"));
-
-        // Slots are spaced by `gap`; the leftover inner width is shared by the three group dividers.
+        // Slots are spaced by `gap` inside a group and kDividerSpan between groups; the plate is sized to fit them.
         const float gap = num(ab, "gap", 10.f);
         float slotsWidth = 0.f;
         int slots = 0, dividers = 0;
@@ -319,10 +363,17 @@ bool BuildAshfallHUDPrefab(SceneGraph* scene, HotReloadManager* hotReload, std::
             slotsWidth += s.signature ? sigSlot : slot;
             ++slots;
         }
+        const int plainGaps = (slots - 1) - dividers;
+        const Vector2 plate(std::round(slotsWidth + plainGaps * gap + dividers * kDividerSpan + pad.w + pad.y), 122.f);
+        const std::string plateTex = "HUD/Sized/ability_plate_" + std::to_string((int)plate.x) + "x122.png";
+        if (!std::ifstream(assets + plateTex).good())
+            LOG("[HUD] %s%s is missing: run Assets/Ashfall_UI/_tools/make_party_hud.py", assets.c_str(), plateTex.c_str());
+
+        GameObject* barGO = b.image(main, "HUD_AbilityBar", pinned({ .5f, 1.f }, offset, plate), tex(plateTex));
+
         const float innerW = plate.x - pad.w - pad.y;
         const float innerH = plate.y - pad.x - pad.z;
-        const int plainGaps = (slots - 1) - dividers;
-        const float dividerSpan = std::max(2.f * gap + 1.f, (innerW - slotsWidth - plainGaps * gap) / std::max(1, dividers));
+        const float dividerSpan = kDividerSpan;
         const float used = slotsWidth + plainGaps * gap + dividers * dividerSpan;
         float x = pad.w + std::max(0.f, (innerW - used) * 0.5f);
 
@@ -341,21 +392,25 @@ bool BuildAshfallHUDPrefab(SceneGraph* scene, HotReloadManager* hotReload, std::
 
             const float size = s.signature ? sigSlot : slot;
             const std::string px = std::to_string((int)size);
-            const std::string n = std::string("HUD_Slot_") + s.id;
+            const std::string n = std::string(s.party ? "HUD_Slot" : "HUD_Slot_") + s.id;
             // Vertically centred in the plate's inner area, which the signature slot fills.
             GameObject* sg = b.node(barGO, n, at(x, pad.x + (innerH - size) * 0.5f, size, size));
 
             b.image(sg, n + "_Bg", inset(0.f), tex(("HUD/Slots/slot_bg_" + px + ".png").c_str()));
             const float icon = std::round(size * 0.48f);
-            b.image(sg, n + "_Icon", pinned({ .5f, .5f }, Vector2::Zero, { icon, icon }), tex((std::string("Icons/") + s.icon + ".png").c_str()), parchment);
+            b.image(sg, n + "_Icon", pinned({ .5f, .5f }, Vector2::Zero, { icon, icon }), tex(s.icon), parchment);
             if (s.signature)
                 b.bar(sg, n + "_SigCharge", inset(0.f), tex("HUD/Slots/slot_overlay_sigcharge.png"), Dir::BottomToTop, 0.f);
+            if (s.party && std::string(s.id) == "R")   // Kinship filling up while R charges
+                b.bar(sg, n + "_Charge", inset(0.f), tex("HUD/Slots/slot_overlay_sigcharge.png"), Dir::BottomToTop, 0.f);
             b.bar(sg, n + "_Cooldown", inset(0.f), tex("HUD/Slots/slot_overlay_cooldown.png"), Dir::TopToBottom, 0.f);
             b.label(sg, n + "_CDText", inset(0.f), "", "AshfallUI", 24.f, parchment, H::Center);
             // Border textures carry 16 px of glow on every side.
             b.image(sg, n + "_Border", at(-16.f, -16.f, size + 32.f, size + 32.f), tex(("HUD/Slots/slot_border_ready_" + px + ".png").c_str()));
             b.image(sg, n + "_Pip0", at(5.f, 5.f, 12.f, 12.f), tex("HUD/Slots/tier_pip_on.png"), white, false);
             b.image(sg, n + "_Pip1", at(19.f, 5.f, 12.f, 12.f), tex("HUD/Slots/tier_pip_off.png"), white, false);
+            if (s.party && std::string(s.id) == "Q")   // who comes in: the partner's sigil, top-right
+                b.image(sg, n + "_Badge", at(size - 18.f, 4.f, 14.f, 14.f), tex("HUD/Party/sigil_oskar_soft_14.png"), white, false);
 
             // Key chips just below the slot. Both widths exist: AshfallHUD fills in the label from the game's key
             // table and shows the narrow chip (24 px) for one character, the wide one (44 px) for longer names.
@@ -389,6 +444,56 @@ bool BuildAshfallHUDPrefab(SceneGraph* scene, HotReloadManager* hotReload, std::
         b.image(salvage, "HUD_SalvageIcon", pinned({ 0.f, .5f }, { 14.f, 0.f }, { 22.f, 22.f }), tex("Icons/currency_salvage.png"));
         b.label(salvage, "HUD_SalvageText", { { 0.f, 0.f }, { 1.f, 1.f }, { .5f, .5f }, { 15.f, 0.f }, { -58.f, 0.f } },
                 "0", "AshfallUI", valueSize, parchment, H::Right);
+    }
+
+    // ---- party panels (HUD_PARTY.md), all hidden until AshfallHUD shows them ----
+    {
+        const Value* party = member(layout, "party");
+        auto box = [&](const char* key, Vector2 anchor, Vector2 offset, Vector2 size){
+            const Value* v = member(party, key);
+            return pinned(anchor, vec2(v, "offset", offset), vec2(v, "size", size));
+        };
+
+        // First-time prompt line, lower centre: sigil(s) + key badge + one line of text (fed by the tutorial prompts).
+        const float lineText = num(member(member(party, "promptLine"), "text"), "size", 19.f);
+        GameObject* line = b.image(main, "HUD_PromptLine", box("promptLine", { .5f, 1.f }, { 0.f, -226.f }, { 760.f, 46.f }),
+                                   tex("HUD/Party/prompt_line_760x46.png"), white, false);
+        b.image(line, "HUD_PromptSigil0", at(20.f, 10.f, 26.f, 26.f), tex("HUD/Party/sigil_oskar_soft_26.png"));
+        b.image(line, "HUD_PromptSigil1", at(50.f, 10.f, 26.f, 26.f), tex("HUD/Party/sigil_sera_soft_26.png"), white, false);
+        GameObject* lineKey = b.image(line, "HUD_PromptKey", at(84.f, 11.f, 30.f, 24.f), tex("HUD/Prompts/keycap_brass.png"));
+        b.label(lineKey, "HUD_PromptKeyText", inset(0.f), "Q", "AshfallUI", 16.f, brassLight, H::Center);
+        b.label(line, "HUD_PromptText", at(126.f, 0.f, 620.f, 46.f), "", "AshfallUI", lineText, parchment);
+
+        // Interact prompt ("world" prompt drawn screen-space: scripts have no world-to-screen call yet).
+        const float worldText = num(member(member(party, "worldPrompt"), "text"), "size", 17.f);
+        GameObject* world = b.image(main, "HUD_WorldPrompt", box("worldPrompt", { .5f, 1.f }, { 0.f, -330.f }, { 360.f, 40.f }),
+                                    tex("HUD/Party/world_prompt_360x40.png"), white, false);
+        GameObject* worldKey = b.image(world, "HUD_WorldPromptKey", at(10.f, 8.f, 24.f, 24.f), tex("HUD/Prompts/keycap_brass.png"));
+        b.label(worldKey, "HUD_WorldPromptKeyText", inset(0.f), "E", "AshfallUI", 15.f, brassLight, H::Center);
+        b.label(world, "HUD_WorldPromptText", at(44.f, 0.f, 270.f, 40.f), "", "AshfallUI", worldText, parchment);
+        b.image(world, "HUD_WorldPromptSigil", at(324.f, 9.f, 22.f, 22.f), tex("HUD/Party/sigil_sera_soft_26.png"));
+        b.label(world, "HUD_WorldPromptNeeds", at(0.f, 44.f, 360.f, 20.f), "", "AshfallUI", 14.f, ash, H::Center, V::Middle, false);
+
+        // Both-puzzle progress plate under the area title: title, 3 step rows, "+N" for more.
+        const int rows = (int)num(member(party, "puzzlePlate"), "rows", 3.f);
+        GameObject* plateGO = b.image(main, "HUD_PuzzlePlate", box("puzzlePlate", { 1.f, 0.f }, { -48.f, 150.f }, { 300.f, 150.f }),
+                                      tex("HUD/Party/puzzle_plate_300x150.png"), white, false);
+        b.label(plateGO, "HUD_PuzzleTitle", at(16.f, 10.f, 268.f, 24.f), "", "AshfallDisplay", 18.f, parchment);
+        for (int i = 0; i < rows; ++i){
+            const std::string r = "HUD_PuzzleRow_" + std::to_string(i);
+            GameObject* row = b.node(plateGO, r, at(16.f, 42.f + i * 28.f, 268.f, 26.f));
+            b.image(row, r + "_Sigil", at(0.f, 2.f, 22.f, 22.f), tex("HUD/Party/sigil_sera_soft_26.png"));
+            b.label(row, r + "_Label", at(32.f, 0.f, 200.f, 26.f), "", "AshfallUI", 16.f, parchment);
+            b.image(row, r + "_Mark", at(248.f, 5.f, 16.f, 16.f), tex("HUD/Party/plate_diamond_open_16.png"));
+        }
+        b.label(plateGO, "HUD_PuzzleMore", at(16.f, 42.f + rows * 28.f, 268.f, 18.f), "", "AshfallUI", 13.f, ash, H::Left, V::Middle, false);
+
+        // Oskar's Journal toast, top centre, below the boss bar's block so the two never overlap.
+        GameObject* toast = b.image(main, "HUD_JournalToast", box("journalToast", { .5f, 0.f }, { 0.f, 220.f }, { 380.f, 64.f }),
+                                    tex("HUD/Party/journal_toast_380x64.png"), white, false);
+        b.image(toast, "HUD_JournalIcon", at(16.f, 12.f, 40.f, 40.f), tex("HUD/Party/icon_book.png"), brassLight);
+        b.label(toast, "HUD_JournalKicker", at(68.f, 8.f, 300.f, 20.f), "OSKAR'S JOURNAL", "AshfallLabel", 12.f, brass);
+        b.label(toast, "HUD_JournalText", at(68.f, 28.f, 300.f, 28.f), "", "AshfallUI", 18.f, parchment);
     }
 
     if (!PrefabManager::createPrefab(root, kAshfallHUDPrefab)){

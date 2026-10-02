@@ -20,6 +20,7 @@ float3 reconstructWorldPos(float2 uv, float depth){
 
 struct PSOutput {
     float4 albedo : SV_TARGET0;
+    float4 emissive : SV_TARGET2;
 };
 
 PSOutput main(float3 ndcPos : POSITION){
@@ -41,11 +42,13 @@ PSOutput main(float3 ndcPos : POSITION){
     colour.rgb *= ColourOpacity.rgb;
     colour.a *= ColourOpacity.a;
 
-    if (colour.a < 0.05f)
+    if (colour.a < 0.02f)
         discard;
 
-
+    // Albedo blends by alpha x mix (mix 0 = a pure glow decal that leaves the surface colour alone); emissive adds
+    // colour x strength, so rings and glyphs read in unlit rooms.
     PSOutput o;
-    o.albedo = float4(colour.rgb, 1.0f);
+    o.albedo = float4(colour.rgb, colour.a * saturate(EmissiveAlbedoMix.w));
+    o.emissive = float4(colour.rgb * EmissiveAlbedoMix.rgb, colour.a);
     return o;
 }

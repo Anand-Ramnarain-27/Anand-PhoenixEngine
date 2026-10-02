@@ -288,6 +288,7 @@ void ForwardMeshPass::writePerDrawCBs(const MeshEntry& entry, const Matrix& view
 		if (!mat) mat = entry.material;
 		if (!mat && entry.materialRes) mat = entry.materialRes->getMaterial();
 		inst.material = toGpuMaterial(mat);
+		MeshPipeline::applyVfx(inst.material, entry.vfx);
 
 		memcpy(static_cast<char*>(m_perInstanceMapped) + (UINT64)slot * instSz, &inst, sizeof(inst));
 	}

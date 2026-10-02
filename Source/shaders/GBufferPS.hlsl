@@ -16,25 +16,28 @@ struct PSOutput {
 };
 
 PSOutput main(PSInput input){
-    ClipAlphaMask(InstanceMaterial, BaseColorTex, input.uv);
+    const float2 uv = input.uv + InstanceMaterial.UVOffset;
+
+    ClipAlphaMask(InstanceMaterial, BaseColorTex, uv);
     ApplyOcclusionCut(input.worldPos, input.svPos.xy, InstanceMaterial.Flags);
 
     float3 N = normalize(input.normal);
     float3 T = normalize(input.tangent.xyz);
     float3 B = normalize(cross(N, T)) * input.tangent.w;
-    N = SampleNormal(InstanceMaterial, NormalTex, input.uv, N, T, B);
+    N = SampleNormal(InstanceMaterial, NormalTex, uv, N, T, B);
     if (!input.isFrontFace) N = -N;
 
     float3 baseColor;
     float roughness, alphaRoughness, metallic;
     SampleMetallicRoughness(InstanceMaterial, BaseColorTex, MetalRoughTex,
-                             input.uv, baseColor, roughness, alphaRoughness, metallic);
+                             uv, baseColor, roughness, alphaRoughness, metallic);
 
     float diffuseAO, specularAO;
-    SampleAmbientOcclusion(InstanceMaterial, OcclusionTex, input.uv,
+    SampleAmbientOcclusion(InstanceMaterial, OcclusionTex, uv,
                             1.0f, 1.0f, roughness, diffuseAO, specularAO);
 
-    float3 emissive = SampleEmissive(InstanceMaterial, EmissiveTex, input.uv);
+    float3 emissive = SampleEmissive(InstanceMaterial, EmissiveTex, uv);
+    emissive += VfxGlow(InstanceMaterial, N, normalize(OccCameraPos - input.worldPos));
 
     PSOutput o;
     o.albedo = float4(baseColor, 1.0f);
