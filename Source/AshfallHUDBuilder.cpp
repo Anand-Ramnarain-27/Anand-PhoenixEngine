@@ -496,6 +496,33 @@ bool BuildAshfallHUDPrefab(SceneGraph* scene, HotReloadManager* hotReload, std::
         b.label(toast, "HUD_JournalText", at(68.f, 28.f, 300.f, 28.f), "", "AshfallUI", 18.f, parchment);
     }
 
+    // ---- enemy overhead bars (hud_layout.json "enemyBar"): a pool AshfallHUD's EnemyBars places above enemies every
+    // frame (Phoenix::UI::WorldToCanvas). Each bar is anchored at the canvas' top-left with its pivot at the bottom
+    // centre, so its position is the canvas point just above the enemy's head. Built at elite size; the script
+    // resizes a regular bar and swaps the faction frame. Hidden until an enemy needs it.
+    {
+        const Value* eb = member(layout, "enemyBar");
+        const int pool = (int)num(eb, "pool", 12.f);
+        const Vector2 elite = vec2(eb, "elite", Vector2(132.f, 8.f));
+        const Vector2 poise = vec2(eb, "elitePoise", Vector2(132.f, 3.f));
+        const float sigil = num(eb, "sigil", 14.f);
+        GameObject* layer = b.node(main, "HUD_EnemyBars", inset(0.f));
+        for (int i = 0; i < pool; ++i){
+            const std::string n = "HUD_EnemyBar_" + std::to_string(i);
+            GameObject* bar = b.node(layer, n, { { 0.f, 0.f }, { 0.f, 0.f }, { .5f, 1.f }, Vector2::Zero, { elite.x, elite.y + 2.f + poise.y } }, false);
+            GameObject* frame = b.image(bar, n + "_Frame", at(0.f, 0.f, elite.x, elite.y), tex("HUD/Sized/elite_frame_rust_132x8.png"));
+            b.bar(frame, n + "_Trail", inset(1.f), tex("HUD/Bars/bar_fill_ember_trail.png"), Dir::LeftToRight, 1.f);
+            b.bar(frame, n + "_HP", inset(1.f), tex("HUD/Bars/bar_fill_blood.png"), Dir::LeftToRight, 1.f);
+            GameObject* poiseBg = b.image(bar, n + "_PoiseBg", at(0.f, elite.y + 2.f, poise.x, poise.y), tex("HUD/Sized/elite_poise_bg_132x3.png"), white, false);
+            b.bar(poiseBg, n + "_Poise", inset(0.f), tex("HUD/Bars/bar_fill_poise.png"), Dir::LeftToRight, 1.f);
+            // Affinity sigil left of the bar, buff marker (war drums) right of it.
+            b.image(bar, n + "_Sigil", pinned({ 0.f, 0.f }, { -sigil - 4.f, (elite.y - sigil) * 0.5f }, { sigil, sigil }),
+                    tex("HUD/Party/sigil_oskar_soft_14.png"), white, false);
+            b.image(bar, n + "_Buff", pinned({ 1.f, 0.f }, { sigil + 4.f, (elite.y - sigil) * 0.5f }, { sigil, sigil }),
+                    tex("HUD/Status/status_war_drums.png"), white, false);
+        }
+    }
+
     if (!PrefabManager::createPrefab(root, kAshfallHUDPrefab)){
         outMessage = std::string("could not write the ") + kAshfallHUDPrefab + " prefab: the built HUD_Root is left in the scene";
         return false;

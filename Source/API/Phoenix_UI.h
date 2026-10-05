@@ -95,6 +95,20 @@ struct UI {
     static void SetProgressRange(GameObject* bar, float minValue, float maxValue);
     static void SetProgressColor(GameObject* bar, Color fill);
     static void SetImageTexture(GameObject* image, const std::string& path);
+
+    // ---- placing widgets from script (world-anchored UI such as enemy overhead bars)
+    // A widget's Transform2D position (offset of its pivot from its anchor reference point) and size, in canvas units.
+    static void SetPosition(GameObject* widget, Vec2 position);
+    static Vec2 GetPosition(GameObject* widget);
+    static void SetSize(GameObject* widget, Vec2 size);
+
+    // Projects a world point through the active game camera. WorldToViewport gives 0..1 across the game view
+    // (x right, y down); WorldToCanvas gives canvas units of the canvas `widget` sits under (origin top-left,
+    // +y down - what a widget anchored at the canvas' top-left corner takes as its position). Both return false
+    // when the point is behind the camera, past its far plane, or there is no active camera; `out` is still
+    // written when the point is merely off-screen.
+    static bool WorldToViewport(Vec3 world, Vec2& out);
+    static bool WorldToCanvas(GameObject* widget, Vec3 world, Vec2& out);
 };
 
 } // namespace Phoenix

@@ -33,6 +33,7 @@
 #include "AshfallHUDBuilder.h"
 #include "AshfallHubBuilder.h"
 #include "AshfallVfxBuilder.h"
+#include "AshfallEnemyBuilder.h"
 #include "ModuleUI.h"
 #include "HotReloadManager.h"
 #include "ComponentParticleSystem.h"
@@ -392,6 +393,15 @@ void ModuleEditor::drawMenuBar(){
                         log(("Hub NPC prefabs saved: " + message).c_str(), EditorColors::Success);
                     else
                         log(("Hub NPC prefabs not built: " + message).c_str(), EditorColors::Danger);
+                }
+            }
+            if (ImGui::MenuItem("Build Enemy Prefabs", nullptr, false, !playing)){
+                if (SceneGraph* sc = getActiveModuleScene()){
+                    std::string message;
+                    if (BuildAshfallEnemyPrefabs(sc, getHotReloadManager(), message))
+                        log(("Enemy prefabs saved: " + message).c_str(), EditorColors::Success);
+                    else
+                        log(("Enemy prefabs not built: " + message).c_str(), EditorColors::Danger);
                 }
             }
             if (ImGui::MenuItem("Build VFX Test Scene (on a new scene)", nullptr, false, !playing)){

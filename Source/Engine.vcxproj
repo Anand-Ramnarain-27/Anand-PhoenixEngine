@@ -293,6 +293,7 @@
     <ClInclude Include="AshfallHUDBuilder.h" />
     <ClInclude Include="AshfallHubBuilder.h" />
     <ClInclude Include="AshfallVfxBuilder.h" />
+    <ClInclude Include="AshfallEnemyBuilder.h" />
     <ClInclude Include="UITypes.h" />
     <ClInclude Include="UIDrawItem.h" />
     <ClInclude Include="API\Phoenix_UI.h" />
@@ -534,6 +535,7 @@
     <ClCompile Include="AshfallHUDBuilder.cpp" />
     <ClCompile Include="AshfallHubBuilder.cpp" />
     <ClCompile Include="AshfallVfxBuilder.cpp" />
+    <ClCompile Include="AshfallEnemyBuilder.cpp" />
     <ClCompile Include="API\Phoenix_UI.cpp" />
     <ClCompile Include="UIPass.cpp" />
     <ClCompile Include="ModuleUI.cpp" />

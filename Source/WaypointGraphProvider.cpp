@@ -79,7 +79,7 @@ bool WaypointGraphProvider::FindPath(const Vector3& start, const Vector3& end,
             auto it = byId.find(neighborId);
             if (it == byId.end() || closed[neighborId]) continue;
 
-            float tentativeG = gScore[current] + (it->second->position - curNode->position).Length();
+            float tentativeG = gScore[current] + (it->second->position - curNode->position).Length() * it->second->cost;
             if (tentativeG < gScore[neighborId]){
                 gScore[neighborId] = tentativeG;
                 cameFrom[neighborId] = current;
@@ -138,6 +138,8 @@ bool WaypointGraphProvider::Load(const std::string& path){
             for (SizeType j = 0; j < nb.Size(); ++j)
                 n.neighborIds.push_back(nb[j].GetInt());
         }
+        if (v.HasMember("Cost") && v["Cost"].IsNumber())
+            n.cost = std::max(0.01f, v["Cost"].GetFloat());
         nodes.push_back(std::move(n));
     }
 

@@ -3,13 +3,16 @@
 #include <string>
 #include <vector>
 
-// Hand-authored waypoint graph + A*.
+// Waypoint graph (hand-authored or generated) + A*. Edge cost = length x the target node's optional Cost.
 class WaypointGraphProvider : public INavProvider {
 public:
     struct Node {
         int id = -1;
         Vector3 position;
         std::vector<int> neighborIds;
+        // Optional "Cost" in the graph JSON (default 1): multiplies the length of every edge *into* this node, so a
+        // path avoids it unless the detour is longer (e.g. orcs routing around their own traps). Must be > 0.
+        float cost = 1.f;
     };
 
     bool FindPath(const Vector3& start, const Vector3& end,
