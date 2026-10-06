@@ -405,6 +405,11 @@ void RuntimeCore::preRender(){
         // A drag that started on a widget keeps tracking the pointer after it leaves the window.
         in.pointerValid = (mouse.x >= 0.f && mouse.y >= 0.f && mouse.x < float(curW) && mouse.y < float(curH)) ||
                           input->isMouseDown(Phoenix::MouseButton::Left);
+        if (curW > 0 && curH > 0){
+            const bool inside = mouse.x >= 0.f && mouse.y >= 0.f && mouse.x < float(curW) && mouse.y < float(curH);
+            ui->setGamePointer(inside, Vector2(mouse.x / float(curW), mouse.y / float(curH)),
+                               inside ? input->getMouseWheelDelta() : 0.f);
+        }
         in.mousePressed = input->isMousePressed(Phoenix::MouseButton::Left);
         in.mouseReleased = input->isMouseReleased(Phoenix::MouseButton::Left);
         // Gamepad (player 0), alongside the keyboard: shoulder buttons cycle focus like Tab/Shift+Tab, D-pad

@@ -109,6 +109,16 @@ struct UI {
     // written when the point is merely off-screen.
     static bool WorldToViewport(Vec3 world, Vec2& out);
     static bool WorldToCanvas(GameObject* widget, Vec3 world, Vec2& out);
+
+    // ---- pointer over the game view (aiming)
+    // Where the mouse is over the game image: 0..1 (x right, y down). False while it is outside the image (or
+    // over another editor panel); `out` still holds the last position.
+    static bool GetGamePointer(Vec2& out);
+    // Mouse wheel notches this frame while the pointer is over the game image (+ = away from the user).
+    static float GetMouseWheel();
+    // The camera ray through a game-view point (0..1, as GetGamePointer / WorldToViewport): origin on the near
+    // plane, unit direction. The inverse of WorldToViewport. False without an active camera.
+    static bool ScreenToRay(Vec2 viewport, Vec3& origin, Vec3& direction);
 };
 
 } // namespace Phoenix

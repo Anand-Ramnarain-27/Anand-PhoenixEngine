@@ -273,6 +273,43 @@ bool UI::WorldToViewport(Vec3 world, Vec2& out){
     return ndcZ <= 1.f;
 }
 
+bool UI::GetGamePointer(Vec2& out){
+    ModuleUI* ui = app ? app->getUI() : nullptr;
+    if (!ui){ out = Vec2(0.5f, 0.5f); return false; }
+    Vector2 p;
+    const bool valid = ui->getGamePointer(p);
+    out = Vec2(p.x, p.y);
+    return valid;
+}
+
+float UI::GetMouseWheel(){
+    ModuleUI* ui = app ? app->getUI() : nullptr;
+    return ui ? ui->getGameWheel() : 0.f;
+}
+
+bool UI::ScreenToRay(Vec2 viewport, Vec3& origin, Vec3& direction){
+    // Same camera as WorldToViewport, run backwards: NDC at the near and far planes through the inverse view-proj.
+    ModuleCamera* mc = app ? app->getCamera() : nullptr;
+    GameObject* camGo = mc ? mc->getActiveCamera() : nullptr;
+    ComponentCamera* cam = camGo ? camGo->getComponent<ComponentCamera>() : nullptr;
+    if (!cam || !camGo->getTransform()) return false;
+    const Matrix view = camGo->getTransform()->getGlobalMatrix().Invert();
+    const float aspect = mc->aspectRatio > 0.f ? mc->aspectRatio : 16.f / 9.f;
+    const Matrix proj = Matrix::CreatePerspectiveFieldOfView(cam->getFOV(), aspect, cam->getNearPlane(), cam->getFarPlane());
+    const Matrix inv = (view * proj).Invert();
+    const float ndcX = viewport.x * 2.f - 1.f, ndcY = 1.f - viewport.y * 2.f;
+    const Vector4 n = Vector4::Transform(Vector4(ndcX, ndcY, 0.f, 1.f), inv);
+    const Vector4 f = Vector4::Transform(Vector4(ndcX, ndcY, 1.f, 1.f), inv);
+    if (std::abs(n.w) < 1e-8f || std::abs(f.w) < 1e-8f) return false;
+    const Vector3 nearP(n.x / n.w, n.y / n.w, n.z / n.w), farP(f.x / f.w, f.y / f.w, f.z / f.w);
+    Vector3 dir = farP - nearP;
+    if (dir.LengthSquared() < 1e-12f) return false;
+    dir.Normalize();
+    origin = Vec3(nearP.x, nearP.y, nearP.z);
+    direction = Vec3(dir.x, dir.y, dir.z);
+    return true;
+}
+
 bool UI::WorldToCanvas(GameObject* go, Vec3 world, Vec2& out){
     // The canvas this widget is laid out in: canvas units = screen pixels / scale factor, and with "scale with
     // screen size" the canvas height only depends on the aspect ratio (ComponentCanvas::getScaleFactor, inlined).

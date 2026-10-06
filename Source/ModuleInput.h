@@ -28,6 +28,8 @@ public:
 
     Phoenix::Vec2 getMousePosition() const;
     Phoenix::Vec2 getMouseDelta()    const;
+    // Mouse wheel movement since the last update, in notches (120 units each); + = away from the user.
+    float getMouseWheelDelta() const { return float(mouseCurr.scrollWheelValue - mousePrev.scrollWheelValue) / 120.f; }
 
     // ----- Gamepad -----
     bool  isGamepadConnected (int player) const;
