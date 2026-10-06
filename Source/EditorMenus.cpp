@@ -406,8 +406,7 @@ void ModuleEditor::drawMenuBar(){
             }
             if (ImGui::MenuItem("Build VFX Test Scene (on a new scene)", nullptr, false, !playing)){
                 std::string message;
-                auto floor = [this](){ return spawnPrimitive(PrimitiveType::Cube); };
-                if (BuildAshfallVfxTestScene(getSceneManager(), getHotReloadManager(), floor, message))
+                if (BuildAshfallVfxTestScene(getSceneManager(), getHotReloadManager(), message))
                     log(("VFX test scene saved: " + message).c_str(), EditorColors::Success);
                 else
                     log(("VFX test scene not built: " + message).c_str(), EditorColors::Danger);

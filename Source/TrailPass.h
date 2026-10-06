@@ -51,6 +51,7 @@ class TrailPass {
 public:
     static constexpr UINT MAX_TRAIL_VERTICES = 1u << 15;
     static constexpr UINT MAX_TRAILS = 64;
+    static constexpr UINT CB_SLOTS_PER_FRAME = MAX_TRAILS * 2;   // Scene View + Game View
 
     bool init(ID3D12Device* device);
 

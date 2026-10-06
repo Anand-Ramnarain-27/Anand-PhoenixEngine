@@ -241,6 +241,7 @@
     <ClInclude Include="DeferredLightingPass.h" />
     <ClInclude Include="LightCullingPass.h" />
     <ClInclude Include="DecalPass.h" />
+    <ClInclude Include="VfxGuards.h" />
     <ClInclude Include="TonemapPass.h" />
     <ClInclude Include="BloomPass.h" />
     <ClInclude Include="FogPass.h" />

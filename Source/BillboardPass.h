@@ -58,6 +58,7 @@ struct BillboardInstance {
 class BillboardPass {
 public:
     static constexpr UINT MAX_BILLBOARDS = 512;
+    static constexpr UINT SLOTS_PER_FRAME = MAX_BILLBOARDS * 2;   // Scene View + Game View
 
     bool init(ID3D12Device* device);
 

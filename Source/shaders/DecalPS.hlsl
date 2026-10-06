@@ -5,12 +5,6 @@
 Texture2D DepthMap : register(t0);
 Texture2D DecalAlbedo : register(t1);
 
-float2 ndcToUV(float2 ndc){
-    float2 uv = ndc * 0.5f + 0.5f;
-    uv.y = 1.0f - uv.y;
-    return uv;
-}
-
 float3 reconstructWorldPos(float2 uv, float depth){
     float2 ndc = uv * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f);
     float4 clipH = float4(ndc, depth, 1.0f);
@@ -23,10 +17,14 @@ struct PSOutput {
     float4 emissive : SV_TARGET2;
 };
 
-PSOutput main(float3 ndcPos : POSITION){
-    float2 uv = ndcToUV(ndcPos.xy);
+PSOutput main(float4 svPos : SV_POSITION){
+    uint w, h;
+    DepthMap.GetDimensions(w, h);
+    float2 uv = svPos.xy / float2(w, h);
 
     float depth = DepthMap.Sample(PointClamp, uv).r;
+    if (depth >= 1.0f)
+        discard;   // nothing drawn here (sky): a decal needs a surface
     float3 worldPos = reconstructWorldPos(uv, depth);
 
     float3 objPos = mul(float4(worldPos, 1.0f), InvModel).xyz;

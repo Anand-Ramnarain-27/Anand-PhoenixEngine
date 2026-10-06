@@ -112,7 +112,7 @@ bool DecalPass::init(ID3D12Device* device){
 
 bool DecalPass::createUploadBuffers(ID3D12Device* device){
     const UINT stride = cbAlign(kDecalCBBytes);
-    const UINT64 total = stride * MAX_DECALS;
+    const UINT64 total = (UINT64)stride * SLOTS_PER_FRAME * FRAMES_IN_FLIGHT;
     auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     auto bd = CD3DX12_RESOURCE_DESC::Buffer(total);
     HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
@@ -234,14 +234,17 @@ void DecalPass::render(ID3D12GraphicsCommandList* cmd,
     cmd->IASetIndexBuffer(&m_ibv);
 
     const UINT cbStride = cbAlign(kDecalCBBytes);
-    const UINT maxDecals = std::min((UINT)decals.size(), MAX_DECALS);
+    const UINT remaining = (m_frameCBCursor < SLOTS_PER_FRAME) ? SLOTS_PER_FRAME - m_frameCBCursor : 0u;
+    const UINT maxDecals = std::min({ (UINT)decals.size(), MAX_DECALS, remaining });
+    const UINT frameBase = app->getD3D12()->getCurrentBackBufferIdx() * SLOTS_PER_FRAME;
 
     for (UINT i = 0; i < maxDecals; ++i){
-        void* dst = reinterpret_cast<uint8_t*>(m_cbMapped) + i * cbStride;
+        const UINT64 slot = frameBase + m_frameCBCursor + i;
+        void* dst = reinterpret_cast<uint8_t*>(m_cbMapped) + slot * cbStride;
         memcpy(dst, &decals[i], kDecalCBBytes);
 
         D3D12_GPU_VIRTUAL_ADDRESS cbVA =
-            m_cbRing->GetGPUVirtualAddress() + i * cbStride;
+            m_cbRing->GetGPUVirtualAddress() + slot * cbStride;
         cmd->SetGraphicsRootConstantBufferView(DecalPipeline::SLOT_CB, cbVA);
 
         cmd->SetGraphicsRootDescriptorTable(DecalPipeline::SLOT_ALBEDO,
@@ -249,6 +252,7 @@ void DecalPass::render(ID3D12GraphicsCommandList* cmd,
 
         cmd->DrawIndexedInstanced(m_indexCount, 1, 0, 0, 0);
     }
+    m_frameCBCursor += maxDecals;
 
     {
         CD3DX12_RESOURCE_BARRIER barriers[3] = {
@@ -366,10 +370,14 @@ bool DecalPipeline::createPSO(ID3D12Device* device){
     desc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
     desc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
     desc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-    desc.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
-    desc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+    desc.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ZERO;
+    desc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
     desc.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-    desc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+    // Albedo alpha is the G-buffer's "a surface was drawn here" flag (DeferredLightingPS discards below 0.5 and the
+    // sky shows through). Writing the decal's alpha there erased whatever was under a glow ring (albedo mix 0) -
+    // and the whole world when a decal covered the screen. Colour only.
+    desc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_RED |
+        D3D12_COLOR_WRITE_ENABLE_GREEN | D3D12_COLOR_WRITE_ENABLE_BLUE;
     desc.BlendState.RenderTarget[1].RenderTargetWriteMask = 0;
     // Emissive adds on top (scaled by the decal's alpha); the AO channel is left alone.
     desc.BlendState.RenderTarget[2].BlendEnable = TRUE;

@@ -11,6 +11,7 @@
 #include "ComponentScript.h"
 #include "ComponentCamera.h"
 #include "ComponentLights.h"
+#include "ComponentMesh.h"
 #include "HotReloadManager.h"
 #include <algorithm>
 #include <filesystem>
@@ -20,6 +21,11 @@
 namespace {
     constexpr const char* kRootName = "VFX_TestRoot";
     constexpr const char* kBenchScript = "VfxTestBench";
+    // A 4 x 4 m dungeon floor tile (pivot on a corner, top at y = 0): the surface the levels' decals land on.
+    // Procedural primitives aren't saved with the scene, so the floor must be a model.
+    constexpr const char* kFloorTile = "Environment Models/Fantastic Dungeon Pack GLTF/Floor/PivotEdge/MOD_Floor_01_E_straight_med.gltf";
+    constexpr float kTileSize = 4.f;
+    constexpr int kTilesX = 10, kTilesZ = 8;   // 40 x 32 m
 
     void destroySubtree(SceneGraph* scene, GameObject* root){
         // destroyGameObject only reparents a node's children, so collect the subtree and remove it bottom-up.
@@ -47,8 +53,7 @@ namespace {
     }
 }
 
-bool BuildAshfallVfxTestScene(SceneManager* sm, HotReloadManager* hotReload,
-                              const std::function<GameObject*()>& makeFloor, std::string& outMessage){
+bool BuildAshfallVfxTestScene(SceneManager* sm, HotReloadManager* hotReload, std::string& outMessage){
     SceneGraph* scene = sm ? sm->getModuleScene() : nullptr;
     if (!scene){ outMessage = "no active scene"; return false; }
 
@@ -70,10 +75,20 @@ bool BuildAshfallVfxTestScene(SceneManager* sm, HotReloadManager* hotReload,
     GameObject* root = scene->createGameObject(kRootName);
 
     // 8 triggers per row, 4 m apart (VfxTestBench): ~28 m wide, ~24 m deep for the V1 set.
-    if (GameObject* floor = makeFloor ? makeFloor() : nullptr){
-        floor->setName("VFX_Floor");
-        floor->setParent(root);
-        place(floor, Vector3(0.f, -0.1f, 0.f), Quaternion::Identity, Vector3(40.f, 0.2f, 32.f));
+    {
+        GameObject* floor = scene->createGameObject("VFX_Floor", root);
+        const std::string tilePath = app->getFileSystem()->GetAssetsPath() + std::string(kFloorTile);
+        int loaded = 0;
+        for (int z = 0; z < kTilesZ; ++z)
+            for (int x = 0; x < kTilesX; ++x){
+                GameObject* tile = scene->createGameObject("VFX_FloorTile_" + std::to_string(z * kTilesX + x), floor);
+                place(tile, Vector3((x - kTilesX * 0.5f) * kTileSize, 0.f, (z - kTilesZ * 0.5f) * kTileSize));
+                if (auto* cm = add<ComponentMesh>(tile, Component::Type::Mesh); cm && cm->loadModel(tilePath.c_str())) ++loaded;
+            }
+        if (loaded == 0){
+            outMessage = "floor tile model not found: " + tilePath;
+            return false;
+        }
     }
 
     // Dim, cool key: dark enough that glows, decals and the transient lights read the way they do in a dungeon.
@@ -103,6 +118,6 @@ bool BuildAshfallVfxTestScene(SceneManager* sm, HotReloadManager* hotReload,
         outMessage = "built, but saving " + path + " failed: save it by hand as VFX_Test";
         return false;
     }
-    outMessage = path + " (press Play: every recipe fires each 3 s; Space fires now, R reloads the recipes)";
+    outMessage = path + " (press Play: the rows sweep every 6 s; Space fires every recipe, R reloads the recipes)";
     return true;
 }

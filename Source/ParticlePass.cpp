@@ -33,7 +33,7 @@ bool ParticlePass::init(ID3D12Device* device){
 }
 
 bool ParticlePass::createCbRing(ID3D12Device* device){
-    const UINT slots = MAX_EMITTERS * 2;
+    const UINT slots = CB_SLOTS_PER_FRAME * FRAMES_IN_FLIGHT;   // one slice per frame in flight
     const UINT64 total = (UINT64)cbAlign(sizeof(CbParticle)) * slots;
     auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     auto bd = CD3DX12_RESOURCE_DESC::Buffer(total);
@@ -189,11 +189,13 @@ void ParticlePass::render(ID3D12GraphicsCommandList* cmd,
     const UINT cbStride = cbAlign(sizeof(CbParticle));
     UINT cbSlot = m_frameCBCursor;
     UINT drawCount = 0;
+    const UINT64 cbFrameBase = (UINT64)app->getD3D12()->getCurrentBackBufferIdx() * CB_SLOTS_PER_FRAME;
 
 
     for (const auto& req : requests){
         if (req.particles.empty()) continue;
         if (drawCount >= MAX_EMITTERS) break;
+        if (cbSlot + 2 > CB_SLOTS_PER_FRAME) break;   // an update CB + a draw CB
 
         const UINT liveCount = std::min((UINT)req.particles.size(), MAX_PARTICLES_PER_EMITTER);
         EmitterBuffers& eb = getOrCreateBuffers(device, req.emitterKey,
@@ -215,9 +217,9 @@ void ParticlePass::render(ID3D12GraphicsCommandList* cmd,
             cbUpdate.turbStrength = req.turbStrength;
             cbUpdate.turbScrollSpeed = req.turbScrollSpeed;
             cbUpdate.time = req.time;
-            void* cbDst = reinterpret_cast<uint8_t*>(m_cbMapped) + cbSlot * cbStride;
+            void* cbDst = reinterpret_cast<uint8_t*>(m_cbMapped) + (cbFrameBase + cbSlot) * cbStride;
             memcpy(cbDst, &cbUpdate, sizeof(CbParticleUpdate));
-            D3D12_GPU_VIRTUAL_ADDRESS cbVA = m_cbRing->GetGPUVirtualAddress() + cbSlot * cbStride;
+            D3D12_GPU_VIRTUAL_ADDRESS cbVA = m_cbRing->GetGPUVirtualAddress() + (cbFrameBase + cbSlot) * cbStride;
             cmd->SetComputeRootConstantBufferView(ParticlePipeline::CS_SLOT_CB, cbVA);
             cmd->SetComputeRootDescriptorTable(ParticlePipeline::CS_SLOT_INPUT,
                                                eb.uploadSRV.getGPUHandle(0));
@@ -256,9 +258,9 @@ void ParticlePass::render(ID3D12GraphicsCommandList* cmd,
         cb.viewProj = viewProj.Transpose();
         cb.camRight = Vector4(camRight.x, camRight.y, camRight.z, 0.f);
         cb.camUp = Vector4(camUp.x, camUp.y, camUp.z, 0.f);
-        void* cbDst = reinterpret_cast<uint8_t*>(m_cbMapped) + cbSlot * cbStride;
+        void* cbDst = reinterpret_cast<uint8_t*>(m_cbMapped) + (cbFrameBase + cbSlot) * cbStride;
         memcpy(cbDst, &cb, sizeof(CbParticle));
-        D3D12_GPU_VIRTUAL_ADDRESS cbVA = m_cbRing->GetGPUVirtualAddress() + cbSlot * cbStride;
+        D3D12_GPU_VIRTUAL_ADDRESS cbVA = m_cbRing->GetGPUVirtualAddress() + (cbFrameBase + cbSlot) * cbStride;
         cmd->SetGraphicsRootConstantBufferView(ParticlePipeline::GFX_SLOT_CB, cbVA);
         cmd->SetGraphicsRootDescriptorTable(ParticlePipeline::GFX_SLOT_PARTICLES, renderParticlesSRV);
         cmd->SetGraphicsRootDescriptorTable(ParticlePipeline::GFX_SLOT_TEXTURE,

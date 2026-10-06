@@ -114,6 +114,7 @@ class Component;
 struct EngineHooks {
     Component* (*addComponent)(GameObject* owner, int componentType) = nullptr;   // Component::Type; existing one is returned
     bool (*loadModel)(GameObject* owner, const char* assetPath) = nullptr;        // adds/reuses a ComponentMesh
+    void (*logWarning)(const char* text) = nullptr;                               // editor Console (null in the player)
 };
 
 // Game-time scaling (Phoenix::VFX hit-stop / slow-mo). RuntimeCore::tick multiplies the frame delta by timeScale

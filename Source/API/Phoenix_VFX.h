@@ -56,6 +56,8 @@ struct VFX {
     static bool AddPointLight(GameObject* go);
     static bool AddTrail(GameObject* go);
     static bool AddBillboard(GameObject* go);
+    // Sets the local transform; a non-finite position/rotation/scale is refused (logged once per object).
+    static bool PlaceObject(GameObject* go, Vec3 position, Quat rotation, Vec3 scale);
     // Gives the object a ComponentMesh showing an imported model (e.g. "Assets/.../PH_Sphere_fx.gltf").
     static bool LoadMesh(GameObject* go, const std::string& modelAssetPath);
 
@@ -73,6 +75,9 @@ struct VFX {
     static void SetDecal(GameObject* go, const std::string& texture, Vec3 colour, float opacity,
                          float emissive = 0.f, float albedoMix = 1.f);
     static void SetDecalOpacity(GameObject* go, float opacity);   // <= 0 disables it
+    // Sets the decal object's transform. Each size axis is clamped to >= 0.01 m and a non-finite pose is refused
+    // (the decal is switched off; logged once per object). Use this rather than writing the transform directly.
+    static bool PlaceDecal(GameObject* go, Vec3 position, Quat rotation, Vec3 size);
 
     // ---- point lights. transient = one of the 4 VFX slots gathered before the level's lights (never shadowed).
     static void SetPointLight(GameObject* go, Vec3 colour, float intensity, float radius, bool transient = true);

@@ -88,6 +88,7 @@ class ParticlePass {
 public:
     static constexpr UINT MAX_PARTICLES_PER_EMITTER = 4096;
     static constexpr UINT MAX_EMITTERS = 32;
+    static constexpr UINT CB_SLOTS_PER_FRAME = MAX_EMITTERS * 2 * 2;   // update + draw CB, Scene View + Game View
 
     bool init(ID3D12Device* device);
 

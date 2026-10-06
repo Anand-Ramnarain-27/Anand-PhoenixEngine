@@ -35,7 +35,9 @@ bool BillboardPass::init(ID3D12Device* device){
 
 bool BillboardPass::createUploadBuffer(ID3D12Device* device){
     const UINT stride = cbAlign(sizeof(BillboardInstanceCB));
-    const UINT64 total = stride * MAX_BILLBOARDS * 2; // *2 for Scene View + Game View in same frame
+    // One slice per frame in flight (the CPU records up to FRAMES_IN_FLIGHT-1 frames ahead of the GPU); each slice
+    // holds both views of a frame (Scene View + Game View).
+    const UINT64 total = (UINT64)stride * SLOTS_PER_FRAME * FRAMES_IN_FLIGHT;
     auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     auto bd = CD3DX12_RESOURCE_DESC::Buffer(total);
     HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
@@ -142,8 +144,9 @@ void BillboardPass::render(ID3D12GraphicsCommandList* cmd,
     cmd->IASetIndexBuffer(nullptr);
 
     const UINT cbStride = cbAlign(sizeof(BillboardInstanceCB));
-    const UINT remaining = (m_frameCBCursor < MAX_BILLBOARDS) ? MAX_BILLBOARDS - m_frameCBCursor : 0u;
-    const UINT count = std::min((UINT)billboards.size(), remaining);
+    const UINT remaining = (m_frameCBCursor < SLOTS_PER_FRAME) ? SLOTS_PER_FRAME - m_frameCBCursor : 0u;
+    const UINT count = std::min({ (UINT)billboards.size(), MAX_BILLBOARDS, remaining });
+    const UINT64 frameBase = (UINT64)app->getD3D12()->getCurrentBackBufferIdx() * SLOTS_PER_FRAME;
 
     // 0 = alpha, 1 = additive, 2 = premultiplied
     int blendBound = 0;
@@ -159,7 +162,7 @@ void BillboardPass::render(ID3D12GraphicsCommandList* cmd,
                                  : blend == 1 ? m_pipeline.getAdditivePSO() : m_pipeline.getPSO());
         }
 
-        const UINT slot = m_frameCBCursor + i;
+        const UINT64 slot = frameBase + m_frameCBCursor + i;
         void* dst = reinterpret_cast<uint8_t*>(m_cbMapped) + slot * cbStride;
         memcpy(dst, &bb.cb, sizeof(BillboardInstanceCB));
 

@@ -43,6 +43,10 @@
 #include "MeshEntry.h"
 #include "ResourceMesh.h"
 #include "ComponentFactory.h"
+#include "VfxGuards.h"
+#ifdef PHOENIX_EDITOR
+#include "ModuleEditor.h"
+#endif
 #include <d3dx12.h>
 #include <filesystem>
 #include <algorithm>
@@ -87,6 +91,11 @@ bool RuntimeCore::init(){
             }
             return cm && cm->loadModel(assetPath);
         };
+#ifdef PHOENIX_EDITOR
+        hooks.logWarning = [](const char* text){
+            if (text && app && app->getEditor()) app->getEditor()->log(text, ImVec4(1.f, 0.75f, 0.3f, 1.f));
+        };
+#endif
     }
     m_sceneTransition = std::make_unique<SceneTransition>();
     m_meshRenderPass = std::make_unique<ForwardMeshPass>();
@@ -343,6 +352,7 @@ void RuntimeCore::tick(float dt, float aspectRatio){
     if (m_billboardPass) m_billboardPass->beginFrame();
     if (m_trailPass) m_trailPass->beginFrame();
     if (m_particlePass) m_particlePass->beginFrame();
+    if (m_decalPass) m_decalPass->beginFrame();
 }
 
 namespace {
@@ -1127,8 +1137,22 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
         if (m_decalPass && moduleScene){
             std::vector<DecalInstance> decals;
             gatherDecals(moduleScene->getRoot(), decals, view, proj, w, h);
-            if (!decals.empty())
+            if (!decals.empty()){
                 m_decalPass->render(cmd, *m_gbufferPass, decals, w, h);
+                // The decal pass leaves the G-buffer targets bound, and the deferred lighting pass draws into whatever
+                // is bound: without this, any live decal sent the whole lit scene into the G-buffer instead of the
+                // view, leaving only the skybox on screen ("the world vanishes").
+                if (outputRT && outputRT->isValid()){
+                    auto rtv = outputRT->getRtvHandle();
+                    auto dsv = outputRT->getDsvHandle();
+                    const bool hasDsv = outputRT->getDepthTexture() != nullptr;
+                    cmd->OMSetRenderTargets(1, &rtv, FALSE, hasDsv ? &dsv : nullptr);
+                    D3D12_VIEWPORT vp = { 0.f, 0.f, float(w), float(h), 0.f, 1.f };
+                    D3D12_RECT sc = { 0, 0, LONG(w), LONG(h) };
+                    cmd->RSSetViewports(1, &vp);
+                    cmd->RSSetScissorRects(1, &sc);
+                }
+            }
         }
 
         if (m_deferredLightingPass){
@@ -1590,12 +1614,30 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
     }
 }
 
+namespace {
+    // A point light with a NaN anywhere (or a zero radius, which the lighting divides by) is skipped.
+    bool lightIsSane(GameObject* node, float radius, float intensity, const Vector3& color){
+        const Vector3 pos = node->getTransform()->getGlobalMatrix().Translation();
+        if (!VfxGuards::finite(pos) || !VfxGuards::finite(radius) || !VfxGuards::finite(intensity) ||
+            !VfxGuards::finite(color)){
+            VfxGuards::RejectOnce(node, "point light", "(non-finite position/radius/intensity/colour)");
+            return false;
+        }
+        if (radius < 0.01f){
+            VfxGuards::RejectOnce(node, "point light radius", "%.4f", radius);
+            return false;
+        }
+        return true;
+    }
+}
+
 void RuntimeCore::gatherLights(GameObject* node, FrameLightData& out, bool transientPass) const{
     if (!node || !node->isActive()) return;
 
     if (transientPass){
         if (auto* pl = node->getComponent<ComponentPointLight>(); pl && pl->enabled && pl->transient &&
-            pl->intensity > 0.f && out.pointLights.size() < (size_t)kMaxTransientLights){
+            pl->intensity > 0.f && out.pointLights.size() < (size_t)kMaxTransientLights &&
+            lightIsSane(node, pl->radius, pl->intensity, pl->color)){
             MeshPipeline::GPUPointLight p;
             p.position = node->getTransform()->getGlobalMatrix().Translation();
             p.squaredRadius = pl->radius * pl->radius;
@@ -1620,7 +1662,7 @@ void RuntimeCore::gatherLights(GameObject* node, FrameLightData& out, bool trans
     }
 
     if (auto* pl = node->getComponent<ComponentPointLight>(); pl && pl->enabled && !pl->transient){
-        if (out.pointLights.size() < MeshPipeline::MAX_POINT_LIGHTS){
+        if (out.pointLights.size() < MeshPipeline::MAX_POINT_LIGHTS && lightIsSane(node, pl->radius, pl->intensity, pl->color)){
             MeshPipeline::GPUPointLight p;
             p.position = node->getTransform()->getGlobalMatrix().Translation();
             p.squaredRadius = pl->radius * pl->radius;
@@ -1655,8 +1697,8 @@ void RuntimeCore::gatherDecals(GameObject* node, std::vector<DecalInstance>& out
     if (!node || !node->isActive()) return;
 
     if (auto* dc = node->getComponent<ComponentDecal>(); dc && dc->enabled){
-        if (out.size() < DecalPass::MAX_DECALS){
-            Matrix worldMat = node->getTransform()->getGlobalMatrix();
+        Matrix worldMat = node->getTransform()->getGlobalMatrix();
+        if (out.size() < DecalPass::MAX_DECALS && VfxGuards::SanitizeDecalWorld(node, worldMat)){
             Matrix viewProj = view * proj;
 
             DecalInstance inst;
@@ -1672,7 +1714,11 @@ void RuntimeCore::gatherDecals(GameObject* node, std::vector<DecalInstance>& out
             inst.emissiveAlbedoMix = Vector4(dc->emissive, dc->emissive, dc->emissive, dc->albedoMix);
             inst.texturePath = dc->texturePath;
 
-            out.push_back(std::move(inst));
+            if (VfxGuards::finite(inst.mvp) && VfxGuards::finite(inst.invModel) && VfxGuards::finite(inst.invViewProj) &&
+                VfxGuards::finite(inst.colourOpacity) && VfxGuards::finite(inst.emissiveAlbedoMix))
+                out.push_back(std::move(inst));
+            else
+                VfxGuards::RejectOnce(node, "decal matrix", "(non-finite after inversion)");
         }
     }
 

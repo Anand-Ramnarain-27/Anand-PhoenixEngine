@@ -205,6 +205,7 @@
     <ClInclude Include="API\Phoenix_Scene.h" />
     <ClInclude Include="API\Phoenix_Render.h" />
     <ClInclude Include="API\Phoenix_VFX.h" />
+    <ClInclude Include="VfxGuards.h" />
     <ClInclude Include="ResourceStateMachine.h" />
     <ClInclude Include="ModuleAssets.h" />
     <ClInclude Include="ModuleResources.h" />

@@ -34,7 +34,8 @@ bool TrailPass::init(ID3D12Device* device){
 
 bool TrailPass::createBuffers(ID3D12Device* device){
     m_vbStride = sizeof(ComponentTrail::TrailVertex);
-    const UINT64 vbTotal = (UINT64)m_vbStride * MAX_TRAIL_VERTICES;
+    // One slice per frame in flight for both rings (the CPU records ahead of the GPU).
+    const UINT64 vbTotal = (UINT64)m_vbStride * MAX_TRAIL_VERTICES * FRAMES_IN_FLIGHT;
     {
         auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         auto bd = CD3DX12_RESOURCE_DESC::Buffer(vbTotal);
@@ -47,7 +48,7 @@ bool TrailPass::createBuffers(ID3D12Device* device){
     }
     {
         const UINT stride = cbAlign(sizeof(TrailInstanceCB));
-        const UINT64 total = (UINT64)stride * MAX_TRAILS * 2; // *2 for Scene View + Game View in same frame
+        const UINT64 total = (UINT64)stride * CB_SLOTS_PER_FRAME * FRAMES_IN_FLIGHT;
         auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         auto bd = CD3DX12_RESOURCE_DESC::Buffer(total);
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
@@ -137,8 +138,11 @@ void TrailPass::render(ID3D12GraphicsCommandList* cmd,
 
     const UINT cbStride = cbAlign(sizeof(TrailInstanceCB));
     // Remaining CB slots this frame (other viewports may have already consumed some)
-    const UINT remainingSlots = (m_frameCBCursor < MAX_TRAILS) ? MAX_TRAILS - m_frameCBCursor : 0u;
-    const UINT maxDraws = std::min((UINT)trails.size(), remainingSlots);
+    const UINT remainingSlots = (m_frameCBCursor < CB_SLOTS_PER_FRAME) ? CB_SLOTS_PER_FRAME - m_frameCBCursor : 0u;
+    const UINT maxDraws = std::min({ (UINT)trails.size(), MAX_TRAILS, remainingSlots });
+    const UINT frameIdx = app->getD3D12()->getCurrentBackBufferIdx();
+    const UINT64 vbFrameBase = (UINT64)frameIdx * MAX_TRAIL_VERTICES;
+    const UINT64 cbFrameBase = (UINT64)frameIdx * CB_SLOTS_PER_FRAME;
 
     bool additiveBound = false;
     cmd->SetPipelineState(m_pipeline.getPSO());
@@ -156,16 +160,16 @@ void TrailPass::render(ID3D12GraphicsCommandList* cmd,
             cmd->SetPipelineState(additiveBound ? m_pipeline.getAdditivePSO() : m_pipeline.getPSO());
         }
 
-        uint8_t* dstV = reinterpret_cast<uint8_t*>(m_vbMapped) + (size_t)vertexCursor * m_vbStride;
+        uint8_t* dstV = reinterpret_cast<uint8_t*>(m_vbMapped) + (size_t)(vbFrameBase + vertexCursor) * m_vbStride;
         memcpy(dstV, tr.vertices.data(), (size_t)vCount * m_vbStride);
 
         D3D12_VERTEX_BUFFER_VIEW vbv = {};
-        vbv.BufferLocation = m_vbRing->GetGPUVirtualAddress() + (UINT64)vertexCursor * m_vbStride;
+        vbv.BufferLocation = m_vbRing->GetGPUVirtualAddress() + (vbFrameBase + vertexCursor) * m_vbStride;
         vbv.SizeInBytes = vCount * m_vbStride;
         vbv.StrideInBytes = m_vbStride;
         cmd->IASetVertexBuffers(0, 1, &vbv);
 
-        const UINT cbSlot = m_frameCBCursor + drawnCount;
+        const UINT64 cbSlot = cbFrameBase + m_frameCBCursor + drawnCount;
         TrailInstanceCB cb{};
         cb.viewProj = viewProj.Transpose();
         cb.tint = tr.tint;
