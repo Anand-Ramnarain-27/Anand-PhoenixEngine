@@ -496,6 +496,37 @@ bool BuildAshfallHUDPrefab(SceneGraph* scene, HotReloadManager* hotReload, std::
         b.label(toast, "HUD_JournalText", at(68.f, 28.f, 300.f, 28.f), "", "AshfallUI", 18.f, parchment);
     }
 
+    // ---- boss bar (hud_layout.json "bossBar"), top centre: name, subtitle, a long HP bar (rust frame, blood fill over
+    // the ember recent-damage trail), diamond end caps, phase notches (placed by the script from the boss's phase
+    // thresholds) and a poise strip under it. Hidden until a boss fight starts (GameScript UI/BossBar). The Journal
+    // toast sits below this block (y 220).
+    {
+        const Value* bb = member(layout, "bossBar");
+        const Vector2 offset = vec2(bb, "offset", Vector2(0.f, 40.f));
+        const float nameSize = num(member(bb, "name"), "size", 40.f);
+        const float subSize = num(member(bb, "subtitle"), "size", 15.f);
+        const Vector2 barSize = vec2(bb, "bar", Vector2(940.f, 20.f));
+        const Vector2 poiseSize = vec2(bb, "poise", Vector2(940.f, 4.f));
+        const float nameH = nameSize + 6.f, subH = subSize + 4.f;
+        const float barY = nameH + subH + 4.f;
+        const float poiseY = barY + barSize.y + 4.f;
+        const float height = poiseY + poiseSize.y;
+        GameObject* boss = b.node(main, "HUD_BossBar", pinned({ .5f, 0.f }, offset, { barSize.x + 48.f, height }), false);
+        auto row = [&](float y, float h){ return Layout{ { 0.f, 0.f }, { 0.f, 0.f }, { 0.f, 0.f }, { 0.f, y }, { barSize.x + 48.f, h } }; };
+        b.label(boss, "HUD_BossName", row(0.f, nameH), "", "AshfallDisplay", nameSize, parchment, H::Center);
+        b.label(boss, "HUD_BossSubtitle", row(nameH, subH), "", "AshfallLabel", subSize, brass, H::Center);
+        GameObject* frame = b.image(boss, "HUD_BossFrame", at(24.f, barY, barSize.x, barSize.y), tex("HUD/Bars/bar_frame_rust.png"));
+        b.bar(frame, "HUD_BossTrail", inset(2.f), tex("HUD/Bars/bar_fill_ember_trail.png"), Dir::LeftToRight, 1.f);
+        b.bar(frame, "HUD_BossHP", inset(2.f), tex("HUD/Bars/bar_fill_blood.png"), Dir::LeftToRight, 1.f);
+        for (int i = 0; i < 3; ++i)   // brass phase notches, 2 x 32, centred on the bar; the script places / hides them
+            b.image(frame, "HUD_BossNotch_" + std::to_string(i), pinned({ 0.f, .5f }, { 0.f, 0.f }, { 2.f, 32.f }),
+                    tex("HUD/Bars/bar_notch_brass.png"), white, false);
+        b.image(boss, "HUD_BossCapL", at(4.f, barY + (barSize.y - 16.f) * 0.5f, 16.f, 16.f), tex("HUD/Bars/ornament_diamond_rust.png"));
+        b.image(boss, "HUD_BossCapR", at(barSize.x + 28.f, barY + (barSize.y - 16.f) * 0.5f, 16.f, 16.f), tex("HUD/Bars/ornament_diamond_rust.png"));
+        GameObject* poiseBg = b.image(boss, "HUD_BossPoiseBg", at(24.f, poiseY, poiseSize.x, poiseSize.y), tex("HUD/Bars/bar_frame_black.png"));
+        b.bar(poiseBg, "HUD_BossPoise", inset(0.f), tex("HUD/Bars/bar_fill_poise.png"), Dir::LeftToRight, 1.f);
+    }
+
     // ---- enemy overhead bars (hud_layout.json "enemyBar"): a pool AshfallHUD's EnemyBars places above enemies every
     // frame (Phoenix::UI::WorldToCanvas). Each bar is anchored at the canvas' top-left with its pivot at the bottom
     // centre, so its position is the canvas point just above the enemy's head. Built at elite size; the script

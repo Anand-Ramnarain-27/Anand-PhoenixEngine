@@ -101,6 +101,7 @@ struct UI {
     static void SetPosition(GameObject* widget, Vec2 position);
     static Vec2 GetPosition(GameObject* widget);
     static void SetSize(GameObject* widget, Vec2 size);
+    static Vec2 GetSize(GameObject* widget);
 
     // Projects a world point through the active game camera. WorldToViewport gives 0..1 across the game view
     // (x right, y down); WorldToCanvas gives canvas units of the canvas `widget` sits under (origin top-left,

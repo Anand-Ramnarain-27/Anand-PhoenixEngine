@@ -404,6 +404,13 @@ void ModuleEditor::drawMenuBar(){
                         log(("Enemy prefabs not built: " + message).c_str(), EditorColors::Danger);
                 }
             }
+            if (ImGui::MenuItem("Set Up Kraug Arena (AF_KraugsDen)", nullptr, false, !playing)){
+                std::string message;
+                if (SetUpAshfallKraugArena(getSceneManager(), getHotReloadManager(), message))
+                    log(("Kraug arena set up: " + message).c_str(), EditorColors::Success);
+                else
+                    log(("Kraug arena not set up: " + message).c_str(), EditorColors::Danger);
+            }
             if (ImGui::MenuItem("Build VFX Test Scene (on a new scene)", nullptr, false, !playing)){
                 std::string message;
                 if (BuildAshfallVfxTestScene(getSceneManager(), getHotReloadManager(), message))

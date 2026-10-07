@@ -247,6 +247,11 @@ void UI::SetPosition(GameObject* go, Vec2 position){
     if (auto* t = go ? go->getComponent<ComponentTransform2D>() : nullptr) t->position = position;
 }
 
+Vec2 UI::GetSize(GameObject* go){
+    auto* t = go ? go->getComponent<ComponentTransform2D>() : nullptr;
+    return t ? Vec2(t->size.x, t->size.y) : Vec2(0.f, 0.f);
+}
+
 Vec2 UI::GetPosition(GameObject* go){
     auto* t = go ? go->getComponent<ComponentTransform2D>() : nullptr;
     return t ? t->position : Vec2(0.f, 0.f);
