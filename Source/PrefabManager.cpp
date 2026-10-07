@@ -336,6 +336,26 @@ void PrefabManager::markPropertyOverride(GameObject* go, int componentType, cons
     if (inst) inst->overrides.modifiedProperties[componentType].insert(propertyName);
 }
 
+void PrefabManager::clearPropertyOverride(GameObject* go, int componentType, const std::string& propertyName){
+    PrefabInstanceData* inst = getInstanceDataMutable(go);
+    if (!inst) return;
+    auto it = inst->overrides.modifiedProperties.find(componentType);
+    if (it == inst->overrides.modifiedProperties.end()) return;
+    it->second.erase(propertyName);
+    if (it->second.empty()) inst->overrides.modifiedProperties.erase(it);
+}
+
+bool PrefabManager::readPrefabByName(const std::string& prefabName, Document& doc){
+    const std::string path = getPrefabPath(prefabName);
+    return app->getFileSystem()->Exists(path.c_str()) && readPrefabDocument(path, doc);
+}
+
+bool PrefabManager::writePrefabByName(const std::string& prefabName, Document& doc){
+    return writePrefabDocument(doc, getPrefabPath(prefabName));
+}
+
+std::string PrefabManager::getPrefabFilePath(const std::string& prefabName){ return getPrefabPath(prefabName); }
+
 void PrefabManager::clearComponentOverrides(GameObject* go, int componentType){
     PrefabInstanceData* inst = getInstanceDataMutable(go);
     if (!inst) return;

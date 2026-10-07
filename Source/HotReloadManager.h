@@ -35,6 +35,12 @@ public:
 
     bool isLoaded(const std::string& dllPath) const;
 
+    // A data file changed in the editor while playing (Ashfall Data window): hands `assetPath` ("Assets/...") and
+    // the file's new text to every script DLL exporting
+    //   extern "C" void PhoenixScripts_OnDataChanged(const char* assetPath, const char* text);
+    // Returns how many DLLs took it.
+    int notifyDataChanged(const std::string& assetPath, const std::string& text) const;
+
 private:
     void clearUIListeners();
     bool loadLibraryInternal(const std::string& dllPath, ScriptLibrary& out);

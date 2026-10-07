@@ -4,6 +4,7 @@
 #include <string>
 
 class HotReloadManager;
+class SceneGraph;
 
 class ComponentScript : public Component {
 public:
@@ -23,7 +24,15 @@ public:
     const std::string& getClassName() const { return m_className; }
     bool hasInstance() const { return m_script != nullptr; }
 
+    // "Keep changes" (Inspector, while playing): field values recorded during Play, put back on the same objects
+    // (matched by hierarchy path and script class) once Stop has restored the scene. Returns how many components
+    // took kept values; ModuleEditor::stopPlay calls it and marks the scene modified.
+    static int applyKeptChanges(SceneGraph* scene);
+
 private:
+    void resolveObjectRefs();
+    void drawConfigViews(const ScriptFieldList& fields);
+
     std::string m_className;
     IScript* m_script = nullptr;
     bool m_started = false;

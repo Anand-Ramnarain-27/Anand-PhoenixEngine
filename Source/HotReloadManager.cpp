@@ -147,6 +147,19 @@ bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLib
     return true;
 }
 
+int HotReloadManager::notifyDataChanged(const std::string& assetPath, const std::string& text) const{
+    using DataChangedFn = void(*)(const char*, const char*);
+    int n = 0;
+    for (const auto& [path, lib] : m_libraries){
+        if (!lib.handle) continue;
+        if (auto fn = reinterpret_cast<DataChangedFn>(GetProcAddress(lib.handle, "PhoenixScripts_OnDataChanged"))){
+            fn(assetPath.c_str(), text.c_str());
+            ++n;
+        }
+    }
+    return n;
+}
+
 std::string HotReloadManager::versionedPdbPath(const std::string& dllPath){
     fs::path p(dllPath);
     std::string stem = p.stem().string();

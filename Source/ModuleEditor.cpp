@@ -1,5 +1,6 @@
 ﻿#include "Globals.h"
 #include "ModuleEditor.h"
+#include "ComponentScript.h"
 #include "Application.h"
 #include "RuntimeCore.h"
 #include <ole2.h>
@@ -49,6 +50,7 @@
 #include "GameViewPanel.h"
 #include "HierarchyPanel.h"
 #include "InspectorPanel.h"
+#include "AshfallDataPanel.h"
 #include "AssetBrowserPanel.h"
 #include "SceneSettingsPanel.h"
 #include "PostProcessPanel.h"
@@ -138,6 +140,7 @@ bool ModuleEditor::init(){
     m_gameView = addPanel<GameViewPanel>(this);
     addPanel<HierarchyPanel>(this);
     addPanel<InspectorPanel>(this);
+    addPanel<AshfallDataPanel>(this);
     m_console = addPanel<ConsolePanel>(this);
     m_performance = addPanel<PerformancePanel>(this);
     m_assetBrowser = addPanel<AssetBrowserPanel>(this);
@@ -260,6 +263,12 @@ void ModuleEditor::stopPlay(){
     m_undoStack.clear();
     m_redoStack.clear();
     m_savePointIndex = 0;
+    // Script fields kept with "Keep changes" during Play go back on now that the scene is restored.
+    if (const int kept = ComponentScript::applyKeptChanges(getActiveModuleScene())){
+        m_savePointIndex = -1;   // modified: save the scene to keep them
+        log(("Kept Play-mode field changes on " + std::to_string(kept) + " script(s) - save the scene to keep them").c_str(),
+            EditorColors::Success);
+    }
 }
 
 

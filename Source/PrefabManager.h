@@ -43,6 +43,12 @@ public:
     static bool revertToPrefab(GameObject* go, SceneGraph* scene);
 
     static void markPropertyOverride(GameObject* go, int componentType, const std::string& propertyName);
+    static void clearPropertyOverride(GameObject* go, int componentType, const std::string& propertyName);
+    // Script fields (ComponentScript): read / write a prefab file by name, and where it lives. Overrides are
+    // marked as "Script:<Class>.<field>" under the Script component type.
+    static bool readPrefabByName(const std::string& prefabName, rapidjson::Document& doc);
+    static bool writePrefabByName(const std::string& prefabName, rapidjson::Document& doc);
+    static std::string getPrefabFilePath(const std::string& prefabName);
     static void clearComponentOverrides(GameObject* go, int componentType);
     static void clearAllOverrides(GameObject* go);
 

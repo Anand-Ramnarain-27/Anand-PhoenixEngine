@@ -5,6 +5,7 @@
 // Use PushFont(g_fontMono) / PopFont() for monospace numeric display.
 extern ImFont* g_fontUI;
 extern ImFont* g_fontMono;
+extern ImFont* g_fontBold;   // may be null: callers fall back to the regular font
 
 class ImGuiPass
 {
