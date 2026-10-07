@@ -245,6 +245,15 @@ bool SceneManager::loadSceneByBuildIndex(int index, const BuildSettings& buildSe
         std::string baseDir = assetsPath.substr(0, assetsPath.size() - std::string("Assets/").size());
         path = baseDir + path;
     }
+    std::error_code ec;
+    if (!std::filesystem::exists(path, ec)){
+        // Scenes are saved in Library/Scenes: an entry with the wrong folder still finds a scene of that name there.
+        const std::string fallback = app->getFileSystem()->GetLibraryPath() + "Scenes/" + std::filesystem::path(path).filename().string();
+        if (std::filesystem::exists(fallback, ec)){
+            LOG("SceneManager: build scene '%s' not found, using '%s'", path.c_str(), fallback.c_str());
+            path = fallback;
+        }
+    }
     return loadScene(path);
 }
 

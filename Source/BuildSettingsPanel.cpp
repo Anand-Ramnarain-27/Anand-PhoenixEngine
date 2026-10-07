@@ -1,5 +1,6 @@
 #include "Globals.h"
 #include "BuildSettingsPanel.h"
+#include "EditorColors.h"
 #include "ModuleEditor.h"
 #include "Application.h"
 #include "ModuleFileSystem.h"
@@ -9,6 +10,16 @@
 #include <filesystem>
 
 namespace fs = std::filesystem;
+
+// A build-list path ("Library/Scenes/AF_X.json", relative to the project folder, or absolute) that exists?
+static bool sceneFileExists(const std::string& path){
+    if (path.empty()) return false;
+    std::error_code ec;
+    if (fs::path(path).is_absolute()) return fs::exists(path, ec);
+    std::string assetsPath = app->getFileSystem()->GetAssetsPath();
+    std::string baseDir = assetsPath.substr(0, assetsPath.size() - std::string("Assets/").size());
+    return fs::exists(baseDir + path, ec);
+}
 
 static std::string toRelativeAssetPath(const std::string& absolutePath){
     std::string assetsPath = app->getFileSystem()->GetAssetsPath();
@@ -46,8 +57,12 @@ void BuildSettingsPanel::drawSceneList(){
 
         ImGui::SameLine();
         std::string label = std::to_string(i) + ": " + fs::path(entry.path).filename().string();
+        const bool missing = !sceneFileExists(entry.path);
+        if (missing){ label += "  (missing)"; ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Danger); }
         ImGui::Selectable(label.c_str(), false, 0, ImVec2(ImGui::GetContentRegionAvail().x - 100.f, 0));
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", entry.path.c_str());
+        if (missing) ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(missing ? "%s\nNot found: remove it and add the scene again (scenes live in Library/Scenes)." : "%s", entry.path.c_str());
 
         ImGui::SameLine();
         ImGui::BeginDisabled(i == 0);
@@ -74,13 +89,27 @@ void BuildSettingsPanel::drawSceneList(){
     ImGui::Spacing();
     ImGui::TextUnformatted("Add scene:");
     ImGui::SameLine();
-    if (AssetPicker::Draw("##addscene", m_pickedScenePath, AssetPicker::kScenes)){
-        if (!m_pickedScenePath.empty()){
-            bool exists = std::any_of(m_settings.scenes.begin(), m_settings.scenes.end(),
-                [&](const BuildSceneEntry& e){ return e.path == m_pickedScenePath; });
-            if (!exists){ m_settings.scenes.push_back({ m_pickedScenePath, true }); save(); }
-            m_pickedScenePath.clear();
+    // Scenes are saved in Library/Scenes: list those (not every .json under Assets).
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.6f);
+    if (ImGui::BeginCombo("##addscene", "Pick a scene...", ImGuiComboFlags_HeightLarge)){
+        std::vector<std::string> names;
+        std::error_code ec;
+        for (const auto& f : fs::directory_iterator(app->getFileSystem()->GetLibraryPath() + "Scenes", ec)){
+            if (!f.is_regular_file() || f.path().extension() != ".json") continue;
+            const std::string stem = f.path().stem().string();
+            if (stem != "temp_scene") names.push_back(stem);
         }
+        std::sort(names.begin(), names.end());
+        for (const std::string& n : names){
+            const std::string path = "Library/Scenes/" + n + ".json";
+            const bool inList = std::any_of(m_settings.scenes.begin(), m_settings.scenes.end(),
+                [&](const BuildSceneEntry& e){ return e.path == path; });
+            if (ImGui::Selectable(n.c_str(), false, inList ? ImGuiSelectableFlags_Disabled : 0)){
+                m_settings.scenes.push_back({ path, true });
+                save();
+            }
+        }
+        ImGui::EndCombo();
     }
 
     if (m_editor && !m_editor->getCurrentScenePath().empty()){
