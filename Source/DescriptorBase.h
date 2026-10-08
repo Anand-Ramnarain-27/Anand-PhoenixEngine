@@ -1,9 +1,11 @@
 #pragma once
+// Ref-counted descriptor handle shared by the RTV and DSV wrappers.
 
 class ModuleRTDescriptors;
 class ModuleDSDescriptors;
 
 template<typename Derived, typename ModuleType>
+/// Copying shares the descriptor; the last copy to go frees it back to its heap.
 class DescriptorBase {
 protected:
     UINT handle = 0;

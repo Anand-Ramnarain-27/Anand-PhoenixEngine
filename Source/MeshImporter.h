@@ -1,4 +1,5 @@
 #pragma once
+// Imports glTF meshes into Library/Meshes and loads them back as GPU Meshes.
 
 #include "Mesh.h"
 #include <memory>
@@ -10,6 +11,7 @@
 class ModuleStaticBuffer;
 namespace tinygltf { class Model; struct Primitive; }
 
+/// Writes vertex, index, skin and morph-target data to a binary mesh file and uploads it again on load.
 class MeshImporter {
 public:
     struct MeshHeader {

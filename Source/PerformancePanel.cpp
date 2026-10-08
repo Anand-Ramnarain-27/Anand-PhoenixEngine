@@ -5,21 +5,25 @@
 #include "Application.h"
 #include "ModuleEditor.h"
 
-void PerformancePanel::drawContent(){
-    struct PassInfo { const char* name; float refMs; ImU32 col; };
-    static const PassInfo kPasses[] = {
-        { "D3D12 Core", 0.12f, IM_COL32(139,139,150,255) },
-        { "Env/IBL", 0.34f, IM_COL32( 98,176,201,255) },
-        { "Skinning", 0.61f, IM_COL32(111,206,154,255) },
-        { "G-Buffer", 2.18f, IM_COL32(232,146, 74,255) },
-        { "Deferred", 3.42f, IM_COL32(232, 96,110,255) },
-        { "Forward", 1.27f, IM_COL32(217,162, 62,255) },
-        { "Debug", 0.21f, IM_COL32(155,123,208,255) },
-        { "RenderTex", 0.44f, IM_COL32( 90,166,232,255) },
-        { "ImGui", 0.38f, IM_COL32(199,199,207,255) },
-    };
-    static constexpr int kN = (int)(sizeof(kPasses) / sizeof(kPasses[0]));
+namespace {
+// TODO(perf): per-pass GPU timestamps. Until then the breakdown is these fixed reference costs scaled to the
+// measured frame time, so only the total is real.
+struct PassInfo { const char* name; float refMs; ImU32 col; };
+static const PassInfo kPasses[] = {
+    { "D3D12 Core", 0.12f, IM_COL32(139,139,150,255) },
+    { "Env/IBL", 0.34f, IM_COL32( 98,176,201,255) },
+    { "Skinning", 0.61f, IM_COL32(111,206,154,255) },
+    { "G-Buffer", 2.18f, IM_COL32(232,146, 74,255) },
+    { "Deferred", 3.42f, IM_COL32(232, 96,110,255) },
+    { "Forward", 1.27f, IM_COL32(217,162, 62,255) },
+    { "Debug", 0.21f, IM_COL32(155,123,208,255) },
+    { "RenderTex", 0.44f, IM_COL32( 90,166,232,255) },
+    { "ImGui", 0.38f, IM_COL32(199,199,207,255) },
+};
+static constexpr int kN = (int)(sizeof(kPasses) / sizeof(kPasses[0]));
+}
 
+void PerformancePanel::drawContent(){
     float refTotal = 0.f;
     for (auto& p : kPasses) refTotal += p.refMs;
 
@@ -30,59 +34,70 @@ void PerformancePanel::drawContent(){
     const float scale = gpuMs / refTotal;
     const float budgetPc = std::min(100.f, gpuMs / 16.67f * 100.f);
 
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    const float winW = ImGui::GetContentRegionAvail().x;
-
-    {
-        ImGui::PushFont(g_fontMono);
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
-        ImGui::TextUnformatted("GPU FRAME");
-        ImGui::PopStyleColor();
-        ImGui::SameLine(0, 8);
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::msColor(gpuMs));
-        ImGui::SetWindowFontScale(1.6f);
-        ImGui::Text("%.2f", gpuMs);
-        ImGui::SetWindowFontScale(1.f);
-        ImGui::PopStyleColor();
-        ImGui::SameLine(0, 2);
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
-        ImGui::TextUnformatted("ms");
-        ImGui::PopStyleColor();
-
-        ImGui::SameLine(0, 20);
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
-        ImGui::TextUnformatted("CPU");
-        ImGui::PopStyleColor();
-        ImGui::SameLine(0, 4);
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::msColor(cpuMs));
-        ImGui::Text("%.2f ms", cpuMs);
-        ImGui::PopStyleColor();
-
-        ImGui::SameLine(0, 20);
-        const ImVec4 bCol = budgetPc < 70.f ? EditorColors::Ok
-                          : budgetPc < 90.f ? EditorColors::Warn : EditorColors::Crit;
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
-        ImGui::TextUnformatted("BUDGET");
-        ImGui::PopStyleColor();
-        ImGui::SameLine(0, 4);
-        ImGui::PushStyleColor(ImGuiCol_Text, bCol);
-        ImGui::Text("%.0f%%", budgetPc);
-        ImGui::PopStyleColor();
-
-        ImGui::SameLine(0, 20);
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Ok);
-        ImGui::Text("%.0f fps", fps);
-        ImGui::PopStyleColor();
-
-        ImGui::SameLine(0, 20);
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
-        ImGui::Text("Draw Calls: %d", m_editor->getFrameDrawCalls());
-        ImGui::PopStyleColor();
-
-        ImGui::PopFont();
-    }
+    drawFrameSummary(gpuMs, cpuMs, fps, budgetPc);
+    ImGui::Spacing();
+    drawPassBreakdown(gpuMs, scale, refTotal);
 
     ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    drawFpsHistory();
+}
+
+void PerformancePanel::drawFrameSummary(float gpuMs, float cpuMs, float fps, float budgetPc){
+    ImGui::PushFont(g_fontMono);
+    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
+    ImGui::TextUnformatted("GPU FRAME");
+    ImGui::PopStyleColor();
+    ImGui::SameLine(0, 8);
+    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::msColor(gpuMs));
+    ImGui::SetWindowFontScale(1.6f);
+    ImGui::Text("%.2f", gpuMs);
+    ImGui::SetWindowFontScale(1.f);
+    ImGui::PopStyleColor();
+    ImGui::SameLine(0, 2);
+    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
+    ImGui::TextUnformatted("ms");
+    ImGui::PopStyleColor();
+
+    ImGui::SameLine(0, 20);
+    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
+    ImGui::TextUnformatted("CPU");
+    ImGui::PopStyleColor();
+    ImGui::SameLine(0, 4);
+    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::msColor(cpuMs));
+    ImGui::Text("%.2f ms", cpuMs);
+    ImGui::PopStyleColor();
+
+    ImGui::SameLine(0, 20);
+    const ImVec4 bCol = budgetPc < 70.f ? EditorColors::Ok
+                      : budgetPc < 90.f ? EditorColors::Warn : EditorColors::Crit;
+    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
+    ImGui::TextUnformatted("BUDGET");
+    ImGui::PopStyleColor();
+    ImGui::SameLine(0, 4);
+    ImGui::PushStyleColor(ImGuiCol_Text, bCol);
+    ImGui::Text("%.0f%%", budgetPc);
+    ImGui::PopStyleColor();
+
+    ImGui::SameLine(0, 20);
+    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Ok);
+    ImGui::Text("%.0f fps", fps);
+    ImGui::PopStyleColor();
+
+    ImGui::SameLine(0, 20);
+    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
+    ImGui::Text("Draw Calls: %d", m_editor->getFrameDrawCalls());
+    ImGui::PopStyleColor();
+
+    ImGui::PopFont();
+}
+
+/// Stacked bar of the passes' share of the frame, a red marker at the 60 fps budget, and a legend.
+void PerformancePanel::drawPassBreakdown(float gpuMs, float scale, float refTotal){
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    const float winW = ImGui::GetContentRegionAvail().x;
 
     const float barH = 24.f;
     const float barY = ImGui::GetCursorScreenPos().y;
@@ -140,11 +155,9 @@ void PerformancePanel::drawContent(){
     }
     ImGui::NewLine();
     ImGui::PopFont();
+}
 
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
+void PerformancePanel::drawFpsHistory(){
     ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
     ImGui::TextUnformatted("FPS History");
     ImGui::PopStyleColor();

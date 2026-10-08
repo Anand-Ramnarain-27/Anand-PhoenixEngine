@@ -82,11 +82,11 @@ void ModuleUI::loadProjectFonts(){
 
         const std::string name = file.stem().string();
         if (m_pass->hasFont(name)){
-            LOG("ModuleUI: skipping font '%s' (%s): a font with that name is already loaded", name.c_str(), file.string().c_str());
+            PHX_LOG(UI, Warning, "ModuleUI: skipping font '%s' (%s): a font with that name is already loaded", name.c_str(), file.string().c_str());
             continue;
         }
         if (m_pass->loadFont(name, file.wstring()))
-            LOG("ModuleUI: font '%s' from %s", name.c_str(), file.string().c_str());
+            PHX_LOG(UI, Verbose, "ModuleUI: font '%s' from %s", name.c_str(), file.string().c_str());
     }
 }
 

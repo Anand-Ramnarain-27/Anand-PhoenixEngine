@@ -19,7 +19,7 @@ namespace {
         HRESULT hr = dev->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                                                    D3D12_RESOURCE_STATE_GENERIC_READ,
                                                    nullptr, IID_PPV_ARGS(&buf));
-        if (FAILED(hr)){ LOG("LightCullingPass: upload buf failed 0x%08X", hr); return nullptr; }
+        if (FAILED(hr)){ PHX_LOG(Render, Error, "LightCullingPass: upload buf failed 0x%08X", hr); return nullptr; }
         buf->SetName(name);
         if (mapped) buf->Map(0, nullptr, mapped);
         return buf;
@@ -49,12 +49,12 @@ namespace {
 
 bool LightCullingPass::init(ID3D12Device* device){
     if (!m_pipeline.init(device)){
-        LOG("LightCullingPass: pipeline init failed");
+        PHX_LOG(Render, Error, "LightCullingPass: pipeline init failed");
         return false;
     }
     if (!createUploadBuffers(device)) return false;
 
-    LOG("LightCullingPass: init OK");
+    PHX_LOG(Render, Info, "LightCullingPass: init OK");
     return true;
 }
 
@@ -77,7 +77,7 @@ bool LightCullingPass::createUploadBuffers(ID3D12Device* device){
         m_pointLightSRV[i] = sd->allocTable("LightCulling_PointLightSRV");
         m_spotLightSRV[i] = sd->allocTable("LightCulling_SpotLightSRV");
         if (!m_pointLightSRV[i].isValid() || !m_spotLightSRV[i].isValid()){
-            LOG("LightCullingPass: light SRV alloc failed");
+            PHX_LOG(Render, Error, "LightCullingPass: light SRV alloc failed");
             return false;
         }
         makeStructuredSRV(m_pointLightSRV[i], 0, m_pointLightBuf[i].Get(),
@@ -101,7 +101,7 @@ static bool allocTileBuffers(ID3D12Device* device, UINT numTiles, UINT maxPerTil
     HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                                                   D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                                                   nullptr, IID_PPV_ARGS(&newBuf));
-    if (FAILED(hr)){ LOG("LightCullingPass: tile buf alloc failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "LightCullingPass: tile buf alloc failed 0x%08X", hr); return false; }
     newBuf->SetName(name);
     buf = std::move(newBuf);
     return true;
@@ -271,13 +271,13 @@ bool LightCullingPipeline::createRootSignature(ID3D12Device* device){
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
     if (FAILED(hr)){
-        if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
-        LOG("LightCullingPipeline: serialize root sig failed 0x%08X", hr);
+        if (error) PHX_LOG(Render, Error, "%s", static_cast<char*>(error->GetBufferPointer()));
+        PHX_LOG(Render, Error, "LightCullingPipeline: serialize root sig failed 0x%08X", hr);
         return false;
     }
     hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
                                       IID_PPV_ARGS(&m_rootSig));
-    if (FAILED(hr)){ LOG("LightCullingPipeline: CreateRootSignature failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "LightCullingPipeline: CreateRootSignature failed 0x%08X", hr); return false; }
     return true;
 }
 
@@ -289,6 +289,6 @@ bool LightCullingPipeline::createPSO(ID3D12Device* device){
     desc.CS = { cs.data(), cs.size() };
 
     HRESULT hr = device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&m_pso));
-    if (FAILED(hr)){ LOG("LightCullingPipeline: CreateComputePipelineState failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "LightCullingPipeline: CreateComputePipelineState failed 0x%08X", hr); return false; }
     return true;
 }

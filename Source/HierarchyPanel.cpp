@@ -210,52 +210,7 @@ void HierarchyPanel::itemContextMenu(GameObject* go){
     bool isEditRoot = prefabMode && m_editor->getPrefabSession() && go == m_editor->getPrefabSession()->rootObject;
 
     if (prefabMode){
-        const std::string& pfName = m_editor->getSceneManager()->getPrefabEditName();
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.75f, 0.2f, 1.f));
-        ImGui::Text("Prefab: %s", pfName.c_str());
-        ImGui::PopStyleColor();
-        ImGui::Separator();
-
-        PrefabEditSession* pfSess = m_editor->getPrefabSession();
-
-        const PrefabInstanceData* instData = pfSess ? PrefabManager::getInstanceData(pfSess->rootObject) : nullptr;
-        bool hasChanges = instData && !instData->overrides.isEmpty();
-
-        ImGui::BeginDisabled(!hasChanges);
-        ImGui::PushStyleColor(ImGuiCol_Text, hasChanges ? EditorColors::Success : EditorColors::Muted);
-        if (ImGui::MenuItem("Apply  - Save changes to prefab file")){
-            PrefabManager::applyToPrefab(pfSess->rootObject);
-            m_editor->log(("Applied prefab: " + pfName).c_str(), EditorColors::Success);
-            m_editor->exitPrefabEdit();
-        }
-        ImGui::PopStyleColor();
-        ImGui::EndDisabled();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && !hasChanges)
-            ImGui::SetTooltip("No changes to apply");
-
-        ImGui::BeginDisabled(!hasChanges);
-        if (ImGui::MenuItem("Revert  - Reload from prefab file")){
-            PrefabManager::revertToPrefab(pfSess->rootObject, pfSess->isolatedScene.get());
-            m_editor->getSelection().object = pfSess->rootObject;
-            m_editor->log(("Reverted prefab: " + pfName).c_str(), EditorColors::Warning);
-        }
-        ImGui::EndDisabled();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && !hasChanges)
-            ImGui::SetTooltip("No changes to revert");
-
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Warning);
-        if (ImGui::MenuItem("Unlink  - Break prefab connection")){
-            PrefabManager::unlinkInstance(m_editor->getPrefabSession()->rootObject);
-            m_editor->log(("Unlinked prefab: " + pfName).c_str(), EditorColors::Warning);
-            m_editor->exitPrefabEdit();
-        }
-        ImGui::PopStyleColor();
-
-        ImGui::Separator();
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Danger);
-        if (ImGui::MenuItem("Exit Prefab Edit")) m_editor->exitPrefabEdit();
-        ImGui::PopStyleColor();
-        ImGui::Separator();
+        prefabEditMenuItems();
     }
     else {
         textMuted("%s", go->getName().c_str());
@@ -269,78 +224,7 @@ void HierarchyPanel::itemContextMenu(GameObject* go){
     ImGui::Separator();
 
     if (ImGui::BeginMenu("Add Component")){
-        auto addIf = [&](const char* label, Component::Type type, bool has){
-            if (ImGui::MenuItem(label) && !has){
-                go->addComponent(ComponentFactory::CreateComponent(type, go));
-                GameObject* root = findPrefabRoot(go);
-                if (root)
-                    if (PrefabInstanceData* inst = PrefabManager::getInstanceDataMutable(root))
-                        inst->overrides.addedComponentTypes.push_back((int)type);
-            }
-            };
-        addIf("Camera", Component::Type::Camera, go->getComponent<ComponentCamera>() != nullptr);
-        addIf("Mesh", Component::Type::Mesh, go->getComponent<ComponentMesh>() != nullptr);
-
-        if (ImGui::BeginMenu("Lights")){
-            addIf("Directional Light", Component::Type::DirectionalLight, go->getComponent<ComponentDirectionalLight>() != nullptr);
-            addIf("Point Light", Component::Type::PointLight, go->getComponent<ComponentPointLight>() != nullptr);
-            addIf("Spot Light", Component::Type::SpotLight, go->getComponent<ComponentSpotLight>() != nullptr);
-            ImGui::EndMenu();
-        }
-
-        addIf("Decal", Component::Type::Decal, go->getComponent<ComponentDecal>() != nullptr);
-
-        if (ImGui::BeginMenu("Particles")){
-            addIf("Billboard", Component::Type::Billboard, go->getComponent<ComponentBillboard>() != nullptr);
-            addIf("Particle System", Component::Type::ParticleSystem, go->getComponent<ComponentParticleSystem>() != nullptr);
-            addIf("Trail", Component::Type::Trail, go->getComponent<ComponentTrail>() != nullptr);
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("UI")){
-            addIf("Transform 2D", Component::Type::Transform2D, go->getComponent<ComponentTransform2D>() != nullptr);
-            addIf("Canvas", Component::Type::Canvas, go->getComponent<ComponentCanvas>() != nullptr);
-            addIf("Image", Component::Type::Image, go->getComponent<ComponentImage>() != nullptr);
-            addIf("Label", Component::Type::Label, go->getComponent<ComponentLabel>() != nullptr);
-            addIf("Button", Component::Type::Button, go->getComponent<ComponentButton>() != nullptr);
-            addIf("Progress Bar", Component::Type::ProgressBar, go->getComponent<ComponentProgressBar>() != nullptr);
-            addIf("Checkbox", Component::Type::CheckBox, go->getComponent<ComponentCheckBox>() != nullptr);
-            addIf("Slider", Component::Type::Slider, go->getComponent<ComponentSlider>() != nullptr);
-            addIf("Input Box", Component::Type::InputBox, go->getComponent<ComponentInputBox>() != nullptr);
-            addIf("Radio Group", Component::Type::RadioGroup, go->getComponent<ComponentRadioGroup>() != nullptr);
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Add Script")){
-            auto* hr = m_editor->getHotReloadManager();
-
-            if (!hr){
-                ImGui::TextDisabled("HotReload not ready");
-            }
-            else {
-                auto names = hr->getRegisteredClassNames();
-
-                if (names.empty()){
-                    ImGui::TextDisabled("No script DLL loaded");
-                }
-                else {
-                    for (const auto& name : names){
-                        if (ImGui::MenuItem(name.c_str())){
-
-                            auto comp = ComponentFactory::CreateComponent(
-                                Component::Type::Script, go);
-
-                            auto* sc = static_cast<ComponentScript*>(comp.get());
-                            sc->setScriptClass(name, hr);
-
-                            go->addComponent(std::move(comp));
-                        }
-                    }
-                }
-            }
-
-            ImGui::EndMenu();
-        }
+        addComponentMenuItems(go);
         ImGui::EndMenu();
     }
 
@@ -350,26 +234,7 @@ void HierarchyPanel::itemContextMenu(GameObject* go){
     if (!prefabMode){
         ImGui::Separator();
         if (ImGui::BeginMenu("Prefab")){
-            static char pfBuf[128] = "";
-            ImGui::SetNextItemWidth(140.0f);
-            ImGui::InputTextWithHint("##pfn", go->getName().c_str(), pfBuf, sizeof(pfBuf));
-            ImGui::SameLine();
-            if (ImGui::Button("Save")){
-                std::string name = strlen(pfBuf) > 0 ? pfBuf : go->getName();
-                if (PrefabManager::createPrefab(go, name)){
-                    PrefabInstanceData d; d.prefabName = name;
-                    PrefabManager::linkInstance(go, d);
-                    m_editor->log(("Prefab saved: " + name).c_str(), EditorColors::Success);
-                }
-                memset(pfBuf, 0, sizeof(pfBuf));
-            }
-            if (PrefabManager::isPrefabInstance(go)){
-                ImGui::Separator();
-                if (ImGui::MenuItem("Apply to Prefab")){ PrefabManager::applyToPrefab(go); m_editor->log("Applied to prefab.", EditorColors::Success); }
-                if (ImGui::MenuItem("Revert to Prefab")){ PrefabManager::revertToPrefab(go, m_editor->getActiveModuleScene()); m_editor->log("Reverted from prefab.", EditorColors::Warning); }
-                ImGui::Separator();
-                if (ImGui::MenuItem("Unpack (Unlink)")){ PrefabManager::unlinkInstance(go); m_editor->log("Prefab unlinked.", EditorColors::Warning); }
-            }
+            prefabMenuItems(go);
             ImGui::EndMenu();
         }
     }
@@ -381,6 +246,160 @@ void HierarchyPanel::itemContextMenu(GameObject* go){
     if (ImGui::MenuItem("Delete")) m_editor->deleteGameObject(go);
     ImGui::PopStyleColor();
     ImGui::EndDisabled();
+}
+
+/// Apply / revert / unlink / exit for the prefab being edited in isolation.
+void HierarchyPanel::prefabEditMenuItems(){
+    const std::string& pfName = m_editor->getSceneManager()->getPrefabEditName();
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.75f, 0.2f, 1.f));
+    ImGui::Text("Prefab: %s", pfName.c_str());
+    ImGui::PopStyleColor();
+    ImGui::Separator();
+
+    PrefabEditSession* pfSess = m_editor->getPrefabSession();
+
+    const PrefabInstanceData* instData = pfSess ? PrefabManager::getInstanceData(pfSess->rootObject) : nullptr;
+    bool hasChanges = instData && !instData->overrides.isEmpty();
+
+    ImGui::BeginDisabled(!hasChanges);
+    ImGui::PushStyleColor(ImGuiCol_Text, hasChanges ? EditorColors::Success : EditorColors::Muted);
+    if (ImGui::MenuItem("Apply  - Save changes to prefab file")){
+        PrefabManager::applyToPrefab(pfSess->rootObject);
+        m_editor->log(("Applied prefab: " + pfName).c_str(), EditorColors::Success);
+        m_editor->exitPrefabEdit();
+    }
+    ImGui::PopStyleColor();
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && !hasChanges)
+        ImGui::SetTooltip("No changes to apply");
+
+    ImGui::BeginDisabled(!hasChanges);
+    if (ImGui::MenuItem("Revert  - Reload from prefab file")){
+        PrefabManager::revertToPrefab(pfSess->rootObject, pfSess->isolatedScene.get());
+        m_editor->getSelection().object = pfSess->rootObject;
+        m_editor->log(("Reverted prefab: " + pfName).c_str(), EditorColors::Warning);
+    }
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && !hasChanges)
+        ImGui::SetTooltip("No changes to revert");
+
+    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Warning);
+    if (ImGui::MenuItem("Unlink  - Break prefab connection")){
+        PrefabManager::unlinkInstance(m_editor->getPrefabSession()->rootObject);
+        m_editor->log(("Unlinked prefab: " + pfName).c_str(), EditorColors::Warning);
+        m_editor->exitPrefabEdit();
+    }
+    ImGui::PopStyleColor();
+
+    ImGui::Separator();
+    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Danger);
+    if (ImGui::MenuItem("Exit Prefab Edit")) m_editor->exitPrefabEdit();
+    ImGui::PopStyleColor();
+    ImGui::Separator();
+}
+
+/// Adds a component to `go`; on a prefab instance the addition is recorded as an override.
+void HierarchyPanel::addComponentMenuItems(GameObject* go){
+    auto addIf = [&](const char* label, Component::Type type, bool has){
+        if (ImGui::MenuItem(label) && !has){
+            go->addComponent(ComponentFactory::CreateComponent(type, go));
+            GameObject* root = findPrefabRoot(go);
+            if (root)
+                if (PrefabInstanceData* inst = PrefabManager::getInstanceDataMutable(root))
+                    inst->overrides.addedComponentTypes.push_back((int)type);
+        }
+    };
+    addIf("Camera", Component::Type::Camera, go->getComponent<ComponentCamera>() != nullptr);
+    addIf("Mesh", Component::Type::Mesh, go->getComponent<ComponentMesh>() != nullptr);
+
+    if (ImGui::BeginMenu("Lights")){
+        addIf("Directional Light", Component::Type::DirectionalLight, go->getComponent<ComponentDirectionalLight>() != nullptr);
+        addIf("Point Light", Component::Type::PointLight, go->getComponent<ComponentPointLight>() != nullptr);
+        addIf("Spot Light", Component::Type::SpotLight, go->getComponent<ComponentSpotLight>() != nullptr);
+        ImGui::EndMenu();
+    }
+
+    addIf("Decal", Component::Type::Decal, go->getComponent<ComponentDecal>() != nullptr);
+
+    if (ImGui::BeginMenu("Particles")){
+        addIf("Billboard", Component::Type::Billboard, go->getComponent<ComponentBillboard>() != nullptr);
+        addIf("Particle System", Component::Type::ParticleSystem, go->getComponent<ComponentParticleSystem>() != nullptr);
+        addIf("Trail", Component::Type::Trail, go->getComponent<ComponentTrail>() != nullptr);
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("UI")){
+        addIf("Transform 2D", Component::Type::Transform2D, go->getComponent<ComponentTransform2D>() != nullptr);
+        addIf("Canvas", Component::Type::Canvas, go->getComponent<ComponentCanvas>() != nullptr);
+        addIf("Image", Component::Type::Image, go->getComponent<ComponentImage>() != nullptr);
+        addIf("Label", Component::Type::Label, go->getComponent<ComponentLabel>() != nullptr);
+        addIf("Button", Component::Type::Button, go->getComponent<ComponentButton>() != nullptr);
+        addIf("Progress Bar", Component::Type::ProgressBar, go->getComponent<ComponentProgressBar>() != nullptr);
+        addIf("Checkbox", Component::Type::CheckBox, go->getComponent<ComponentCheckBox>() != nullptr);
+        addIf("Slider", Component::Type::Slider, go->getComponent<ComponentSlider>() != nullptr);
+        addIf("Input Box", Component::Type::InputBox, go->getComponent<ComponentInputBox>() != nullptr);
+        addIf("Radio Group", Component::Type::RadioGroup, go->getComponent<ComponentRadioGroup>() != nullptr);
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Add Script")){
+        addScriptMenuItems(go);
+        ImGui::EndMenu();
+    }
+}
+
+/// One item per script class in the loaded GameScript.dll.
+void HierarchyPanel::addScriptMenuItems(GameObject* go){
+    auto* hr = m_editor->getHotReloadManager();
+
+    if (!hr){
+        ImGui::TextDisabled("HotReload not ready");
+    }
+    else {
+        auto names = hr->getRegisteredClassNames();
+
+        if (names.empty()){
+            ImGui::TextDisabled("No script DLL loaded");
+        }
+        else {
+            for (const auto& name : names){
+                if (ImGui::MenuItem(name.c_str())){
+
+                    auto comp = ComponentFactory::CreateComponent(
+                        Component::Type::Script, go);
+
+                    auto* sc = static_cast<ComponentScript*>(comp.get());
+                    sc->setScriptClass(name, hr);
+
+                    go->addComponent(std::move(comp));
+                }
+            }
+        }
+    }
+}
+
+/// Save `go` as a prefab (the name defaults to the object's), and apply / revert / unpack for an instance.
+void HierarchyPanel::prefabMenuItems(GameObject* go){
+    static char pfBuf[128] = "";
+    ImGui::SetNextItemWidth(140.0f);
+    ImGui::InputTextWithHint("##pfn", go->getName().c_str(), pfBuf, sizeof(pfBuf));
+    ImGui::SameLine();
+    if (ImGui::Button("Save")){
+        std::string name = strlen(pfBuf) > 0 ? pfBuf : go->getName();
+        if (PrefabManager::createPrefab(go, name)){
+            PrefabInstanceData d; d.prefabName = name;
+            PrefabManager::linkInstance(go, d);
+            m_editor->log(("Prefab saved: " + name).c_str(), EditorColors::Success);
+        }
+        memset(pfBuf, 0, sizeof(pfBuf));
+    }
+    if (PrefabManager::isPrefabInstance(go)){
+        ImGui::Separator();
+        if (ImGui::MenuItem("Apply to Prefab")){ PrefabManager::applyToPrefab(go); m_editor->log("Applied to prefab.", EditorColors::Success); }
+        if (ImGui::MenuItem("Revert to Prefab")){ PrefabManager::revertToPrefab(go, m_editor->getActiveModuleScene()); m_editor->log("Reverted from prefab.", EditorColors::Warning); }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Unpack (Unlink)")){ PrefabManager::unlinkInstance(go); m_editor->log("Prefab unlinked.", EditorColors::Warning); }
+    }
 }
 
 void HierarchyPanel::blankContextMenu(){

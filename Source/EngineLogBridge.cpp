@@ -1,9 +1,5 @@
-// Real implementation of PhoenixEngineLogToConsole() (declared in
-// HotReloadManager.cpp, handed across the DLL boundary to script DLLs the
-// same way Application* app is via SetPhoenixEngineApp) - forwards to the
-// editor's visible Console panel. Engine.vcxproj-only: ModuleEditor doesn't
-// exist in Player.vcxproj's build (no editor UI at runtime) - see
-// PlayerLogBridge.cpp for the no-op stub Player links instead.
+// The editor's PhoenixEngineLogToConsole(): HotReloadManager hands it to script DLLs, and it forwards their log
+// lines to the Console panel. Player links PlayerLogBridge.cpp instead, as it has no editor.
 #include "Globals.h"
 #include "Application.h"
 #include "ModuleEditor.h"

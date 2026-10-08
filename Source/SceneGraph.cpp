@@ -6,32 +6,32 @@
 #include <functional>
 #include <cfloat>
 
-SceneGraph::SceneGraph(){ root = std::make_unique<GameObject>("Root"); }
+SceneGraph::SceneGraph(){ m_root = std::make_unique<GameObject>("Root"); }
 SceneGraph::~SceneGraph() = default;
 
 GameObject* SceneGraph::createGameObject(const std::string& name, GameObject* parent){
     auto go = std::make_unique<GameObject>(name);
     auto* ptr = go.get();
-    ptr->setParent(parent ? parent : root.get());
-    objects.push_back(std::move(go));
+    ptr->setParent(parent ? parent : m_root.get());
+    m_objects.push_back(std::move(go));
     return ptr;
 }
 
 void SceneGraph::destroyGameObject(GameObject* go){
-    if (!go || go == root.get()) return;
-    GameObject* reparentTo = go->getParent() ? go->getParent() : root.get();
+    if (!go || go == m_root.get()) return;
+    GameObject* reparentTo = go->getParent() ? go->getParent() : m_root.get();
     for (auto* child : go->getChildren()) child->setParent(reparentTo);
     go->setParent(nullptr);
-    auto it = std::find_if(objects.begin(), objects.end(),
+    auto it = std::find_if(m_objects.begin(), m_objects.end(),
         [go](const std::unique_ptr<GameObject>& p){ return p.get() == go; });
-    if (it != objects.end()) objects.erase(it);
+    if (it != m_objects.end()) m_objects.erase(it);
 }
 
-void SceneGraph::update(float deltaTime){ root->update(deltaTime); }
+void SceneGraph::update(float deltaTime){ m_root->update(deltaTime); }
 
 void SceneGraph::clear(){
-    root->clearChildren();
-    objects.clear();
+    m_root->clearChildren();
+    m_objects.clear();
 }
 
 GameObject* SceneGraph::findGameObjectByName(const std::string& name){
@@ -40,7 +40,7 @@ GameObject* SceneGraph::findGameObjectByName(const std::string& name){
             for (auto* child : node->getChildren()) if (auto* found = search(child)) return found;
             return nullptr;
         };
-    return search(root.get());
+    return search(m_root.get());
 }
 
 GameObject* SceneGraph::findNearestGameObjectWithTag(const std::string& tag, const Vector3& fromPosition,
@@ -49,7 +49,7 @@ GameObject* SceneGraph::findNearestGameObjectWithTag(const std::string& tag, con
     float bestDistSq = FLT_MAX;
 
     std::function<void(GameObject*)> visit = [&](GameObject* node){
-        if (node != root.get() && node != exclude && node->isActive() && node->getTag() == tag){
+        if (node != m_root.get() && node != exclude && node->isActive() && node->getTag() == tag){
             ComponentTransform* t = node->getTransform();
             if (t){
                 float distSq = (t->position - fromPosition).LengthSquared();
@@ -58,6 +58,6 @@ GameObject* SceneGraph::findNearestGameObjectWithTag(const std::string& tag, con
         }
         for (auto* child : node->getChildren()) visit(child);
     };
-    visit(root.get());
+    visit(m_root.get());
     return best;
 }

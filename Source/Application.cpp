@@ -19,109 +19,90 @@
 #include "ModuleStaticBuffer.h"
 #include "ModuleAssets.h"
 #include "ModuleUI.h"
-#include <algorithm>
+
+namespace {
+uint64_t nowMilis(){
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+}
+}
 
 Application::Application(int argc, wchar_t** argv, void* hWnd){
-    modules.push_back(fileSystem = new ModuleFileSystem());
-    modules.push_back(input = new ModuleInput((HWND)hWnd));
-    modules.push_back(d3d12Module = new ModuleD3D12((HWND)hWnd));
-    modules.push_back(gpuresources = new ModuleGPUResources());
-    modules.push_back(resources = new ModuleResources());
-    modules.push_back(samplerHeaps = new ModuleSamplerHeap());
-    modules.push_back(camera = new ModuleCamera());
-    modules.push_back(shaderDescriptors = new ModuleShaderDescriptors());
-    modules.push_back(rtDescriptors = new ModuleRTDescriptors());
-    modules.push_back(dsDescriptors = new ModuleDSDescriptors());
-    modules.push_back(ringBuffer = new ModuleRingBuffer());
-    modules.push_back(assets = new ModuleAssets());
-    modules.push_back(ui = new ModuleUI());
+    m_modules.push_back(m_fileSystem = new ModuleFileSystem());
+    m_modules.push_back(m_input = new ModuleInput((HWND)hWnd));
+    m_modules.push_back(m_d3d12 = new ModuleD3D12((HWND)hWnd));
+    m_modules.push_back(m_gpuResources = new ModuleGPUResources());
+    m_modules.push_back(m_resources = new ModuleResources());
+    m_modules.push_back(m_samplerHeaps = new ModuleSamplerHeap());
+    m_modules.push_back(m_camera = new ModuleCamera());
+    m_modules.push_back(m_shaderDescriptors = new ModuleShaderDescriptors());
+    m_modules.push_back(m_rtDescriptors = new ModuleRTDescriptors());
+    m_modules.push_back(m_dsDescriptors = new ModuleDSDescriptors());
+    m_modules.push_back(m_ringBuffer = new ModuleRingBuffer());
+    m_modules.push_back(m_assets = new ModuleAssets());
+    m_modules.push_back(m_ui = new ModuleUI());
 
 #ifdef PHOENIX_EDITOR
-    modules.push_back(runtimeCore = new RuntimeCore(/*standalone=*/false));
-    modules.push_back(editor = new ModuleEditor());
+    m_modules.push_back(m_runtimeCore = new RuntimeCore(/*standalone=*/false));
+    m_modules.push_back(m_editor = new ModuleEditor());
 #else
-    modules.push_back(runtimeCore = new RuntimeCore(/*standalone=*/true));
+    m_modules.push_back(m_runtimeCore = new RuntimeCore(/*standalone=*/true));
 #endif
 
-    staticBuffer = new ModuleStaticBuffer();
+    m_staticBuffer = new ModuleStaticBuffer();
 }
 
 Application::~Application(){
     cleanUp();
 
-	for (auto it = modules.rbegin(); it != modules.rend(); ++it){
+    for (auto it = m_modules.rbegin(); it != m_modules.rend(); ++it){
         delete *it;
     }
 }
 
 bool Application::init(){
-	bool ret = true;
+    bool ret = true;
 
-	for (auto it = modules.begin(); it != modules.end() && ret; ++it)
-		ret = (*it)->init();
+    for (auto it = m_modules.begin(); it != m_modules.end() && ret; ++it)
+        ret = (*it)->init();
 
-    lastMilis = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    m_lastMilis = nowMilis();
 
-	return ret;
+    return ret;
 }
 
 void Application::update(){
-    using namespace std::chrono_literals;
+    if (m_updating) return;
+    m_updating = true;
 
-    if (!updating){
-        updating = true;
+    const uint64_t currentMilis = nowMilis();
 
-        uint64_t currentMilis = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    m_elapsedMilis = currentMilis - m_lastMilis;
+    m_lastMilis = currentMilis;
+    m_tickSum -= m_tickList[m_tickIndex];
+    m_tickSum += m_elapsedMilis;
+    m_tickList[m_tickIndex] = m_elapsedMilis;
+    m_tickIndex = (m_tickIndex + 1) % kFpsTicks;
 
-        elapsedMilis = currentMilis - lastMilis;
-        lastMilis = currentMilis;
-        tickSum -= tickList[tickIndex];
-        tickSum += elapsedMilis;
-        tickList[tickIndex] = elapsedMilis;
-        tickIndex = (tickIndex + 1) % MAX_FPS_TICKS;
+    Phoenix::Time::deltaTime      = m_elapsedMilis * 0.001f;
+    Phoenix::Time::timeSinceStart = currentMilis * 0.001f;
+    Phoenix::Time::fps            = getFPS();
+    Phoenix::Time::frameCount    += 1;
 
-        // Update scripting API time values
-        Phoenix::Time::deltaTime      = elapsedMilis * 0.001f;
-        Phoenix::Time::timeSinceStart = currentMilis * 0.001f;
-        Phoenix::Time::fps            = getFPS();
-        Phoenix::Time::frameCount    += 1;
-
-        if (!app->paused){
-            for (auto it = swapModules.begin(); it != swapModules.end(); ++it){
-                auto pos = std::find(modules.begin(), modules.end(), it->first);
-                if (pos != modules.end()){
-                    (*pos)->cleanUp();
-                    delete* pos;
-
-                    it->second->init();
-                    *pos = it->second;
-                }
-            }
-
-            swapModules.clear();
-
-            for (auto it = modules.begin(); it != modules.end(); ++it)
-                (*it)->update();
-
-            for (auto it = modules.begin(); it != modules.end(); ++it)
-                (*it)->preRender();
-
-            for (auto it = modules.begin(); it != modules.end(); ++it)
-                (*it)->render();
-
-            for (auto it = modules.begin(); it != modules.end(); ++it)
-                (*it)->postRender();
-        }
-
-        updating = false;
+    if (!m_paused){
+        for (Module* module : m_modules) module->update();
+        for (Module* module : m_modules) module->preRender();
+        for (Module* module : m_modules) module->render();
+        for (Module* module : m_modules) module->postRender();
     }
+
+    m_updating = false;
 }
 
 bool Application::cleanUp(){
-	bool ret = true;
+    bool ret = true;
 
-	for (auto it = modules.rbegin(); it != modules.rend() && ret; ++it)
-		ret = (*it)->cleanUp();
+    for (auto it = m_modules.rbegin(); it != m_modules.rend() && ret; ++it)
+        ret = (*it)->cleanUp();
 
-	return ret;
+    return ret;
 }

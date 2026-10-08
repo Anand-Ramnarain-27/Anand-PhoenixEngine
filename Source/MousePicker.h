@@ -1,10 +1,13 @@
 #pragma once
+// Click-to-select in the Scene view: ray cast against mesh triangles.
+
 #include "Globals.h"
 #include "RayMath.h"
 
 class GameObject;
 class SceneGraph;
 
+/// pick() returns the closest GameObject whose mesh the mouse ray hits, or nullptr.
 class MousePicker {
 public:
     static GameObject* pick(

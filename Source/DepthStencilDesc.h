@@ -1,4 +1,5 @@
 #pragma once
+// Ref-counted handle to a depth-stencil view.
 
 #include "DescriptorBase.h"
 

@@ -115,15 +115,6 @@ ComPtr<ID3D12Resource> ModuleGPUResources::createRawTexture2D(const void* data, 
     return texture;
 }
 
-ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromMemory(const void* data, size_t size, const char* name){
-    ScratchImage image;
-    bool ok = SUCCEEDED(LoadFromDDSMemory(data, size, DDS_FLAGS_NONE, nullptr, image));
-    ok = ok || SUCCEEDED(LoadFromHDRMemory(data, size, nullptr, image));
-    ok = ok || SUCCEEDED(LoadFromTGAMemory(data, size, TGA_FLAGS_NONE, nullptr, image));
-    ok = ok || SUCCEEDED(LoadFromWICMemory(data, size, WIC_FLAGS_NONE, nullptr, image));
-    return ok ? createTextureFromImage(image, name) : nullptr;
-}
-
 ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromFile(const std::filesystem::path& path, bool defaultSRGB){
     std::filesystem::path absPath = path;
     if (!absPath.is_absolute()){
@@ -140,7 +131,7 @@ ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromFile(const std::file
     if (!ok) ok = SUCCEEDED(LoadFromTGAFile(fileName, TGA_FLAGS_NONE, nullptr, image));
     if (!ok) ok = SUCCEEDED(LoadFromWICFile(fileName, defaultSRGB ? WIC_FLAGS_DEFAULT_SRGB : WIC_FLAGS_NONE, nullptr, image));
     if (!ok){
-        LOG("ModuleGPUResources::createTextureFromFile: all loaders failed for '%s' (DDS hr=0x%08X)", absPath.string().c_str(), (unsigned)hrFirst);
+        PHX_LOG(Render, Error, "ModuleGPUResources::createTextureFromFile: all loaders failed for '%s' (DDS hr=0x%08X)", absPath.string().c_str(), (unsigned)hrFirst);
         return nullptr;
     }
     return createTextureFromImage(image, path.string().c_str());
@@ -157,14 +148,14 @@ ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromImage(const ScratchI
     CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
     HRESULT hrCreate = device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&texture));
     bool ok = SUCCEEDED(hrCreate);
-    if (!ok){ LOG("ModuleGPUResources::createTextureFromImage: CreateCommittedResource failed 0x%08X for '%s'", (unsigned)hrCreate, name); return {}; }
+    if (!ok){ PHX_LOG(Render, Error, "ModuleGPUResources::createTextureFromImage: CreateCommittedResource failed 0x%08X for '%s'", (unsigned)hrCreate, name); return {}; }
 
     ComPtr<ID3D12Resource> upload;
     if (ok){
         _ASSERTE(meta.mipLevels * meta.arraySize == image.GetImageCount());
         upload = getUploadHeap(GetRequiredIntermediateSize(texture.Get(), 0, UINT(image.GetImageCount())));
         ok = upload != nullptr;
-        if (!ok) LOG("ModuleGPUResources::createTextureFromImage: getUploadHeap failed for '%s'", name);
+        if (!ok) PHX_LOG(Render, Error, "ModuleGPUResources::createTextureFromImage: getUploadHeap failed for '%s'", name);
     }
 
     if (ok){
@@ -177,7 +168,7 @@ ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromImage(const ScratchI
             }
         UINT64 uploaded = UpdateSubresources(commandList.Get(), texture.Get(), upload.Get(), 0, 0, UINT(image.GetImageCount()), subData.data());
         ok = uploaded != 0;
-        if (!ok) LOG("ModuleGPUResources::createTextureFromImage: UpdateSubresources returned 0 for '%s'", name);
+        if (!ok) PHX_LOG(Render, Error, "ModuleGPUResources::createTextureFromImage: UpdateSubresources returned 0 for '%s'", name);
     }
 
     if (ok){

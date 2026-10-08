@@ -1,4 +1,6 @@
 #pragma once
+// The Asset Browser panel: folder tree, thumbnail grid, and asset / prefab actions.
+
 #include "EditorPanel.h"
 #include <string>
 #include <vector>
@@ -11,6 +13,8 @@ namespace Microsoft::WRL { template<typename T> class ComPtr; }
 
 static constexpr const char* kDragAsset = "ASSET_PATH";
 
+/// Browses Assets/: drag an item out (payload kDragAsset) to place it; double-click opens a folder, edits a
+/// prefab, opens a script in the IDE or spawns the asset; right-click for more actions.
 class AssetBrowserPanel : public EditorPanel {
 public:
     explicit AssetBrowserPanel(ModuleEditor* editor) : EditorPanel(editor){}
@@ -45,7 +49,6 @@ private:
     void prefabInstantiate(const std::string& name);
     void prefabApply();
     void prefabRevert();
-    void prefabDelete(const std::string& name);
     void prefabCreateVariant(const std::string& src, const std::string& dst);
     void prefabRename(const std::string& oldName, const std::string& newName);
     void reimportTextureAs(const std::string& ddsPath, int typeIndex);

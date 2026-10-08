@@ -24,6 +24,7 @@
 #include <algorithm>
 
 void ModuleEditor::preRender(){
+    PhoenixLog::drainConsole();
     flushExitPrefabEdit();
     m_sceneView->handleResize();
     m_gameView->handleResize();
@@ -72,8 +73,6 @@ void ModuleEditor::render(){
     ID3D12GraphicsCommandList* cmd = d3d12->getCommandList();
 
     m_scriptWatcher.poll();
-
-    m_frameTransientBuffers.clear();
 
     cmd->Reset(d3d12->getCommandAllocator(), nullptr);
     cmd->EndQuery(m_gpuQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);

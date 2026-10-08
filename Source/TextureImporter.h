@@ -1,4 +1,5 @@
 #pragma once
+// Imports images into Library/Textures as .dds (with mips) and loads them as GPU textures.
 
 #include <string>
 #include <cstdint>
@@ -7,29 +8,30 @@
 
 using Microsoft::WRL::ComPtr;
 
+/// Converts source images with DirectXTex and creates the texture and its SRV on load.
 class TextureImporter {
 public:
-	struct TextureHeader {
-		uint32_t magic = 0x54455854;
-		uint32_t version = 1;
-		uint32_t width = 0;
-		uint32_t height = 0;
-		uint32_t mipLevels = 0;
-		uint32_t format = 0;
-	};
+    struct TextureHeader {
+        uint32_t magic = 0x54455854;
+        uint32_t version = 1;
+        uint32_t width = 0;
+        uint32_t height = 0;
+        uint32_t mipLevels = 0;
+        uint32_t format = 0;
+    };
 
-	enum class TextureType {
-		Color,
-		ColorHQ,
-		Emissive,
-		Normal,
-		Occlusion,
-		MetalRoughness,
-	};
+    enum class TextureType {
+        Color,
+        ColorHQ,
+        Emissive,
+        Normal,
+        Occlusion,
+        MetalRoughness,
+    };
 
-	static bool Import(const char* sourcePath, const std::string& outputPath, TextureType type = TextureType::Color);
-	static bool ImportFromMemory(const unsigned char* data, int width, int height, int channels, const std::string& outputPath, TextureType type = TextureType::Color);
-	static bool Load(const std::string& file, ComPtr<ID3D12Resource>& outTexture, D3D12_GPU_DESCRIPTOR_HANDLE& outSRV);
-	static std::string GetTextureName(const char* filePath);
-	static bool SaveMetadata(const std::string& ddsPath, uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t format);
+    static bool Import(const char* sourcePath, const std::string& outputPath, TextureType type = TextureType::Color);
+    static bool ImportFromMemory(const unsigned char* data, int width, int height, int channels, const std::string& outputPath, TextureType type = TextureType::Color);
+    static bool Load(const std::string& file, ComPtr<ID3D12Resource>& outTexture, D3D12_GPU_DESCRIPTOR_HANDLE& outSRV);
+    static std::string GetTextureName(const char* filePath);
+    static bool SaveMetadata(const std::string& ddsPath, uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t format);
 };

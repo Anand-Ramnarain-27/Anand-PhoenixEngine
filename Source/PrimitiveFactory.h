@@ -1,4 +1,6 @@
 #pragma once
+// Built-in meshes (cube, sphere, capsule, plane, cylinder, quad) and the GameObjects that use them.
+
 #include "Globals.h"
 #include <memory>
 #include <string>
@@ -21,6 +23,7 @@ enum class PrimitiveType {
     Cylinder,
 };
 
+/// Procedural meshes, generated on the CPU with normals and UVs.
 class PrimitiveFactory {
 public:
     static std::unique_ptr<Mesh> createQuadMesh();

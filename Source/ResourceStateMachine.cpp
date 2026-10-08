@@ -97,7 +97,7 @@ bool ResourceStateMachine::Load(const std::string& path){
     char* buf = nullptr;
     unsigned size = app->getFileSystem()->Load(path.c_str(), &buf);
     if (!buf || size == 0){
-        LOG("ResourceStateMachine: could not read '%s'", path.c_str());
+        PHX_LOG(Assets, Error, "ResourceStateMachine: could not read '%s'", path.c_str());
         return false;
     }
 
@@ -106,7 +106,7 @@ bool ResourceStateMachine::Load(const std::string& path){
     delete[] buf;
 
     if (doc.HasParseError()){
-        LOG("ResourceStateMachine: JSON parse error in '%s'", path.c_str());
+        PHX_LOG(Assets, Error, "ResourceStateMachine: JSON parse error in '%s'", path.c_str());
         return false;
     }
 
@@ -119,7 +119,7 @@ bool ResourceStateMachine::Load(const std::string& path){
         for (SizeType i = 0; i < arr.Size(); ++i){
             const Value& v = arr[i];
             if (!v.HasMember("Name") || !v["Name"].IsString()){
-                LOG("ResourceStateMachine: Clips[%u] missing Name — skipped", i);
+                PHX_LOG(Assets, Warning, "ResourceStateMachine: Clips[%u] missing Name — skipped", i);
                 continue;
             }
             SMClip c;
@@ -136,7 +136,7 @@ bool ResourceStateMachine::Load(const std::string& path){
         for (SizeType i = 0; i < arr.Size(); ++i){
             const Value& v = arr[i];
             if (!v.HasMember("Name") || !v["Name"].IsString()){
-                LOG("ResourceStateMachine: States[%u] missing Name — skipped", i);
+                PHX_LOG(Assets, Warning, "ResourceStateMachine: States[%u] missing Name — skipped", i);
                 continue;
             }
             SMState s;
@@ -146,7 +146,7 @@ bool ResourceStateMachine::Load(const std::string& path){
                        : std::string{};
 
             if (!s.clipName.empty() && !FindClip(s.clipName))
-                LOG("ResourceStateMachine: state '%s' references unknown clip '%s'",
+                PHX_LOG(Assets, Warning, "ResourceStateMachine: state '%s' references unknown clip '%s'",
                     s.name.str.c_str(), s.clipName.str.c_str());
 
             states.push_back(std::move(s));
@@ -160,7 +160,7 @@ bool ResourceStateMachine::Load(const std::string& path){
             const Value& v = arr[i];
             if (!v.HasMember("Source") || !v["Source"].IsString() ||
                 !v.HasMember("Target") || !v["Target"].IsString()){
-                LOG("ResourceStateMachine: Transitions[%u] missing Source/Target — skipped", i);
+                PHX_LOG(Assets, Warning, "ResourceStateMachine: Transitions[%u] missing Source/Target — skipped", i);
                 continue;
             }
             SMTransition t;
@@ -172,12 +172,12 @@ bool ResourceStateMachine::Load(const std::string& path){
             t.interpolationMs = v.HasMember("BlendMs") ? v["BlendMs"].GetUint() : 200u;
 
             if (!FindState(t.source)){
-                LOG("ResourceStateMachine: Transitions[%u] unknown source state '%s' — skipped",
+                PHX_LOG(Assets, Warning, "ResourceStateMachine: Transitions[%u] unknown source state '%s' — skipped",
                     i, t.source.str.c_str());
                 continue;
             }
             if (!FindState(t.target)){
-                LOG("ResourceStateMachine: Transitions[%u] unknown target state '%s' — skipped",
+                PHX_LOG(Assets, Warning, "ResourceStateMachine: Transitions[%u] unknown target state '%s' — skipped",
                     i, t.target.str.c_str());
                 continue;
             }
@@ -189,6 +189,3 @@ bool ResourceStateMachine::Load(const std::string& path){
 }
 
 
-// ResourceStateMachine::DrawInspector() lives in ResourceStateMachineEditor.cpp
-// now - kept separate so this file (needed for SendTrigger's FindState/
-// FindClip lookups) can be linked into GameScript.dll without ImGui.

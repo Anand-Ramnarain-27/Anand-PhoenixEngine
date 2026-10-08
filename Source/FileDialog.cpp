@@ -80,7 +80,7 @@ bool FileDialog::draw(){
 void FileDialog::refreshDirectory(){
     m_entries.clear();
     try {
-        if (!fs::exists(m_currentPath)){ LOG("FileDialog: Directory does not exist: %s", m_currentPath.c_str()); return; }
+        if (!fs::exists(m_currentPath)){ PHX_LOG(Assets, Warning, "FileDialog: Directory does not exist: %s", m_currentPath.c_str()); return; }
         for (const auto& entry : fs::directory_iterator(m_currentPath)){
             std::string name = entry.path().filename().string();
             if (name[0] == '.') continue;
@@ -92,7 +92,7 @@ void FileDialog::refreshDirectory(){
             return a.isDirectory != b.isDirectory ? a.isDirectory : a.name < b.name;
             });
     }
-    catch (const fs::filesystem_error& e){ LOG("FileDialog: Error reading directory: %s", e.what()); }
+    catch (const fs::filesystem_error& e){ PHX_LOG(Assets, Error, "FileDialog: Error reading directory: %s", e.what()); }
 }
 
 bool FileDialog::matchesFilter(const std::string& filename) const{

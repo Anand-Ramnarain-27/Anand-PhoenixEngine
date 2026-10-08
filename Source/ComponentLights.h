@@ -1,7 +1,10 @@
 #pragma once
+// Directional, point and spot light components, gathered by RuntimeCore each frame.
+
 #include "Component.h"
 #include "ModuleD3D12.h"
 
+/// Sun-style light. The first enabled one with castShadows gets cascaded shadow maps.
 class ComponentDirectionalLight : public Component {
 public:
     explicit ComponentDirectionalLight(GameObject* owner);
@@ -37,6 +40,7 @@ public:
     int shadowPreviewCascade = 0;
 };
 
+/// Omni light with a range. The first enabled one with castShadows gets a cube shadow map.
 class ComponentPointLight : public Component {
 public:
     explicit ComponentPointLight(GameObject* owner);
@@ -56,11 +60,12 @@ public:
     int shadowResolution = 1024;
     float shadowBias = 0.01f;
 
-    // Runtime-only (not saved): a short-lived VFX light (Phoenix::VFX). Up to 4 are gathered before every other
-    // point light, so a hit flash never loses its slot to the level's lights; a transient light never casts shadows.
+    /// Runtime-only (not saved): a short-lived VFX light (Phoenix::VFX). Up to 4 are gathered before every other
+    /// point light, so a hit flash never loses its slot to the level's lights; a transient light never casts shadows.
     bool transient = false;
 };
 
+/// Cone light; angles in degrees. The first enabled one with castShadows gets a shadow map.
 class ComponentSpotLight : public Component {
 public:
     explicit ComponentSpotLight(GameObject* owner);

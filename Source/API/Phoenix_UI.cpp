@@ -11,6 +11,12 @@
 #include "ComponentLabel.h"
 #include "ComponentTransform2D.h"
 #include "UIRadioGroup.h"
+#include "ComponentCanvas.h"
+#include "ComponentCamera.h"
+#include "ComponentTransform.h"
+#include "ModuleCamera.h"
+#include <algorithm>
+#include <cmath>
 
 // Everything here works on component data and inline code only: GameScript.dll shares just the `app` pointer
 // with the engine, so it cannot call into renderer code.
@@ -235,6 +241,104 @@ void UI::SetProgressColor(GameObject* go, Color fill){
 
 void UI::SetImageTexture(GameObject* go, const std::string& path){
     if (auto* i = go ? go->getComponent<ComponentImage>() : nullptr) i->texturePath = path;
+}
+
+void UI::SetPosition(GameObject* go, Vec2 position){
+    if (auto* t = go ? go->getComponent<ComponentTransform2D>() : nullptr) t->position = position;
+}
+
+Vec2 UI::GetSize(GameObject* go){
+    auto* t = go ? go->getComponent<ComponentTransform2D>() : nullptr;
+    return t ? Vec2(t->size.x, t->size.y) : Vec2(0.f, 0.f);
+}
+
+Vec2 UI::GetPosition(GameObject* go){
+    auto* t = go ? go->getComponent<ComponentTransform2D>() : nullptr;
+    return t ? t->position : Vec2(0.f, 0.f);
+}
+
+void UI::SetSize(GameObject* go, Vec2 size){
+    if (auto* t = go ? go->getComponent<ComponentTransform2D>() : nullptr) t->size = size;
+}
+
+bool UI::WorldToViewport(Vec3 world, Vec2& out){
+    // Same view and projection the game view renders with: the active camera's world matrix inverted, and its
+    // perspective at the aspect ratio RuntimeCore keeps on ModuleCamera (inline data only - see the note above).
+    ModuleCamera* mc = app ? app->getCamera() : nullptr;
+    GameObject* camGo = mc ? mc->getActiveCamera() : nullptr;
+    ComponentCamera* cam = camGo ? camGo->getComponent<ComponentCamera>() : nullptr;
+    if (!cam || !camGo->getTransform()) return false;
+    const Matrix view = camGo->getTransform()->getGlobalMatrix().Invert();
+    const float aspect = mc->aspectRatio > 0.f ? mc->aspectRatio : 16.f / 9.f;
+    const Matrix proj = Matrix::CreatePerspectiveFieldOfView(cam->getFOV(), aspect, cam->getNearPlane(), cam->getFarPlane());
+    const Vector4 clip = Vector4::Transform(Vector4(world.x, world.y, world.z, 1.f), view * proj);
+    if (clip.w <= 1e-4f) return false;   // behind the camera
+    const float ndcX = clip.x / clip.w, ndcY = clip.y / clip.w, ndcZ = clip.z / clip.w;
+    out = Vec2(ndcX * 0.5f + 0.5f, 0.5f - ndcY * 0.5f);
+    return ndcZ <= 1.f;
+}
+
+bool UI::GetGamePointer(Vec2& out){
+    ModuleUI* ui = app ? app->getUI() : nullptr;
+    if (!ui){ out = Vec2(0.5f, 0.5f); return false; }
+    Vector2 p;
+    const bool valid = ui->getGamePointer(p);
+    out = Vec2(p.x, p.y);
+    return valid;
+}
+
+float UI::GetMouseWheel(){
+    ModuleUI* ui = app ? app->getUI() : nullptr;
+    return ui ? ui->getGameWheel() : 0.f;
+}
+
+bool UI::ScreenToRay(Vec2 viewport, Vec3& origin, Vec3& direction){
+    // Same camera as WorldToViewport, run backwards: NDC at the near and far planes through the inverse view-proj.
+    ModuleCamera* mc = app ? app->getCamera() : nullptr;
+    GameObject* camGo = mc ? mc->getActiveCamera() : nullptr;
+    ComponentCamera* cam = camGo ? camGo->getComponent<ComponentCamera>() : nullptr;
+    if (!cam || !camGo->getTransform()) return false;
+    const Matrix view = camGo->getTransform()->getGlobalMatrix().Invert();
+    const float aspect = mc->aspectRatio > 0.f ? mc->aspectRatio : 16.f / 9.f;
+    const Matrix proj = Matrix::CreatePerspectiveFieldOfView(cam->getFOV(), aspect, cam->getNearPlane(), cam->getFarPlane());
+    const Matrix inv = (view * proj).Invert();
+    const float ndcX = viewport.x * 2.f - 1.f, ndcY = 1.f - viewport.y * 2.f;
+    const Vector4 n = Vector4::Transform(Vector4(ndcX, ndcY, 0.f, 1.f), inv);
+    const Vector4 f = Vector4::Transform(Vector4(ndcX, ndcY, 1.f, 1.f), inv);
+    if (std::abs(n.w) < 1e-8f || std::abs(f.w) < 1e-8f) return false;
+    const Vector3 nearP(n.x / n.w, n.y / n.w, n.z / n.w), farP(f.x / f.w, f.y / f.w, f.z / f.w);
+    Vector3 dir = farP - nearP;
+    if (dir.LengthSquared() < 1e-12f) return false;
+    dir.Normalize();
+    origin = Vec3(nearP.x, nearP.y, nearP.z);
+    direction = Vec3(dir.x, dir.y, dir.z);
+    return true;
+}
+
+bool UI::WorldToCanvas(GameObject* go, Vec3 world, Vec2& out){
+    // The canvas this widget is laid out in: canvas units = screen pixels / scale factor, and with "scale with
+    // screen size" the canvas height only depends on the aspect ratio (ComponentCanvas::getScaleFactor, inlined).
+    ComponentCanvas* canvas = nullptr;
+    for (GameObject* n = go; n && !canvas; n = n->getParent()) canvas = n->getComponent<ComponentCanvas>();
+    ModuleCamera* mc = app ? app->getCamera() : nullptr;
+    if (!canvas || !mc) return false;
+    Vec2 vp;
+    const bool visible = WorldToViewport(world, vp);
+    const float aspect = mc->aspectRatio > 0.f ? mc->aspectRatio : 16.f / 9.f;
+    float w, h;
+    if (canvas->scaleMode == ComponentCanvas::ScaleMode::ScaleWithScreenSize){
+        const float refW = std::max(1.f, canvas->referenceResolution.x);
+        const float refH = std::max(1.f, canvas->referenceResolution.y);
+        const float m = std::clamp(canvas->matchWidthOrHeight, 0.f, 1.f);
+        h = std::pow(refW, 1.f - m) * std::pow(refH, m) * std::pow(aspect, -(1.f - m));
+        w = h * aspect;
+    } else {
+        // Constant pixel size: canvas units are pixels; without the window size, assume the reference height.
+        h = std::max(1.f, canvas->referenceResolution.y);
+        w = h * aspect;
+    }
+    out = Vec2(vp.x * w, vp.y * h);
+    return visible;
 }
 
 } // namespace Phoenix

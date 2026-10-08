@@ -37,8 +37,8 @@ void CreateTestScene(SceneGraph* scene,
         charAnim->LoadStateMachineFromPath(smPath);
 
     auto* charMotion = character->createComponent<ComponentCharacterMotion>();
-    charMotion->mLinearSpeed = 5.f;
-    charMotion->mAngularSpeed = 2.f;
+    charMotion->linearSpeed = 5.f;
+    charMotion->angularSpeed = 2.f;
 
     GameObject* face = scene->createGameObject("TestFace");
     face->getTransform()->position = { 3.f, 0.f, 0.f };
@@ -49,20 +49,20 @@ void CreateTestScene(SceneGraph* scene,
 
     face->createComponent<ComponentAnimation>();
 
-    LOG("[TestScene] Created TestCharacter at (0,0,0) and TestFace at (3,0,0).");
-    LOG("[TestScene] Fill in AnimationUIDs in character_sm.json, then call ValidateAnimationSetup().");
+    PHX_LOG(Editor, Info, "[TestScene] Created TestCharacter at (0,0,0) and TestFace at (3,0,0).");
+    PHX_LOG(Editor, Info, "[TestScene] Fill in AnimationUIDs in character_sm.json, then call ValidateAnimationSetup().");
 }
 
 
 static void check(bool ok, const char* msg){
-    if (ok){ LOG("[OK]   %s", msg); }
-    else { LOG("[FAIL] %s", msg); }
+    if (ok){ PHX_LOG(Editor, Info, "[OK]   %s", msg); }
+    else { PHX_LOG(Editor, Error, "[FAIL] %s", msg); }
 }
 
 void ValidateAnimationSetup(SceneGraph* scene){
-    LOG("=== ValidateAnimationSetup ===");
+    PHX_LOG(Editor, Info, "=== ValidateAnimationSetup ===");
 
-    if (!scene){ LOG("[FAIL] scene is null"); return; }
+    if (!scene){ PHX_LOG(Editor, Error, "[FAIL] scene is null"); return; }
 
     GameObject* charGO = scene->findGameObjectByName("TestCharacter");
     GameObject* faceGO = scene->findGameObjectByName("TestFace");
@@ -177,8 +177,8 @@ void ValidateAnimationSetup(SceneGraph* scene){
     check(SkinningPass::MAX_TOTAL_JOINTS >= 64,
           "SkinningPass joint palette fits at least 64 joints (MAX_TOTAL_JOINTS)");
 
-    LOG("[OK]   SkinningPass dispatches in render() after preRender() — always sees latest bone transforms.");
-    LOG("[OK]   In editor (not playing): only ComponentAnimation::update() is called (preview mode).");
-    LOG("[OK]   In play mode: root->update(dt) calls all components in insertion order per GO.");
-    LOG("=== ValidateAnimationSetup done ===");
+    PHX_LOG(Editor, Info, "[OK]   SkinningPass dispatches in render() after preRender() — always sees latest bone transforms.");
+    PHX_LOG(Editor, Info, "[OK]   In editor (not playing): only ComponentAnimation::update() is called (preview mode).");
+    PHX_LOG(Editor, Info, "[OK]   In play mode: root->update(dt) calls all components in insertion order per GO.");
+    PHX_LOG(Editor, Info, "=== ValidateAnimationSetup done ===");
 }

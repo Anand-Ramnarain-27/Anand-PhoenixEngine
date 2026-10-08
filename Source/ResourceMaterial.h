@@ -1,4 +1,6 @@
 #pragma once
+// Ref-counted Material loaded from Library/Materials.
+
 #include "ResourceCommon.h"
 #include <memory>
 

@@ -1,9 +1,12 @@
 #pragma once
+// Offscreen colour (and optional depth) target used for viewports and post-processing.
 
 #include "ShaderTableDesc.h"
 #include "RenderTargetDesc.h"
 #include "DepthStencilDesc.h"
 
+/// Colour texture with its RTV, SRV and optional depth buffer; resize() recreates them. MSAA targets resolve
+/// into a single-sample copy for sampling.
 class RenderTexture {
     struct TexturePair {
         ComPtr<ID3D12Resource> texture;

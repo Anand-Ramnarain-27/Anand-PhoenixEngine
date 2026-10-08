@@ -252,5 +252,5 @@ void CreateUITestScene(SceneGraph* scene, HotReloadManager* hotReload){
                             Vector4(.15f, .15f, .25f, .85f));
     label(scene, bar, "Bar Text", fill(), "Stretched bottom bar (anchors 0..1)", 28.f, white);
 
-    LOG("[UITest] Created camera, light and UI test canvas%s.", scripted ? " (UIDemoScript attached)" : "");
+    PHX_LOG(UI, Info, "[UITest] Created camera, light and UI test canvas%s.", scripted ? " (UIDemoScript attached)" : "");
 }

@@ -1,4 +1,6 @@
 #pragma once
+// Ref-counted resource cache: meshes, materials, textures, models and animations by UID.
+
 #include "Module.h"
 #include "ResourceCommon.h"
 #include <unordered_map>
@@ -27,6 +29,7 @@ class ModuleStaticBuffer;
 ResourceBase* CreateNonAnimationResource(ResourceBase::Type type, UID uid,
     const std::string& libraryPath, UID textureUID, const std::string& assetPath);
 
+/// RequestX(uid) loads on first use and shares afterwards; ReleaseResource drops a reference.
 class ModuleResources : public Module {
 public:
     ModuleResources();

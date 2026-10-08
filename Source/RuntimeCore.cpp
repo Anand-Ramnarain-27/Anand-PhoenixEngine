@@ -43,6 +43,10 @@
 #include "MeshEntry.h"
 #include "ResourceMesh.h"
 #include "ComponentFactory.h"
+#include "VfxGuards.h"
+#ifdef PHOENIX_EDITOR
+#include "ModuleEditor.h"
+#endif
 #include <d3dx12.h>
 #include <filesystem>
 #include <algorithm>
@@ -52,8 +56,94 @@
 
 static constexpr float kDeg2Rad = 0.0174532925f;
 
+namespace {
+// The frame after a blocking level load would otherwise see the whole load time as its delta.
+constexpr float kMaxDtAfterLoad = 1.f / 60.f;
+// Upper bound for Phoenix::VFX's time scale (slow-mo / fast-forward).
+constexpr float kMaxTimeScale = 4.f;
+const Vector4 kPlayerClearColor(0.05f, 0.05f, 0.1f, 1.0f);
+}
+
 RuntimeCore::RuntimeCore(bool standalone) : m_standalone(standalone){}
 RuntimeCore::~RuntimeCore() = default;
+
+// Engine functions GameScript.dll can't link (component constructors and model loading live in the executable,
+// not PhoenixCore.lib): scripts reach them through these pointers (Phoenix::VFX).
+void RuntimeCore::installEngineHooks(){
+    EngineHooks& hooks = m_sceneManager->getEngineHooks();
+    hooks.addComponent = [](GameObject* owner, int type) -> Component* {
+        if (!owner) return nullptr;
+        for (const auto& c : owner->getComponents())
+            if ((int)c->getType() == type) return c.get();
+        auto comp = ComponentFactory::CreateComponent((Component::Type)type, owner);
+        Component* raw = comp.get();
+        if (raw) owner->addComponent(std::move(comp));
+        return raw;
+    };
+    hooks.loadModel = [](GameObject* owner, const char* assetPath) -> bool {
+        if (!owner || !assetPath) return false;
+        auto* cm = owner->getComponent<ComponentMesh>();
+        if (!cm){
+            owner->addComponent(ComponentFactory::CreateComponent(Component::Type::Mesh, owner));
+            cm = owner->getComponent<ComponentMesh>();
+        }
+        return cm && cm->loadModel(assetPath);
+    };
+#ifdef PHOENIX_EDITOR
+    hooks.logWarning = [](const char* text){
+        if (text && app && app->getEditor()) app->getEditor()->log(text, ImVec4(1.f, 0.75f, 0.3f, 1.f));
+    };
+#endif
+}
+
+void RuntimeCore::loadScriptLibraries(){
+    std::string scriptDir = app->getFileSystem()->GetAssetsPath() + std::string("Scripts/");
+    app->getFileSystem()->CreateDir(scriptDir.c_str());
+    auto existing = app->getFileSystem()->GetFilesInDirectory(scriptDir.c_str(), ".dll");
+    for (const auto& path : existing)
+        m_hotReload->loadLibrary(path);
+}
+
+void RuntimeCore::createPlayerViewport(uint32_t w, uint32_t h){
+    m_playerViewport = std::make_unique<EditorViewport>();
+    m_playerViewport->rt = std::make_unique<RenderTexture>("PlayerColor", kSceneColorFormat, kPlayerClearColor, DXGI_FORMAT_D32_FLOAT, 1.0f);
+    m_playerViewport->rtScratch = std::make_unique<RenderTexture>("PlayerColorScratch", kSceneColorFormat, kPlayerClearColor);
+    m_playerViewport->display = std::make_unique<RenderTexture>("PlayerDisplay", DXGI_FORMAT_R8G8B8A8_UNORM, kPlayerClearColor);
+    m_playerViewport->displayScratch = std::make_unique<RenderTexture>("PlayerDisplayScratch", DXGI_FORMAT_R8G8B8A8_UNORM, kPlayerClearColor);
+    for (int i = 0; i < EditorViewport::kNumBloomMips; ++i)
+        m_playerViewport->bloomMips[i] = std::make_unique<RenderTexture>("PlayerBloomMip", kSceneColorFormat, Vector4(0.f, 0.f, 0.f, 1.0f));
+    resizePlayerViewport(w, h);
+}
+
+void RuntimeCore::resizePlayerViewport(uint32_t w, uint32_t h){
+    m_playerViewport->rt->resize(w, h);
+    m_playerViewport->rtScratch->resize(w, h);
+    m_playerViewport->display->resize(w, h);
+    m_playerViewport->displayScratch->resize(w, h);
+    uint32_t mw = w, mh = h;
+    for (int i = 0; i < EditorViewport::kNumBloomMips; ++i){
+        mw = std::max(1u, mw / 2);
+        mh = std::max(1u, mh / 2);
+        m_playerViewport->bloomMips[i]->resize(mw, mh);
+    }
+}
+
+// The Player boots straight into the first scene of its shipped build list.
+void RuntimeCore::bootStandaloneScene(){
+    BuildSettings buildSettings;
+    const std::string bsPath = app->getFileSystem()->GetLibraryPath() + "BuildSettings.json";
+    if (buildSettings.Load(bsPath)){
+        if (m_sceneManager->loadSceneByBuildIndex(0, buildSettings)){
+            applySkyboxFromSettings();
+            // The player has no Play button: scripts only update while playing, so start right away.
+            m_sceneManager->play();
+        }
+        else
+            PHX_LOG(Core, Error, "RuntimeCore: BuildSettings.json found but scene 0 failed to load");
+    } else {
+        PHX_LOG(Core, Info, "RuntimeCore: No BuildSettings.json at '%s' — booting with an empty scene", bsPath.c_str());
+    }
+}
 
 bool RuntimeCore::init(){
     ModuleD3D12* d3d12 = app->getD3D12();
@@ -67,37 +157,28 @@ bool RuntimeCore::init(){
     m_collisionResponse = std::make_unique<CollisionResponse>();
     m_navigationSystem = std::make_unique<NavigationSystem>();
     m_sceneManager = std::make_unique<SceneManager>();
-    {
-        EngineHooks& hooks = m_sceneManager->getEngineHooks();
-        hooks.addComponent = [](GameObject* owner, int type) -> Component* {
-            if (!owner) return nullptr;
-            for (const auto& c : owner->getComponents())
-                if ((int)c->getType() == type) return c.get();
-            auto comp = ComponentFactory::CreateComponent((Component::Type)type, owner);
-            Component* raw = comp.get();
-            if (raw) owner->addComponent(std::move(comp));
-            return raw;
-        };
-        hooks.loadModel = [](GameObject* owner, const char* assetPath) -> bool {
-            if (!owner || !assetPath) return false;
-            auto* cm = owner->getComponent<ComponentMesh>();
-            if (!cm){
-                owner->addComponent(ComponentFactory::CreateComponent(Component::Type::Mesh, owner));
-                cm = owner->getComponent<ComponentMesh>();
-            }
-            return cm && cm->loadModel(assetPath);
-        };
-    }
+    installEngineHooks();
     m_sceneTransition = std::make_unique<SceneTransition>();
     m_meshRenderPass = std::make_unique<ForwardMeshPass>();
     m_hotReload = std::make_unique<HotReloadManager>();
 
-    std::string scriptDir = app->getFileSystem()->GetAssetsPath() + std::string("Scripts/");
-    app->getFileSystem()->CreateDir(scriptDir.c_str());
-    auto existing = app->getFileSystem()->GetFilesInDirectory(scriptDir.c_str(), ".dll");
-    for (const auto& path : existing)
-        m_hotReload->loadLibrary(path);
+    loadScriptLibraries();
 
+    if (!createRenderPasses(device)) return false;
+
+    m_sceneManager->setScene(std::make_unique<EmptyScene>(), device);
+
+    if (m_standalone){
+        createPlayerViewport(d3d12->getWindowWidth(), d3d12->getWindowHeight());
+        bootStandaloneScene();
+    }
+
+    return true;
+}
+
+// Required passes fail init; optional ones (decals, billboards, trails, particles, x-ray, skinning) are dropped
+// and the frame renders without them.
+bool RuntimeCore::createRenderPasses(ID3D12Device* device){
     if (!m_meshRenderPass->init(device)) return false;
 
     m_skinningPass = std::make_unique<SkinningPass>();
@@ -116,31 +197,31 @@ bool RuntimeCore::init(){
 
     m_decalPass = std::make_unique<DecalPass>();
     if (!m_decalPass->init(device)){
-        LOG("RuntimeCore: DecalPass init failed (non-fatal)");
+        PHX_LOG(Core, Error, "RuntimeCore: DecalPass init failed (non-fatal)");
         m_decalPass.reset();
     }
 
     m_billboardPass = std::make_unique<BillboardPass>();
     if (!m_billboardPass->init(device)){
-        LOG("RuntimeCore: BillboardPass init failed (non-fatal)");
+        PHX_LOG(Core, Error, "RuntimeCore: BillboardPass init failed (non-fatal)");
         m_billboardPass.reset();
     }
 
     m_trailPass = std::make_unique<TrailPass>();
     if (!m_trailPass->init(device)){
-        LOG("RuntimeCore: TrailPass init failed (non-fatal)");
+        PHX_LOG(Core, Error, "RuntimeCore: TrailPass init failed (non-fatal)");
         m_trailPass.reset();
     }
 
     m_particlePass = std::make_unique<ParticlePass>();
     if (!m_particlePass->init(device)){
-        LOG("RuntimeCore: ParticlePass init failed (non-fatal)");
+        PHX_LOG(Core, Error, "RuntimeCore: ParticlePass init failed (non-fatal)");
         m_particlePass.reset();
     }
 
     m_xrayPass = std::make_unique<XRayPass>();
     if (!m_xrayPass->init(device)){
-        LOG("RuntimeCore: XRayPass init failed (non-fatal)");
+        PHX_LOG(Core, Error, "RuntimeCore: XRayPass init failed (non-fatal)");
         m_xrayPass.reset();
     }
 
@@ -164,45 +245,6 @@ bool RuntimeCore::init(){
     m_envSystem = std::make_unique<EnvironmentSystem>();
     if (!m_envSystem->init(device, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT, false)) return false;
 
-    m_sceneManager->setScene(std::make_unique<EmptyScene>(), device);
-
-    if (m_standalone){
-        m_playerViewport = std::make_unique<EditorViewport>();
-        m_playerViewport->rt = std::make_unique<RenderTexture>("PlayerColor", kSceneColorFormat, Vector4(0.05f, 0.05f, 0.1f, 1.0f), DXGI_FORMAT_D32_FLOAT, 1.0f);
-        m_playerViewport->rtScratch = std::make_unique<RenderTexture>("PlayerColorScratch", kSceneColorFormat, Vector4(0.05f, 0.05f, 0.1f, 1.0f));
-        m_playerViewport->display = std::make_unique<RenderTexture>("PlayerDisplay", DXGI_FORMAT_R8G8B8A8_UNORM, Vector4(0.05f, 0.05f, 0.1f, 1.0f));
-        m_playerViewport->displayScratch = std::make_unique<RenderTexture>("PlayerDisplayScratch", DXGI_FORMAT_R8G8B8A8_UNORM, Vector4(0.05f, 0.05f, 0.1f, 1.0f));
-        for (int i = 0; i < EditorViewport::kNumBloomMips; ++i)
-            m_playerViewport->bloomMips[i] = std::make_unique<RenderTexture>("PlayerBloomMip", kSceneColorFormat, Vector4(0.f, 0.f, 0.f, 1.0f));
-
-        const uint32_t w = d3d12->getWindowWidth();
-        const uint32_t h = d3d12->getWindowHeight();
-        m_playerViewport->rt->resize(w, h);
-        m_playerViewport->rtScratch->resize(w, h);
-        m_playerViewport->display->resize(w, h);
-        m_playerViewport->displayScratch->resize(w, h);
-        uint32_t mw = w, mh = h;
-        for (int i = 0; i < EditorViewport::kNumBloomMips; ++i){
-            mw = std::max(1u, mw / 2);
-            mh = std::max(1u, mh / 2);
-            m_playerViewport->bloomMips[i]->resize(mw, mh);
-        }
-
-        BuildSettings buildSettings;
-        const std::string bsPath = app->getFileSystem()->GetLibraryPath() + "BuildSettings.json";
-        if (buildSettings.Load(bsPath)){
-            if (m_sceneManager->loadSceneByBuildIndex(0, buildSettings)){
-                applySkyboxFromSettings();
-                // The player has no Play button: scripts only update while playing, so start right away.
-                m_sceneManager->play();
-            }
-            else
-                LOG("RuntimeCore: BuildSettings.json found but scene 0 failed to load");
-        } else {
-            LOG("RuntimeCore: No BuildSettings.json at '%s' — booting with an empty scene", bsPath.c_str());
-        }
-    }
-
     return true;
 }
 
@@ -225,10 +267,6 @@ bool RuntimeCore::cleanUp(){
     return true;
 }
 
-// RuntimeCore::getActiveModuleScene() lives in RuntimeCoreCore.cpp now -
-// kept separate from this file's renderer/pass code so it can be linked
-// into GameScript.dll (via PhoenixCore) without the whole renderer.
-
 void RuntimeCore::applySkyboxFromSettings(){
     if (!m_sceneManager || !m_envSystem) return;
     const EditorSceneSettings::Skybox& sky = m_sceneManager->getSettings().skybox;
@@ -245,7 +283,7 @@ void RuntimeCore::tick(float dt, float aspectRatio){
     // collision and animation at most one 60 Hz frame instead.
     if (m_clampNextDt){
         m_clampNextDt = false;
-        dt = std::min(dt, 1.f / 60.f);
+        dt = std::min(dt, kMaxDtAfterLoad);
     }
 
     // Time scale (Phoenix::VFX hit-stop / slow-mo): everything below runs on the scaled delta; scripts that must
@@ -254,7 +292,7 @@ void RuntimeCore::tick(float dt, float aspectRatio){
         RuntimeTime& rt = m_sceneManager->getRuntimeTime();
         rt.unscaledDeltaTime = dt;
         rt.unscaledTime += dt;
-        dt *= std::clamp(rt.timeScale, 0.f, 4.f);
+        dt *= std::clamp(rt.timeScale, 0.f, kMaxTimeScale);
         rt.scaledTime += dt;
         m_vfxClock = rt.scaledTime;
     }
@@ -273,60 +311,7 @@ void RuntimeCore::tick(float dt, float aspectRatio){
 
     if (ModuleCamera* cam = app->getCamera()){
         if (aspectRatio > 0.f) cam->aspectRatio = aspectRatio;
-
-        SceneGraph* scene = getActiveModuleScene();
-        int visible = 0, total = 0;
-        if (scene){
-            std::vector<RenderOctree::Entry> entries;
-            std::function<void(GameObject*)> collect = [&](GameObject* node){
-                if (!node || !node->isActive()) return;
-                if (auto* cm = node->getComponent<ComponentMesh>()){
-                    if (cm->hasAABB()){
-                        Vector3 mn, mx;
-                        cm->getWorldAABB(mn, mx);
-                        entries.push_back({ node, AABB{ mn, mx } });
-                        ++total;
-                    } else {
-                        cm->setVisible(true);
-                    }
-                }
-                for (auto* child : node->getChildren()) collect(child);
-            };
-            collect(scene->getRoot());
-
-            if (cam->cullAlgorithm == ModuleCamera::CullAlgorithm::Octree){
-                m_renderOctree.clear();
-                for (const auto& e : entries) m_renderOctree.add(e.go, e.worldAABB);
-                m_renderOctree.build();
-                cam->octreeNodeCount = m_renderOctree.getNodeCount();
-                cam->octreeLeafCount = m_renderOctree.getLeafCount();
-
-                if (!cam->hasGameFrustum()){
-                    for (const auto& e : entries){ e.go->getComponent<ComponentMesh>()->setVisible(true); ++visible; }
-                } else {
-                    std::vector<GameObject*> visibleSet;
-                    m_renderOctree.query(cam->getGameFrustum(), visibleSet);
-                    std::unordered_set<GameObject*> visibleLookup(visibleSet.begin(), visibleSet.end());
-                    for (const auto& e : entries){
-                        // Octree query is a conservative broad phase (tests node regions,
-                        // not entries). Confirm each candidate with an exact AABB test.
-                        bool vis = visibleLookup.count(e.go) != 0 &&
-                                   cam->getGameFrustum().intersectsAABB(e.worldAABB.min, e.worldAABB.max);
-                        e.go->getComponent<ComponentMesh>()->setVisible(vis);
-                        if (vis) ++visible;
-                    }
-                }
-            } else {
-                cam->octreeNodeCount = 0;
-                cam->octreeLeafCount = 0;
-                for (const auto& e : entries){
-                    bool vis = !cam->hasGameFrustum() || cam->getGameFrustum().intersectsAABB(e.worldAABB.min, e.worldAABB.max);
-                    e.go->getComponent<ComponentMesh>()->setVisible(vis);
-                    if (vis) ++visible;
-                }
-            }
-        }
-        cam->setVisibilityStats(visible, total);
+        cullScene(*cam);
     }
 
     SceneGraph* activeScene = getActiveModuleScene();
@@ -343,6 +328,65 @@ void RuntimeCore::tick(float dt, float aspectRatio){
     if (m_billboardPass) m_billboardPass->beginFrame();
     if (m_trailPass) m_trailPass->beginFrame();
     if (m_particlePass) m_particlePass->beginFrame();
+    if (m_decalPass) m_decalPass->beginFrame();
+}
+
+// Marks every mesh visible or culled against the game camera's frustum (everything is visible without one) and
+// records the counts on the camera for the stats overlay.
+void RuntimeCore::cullScene(ModuleCamera& cam){
+    SceneGraph* scene = getActiveModuleScene();
+    int visible = 0, total = 0;
+    if (scene){
+        std::vector<RenderOctree::Entry> entries;
+        std::function<void(GameObject*)> collect = [&](GameObject* node){
+            if (!node || !node->isActive()) return;
+            if (auto* cm = node->getComponent<ComponentMesh>()){
+                if (cm->hasAABB()){
+                    Vector3 mn, mx;
+                    cm->getWorldAABB(mn, mx);
+                    entries.push_back({ node, AABB{ mn, mx } });
+                    ++total;
+                } else {
+                    cm->setVisible(true);
+                }
+            }
+            for (auto* child : node->getChildren()) collect(child);
+        };
+        collect(scene->getRoot());
+
+        if (cam.cullAlgorithm == ModuleCamera::CullAlgorithm::Octree){
+            m_renderOctree.clear();
+            for (const auto& e : entries) m_renderOctree.add(e.go, e.worldAABB);
+            m_renderOctree.build();
+            cam.octreeNodeCount = m_renderOctree.getNodeCount();
+            cam.octreeLeafCount = m_renderOctree.getLeafCount();
+
+            if (!cam.hasGameFrustum()){
+                for (const auto& e : entries){ e.go->getComponent<ComponentMesh>()->setVisible(true); ++visible; }
+            } else {
+                std::vector<GameObject*> visibleSet;
+                m_renderOctree.query(cam.getGameFrustum(), visibleSet);
+                std::unordered_set<GameObject*> visibleLookup(visibleSet.begin(), visibleSet.end());
+                for (const auto& e : entries){
+                    // Octree query is a conservative broad phase (tests node regions,
+                    // not entries). Confirm each candidate with an exact AABB test.
+                    bool vis = visibleLookup.count(e.go) != 0 &&
+                               cam.getGameFrustum().intersectsAABB(e.worldAABB.min, e.worldAABB.max);
+                    e.go->getComponent<ComponentMesh>()->setVisible(vis);
+                    if (vis) ++visible;
+                }
+            }
+        } else {
+            cam.octreeNodeCount = 0;
+            cam.octreeLeafCount = 0;
+            for (const auto& e : entries){
+                bool vis = !cam.hasGameFrustum() || cam.getGameFrustum().intersectsAABB(e.worldAABB.min, e.worldAABB.max);
+                e.go->getComponent<ComponentMesh>()->setVisible(vis);
+                if (vis) ++visible;
+            }
+        }
+    }
+    cam.setVisibilityStats(visible, total);
 }
 
 namespace {
@@ -370,22 +414,18 @@ void RuntimeCore::preRender(){
         (m_playerViewport->rt->getWidth() != curW || m_playerViewport->rt->getHeight() != curH) &&
         curW > 0 && curH > 0){
         d3d12->flush();
-        m_playerViewport->rt->resize(curW, curH);
-        m_playerViewport->rtScratch->resize(curW, curH);
-        m_playerViewport->display->resize(curW, curH);
-        m_playerViewport->displayScratch->resize(curW, curH);
-        uint32_t mw = curW, mh = curH;
-        for (int i = 0; i < EditorViewport::kNumBloomMips; ++i){
-            mw = std::max(1u, mw / 2);
-            mh = std::max(1u, mh / 2);
-            m_playerViewport->bloomMips[i]->resize(mw, mh);
-        }
+        resizePlayerViewport(curW, curH);
     }
 
     const float dt = static_cast<float>(app->getElapsedMilis()) * 0.001f;
     const float aspect = (curH > 0) ? float(curW) / float(curH) : 0.f;
     tick(dt, aspect);
 
+    updatePlayerUI(curW, curH);
+}
+
+// The Player's in-game UI input: mouse, keyboard and gamepad (player 0) gathered into one UIInput per frame.
+void RuntimeCore::updatePlayerUI(uint32_t curW, uint32_t curH){
     if (ModuleUI* ui = app->getUI()){
         ModuleInput* input = app->getInput();
         const Phoenix::Vec2 mouse = input->getMousePosition();
@@ -395,6 +435,11 @@ void RuntimeCore::preRender(){
         // A drag that started on a widget keeps tracking the pointer after it leaves the window.
         in.pointerValid = (mouse.x >= 0.f && mouse.y >= 0.f && mouse.x < float(curW) && mouse.y < float(curH)) ||
                           input->isMouseDown(Phoenix::MouseButton::Left);
+        if (curW > 0 && curH > 0){
+            const bool inside = mouse.x >= 0.f && mouse.y >= 0.f && mouse.x < float(curW) && mouse.y < float(curH);
+            ui->setGamePointer(inside, Vector2(mouse.x / float(curW), mouse.y / float(curH)),
+                               inside ? input->getMouseWheelDelta() : 0.f);
+        }
         in.mousePressed = input->isMousePressed(Phoenix::MouseButton::Left);
         in.mouseReleased = input->isMouseReleased(Phoenix::MouseButton::Left);
         // Gamepad (player 0), alongside the keyboard: shoulder buttons cycle focus like Tab/Shift+Tab, D-pad
@@ -438,6 +483,27 @@ void RuntimeCore::render(){
     renderStandaloneFrame();
 }
 
+namespace {
+
+/// Copies the finished frame into the back buffer, then closes and submits the command list.
+void presentToBackBuffer(ModuleD3D12* d3d12, ID3D12GraphicsCommandList* cmd, RenderTexture* finalTarget){
+    auto toCopySrc = CD3DX12_RESOURCE_BARRIER::Transition(finalTarget->getTexture(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    auto toCopyDst = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST);
+    D3D12_RESOURCE_BARRIER preCopy[] = { toCopySrc, toCopyDst };
+    cmd->ResourceBarrier(2, preCopy);
+    cmd->CopyResource(d3d12->getBackBuffer(), finalTarget->getTexture());
+    auto toSRV = CD3DX12_RESOURCE_BARRIER::Transition(finalTarget->getTexture(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    auto toPresent = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
+    D3D12_RESOURCE_BARRIER postCopy[] = { toSRV, toPresent };
+    cmd->ResourceBarrier(2, postCopy);
+
+    cmd->Close();
+    ID3D12CommandList* lists[] = { cmd };
+    d3d12->getDrawCommandQueue()->ExecuteCommandLists(1, lists);
+}
+
+} // namespace
+
 void RuntimeCore::renderStandaloneFrame(){
     ModuleD3D12* d3d12 = app->getD3D12();
     ModuleShaderDescriptors* descs = app->getShaderDescriptors();
@@ -450,22 +516,6 @@ void RuntimeCore::renderStandaloneFrame(){
     GameObject* activeCamGO = app->getCamera() ? app->getCamera()->getActiveCamera() : nullptr;
     ComponentCamera* cam = activeCamGO ? activeCamGO->getComponent<ComponentCamera>() : nullptr;
     ComponentTransform* camT = activeCamGO ? activeCamGO->getTransform() : nullptr;
-
-    auto presentToBackBuffer = [&](RenderTexture* finalTarget){
-        auto toCopySrc = CD3DX12_RESOURCE_BARRIER::Transition(finalTarget->getTexture(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE);
-        auto toCopyDst = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST);
-        D3D12_RESOURCE_BARRIER preCopy[] = { toCopySrc, toCopyDst };
-        cmd->ResourceBarrier(2, preCopy);
-        cmd->CopyResource(d3d12->getBackBuffer(), finalTarget->getTexture());
-        auto toSRV = CD3DX12_RESOURCE_BARRIER::Transition(finalTarget->getTexture(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        auto toPresent = CD3DX12_RESOURCE_BARRIER::Transition(d3d12->getBackBuffer(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
-        D3D12_RESOURCE_BARRIER postCopy[] = { toSRV, toPresent };
-        cmd->ResourceBarrier(2, postCopy);
-
-        cmd->Close();
-        ID3D12CommandList* lists[] = { cmd };
-        d3d12->getDrawCommandQueue()->ExecuteCommandLists(1, lists);
-    };
 
     if (!cam || !camT){
         // No camera to render the 3D scene with: clear the frame and still draw any UI on top of it.
@@ -480,7 +530,7 @@ void RuntimeCore::renderStandaloneFrame(){
             ui->renderUI(cmd, display, getActiveModuleScene());
             ui->renderTransitionFade(cmd, display);
         }
-        presentToBackBuffer(display);
+        presentToBackBuffer(d3d12, cmd, display);
         return;
     }
 
@@ -512,44 +562,8 @@ void RuntimeCore::renderStandaloneFrame(){
 
     const EditorSceneSettings* settings = m_sceneManager ? &m_sceneManager->getSettings() : nullptr;
 
-    if (m_gbufferPass && settings && settings->fog.enabled){
-        Matrix invViewProj;
-        (view * proj).Invert(invViewProj);
-        RenderTexture* fogOut = (hdrResult == m_playerViewport->rt.get())
-                                     ? m_playerViewport->rtScratch.get() : m_playerViewport->rt.get();
-        if (settings->fog.mode == EditorSceneSettings::Fog::Mode::Volumetric){
-            if (m_volumetricFogPass){
-                VolumetricFogSettings vfs;
-                vfs.enabled = true;
-                vfs.numSteps = (uint32_t)std::max(1, settings->fog.numSteps);
-                vfs.extinctionCoeff = settings->fog.extinctionCoeff;
-                vfs.noiseAmount = settings->fog.noiseAmount;
-                vfs.fogIntensity = settings->fog.fogIntensity;
-                vfs.anisotropyG = settings->fog.anisotropyG;
-                vfs.maxOpacity = settings->fog.maxOpacity;
-                vfs.halfResolution = settings->fog.halfResolution;
-                vfs.boundedRayLength = settings->fog.boundedRayLength;
-                const float elapsedTime = (float)app->getElapsedMilis() / 1000.f;
-                hdrResult = m_volumetricFogPass->render(cmd, hdrResult, fogOut, *m_gbufferPass, pos,
-                                                        view, proj, invViewProj, elapsedTime, m_frameLights,
-                                                        m_frameShadowData, vfs, /*viewportIndex=*/1);
-            }
-        } else if (m_fogPass){
-            FogSettings fs;
-            fs.enabled = true;
-            fs.mode = (settings->fog.mode == EditorSceneSettings::Fog::Mode::ExponentialHeight)
-                          ? FogSettings::Mode::ExponentialHeight : FogSettings::Mode::Linear;
-            fs.color = settings->fog.color;
-            fs.startDistance = settings->fog.startDistance;
-            fs.endDistance = settings->fog.endDistance;
-            fs.maxOpacity = settings->fog.maxOpacity;
-            fs.density = settings->fog.density;
-            fs.heightFalloff = settings->fog.heightFalloff;
-            fs.heightOffset = settings->fog.heightOffset;
-            hdrResult = m_fogPass->render(cmd, hdrResult, fogOut, *m_gbufferPass, pos, invViewProj,
-                                           fs, /*viewportIndex=*/1);
-        }
-    }
+    if (m_gbufferPass && settings && settings->fog.enabled)
+        hdrResult = applyPlayerFog(cmd, hdrResult, view, proj, pos, settings->fog);
 
     RenderTexture* bloomResult = nullptr;
     if (m_bloomPass && settings && settings->postProcess.bloomEnabled){
@@ -578,7 +592,45 @@ void RuntimeCore::renderStandaloneFrame(){
         ui->renderTransitionFade(cmd, finalTarget);
     }
 
-    presentToBackBuffer(finalTarget);
+    presentToBackBuffer(d3d12, cmd, finalTarget);
+}
+
+RenderTexture* RuntimeCore::applyPlayerFog(ID3D12GraphicsCommandList* cmd, RenderTexture* hdrResult, const Matrix& view,
+                                           const Matrix& proj, const Vector3& pos, const EditorSceneSettings::Fog& fog){
+    Matrix invViewProj;
+    (view * proj).Invert(invViewProj);
+    RenderTexture* fogOut = (hdrResult == m_playerViewport->rt.get())
+                                 ? m_playerViewport->rtScratch.get() : m_playerViewport->rt.get();
+    if (fog.mode == EditorSceneSettings::Fog::Mode::Volumetric){
+        if (!m_volumetricFogPass) return hdrResult;
+        VolumetricFogSettings vfs;
+        vfs.enabled = true;
+        vfs.numSteps = (uint32_t)std::max(1, fog.numSteps);
+        vfs.extinctionCoeff = fog.extinctionCoeff;
+        vfs.noiseAmount = fog.noiseAmount;
+        vfs.fogIntensity = fog.fogIntensity;
+        vfs.anisotropyG = fog.anisotropyG;
+        vfs.maxOpacity = fog.maxOpacity;
+        vfs.halfResolution = fog.halfResolution;
+        vfs.boundedRayLength = fog.boundedRayLength;
+        const float elapsedTime = (float)app->getElapsedMilis() / 1000.f;
+        return m_volumetricFogPass->render(cmd, hdrResult, fogOut, *m_gbufferPass, pos,
+                                           view, proj, invViewProj, elapsedTime, m_frameLights,
+                                           m_frameShadowData, vfs, /*viewportIndex=*/1);
+    }
+    if (!m_fogPass) return hdrResult;
+    FogSettings fs;
+    fs.enabled = true;
+    fs.mode = (fog.mode == EditorSceneSettings::Fog::Mode::ExponentialHeight)
+                  ? FogSettings::Mode::ExponentialHeight : FogSettings::Mode::Linear;
+    fs.color = fog.color;
+    fs.startDistance = fog.startDistance;
+    fs.endDistance = fog.endDistance;
+    fs.maxOpacity = fog.maxOpacity;
+    fs.density = fog.density;
+    fs.heightFalloff = fog.heightFalloff;
+    fs.heightOffset = fog.heightOffset;
+    return m_fogPass->render(cmd, hdrResult, fogOut, *m_gbufferPass, pos, invViewProj, fs, /*viewportIndex=*/1);
 }
 
 static float computeScreenCoverage(const Vector3& mn, const Vector3& mx, const Matrix& viewProj){
@@ -605,25 +657,84 @@ static float computeScreenCoverage(const Vector3& mn, const Vector3& mx, const M
     return (w * h) / 4.0f;
 }
 
+namespace {
+// Binds `target` (with its own depth buffer, or the G-buffer's read-only depth when `gbufferDepth` is set) and a
+// viewport covering it.
+void bindViewTarget(ID3D12GraphicsCommandList* cmd, RenderTexture& target, GBuffer* gbufferDepth, uint32_t w, uint32_t h){
+    auto rtv = target.getRtvHandle();
+    if (gbufferDepth){
+        auto roDsv = gbufferDepth->getReadOnlyDsvHandle();
+        cmd->OMSetRenderTargets(1, &rtv, FALSE, &roDsv);
+    } else {
+        auto dsv = target.getDsvHandle();
+        const bool hasDsv = target.getDepthTexture() != nullptr;
+        cmd->OMSetRenderTargets(1, &rtv, FALSE, hasDsv ? &dsv : nullptr);
+    }
+    D3D12_VIEWPORT vp = { 0.f, 0.f, float(w), float(h), 0.f, 1.f };
+    D3D12_RECT sc = { 0, 0, LONG(w), LONG(h) };
+    cmd->RSSetViewports(1, &vp);
+    cmd->RSSetScissorRects(1, &sc);
+}
+}
+
+// Everything one renderSceneWithCamera call gathers for its view, handed from step to step.
+struct RuntimeCore::SceneView {
+    Matrix view, proj, viewProj;
+    uint32_t width = 0, height = 0;
+    bool editorExtras = false;
+    RenderTexture* outputRT = nullptr;
+    ModuleCamera* camera = nullptr;
+    SceneGraph* scene = nullptr;
+    const EditorSceneSettings* settings = nullptr;
+    Vector3 camPos, camRight, camUp;
+    const EnvironmentSystem* envForIBL = nullptr;
+
+    std::vector<MeshEntry> ownedEntries;     // this frame's draws; everything below points into it
+    std::vector<MeshEntry*> visibleMeshes;
+    std::vector<SkinningPass::SkinJob> skinJobs;
+    std::vector<size_t> skinJobEntryIdx;     // ownedEntries index of each skin job
+    GameObject* focusNode = nullptr;         // occlusion-fade focus: first node tagged xray.tags[0]
+    int xrayGroupCount = 0;
+
+    std::vector<MeshEntry*> opaqueMeshes;
+    std::vector<MeshEntry*> translucentMeshes;
+    std::vector<MeshEntry*> shadowCasters;   // visible opaque + off-screen (shadowOnly) opaque
+    std::vector<BillboardInstance> billboards;
+    std::vector<TrailInstance> trails;
+    std::vector<ParticleDrawRequest> gpuParticles;
+
+    bool viewAllowsOcclusionFx = false;
+    bool xrayEnabled = false;
+};
+
 void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj, uint32_t w, uint32_t h, bool editorExtras, RenderTexture* outputRT){
-    ModuleCamera* camera = app->getCamera();
-    SceneGraph* moduleScene = getActiveModuleScene();
+    SceneView v;
+    v.view = view;
+    v.proj = proj;
+    v.viewProj = view * proj;
+    v.width = w;
+    v.height = h;
+    v.editorExtras = editorExtras;
+    v.outputRT = outputRT;
+    v.camera = app->getCamera();
+    v.scene = getActiveModuleScene();
+    v.settings = &m_sceneManager->getSettings();
 
     Matrix viewCamWorld; view.Invert(viewCamWorld);
-    const Vector3 viewCamPos = viewCamWorld.Translation();
-    Vector3 viewCamRight = Vector3::TransformNormal(Vector3::UnitX, viewCamWorld); viewCamRight.Normalize();
-    Vector3 viewCamUp = Vector3::TransformNormal(Vector3::UnitY, viewCamWorld); viewCamUp.Normalize();
+    v.camPos = viewCamWorld.Translation();
+    v.camRight = Vector3::TransformNormal(Vector3::UnitX, viewCamWorld); v.camRight.Normalize();
+    v.camUp = Vector3::TransformNormal(Vector3::UnitY, viewCamWorld); v.camUp.Normalize();
 
-    if (moduleScene){
+    if (v.scene){
         std::function<void(GameObject*)> flush = [&](GameObject* node){
             if (!node) return;
             if (auto* cm = node->getComponent<ComponentMesh>()) cm->flushDeferredReleases();
             for (auto* child : node->getChildren()) flush(child);
             };
-        flush(moduleScene->getRoot());
+        flush(v.scene->getRoot());
     }
 
-    const EditorSceneSettings& s = m_sceneManager->getSettings();
+    const EditorSceneSettings& s = *v.settings;
     const EditorSceneSettings::Skybox& sky = s.skybox;
 
     if (sky.enabled && m_envSystem)
@@ -635,229 +746,260 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
     m_frameLights.dirLights.clear();
     m_frameLights.pointLights.clear();
     m_frameLights.spotLights.clear();
-    if (moduleScene){
-        gatherLights(moduleScene->getRoot(), m_frameLights, true);
-        gatherLights(moduleScene->getRoot(), m_frameLights, false);
+    if (v.scene){
+        gatherLights(v.scene->getRoot(), m_frameLights, true);
+        gatherLights(v.scene->getRoot(), m_frameLights, false);
     }
 
-    std::vector<MeshEntry> ownedEntries;
-    std::vector<MeshEntry*> visibleMeshes;
+    v.xrayGroupCount = std::min((int)s.xray.tags.size(), EditorSceneSettings::kMaxXRayGroups);
+    if (v.scene) gatherSceneMeshes(v);
 
-    std::vector<SkinningPass::SkinJob> skinJobs;
-    std::vector<size_t> skinJobEntryIdx;
+    m_frameDrawCalls = 0;
+    for (const MeshEntry* e : v.visibleMeshes) if (!e->shadowOnly) ++m_frameDrawCalls;
+
+    if (!v.skinJobs.empty() && m_skinningPass) dispatchSkinning(cmd, v);
+
+    v.envForIBL = (sky.enabled && m_envSystem) ? m_envSystem.get() : nullptr;
+
+    sortMeshesByPass(v);
+    gatherEffects(v);
+
+    ShadowRenderData shadowData;
+    if (m_shadowMapPass && !v.shadowCasters.empty()) renderShadows(cmd, v, shadowData);
+    m_frameShadowData = shadowData;
+
+    // Occlusion fade + x-ray: always on in the Game view / standalone player, Scene view only when previewing.
+    const RenderOverrides& renderOverrides = m_sceneManager->getRenderOverrides();
+    v.viewAllowsOcclusionFx = !editorExtras || s.occlusionFade.previewInSceneView;
+    v.xrayEnabled = renderOverrides.xrayEnabled >= 0 ? renderOverrides.xrayEnabled != 0 : s.xray.enabled;
+    const OcclusionParams occlusion = buildOcclusionParams(v);
+
+    if (m_gbufferPass && (!v.opaqueMeshes.empty() || !v.translucentMeshes.empty() || !v.billboards.empty()))
+        renderScenePasses(cmd, v, shadowData, occlusion);
+
+    if (editorExtras) drawEditorDebug(cmd, v);
+}
+
+// Builds this frame's mesh entries from every active ComponentMesh: LOD selection, skin / morph jobs for the
+// skinning pass, x-ray groups and VFX overrides, then each static entry's world-space bounds.
+void RuntimeCore::gatherSceneMeshes(SceneView& v){
+    ModuleCamera* camera = v.camera;
+    SceneGraph* moduleScene = v.scene;
+    const Matrix& view = v.view;
+    const Matrix& proj = v.proj;
+    const uint32_t w = v.width;
+    const bool editorExtras = v.editorExtras;
+    std::vector<MeshEntry>& ownedEntries = v.ownedEntries;
+    std::vector<MeshEntry*>& visibleMeshes = v.visibleMeshes;
+    std::vector<SkinningPass::SkinJob>& skinJobs = v.skinJobs;
+    std::vector<size_t>& skinJobEntryIdx = v.skinJobEntryIdx;
+    GameObject*& focusNode = v.focusNode;
+    const std::vector<EditorSceneSettings::XRayTag>& xrayTags = v.settings->xray.tags;
+    const int xrayGroupCount = v.xrayGroupCount;
+    const Matrix lodViewProj = view * proj;
+    const int forceLODIndex = (int)camera->forceLOD - 1;
     uint32_t curPaletteOffset = 0;
     uint32_t curVertexOffset = 0;
     uint32_t curMorphWeightOffset = 0;
 
-    const Matrix lodViewProj = view * proj;
-    const int forceLODIndex = (int)camera->forceLOD - 1;
+    std::function<void(GameObject*, uint8_t)> collectMeshes = [&](GameObject* node, uint8_t inheritedGroup){
+        if (!node || !node->isActive()) return;
 
-    // X-ray / occlusion-fade tagging: a node whose tag matches xray.tags[i] puts itself and its subtree in
-    // group i+1. The first node carrying tags[0] is the occlusion-fade focus.
-    const std::vector<EditorSceneSettings::XRayTag>& xrayTags = s.xray.tags;
-    const int xrayGroupCount = std::min((int)xrayTags.size(), EditorSceneSettings::kMaxXRayGroups);
-    GameObject* focusNode = nullptr;
-
-    if (moduleScene){
-        std::function<void(GameObject*, uint8_t)> collectMeshes = [&](GameObject* node, uint8_t inheritedGroup){
-            if (!node || !node->isActive()) return;
-
-            uint8_t group = inheritedGroup;
-            if (xrayGroupCount > 0){
-                const std::string& tag = node->getTag();
-                if (!tag.empty()){
-                    for (int i = 0; i < xrayGroupCount; ++i)
-                        if (xrayTags[i].tag == tag){ group = uint8_t(i + 1); break; }
-                    if (!focusNode && tag == xrayTags[0].tag) focusNode = node;
-                }
+        uint8_t group = inheritedGroup;
+        if (xrayGroupCount > 0){
+            const std::string& tag = node->getTag();
+            if (!tag.empty()){
+                for (int i = 0; i < xrayGroupCount; ++i)
+                    if (xrayTags[i].tag == tag){ group = uint8_t(i + 1); break; }
+                if (!focusNode && tag == xrayTags[0].tag) focusNode = node;
             }
-            const size_t entriesBefore = ownedEntries.size();
-            bool frustumCulledNode = false;
-            const MeshVfxParams* nodeVfx = nullptr;
+        }
+        const size_t entriesBefore = ownedEntries.size();
+        bool frustumCulledNode = false;
+        const MeshVfxParams* nodeVfx = nullptr;
 
-            if (auto* cm = node->getComponent<ComponentMesh>()){
-                cm->flushDeferredReleases();
-                if (!cm->vfx.isDefault()) nodeVfx = &cm->vfx;
+        if (auto* cm = node->getComponent<ComponentMesh>()){
+            cm->flushDeferredReleases();
+            if (!cm->vfx.isDefault()) nodeVfx = &cm->vfx;
 
-                const bool frustumCulled = !editorExtras &&
-                    camera->cullMode == ModuleCamera::CullMode::Frustum && !cm->isVisible();
-                frustumCulledNode = frustumCulled;
-                // Culled skinned/morphed meshes are skipped outright rather than paying for a skinning job
-                // just to cast a shadow; static culled meshes stay in as shadow-only casters.
-                if (frustumCulled && (cm->hasSkinData() || cm->getProceduralModel())){
-                    for (auto* child : node->getChildren()) collectMeshes(child, group);
-                    return;
-                }
+            const bool frustumCulled = !editorExtras &&
+                camera->cullMode == ModuleCamera::CullMode::Frustum && !cm->isVisible();
+            frustumCulledNode = frustumCulled;
+            // Culled skinned/morphed meshes are skipped outright rather than paying for a skinning job
+            // just to cast a shadow; static culled meshes stay in as shadow-only casters.
+            if (frustumCulled && (cm->hasSkinData() || cm->getProceduralModel())){
+                for (auto* child : node->getChildren()) collectMeshes(child, group);
+                return;
+            }
 
-                if (!frustumCulled && cm->hasLODLevels() && cm->hasAABB()){
-                    Vector3 mn, mx;
-                    cm->getWorldAABB(mn, mx);
-                    float coverage = computeScreenCoverage(mn, mx, lodViewProj);
-                    cm->updateLOD(coverage, forceLODIndex);
-                }
+            if (!frustumCulled && cm->hasLODLevels() && cm->hasAABB()){
+                Vector3 mn, mx;
+                cm->getWorldAABB(mn, mx);
+                float coverage = computeScreenCoverage(mn, mx, lodViewProj);
+                cm->updateLOD(coverage, forceLODIndex);
+            }
 
-                Matrix nodeWorld = node->getTransform()->getGlobalMatrix();
-                if (Model* model = cm->getProceduralModel()){
-                    model->buildMeshEntries(nodeWorld, ownedEntries);
-                }
-                else {
-                    const bool isSkinned = m_skinningPass && cm->hasSkinData();
+            Matrix nodeWorld = node->getTransform()->getGlobalMatrix();
+            if (Model* model = cm->getProceduralModel()){
+                model->buildMeshEntries(nodeWorld, ownedEntries);
+            }
+            else {
+                const bool isSkinned = m_skinningPass && cm->hasSkinData();
 
-                    const bool morphDirtyThisFrame = m_skinningPass && cm->getMorphWeightsDirty();
-                    if (morphDirtyThisFrame) cm->clearMorphWeightsDirty();
+                const bool morphDirtyThisFrame = m_skinningPass && cm->getMorphWeightsDirty();
+                if (morphDirtyThisFrame) cm->clearMorphWeightsDirty();
 
-                    for (const auto& src : cm->getEntries()){
-                        if (!src.meshRes || !src.meshRes->getMesh()) continue;
-                        MeshEntry e;
-                        e.meshUID = src.meshUID;
-                        e.materialUID = src.materialUID;
-                        e.meshRes = src.meshRes;
-                        e.materialRes = src.materialRes;
-                        e.material = src.instanceMaterial.get();
-                        e.materialCB = src.materialCB;
+                for (const auto& src : cm->getEntries()){
+                    if (!src.meshRes || !src.meshRes->getMesh()) continue;
+                    MeshEntry e;
+                    e.meshUID = src.meshUID;
+                    e.materialUID = src.materialUID;
+                    e.meshRes = src.meshRes;
+                    e.materialRes = src.materialRes;
+                    e.material = src.instanceMaterial.get();
+                    e.materialCB = src.materialCB;
 
-                        Mesh* mesh = src.meshRes->getMesh();
-                        if (frustumCulled && mesh->hasMorphTargets()) continue;
-                        const bool hasBones = isSkinned && mesh && mesh->getBoneWeightBufferVA() != 0;
+                    Mesh* mesh = src.meshRes->getMesh();
+                    if (frustumCulled && mesh->hasMorphTargets()) continue;
+                    const bool hasBones = isSkinned && mesh && mesh->getBoneWeightBufferVA() != 0;
 
-                        bool shouldMorph = false;
-                        if (m_skinningPass && mesh && mesh->hasMorphTargets()){
-                            shouldMorph = morphDirtyThisFrame;
-                            if (!shouldMorph){
-                                const float* w = cm->getMorphWeights();
-                                const uint32_t n = mesh->getNumMorphTargets();
-                                for (uint32_t t = 0; t < n && !shouldMorph; ++t)
-                                    shouldMorph = (w[t] != 0.f);
-                            }
+                    bool shouldMorph = false;
+                    if (m_skinningPass && mesh && mesh->hasMorphTargets()){
+                        shouldMorph = morphDirtyThisFrame;
+                        if (!shouldMorph){
+                            const float* w = cm->getMorphWeights();
+                            const uint32_t n = mesh->getNumMorphTargets();
+                            for (uint32_t t = 0; t < n && !shouldMorph; ++t)
+                                shouldMorph = (w[t] != 0.f);
                         }
+                    }
 
-                        const bool vertexReady = mesh && (mesh->getVertexBufferVA() != 0);
-                        const uint32_t vcount = mesh ? mesh->getVertexCount() : 0u;
-                        const uint32_t jcount = hasBones ? (uint32_t)cm->getLocalSkin().jointNodeIndices.size() : 0u;
-                        const bool withinVertexCap = (curVertexOffset + vcount <= SkinningPass::MAX_TOTAL_VERTICES);
-                        const bool withinJointCap = (curPaletteOffset + jcount <= SkinningPass::MAX_TOTAL_JOINTS);
-                        if (!withinVertexCap)
-                            LOG("[SkinDebug] OVERFLOW: vertex cap %u exceeded (offset %u + count %u). Re-export at lower poly count.",
-                                SkinningPass::MAX_TOTAL_VERTICES, curVertexOffset, vcount);
-                        if (!withinJointCap)
-                            LOG("[SkinDebug] OVERFLOW: joint cap %u exceeded (offset %u + count %u).",
-                                SkinningPass::MAX_TOTAL_JOINTS, curPaletteOffset, jcount);
-                        const bool needsGpuJob = vertexReady && (hasBones || shouldMorph) && withinVertexCap && withinJointCap;
+                    const bool vertexReady = mesh && (mesh->getVertexBufferVA() != 0);
+                    const uint32_t vcount = mesh ? mesh->getVertexCount() : 0u;
+                    const uint32_t jcount = hasBones ? (uint32_t)cm->getLocalSkin().jointNodeIndices.size() : 0u;
+                    const bool withinVertexCap = (curVertexOffset + vcount <= SkinningPass::MAX_TOTAL_VERTICES);
+                    const bool withinJointCap = (curPaletteOffset + jcount <= SkinningPass::MAX_TOTAL_JOINTS);
+                    if (!withinVertexCap)
+                        PHX_LOG(Core, Warning, "[SkinDebug] OVERFLOW: vertex cap %u exceeded (offset %u + count %u). Re-export at lower poly count.",
+                            SkinningPass::MAX_TOTAL_VERTICES, curVertexOffset, vcount);
+                    if (!withinJointCap)
+                        PHX_LOG(Core, Warning, "[SkinDebug] OVERFLOW: joint cap %u exceeded (offset %u + count %u).",
+                            SkinningPass::MAX_TOTAL_JOINTS, curPaletteOffset, jcount);
+                    const bool needsGpuJob = vertexReady && (hasBones || shouldMorph) && withinVertexCap && withinJointCap;
 
-                        if (needsGpuJob){
-                            e.isSkinned = true;
+                    if (needsGpuJob){
+                        e.isSkinned = true;
 
-                            SkinningPass::SkinJob job;
-                            job.mesh = mesh;
-                            job.paletteOffset = curPaletteOffset;
-                            job.vertexOffset = curVertexOffset;
-                            job.morphWeightOffset = curMorphWeightOffset;
+                        SkinningPass::SkinJob job;
+                        job.mesh = mesh;
+                        job.paletteOffset = curPaletteOffset;
+                        job.vertexOffset = curVertexOffset;
+                        job.morphWeightOffset = curMorphWeightOffset;
 
-                            if (hasBones){
-                                const auto& joints = cm->getSkinJoints();
-                                std::vector<Matrix> jointWorlds;
-                                jointWorlds.reserve(joints.size());
+                        if (hasBones){
+                            const auto& joints = cm->getSkinJoints();
+                            std::vector<Matrix> jointWorlds;
+                            jointWorlds.reserve(joints.size());
 
-                                int nullJointCount = 0;
-                                for (auto* jgo : joints){
-                                    if (!jgo) ++nullJointCount;
-                                    jointWorlds.push_back(jgo ? jgo->getTransform()->getGlobalMatrix() : Matrix::Identity);
-                                }
-                                if (nullJointCount > 0)
-                                    LOG("[SkinDebug] WARNING: %d/%d joint GOs are null",
-                                        nullJointCount, (int)joints.size());
-
-                                job.skin = &cm->getLocalSkin();
-                                job.jointWorldMatrices = std::move(jointWorlds);
-
-                                Matrix inv; nodeWorld.Invert(inv);
-                                job.meshWorldInverse = inv;
-                                memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));
-                            } else {
-                                memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));
+                            int nullJointCount = 0;
+                            for (auto* jgo : joints){
+                                if (!jgo) ++nullJointCount;
+                                jointWorlds.push_back(jgo ? jgo->getTransform()->getGlobalMatrix() : Matrix::Identity);
                             }
+                            if (nullJointCount > 0)
+                                PHX_LOG(Core, Warning, "[SkinDebug] WARNING: %d/%d joint GOs are null",
+                                    nullJointCount, (int)joints.size());
 
-                            if (shouldMorph){
-                                const uint32_t numTargets = mesh->getNumMorphTargets();
-                                const float* w = cm->getMorphWeights();
-                                job.morphWeights.assign(w, w + numTargets);
-                                curMorphWeightOffset += numTargets;
-                            }
+                            job.skin = &cm->getLocalSkin();
+                            job.jointWorldMatrices = std::move(jointWorlds);
 
-                            skinJobEntryIdx.push_back(ownedEntries.size());
-                            skinJobs.push_back(std::move(job));
-
-                            if (hasBones)
-                                curPaletteOffset += (uint32_t)cm->getLocalSkin().jointNodeIndices.size();
-                            curVertexOffset += mesh->getVertexCount();
+                            Matrix inv; nodeWorld.Invert(inv);
+                            job.meshWorldInverse = inv;
+                            memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));
                         } else {
                             memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));
                         }
-                        ownedEntries.push_back(std::move(e));
+
+                        if (shouldMorph){
+                            const uint32_t numTargets = mesh->getNumMorphTargets();
+                            const float* w = cm->getMorphWeights();
+                            job.morphWeights.assign(w, w + numTargets);
+                            curMorphWeightOffset += numTargets;
+                        }
+
+                        skinJobEntryIdx.push_back(ownedEntries.size());
+                        skinJobs.push_back(std::move(job));
+
+                        if (hasBones)
+                            curPaletteOffset += (uint32_t)cm->getLocalSkin().jointNodeIndices.size();
+                        curVertexOffset += mesh->getVertexCount();
+                    } else {
+                        memcpy(e.worldMatrix, &nodeWorld, sizeof(nodeWorld));
                     }
+                    ownedEntries.push_back(std::move(e));
                 }
             }
-            for (size_t i = entriesBefore; i < ownedEntries.size(); ++i){
-                ownedEntries[i].xrayGroup = group;
-                ownedEntries[i].shadowOnly = frustumCulledNode;
-                if (nodeVfx){
-                    MeshVfxParams& v = ownedEntries[i].vfx;
-                    v = *nodeVfx;
-                    v.uvOffset += nodeVfx->uvScroll * m_vfxClock;
-                    v.uvOffset.x -= floorf(v.uvOffset.x);
-                    v.uvOffset.y -= floorf(v.uvOffset.y);
-                }
-            }
-            for (auto* child : node->getChildren()) collectMeshes(child, group);
-            };
-        collectMeshes(moduleScene->getRoot(), 0);
-
-        for (auto& e : ownedEntries){
-            Mesh* m = e.meshRes ? e.meshRes->getMesh() : e.mesh;
-            if (e.isSkinned || !m || !m->hasAABB()){ e.hasWorldAABB = false; continue; }
-            Matrix wm; memcpy(&wm, e.worldMatrix, sizeof(float) * 16);
-            const Vector3 lmn = m->getAABBMin();
-            const Vector3 lmx = m->getAABBMax();
-            Vector3 mn(FLT_MAX, FLT_MAX, FLT_MAX);
-            Vector3 mx(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-            for (int c = 0; c < 8; ++c){
-                Vector3 corner((c & 1) ? lmx.x : lmn.x,
-                               (c & 2) ? lmx.y : lmn.y,
-                               (c & 4) ? lmx.z : lmn.z);
-                Vector3 wc = Vector3::Transform(corner, wm);
-                mn = Vector3::Min(mn, wc);
-                mx = Vector3::Max(mx, wc);
-            }
-            e.aabbMin = mn; e.aabbMax = mx; e.hasWorldAABB = true;
         }
+        for (size_t i = entriesBefore; i < ownedEntries.size(); ++i){
+            ownedEntries[i].xrayGroup = group;
+            ownedEntries[i].shadowOnly = frustumCulledNode;
+            if (nodeVfx){
+                MeshVfxParams& v = ownedEntries[i].vfx;
+                v = *nodeVfx;
+                v.uvOffset += nodeVfx->uvScroll * m_vfxClock;
+                v.uvOffset.x -= floorf(v.uvOffset.x);
+                v.uvOffset.y -= floorf(v.uvOffset.y);
+            }
+        }
+        for (auto* child : node->getChildren()) collectMeshes(child, group);
+        };
+    collectMeshes(moduleScene->getRoot(), 0);
 
-        visibleMeshes.reserve(ownedEntries.size());
-        for (auto& e : ownedEntries) visibleMeshes.push_back(&e);
+    for (auto& e : ownedEntries){
+        Mesh* m = e.meshRes ? e.meshRes->getMesh() : e.mesh;
+        if (e.isSkinned || !m || !m->hasAABB()){ e.hasWorldAABB = false; continue; }
+        Matrix wm; memcpy(&wm, e.worldMatrix, sizeof(float) * 16);
+        const Vector3 lmn = m->getAABBMin();
+        const Vector3 lmx = m->getAABBMax();
+        Vector3 mn(FLT_MAX, FLT_MAX, FLT_MAX);
+        Vector3 mx(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+        for (int c = 0; c < 8; ++c){
+            Vector3 corner((c & 1) ? lmx.x : lmn.x,
+                           (c & 2) ? lmx.y : lmn.y,
+                           (c & 4) ? lmx.z : lmn.z);
+            Vector3 wc = Vector3::Transform(corner, wm);
+            mn = Vector3::Min(mn, wc);
+            mx = Vector3::Max(mx, wc);
+        }
+        e.aabbMin = mn; e.aabbMax = mx; e.hasWorldAABB = true;
     }
 
-    m_frameDrawCalls = 0;
-    for (const MeshEntry* e : visibleMeshes) if (!e->shadowOnly) ++m_frameDrawCalls;
-    m_frameMeshCount = m_frameDrawCalls;
+    visibleMeshes.reserve(ownedEntries.size());
+    for (auto& e : ownedEntries) visibleMeshes.push_back(&e);
+}
 
-    if (!skinJobs.empty() && m_skinningPass){
-        UINT frameIndex = app->getD3D12()->getCurrentBackBufferIdx();
-        m_skinningPass->dispatch(cmd, skinJobs, frameIndex);
+// Skins and morphs this frame's animated entries on the GPU and points them at the output vertices.
+void RuntimeCore::dispatchSkinning(ID3D12GraphicsCommandList* cmd, SceneView& v){
+    std::vector<MeshEntry>& ownedEntries = v.ownedEntries;
+    std::vector<SkinningPass::SkinJob>& skinJobs = v.skinJobs;
+    std::vector<size_t>& skinJobEntryIdx = v.skinJobEntryIdx;
+    UINT frameIndex = app->getD3D12()->getCurrentBackBufferIdx();
+    m_skinningPass->dispatch(cmd, skinJobs, frameIndex);
 
-        D3D12_GPU_VIRTUAL_ADDRESS outputVA =
-            m_skinningPass->getOutputBuffer(frameIndex)->GetGPUVirtualAddress();
-        for (size_t i = 0; i < skinJobs.size(); ++i)
-            ownedEntries[skinJobEntryIdx[i]].skinnedVA =
-                outputVA + skinJobs[i].vertexOffset * sizeof(Mesh::Vertex);
-    }
+    D3D12_GPU_VIRTUAL_ADDRESS outputVA =
+        m_skinningPass->getOutputBuffer(frameIndex)->GetGPUVirtualAddress();
+    for (size_t i = 0; i < skinJobs.size(); ++i)
+        ownedEntries[skinJobEntryIdx[i]].skinnedVA =
+            outputVA + skinJobs[i].vertexOffset * sizeof(Mesh::Vertex);
+}
 
-    const EnvironmentSystem* envForIBL =
-        (sky.enabled && m_envSystem) ? m_envSystem.get() : nullptr;
-
-    const Matrix viewProj = view * proj;
-
-    std::vector<MeshEntry*> opaqueMeshes;
-    std::vector<MeshEntry*> translucentMeshes;
-    std::vector<MeshEntry*> shadowCasters;   // visible opaque + off-screen (shadowOnly) opaque
+// Opaque entries go to the G-buffer, translucent ones (material alpha or a VFX fade) to the forward pass;
+// every opaque entry, on screen or not, casts shadows.
+void RuntimeCore::sortMeshesByPass(SceneView& v){
+    std::vector<MeshEntry*>& visibleMeshes = v.visibleMeshes;
+    std::vector<MeshEntry*>& opaqueMeshes = v.opaqueMeshes;
+    std::vector<MeshEntry*>& translucentMeshes = v.translucentMeshes;
+    std::vector<MeshEntry*>& shadowCasters = v.shadowCasters;
     opaqueMeshes.reserve(visibleMeshes.size());
     translucentMeshes.reserve(visibleMeshes.size());
     shadowCasters.reserve(visibleMeshes.size());
@@ -874,8 +1016,19 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
         if (e->shadowOnly) continue;
         (isTranslucent ? translucentMeshes : opaqueMeshes).push_back(e);
     }
+}
 
-    std::vector<BillboardInstance> billboards;
+// Billboards (and CPU particles), trails and GPU particle emitters for this view.
+void RuntimeCore::gatherEffects(SceneView& v){
+    SceneGraph* moduleScene = v.scene;
+    const Matrix& view = v.view;
+    const Matrix& viewProj = v.viewProj;
+    const Vector3& viewCamPos = v.camPos;
+    const Vector3& viewCamRight = v.camRight;
+    const Vector3& viewCamUp = v.camUp;
+    std::vector<BillboardInstance>& billboards = v.billboards;
+    std::vector<TrailInstance>& trails = v.trails;
+    std::vector<ParticleDrawRequest>& gpuParticleRequests = v.gpuParticles;
     if (m_billboardPass && moduleScene){
         gatherBillboards(moduleScene->getRoot(), billboards, view, viewProj,
                          viewCamPos, viewCamRight, viewCamUp);
@@ -883,209 +1036,221 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
                               viewCamPos, viewCamRight, viewCamUp);
     }
 
-    std::vector<TrailInstance> trails;
     if (m_trailPass && moduleScene){
         gatherTrails(moduleScene->getRoot(), trails, viewProj, viewCamPos);
     }
 
-    std::vector<ParticleDrawRequest> gpuParticleRequests;
     if (m_particlePass && moduleScene){
         gatherGPUParticles(moduleScene->getRoot(), gpuParticleRequests,
                            viewCamPos, viewCamRight, viewCamUp,
                            (float)app->getElapsedMilis() / 1000.f);
     }
+}
 
-    ShadowRenderData shadowData;
-    if (m_shadowMapPass && !shadowCasters.empty()){
-        ComponentDirectionalLight* caster = nullptr;
-        if (moduleScene){
-            std::function<void(GameObject*)> findCaster = [&](GameObject* n){
-                if (!n || !n->isActive() || caster) return;
-                if (auto* dl = n->getComponent<ComponentDirectionalLight>(); dl && dl->enabled){
-                    caster = dl; return;
-                }
-                for (auto* c : n->getChildren()) findCaster(c);
-            };
-            findCaster(moduleScene->getRoot());
+// The first enabled directional light, spot light and point light that cast shadows each render their maps;
+// `shadowData` gets everything the lighting passes need to sample them.
+void RuntimeCore::renderShadows(ID3D12GraphicsCommandList* cmd, SceneView& v, ShadowRenderData& shadowData){
+    SceneGraph* moduleScene = v.scene;
+    std::vector<MeshEntry*>& shadowCasters = v.shadowCasters;
+    ComponentDirectionalLight* caster = nullptr;
+    if (moduleScene){
+        std::function<void(GameObject*)> findCaster = [&](GameObject* n){
+            if (!n || !n->isActive() || caster) return;
+            if (auto* dl = n->getComponent<ComponentDirectionalLight>(); dl && dl->enabled){
+                caster = dl; return;
+            }
+            for (auto* c : n->getChildren()) findCaster(c);
+        };
+        findCaster(moduleScene->getRoot());
+    }
+
+    if (caster && caster->castShadows) renderDirectionalShadows(cmd, v, *caster, shadowData);
+
+    {
+        ComponentSpotLight* spot = nullptr; GameObject* spotGO = nullptr;
+        std::function<void(GameObject*)> find = [&](GameObject* n){
+            if (!n || !n->isActive() || spot) return;
+            if (auto* sl = n->getComponent<ComponentSpotLight>(); sl && sl->enabled && sl->castShadows){
+                spot = sl; spotGO = n; return;
+            }
+            for (auto* c : n->getChildren()) find(c);
+        };
+        if (moduleScene) find(moduleScene->getRoot());
+        if (spot && spotGO){
+            Vector3 pos = spotGO->getTransform()->getGlobalMatrix().Translation();
+            Matrix vp = ShadowMath::SpotLightViewProj(pos, spot->direction,
+                            spot->outerAngle * 3.14159265f / 180.f, spot->radius);
+            m_shadowMapPass->renderSpot(cmd, shadowCasters, vp, (uint32_t)spot->shadowResolution);
+            shadowData.spotEnabled = true;
+            shadowData.spotViewProj = vp;
+            shadowData.spotPos = pos;
+            shadowData.spotBias = spot->shadowBias;
+            shadowData.spotPcfRadius = spot->shadowPcfRadius;
+            shadowData.spotResolution = m_shadowMapPass->getSpotResolution();
+            shadowData.spotSrv = m_shadowMapPass->getSpotSrvHandle();
         }
+    }
 
-        if (caster && caster->castShadows){
-            float camNear, camFar;
-            ShadowMath::ExtractNearFar(proj, camNear, camFar);
-            const float farLimit = std::min(camFar, caster->shadowDistance);
-            const uint32_t res = (uint32_t)caster->shadowResolution;
-
-            bool didGpu = false;
-            if (caster->shadowGpuFrustum && m_gbufferPass){
-                Matrix ivp; (view * proj).Invert(ivp);
-                Vector3 ld = caster->direction; ld.Normalize();
-                if (m_shadowMapPass->computeGpuLightMatrix(cmd, m_gbufferPass->getGBuffer(),
-                                                           ivp, ld, caster->shadowSunDistance)){
-                    m_shadowMapPass->renderDirectionalGpu(cmd, shadowCasters, res);
-                    shadowData.enabled = true;
-                    shadowData.cascadeCount = 1;
-                    shadowData.gpuMode = true;
-                    shadowData.gpuVpVA = m_shadowMapPass->getGpuVpVA();
-                    shadowData.lightDir = ld;
-                    shadowData.bias = caster->shadowBias;
-                    shadowData.pcfRadius = caster->shadowPcfRadius;
-                    shadowData.mode = 0;
-                    shadowData.ambientStrength = caster->shadowAmbientStrength;
-                    shadowData.resolution = m_shadowMapPass->getResolution();
-                    shadowData.srv = m_shadowMapPass->getSrvHandle();
-                    didGpu = true;
-                }
+    {
+        ComponentPointLight* pt = nullptr; GameObject* ptGO = nullptr;
+        std::function<void(GameObject*)> find = [&](GameObject* n){
+            if (!n || !n->isActive() || pt) return;
+            if (auto* pl = n->getComponent<ComponentPointLight>(); pl && pl->enabled && pl->castShadows){
+                pt = pl; ptGO = n; return;
             }
+            for (auto* c : n->getChildren()) find(c);
+        };
+        if (moduleScene) find(moduleScene->getRoot());
+        if (pt && ptGO){
+            Vector3 pos = ptGO->getTransform()->getGlobalMatrix().Translation();
+            Matrix faces[6];
+            ShadowMath::PointLightFaceViewProj(pos, 0.05f, pt->radius, faces);
+            m_shadowMapPass->renderPoint(cmd, shadowCasters, faces, pos, pt->radius,
+                                         (uint32_t)pt->shadowResolution);
+            shadowData.pointEnabled = true;
+            shadowData.pointPos = pos;
+            shadowData.pointRange = pt->radius;
+            shadowData.pointBias = pt->shadowBias;
+            shadowData.pointSrv = m_shadowMapPass->getPointSrvHandle();
+        }
+    }
 
-            const int count = std::max(1, std::min(caster->shadowCascadeCount,
-                                                   ShadowMath::kMaxCascades));
-            if (!didGpu){
+    ID3D12DescriptorHeap* shHeaps[] = { app->getShaderDescriptors()->getHeap(),
+                                        app->getSamplerHeap()->getHeap() };
+    cmd->SetDescriptorHeaps(2, shHeaps);
+}
 
-            float rangeNear = camNear;
-            float rangeFar = farLimit;
-            if (caster->shadowTightFrustum){
-                float minDistance = FLT_MAX;
-                float maxDistance = -FLT_MAX;
-                for (MeshEntry* entry : opaqueMeshes){
-                    if (!entry) continue;
-                    Mesh* mesh = entry->meshRes ? entry->meshRes->getMesh() : entry->mesh;
-                    if (!mesh || !mesh->hasAABB()) continue;
-                    const Vector3 mn = mesh->getAABBMin();
-                    const Vector3 mx = mesh->getAABBMax();
-                    Matrix world;
-                    memcpy(&world, entry->worldMatrix, sizeof(float) * 16);
-                    const Vector3 localCenter = (mn + mx) * 0.5f;
-                    const float localRadius = ((mx - mn) * 0.5f).Length();
-                    const float sx = Vector3(world._11, world._12, world._13).Length();
-                    const float sy = Vector3(world._21, world._22, world._23).Length();
-                    const float sz = Vector3(world._31, world._32, world._33).Length();
-                    const float radius = localRadius * std::max(sx, std::max(sy, sz));
-                    const Vector3 worldCenter = Vector3::Transform(localCenter, world);
-                    const Vector3 viewCenter = Vector3::Transform(worldCenter, view);
-                    minDistance = std::min(minDistance, -viewCenter.z - radius);
-                    maxDistance = std::max(maxDistance, -viewCenter.z + radius);
-                }
-                if (minDistance < maxDistance){
-                    rangeNear = std::max(rangeNear, minDistance);
-                    rangeFar = std::min(rangeFar, maxDistance);
-                    if (rangeFar <= rangeNear + 0.01f){ rangeNear = camNear; rangeFar = farLimit; }
-                }
-            }
+// Cascaded shadow maps for the main directional light, fitted on the GPU from the depth buffer when
+// shadowGpuFrustum is set (falling back to CPU cascade fitting when that isn't available).
+void RuntimeCore::renderDirectionalShadows(ID3D12GraphicsCommandList* cmd, SceneView& v, const ComponentDirectionalLight& light, ShadowRenderData& shadowData){
+    const Matrix& view = v.view;
+    const Matrix& proj = v.proj;
+    const bool editorExtras = v.editorExtras;
+    std::vector<MeshEntry*>& opaqueMeshes = v.opaqueMeshes;
+    std::vector<MeshEntry*>& shadowCasters = v.shadowCasters;
+    float camNear, camFar;
+    ShadowMath::ExtractNearFar(proj, camNear, camFar);
+    const float farLimit = std::min(camFar, light.shadowDistance);
+    const uint32_t res = (uint32_t)light.shadowResolution;
 
-            float splits[ShadowMath::kMaxCascades];
-            ShadowMath::CascadeSplits(rangeNear, rangeFar, count,
-                                      caster->shadowCascadeLambda, splits);
-
-            static const float kCascadeColors[4][3] = {
-                { 1.f, 0.4f, 0.4f }, { 0.4f, 1.f, 0.4f },
-                { 0.4f, 0.5f, 1.f }, { 1.f, 1.f, 0.4f },
-            };
-
-            Matrix cascadeVP[ShadowMath::kMaxCascades];
-            float prevFar = rangeNear;
-            for (int c = 0; c < count; ++c){
-                ShadowMath::DirShadowResult sm = ShadowMath::DirectionalLightViewProj(
-                    view, proj, caster->direction, prevFar, splits[c],
-                    caster->shadowSunDistance, res);
-                cascadeVP[c] = sm.viewProj;
-                shadowData.cascadeSplit[c] = splits[c];
-                prevFar = splits[c];
-
-                if (editorExtras && caster->shadowDebugCascades)
-                    dd::sphere(ddConvert(sm.center), kCascadeColors[c % 4], sm.radius);
-            }
-
-            m_shadowMapPass->render(cmd, shadowCasters, cascadeVP, count, res,
-                                    caster->shadowMode, caster->shadowExpK,
-                                    caster->shadowLightBleed,
-                                    caster->shadowStaggerCascades);
-
-            for (int c = 0; c < count; ++c)
-                shadowData.lightViewProj[c] = cascadeVP[c];
-
+    bool didGpu = false;
+    if (light.shadowGpuFrustum && m_gbufferPass){
+        Matrix ivp; (view * proj).Invert(ivp);
+        Vector3 ld = light.direction; ld.Normalize();
+        if (m_shadowMapPass->computeGpuLightMatrix(cmd, m_gbufferPass->getGBuffer(),
+                                                   ivp, ld, light.shadowSunDistance)){
+            m_shadowMapPass->renderDirectionalGpu(cmd, shadowCasters, res);
             shadowData.enabled = true;
-            shadowData.cascadeCount = count;
-            shadowData.lightDir = caster->direction;
-            shadowData.lightDir.Normalize();
-            shadowData.bias = caster->shadowBias;
-            shadowData.pcfRadius = caster->shadowPcfRadius;
-            shadowData.mode = caster->shadowMode;
-            shadowData.expK = caster->shadowExpK;
-            shadowData.lightBleed = caster->shadowLightBleed;
-            shadowData.ambientStrength = caster->shadowAmbientStrength;
-            shadowData.debugTint = caster->shadowDebugCascades;
+            shadowData.cascadeCount = 1;
+            shadowData.gpuMode = true;
+            shadowData.gpuVpVA = m_shadowMapPass->getGpuVpVA();
+            shadowData.lightDir = ld;
+            shadowData.bias = light.shadowBias;
+            shadowData.pcfRadius = light.shadowPcfRadius;
+            shadowData.mode = 0;
+            shadowData.ambientStrength = light.shadowAmbientStrength;
             shadowData.resolution = m_shadowMapPass->getResolution();
             shadowData.srv = m_shadowMapPass->getSrvHandle();
-            if (m_shadowMapPass->hasMoments())
-                shadowData.momentSrv = m_shadowMapPass->getMomentsSrvHandle();
-            }
-
-            if (editorExtras && caster->shadowShowPreview)
-                m_shadowMapPass->copyPreview(cmd, caster->shadowPreviewCascade);
+            didGpu = true;
         }
-
-        {
-            ComponentSpotLight* spot = nullptr; GameObject* spotGO = nullptr;
-            std::function<void(GameObject*)> find = [&](GameObject* n){
-                if (!n || !n->isActive() || spot) return;
-                if (auto* sl = n->getComponent<ComponentSpotLight>(); sl && sl->enabled && sl->castShadows){
-                    spot = sl; spotGO = n; return;
-                }
-                for (auto* c : n->getChildren()) find(c);
-            };
-            if (moduleScene) find(moduleScene->getRoot());
-            if (spot && spotGO){
-                Vector3 pos = spotGO->getTransform()->getGlobalMatrix().Translation();
-                Matrix vp = ShadowMath::SpotLightViewProj(pos, spot->direction,
-                                spot->outerAngle * 3.14159265f / 180.f, spot->radius);
-                m_shadowMapPass->renderSpot(cmd, shadowCasters, vp, (uint32_t)spot->shadowResolution);
-                shadowData.spotEnabled = true;
-                shadowData.spotViewProj = vp;
-                shadowData.spotPos = pos;
-                shadowData.spotBias = spot->shadowBias;
-                shadowData.spotPcfRadius = spot->shadowPcfRadius;
-                shadowData.spotResolution = m_shadowMapPass->getSpotResolution();
-                shadowData.spotSrv = m_shadowMapPass->getSpotSrvHandle();
-            }
-        }
-
-        {
-            ComponentPointLight* pt = nullptr; GameObject* ptGO = nullptr;
-            std::function<void(GameObject*)> find = [&](GameObject* n){
-                if (!n || !n->isActive() || pt) return;
-                if (auto* pl = n->getComponent<ComponentPointLight>(); pl && pl->enabled && pl->castShadows){
-                    pt = pl; ptGO = n; return;
-                }
-                for (auto* c : n->getChildren()) find(c);
-            };
-            if (moduleScene) find(moduleScene->getRoot());
-            if (pt && ptGO){
-                Vector3 pos = ptGO->getTransform()->getGlobalMatrix().Translation();
-                Matrix faces[6];
-                ShadowMath::PointLightFaceViewProj(pos, 0.05f, pt->radius, faces);
-                m_shadowMapPass->renderPoint(cmd, shadowCasters, faces, pos, pt->radius,
-                                             (uint32_t)pt->shadowResolution);
-                shadowData.pointEnabled = true;
-                shadowData.pointPos = pos;
-                shadowData.pointRange = pt->radius;
-                shadowData.pointBias = pt->shadowBias;
-                shadowData.pointSrv = m_shadowMapPass->getPointSrvHandle();
-            }
-        }
-
-        ID3D12DescriptorHeap* shHeaps[] = { app->getShaderDescriptors()->getHeap(),
-                                            app->getSamplerHeap()->getHeap() };
-        cmd->SetDescriptorHeaps(2, shHeaps);
     }
-    m_frameShadowData = shadowData;
 
-    // Occlusion fade + x-ray: always on in the Game view / standalone player, Scene view only when previewing.
+    const int count = std::max(1, std::min(light.shadowCascadeCount,
+                                           ShadowMath::kMaxCascades));
+    if (!didGpu){
+
+    float rangeNear = camNear;
+    float rangeFar = farLimit;
+    if (light.shadowTightFrustum){
+        float minDistance = FLT_MAX;
+        float maxDistance = -FLT_MAX;
+        for (MeshEntry* entry : opaqueMeshes){
+            if (!entry) continue;
+            Mesh* mesh = entry->meshRes ? entry->meshRes->getMesh() : entry->mesh;
+            if (!mesh || !mesh->hasAABB()) continue;
+            const Vector3 mn = mesh->getAABBMin();
+            const Vector3 mx = mesh->getAABBMax();
+            Matrix world;
+            memcpy(&world, entry->worldMatrix, sizeof(float) * 16);
+            const Vector3 localCenter = (mn + mx) * 0.5f;
+            const float localRadius = ((mx - mn) * 0.5f).Length();
+            const float sx = Vector3(world._11, world._12, world._13).Length();
+            const float sy = Vector3(world._21, world._22, world._23).Length();
+            const float sz = Vector3(world._31, world._32, world._33).Length();
+            const float radius = localRadius * std::max(sx, std::max(sy, sz));
+            const Vector3 worldCenter = Vector3::Transform(localCenter, world);
+            const Vector3 viewCenter = Vector3::Transform(worldCenter, view);
+            minDistance = std::min(minDistance, -viewCenter.z - radius);
+            maxDistance = std::max(maxDistance, -viewCenter.z + radius);
+        }
+        if (minDistance < maxDistance){
+            rangeNear = std::max(rangeNear, minDistance);
+            rangeFar = std::min(rangeFar, maxDistance);
+            if (rangeFar <= rangeNear + 0.01f){ rangeNear = camNear; rangeFar = farLimit; }
+        }
+    }
+
+    float splits[ShadowMath::kMaxCascades];
+    ShadowMath::CascadeSplits(rangeNear, rangeFar, count,
+                              light.shadowCascadeLambda, splits);
+
+    static const float kCascadeColors[4][3] = {
+        { 1.f, 0.4f, 0.4f }, { 0.4f, 1.f, 0.4f },
+        { 0.4f, 0.5f, 1.f }, { 1.f, 1.f, 0.4f },
+    };
+
+    Matrix cascadeVP[ShadowMath::kMaxCascades];
+    float prevFar = rangeNear;
+    for (int c = 0; c < count; ++c){
+        ShadowMath::DirShadowResult sm = ShadowMath::DirectionalLightViewProj(
+            view, proj, light.direction, prevFar, splits[c],
+            light.shadowSunDistance, res);
+        cascadeVP[c] = sm.viewProj;
+        shadowData.cascadeSplit[c] = splits[c];
+        prevFar = splits[c];
+
+        if (editorExtras && light.shadowDebugCascades)
+            dd::sphere(ddConvert(sm.center), kCascadeColors[c % 4], sm.radius);
+    }
+
+    m_shadowMapPass->render(cmd, shadowCasters, cascadeVP, count, res,
+                            light.shadowMode, light.shadowExpK,
+                            light.shadowLightBleed,
+                            light.shadowStaggerCascades);
+
+    for (int c = 0; c < count; ++c)
+        shadowData.lightViewProj[c] = cascadeVP[c];
+
+    shadowData.enabled = true;
+    shadowData.cascadeCount = count;
+    shadowData.lightDir = light.direction;
+    shadowData.lightDir.Normalize();
+    shadowData.bias = light.shadowBias;
+    shadowData.pcfRadius = light.shadowPcfRadius;
+    shadowData.mode = light.shadowMode;
+    shadowData.expK = light.shadowExpK;
+    shadowData.lightBleed = light.shadowLightBleed;
+    shadowData.ambientStrength = light.shadowAmbientStrength;
+    shadowData.debugTint = light.shadowDebugCascades;
+    shadowData.resolution = m_shadowMapPass->getResolution();
+    shadowData.srv = m_shadowMapPass->getSrvHandle();
+    if (m_shadowMapPass->hasMoments())
+        shadowData.momentSrv = m_shadowMapPass->getMomentsSrvHandle();
+    }
+
+    if (editorExtras && light.shadowShowPreview)
+        m_shadowMapPass->copyPreview(cmd, light.shadowPreviewCascade);
+}
+
+// The occlusion fade's cut-out around the focus (the first node tagged xray.tags[0], or a script override).
+OcclusionParams RuntimeCore::buildOcclusionParams(const SceneView& v) const{
+    const Vector3& viewCamPos = v.camPos;
+    GameObject* focusNode = v.focusNode;
+    const bool viewAllowsOcclusionFx = v.viewAllowsOcclusionFx;
     const RenderOverrides& renderOverrides = m_sceneManager->getRenderOverrides();
-    const bool viewAllowsOcclusionFx = !editorExtras || s.occlusionFade.previewInSceneView;
+    const EditorSceneSettings& s = *v.settings;
     const bool occlusionEnabled = renderOverrides.occlusionEnabled >= 0 ? renderOverrides.occlusionEnabled != 0
                                                                         : s.occlusionFade.enabled;
-    const bool xrayEnabled = renderOverrides.xrayEnabled >= 0 ? renderOverrides.xrayEnabled != 0 : s.xray.enabled;
-
     OcclusionParams occlusion;
     occlusion.cameraPos = viewCamPos;   // also the eye point for VFX rims in GBufferPS, so set even with the fade off
     if (viewAllowsOcclusionFx && occlusionEnabled && (renderOverrides.useFocusOverride || focusNode)){
@@ -1108,485 +1273,516 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
         occlusion.coneNearScale = std::clamp(of.coneNearScale, 0.f, 1.f);
         occlusion.enabled = occlusion.radius > 0.f ? 1.f : 0.f;
     }
+    return occlusion;
+}
 
-    if (m_gbufferPass && (!opaqueMeshes.empty() || !translucentMeshes.empty() || !billboards.empty())){
-        const int gbufferViewportIndex = editorExtras ? 0 : 1;
-        m_gbufferPass->render(cmd, opaqueMeshes, viewProj, w, h, gbufferViewportIndex, occlusion);
+// G-buffer, decals, deferred lighting, then the forward-drawn translucents, billboards, trails, GPU particles
+// and x-ray silhouettes into the view's target.
+void RuntimeCore::renderScenePasses(ID3D12GraphicsCommandList* cmd, SceneView& v, const ShadowRenderData& shadowData, const OcclusionParams& occlusion){
+    ModuleCamera* camera = v.camera;
+    SceneGraph* moduleScene = v.scene;
+    const EditorSceneSettings& s = *v.settings;
+    const Matrix& view = v.view;
+    const Matrix& proj = v.proj;
+    const Matrix& viewProj = v.viewProj;
+    const uint32_t w = v.width;
+    const uint32_t h = v.height;
+    const bool editorExtras = v.editorExtras;
+    RenderTexture* outputRT = v.outputRT;
+    const Vector3& viewCamPos = v.camPos;
+    const EnvironmentSystem* envForIBL = v.envForIBL;
+    const std::vector<EditorSceneSettings::XRayTag>& xrayTags = v.settings->xray.tags;
+    const int xrayGroupCount = v.xrayGroupCount;
+    std::vector<MeshEntry*>& opaqueMeshes = v.opaqueMeshes;
+    std::vector<MeshEntry*>& translucentMeshes = v.translucentMeshes;
+    std::vector<BillboardInstance>& billboards = v.billboards;
+    std::vector<TrailInstance>& trails = v.trails;
+    std::vector<ParticleDrawRequest>& gpuParticleRequests = v.gpuParticles;
+    const bool viewAllowsOcclusionFx = v.viewAllowsOcclusionFx;
+    const bool xrayEnabled = v.xrayEnabled;
+    const int gbufferViewportIndex = editorExtras ? 0 : 1;
+    m_gbufferPass->render(cmd, opaqueMeshes, viewProj, w, h, gbufferViewportIndex, occlusion);
 
-        if (outputRT && outputRT->isValid()){
-            auto rtv = outputRT->getRtvHandle();
-            auto dsv = outputRT->getDsvHandle();
-            bool hasDsv = outputRT->getDepthTexture() != nullptr;
-            cmd->OMSetRenderTargets(1, &rtv, FALSE, hasDsv ? &dsv : nullptr);
-            D3D12_VIEWPORT vp = { 0.f, 0.f, float(w), float(h), 0.f, 1.f };
-            D3D12_RECT sc = { 0, 0, LONG(w), LONG(h) };
-            cmd->RSSetViewports(1, &vp);
-            cmd->RSSetScissorRects(1, &sc);
-        }
-
-        if (m_decalPass && moduleScene){
-            std::vector<DecalInstance> decals;
-            gatherDecals(moduleScene->getRoot(), decals, view, proj, w, h);
-            if (!decals.empty())
-                m_decalPass->render(cmd, *m_gbufferPass, decals, w, h);
-        }
-
-        if (m_deferredLightingPass){
-            Matrix invViewProj;
-            viewProj.Invert(invViewProj);
-
-            if (!editorExtras && camera->hasGameFrustum()){
-                const Frustum& gf = camera->getGameFrustum();
-                FrameLightData culledLights;
-                culledLights.dirLights = m_frameLights.dirLights;
-                culledLights.pointLights.reserve(m_frameLights.pointLights.size());
-                for (const auto& pl : m_frameLights.pointLights){
-                    Sphere s{ pl.position, sqrtf(pl.squaredRadius) };
-                    AABB box = s.toAABB();
-                    if (gf.intersectsAABB(box.min, box.max)) culledLights.pointLights.push_back(pl);
-                }
-                culledLights.spotLights.reserve(m_frameLights.spotLights.size());
-                for (const auto& sl : m_frameLights.spotLights){
-                    Sphere s{ sl.position, sqrtf(sl.squaredRadius) };
-                    AABB box = s.toAABB();
-                    if (gf.intersectsAABB(box.min, box.max)) culledLights.spotLights.push_back(sl);
-                }
-                m_deferredLightingPass->render(cmd, *m_gbufferPass, culledLights,
-                                                viewCamPos, view, proj,
-                                                invViewProj, envForIBL, w, h,
-                                                gbufferViewportIndex, shadowData);
-            } else {
-                m_deferredLightingPass->render(cmd, *m_gbufferPass, m_frameLights,
-                                                viewCamPos, view, proj,
-                                                invViewProj, envForIBL, w, h,
-                                                gbufferViewportIndex, shadowData);
-            }
-        }
-
-        if (!translucentMeshes.empty() && m_meshRenderPass && outputRT && outputRT->isValid()){
-            const Vector3 camPos = viewCamPos;
-            std::sort(translucentMeshes.begin(), translucentMeshes.end(),
-                      [&camPos](const MeshEntry* a, const MeshEntry* b){
-                          Matrix wa, wb;
-                          memcpy(&wa, a->worldMatrix, sizeof(float) * 16);
-                          memcpy(&wb, b->worldMatrix, sizeof(float) * 16);
-                          float da = Vector3::DistanceSquared(wa.Translation(), camPos);
-                          float db = Vector3::DistanceSquared(wb.Translation(), camPos);
-                          return da > db;
-                      });
-
-            auto rtv = outputRT->getRtvHandle();
-            auto roDsv = m_gbufferPass->getGBuffer().getReadOnlyDsvHandle();
-            cmd->OMSetRenderTargets(1, &rtv, FALSE, &roDsv);
-            D3D12_VIEWPORT vp = { 0.f, 0.f, float(w), float(h), 0.f, 1.f };
-            D3D12_RECT sc = { 0, 0, LONG(w), LONG(h) };
-            cmd->RSSetViewports(1, &vp);
-            cmd->RSSetScissorRects(1, &sc);
-
-            BEGIN_EVENT(cmd, L"Forward Transparent Pass");
-            m_meshRenderPass->renderTransparent(cmd, translucentMeshes, m_frameLights,
-                                                 camPos, viewProj, envForIBL, shadowData);
-            END_EVENT(cmd);
-        }
-
-        if (m_billboardPass && moduleScene && outputRT && outputRT->isValid()){
-            const Vector3 camPos = viewCamPos;
-            if (!billboards.empty()){
-                std::sort(billboards.begin(), billboards.end(),
-                          [&camPos](const BillboardInstance& a, const BillboardInstance& b){
-                              if (a.additive != b.additive) return !a.additive && b.additive;
-                              Vector3 pa(a.cb.centerHalfWidth.x, a.cb.centerHalfWidth.y, a.cb.centerHalfWidth.z);
-                              Vector3 pb(b.cb.centerHalfWidth.x, b.cb.centerHalfWidth.y, b.cb.centerHalfWidth.z);
-                              float da = Vector3::DistanceSquared(pa, camPos);
-                              float db = Vector3::DistanceSquared(pb, camPos);
-                              return da > db;
-                          });
-
-                auto rtv = outputRT->getRtvHandle();
-                auto roDsv = m_gbufferPass->getGBuffer().getReadOnlyDsvHandle();
-                cmd->OMSetRenderTargets(1, &rtv, FALSE, &roDsv);
-                D3D12_VIEWPORT vp = { 0.f, 0.f, float(w), float(h), 0.f, 1.f };
-                D3D12_RECT sc = { 0, 0, LONG(w), LONG(h) };
-                cmd->RSSetViewports(1, &vp);
-                cmd->RSSetScissorRects(1, &sc);
-
-                m_billboardPass->render(cmd, billboards, w, h);
-            }
-        }
-
-        if (m_trailPass && moduleScene && outputRT && outputRT->isValid() && !trails.empty()){
-            const Vector3 camPos = viewCamPos;
-            std::sort(trails.begin(), trails.end(),
-                      [&camPos](const TrailInstance& a, const TrailInstance& b){
-                          if (a.additive != b.additive) return !a.additive && b.additive;
-                          float da = Vector3::DistanceSquared(a.sortPos, camPos);
-                          float db = Vector3::DistanceSquared(b.sortPos, camPos);
-                          return da > db;
-                      });
-
-            auto rtv = outputRT->getRtvHandle();
-            auto roDsv = m_gbufferPass->getGBuffer().getReadOnlyDsvHandle();
-            cmd->OMSetRenderTargets(1, &rtv, FALSE, &roDsv);
-            D3D12_VIEWPORT vp = { 0.f, 0.f, float(w), float(h), 0.f, 1.f };
-            D3D12_RECT sc = { 0, 0, LONG(w), LONG(h) };
-            cmd->RSSetViewports(1, &vp);
-            cmd->RSSetScissorRects(1, &sc);
-
-            m_trailPass->render(cmd, trails, viewProj, w, h);
-        }
-
-        if (m_particlePass && moduleScene && outputRT && outputRT->isValid()
-                           && !gpuParticleRequests.empty()){
-            const Vector3 camPos = viewCamPos;
-            std::sort(gpuParticleRequests.begin(), gpuParticleRequests.end(),
-                      [&camPos](const ParticleDrawRequest& a, const ParticleDrawRequest& b){
-                          if (a.additive != b.additive) return !a.additive && b.additive;
-                          if (a.particles.empty() || b.particles.empty()) return false;
-                          const auto& pa = a.particles.front();
-                          const auto& pb = b.particles.front();
-                          Vector3 pa3(pa.position[0], pa.position[1], pa.position[2]);
-                          Vector3 pb3(pb.position[0], pb.position[1], pb.position[2]);
-                          return Vector3::DistanceSquared(pa3, camPos)
-                               > Vector3::DistanceSquared(pb3, camPos);
-                      });
-
-            auto rtv = outputRT->getRtvHandle();
-            auto roDsv = m_gbufferPass->getGBuffer().getReadOnlyDsvHandle();
-            cmd->OMSetRenderTargets(1, &rtv, FALSE, &roDsv);
-            D3D12_VIEWPORT vp = { 0.f, 0.f, float(w), float(h), 0.f, 1.f };
-            D3D12_RECT sc = { 0, 0, LONG(w), LONG(h) };
-            cmd->RSSetViewports(1, &vp);
-            cmd->RSSetScissorRects(1, &sc);
-
-            m_particlePass->render(cmd, gpuParticleRequests, viewProj,
-                                   camera->getRight(), camera->getUp(),
-                                   (float)app->getElapsedMilis() / 1000.f,
-                                   w, h);
-        }
-
-        // X-ray silhouette: last in the scene pass so it overlays transparents/particles; before fog, bloom and
-        // tonemap (those run in each caller), so both the standalone player and the editor Game view get it.
-        if (m_xrayPass && viewAllowsOcclusionFx && xrayEnabled && xrayGroupCount > 0 && outputRT && outputRT->isValid()){
-            std::vector<MeshEntry*> xrayMeshes;
-            for (MeshEntry* e : opaqueMeshes)
-                if (e->xrayGroup != 0 && e->xrayGroup <= xrayGroupCount && xrayTags[e->xrayGroup - 1].enabled)
-                    xrayMeshes.push_back(e);
-
-            if (!xrayMeshes.empty()){
-                // Tonemap scales by 2^exposure; undo it so the configured colour reads the same at any exposure.
-                const float exposureComp = exp2f(-s.postProcess.exposure);
-                XRayGroupStyle styles[XRayPass::kMaxGroups];
-                for (int i = 0; i < xrayGroupCount; ++i){
-                    const auto& xt = xrayTags[i];
-                    styles[i].color = Vector3(xt.color.x, xt.color.y, xt.color.z) * exposureComp;
-                    styles[i].fillAlpha = std::clamp(xt.fillAlpha * xt.color.w, 0.f, 1.f);
-                    styles[i].outlineWidth = std::max(0.f, xt.outlineWidth);
-                }
-                m_xrayPass->render(cmd, *m_gbufferPass, xrayMeshes, styles, xrayGroupCount,
-                                   outputRT, w, h, gbufferViewportIndex);
-            }
-        }
-
-        ID3D12DescriptorHeap* heaps2[] = { app->getShaderDescriptors()->getHeap(),
-                                           app->getSamplerHeap()->getHeap() };
-        cmd->SetDescriptorHeaps(2, heaps2);
+    if (outputRT && outputRT->isValid()){
+        bindViewTarget(cmd, *outputRT, nullptr, w, h);
     }
 
-    if (editorExtras){
-        if (s.showGrid) dd::xzSquareGrid(-100.f, 100.f, 0.f, 1.f, dd::colors::Gray);
-        if (s.showAxis){ Matrix id = Matrix::Identity; dd::axisTriad(id.m[0], 0.f, 2.f, 2.f); }
-        if (s.debugDrawLights && moduleScene) debugDrawLights(moduleScene, s.debugLightSize);
-
-        FrustumDebugDraw fdd;
-        camera->buildDebugLines(fdd);
-        for (const auto& line : fdd.lines){
-            ddVec3 f = { line.from.x, line.from.y, line.from.z };
-            ddVec3 t = { line.to.x, line.to.y, line.to.z };
-            const Vector3& c = line.color;
-            if (c.x > .5f && c.y > .5f && c.z < .5f) dd::line(f, t, dd::colors::Yellow);
-            else if (c.x < .5f && c.y > .5f && c.z < .5f) dd::line(f, t, dd::colors::Green);
-            else if (c.x < .5f && c.y > .5f && c.z > .5f) dd::line(f, t, dd::colors::Cyan);
-            else if (c.x > .5f && c.y < .5f && c.z < .5f) dd::line(f, t, dd::colors::Red);
-            else if (c.x < .5f && c.y < .5f && c.z > .5f) dd::line(f, t, dd::colors::Blue);
-            else dd::line(f, t, dd::colors::White);
+    if (m_decalPass && moduleScene){
+        std::vector<DecalInstance> decals;
+        gatherDecals(moduleScene->getRoot(), decals, view, proj, w, h);
+        if (!decals.empty()){
+            m_decalPass->render(cmd, *m_gbufferPass, decals, w, h);
+            // The decal pass leaves the G-buffer targets bound, and the deferred lighting pass draws into whatever
+            // is bound: without rebinding the output, any live decal would send the whole lit scene into the
+            // G-buffer instead of the view, leaving only the skybox on screen.
+            if (outputRT && outputRT->isValid()){
+                bindViewTarget(cmd, *outputRT, nullptr, w, h);
+            }
         }
+    }
+
+    if (m_deferredLightingPass){
+        Matrix invViewProj;
+        viewProj.Invert(invViewProj);
+
+        if (!editorExtras && camera->hasGameFrustum()){
+            const Frustum& gf = camera->getGameFrustum();
+            FrameLightData culledLights;
+            culledLights.dirLights = m_frameLights.dirLights;
+            culledLights.pointLights.reserve(m_frameLights.pointLights.size());
+            for (const auto& pl : m_frameLights.pointLights){
+                Sphere s{ pl.position, sqrtf(pl.squaredRadius) };
+                AABB box = s.toAABB();
+                if (gf.intersectsAABB(box.min, box.max)) culledLights.pointLights.push_back(pl);
+            }
+            culledLights.spotLights.reserve(m_frameLights.spotLights.size());
+            for (const auto& sl : m_frameLights.spotLights){
+                Sphere s{ sl.position, sqrtf(sl.squaredRadius) };
+                AABB box = s.toAABB();
+                if (gf.intersectsAABB(box.min, box.max)) culledLights.spotLights.push_back(sl);
+            }
+            m_deferredLightingPass->render(cmd, *m_gbufferPass, culledLights,
+                                            viewCamPos, view, proj,
+                                            invViewProj, envForIBL, w, h,
+                                            gbufferViewportIndex, shadowData);
+        } else {
+            m_deferredLightingPass->render(cmd, *m_gbufferPass, m_frameLights,
+                                            viewCamPos, view, proj,
+                                            invViewProj, envForIBL, w, h,
+                                            gbufferViewportIndex, shadowData);
+        }
+    }
+
+    if (!translucentMeshes.empty() && m_meshRenderPass && outputRT && outputRT->isValid()){
+        const Vector3 camPos = viewCamPos;
+        std::sort(translucentMeshes.begin(), translucentMeshes.end(),
+                  [&camPos](const MeshEntry* a, const MeshEntry* b){
+                      Matrix wa, wb;
+                      memcpy(&wa, a->worldMatrix, sizeof(float) * 16);
+                      memcpy(&wb, b->worldMatrix, sizeof(float) * 16);
+                      float da = Vector3::DistanceSquared(wa.Translation(), camPos);
+                      float db = Vector3::DistanceSquared(wb.Translation(), camPos);
+                      return da > db;
+                  });
+
+        bindViewTarget(cmd, *outputRT, &m_gbufferPass->getGBuffer(), w, h);
+
+        BEGIN_EVENT(cmd, L"Forward Transparent Pass");
+        m_meshRenderPass->renderTransparent(cmd, translucentMeshes, m_frameLights,
+                                             camPos, viewProj, envForIBL, shadowData);
+        END_EVENT(cmd);
+    }
+
+    if (m_billboardPass && moduleScene && outputRT && outputRT->isValid()){
+        const Vector3 camPos = viewCamPos;
+        if (!billboards.empty()){
+            std::sort(billboards.begin(), billboards.end(),
+                      [&camPos](const BillboardInstance& a, const BillboardInstance& b){
+                          if (a.additive != b.additive) return !a.additive && b.additive;
+                          Vector3 pa(a.cb.centerHalfWidth.x, a.cb.centerHalfWidth.y, a.cb.centerHalfWidth.z);
+                          Vector3 pb(b.cb.centerHalfWidth.x, b.cb.centerHalfWidth.y, b.cb.centerHalfWidth.z);
+                          float da = Vector3::DistanceSquared(pa, camPos);
+                          float db = Vector3::DistanceSquared(pb, camPos);
+                          return da > db;
+                      });
+
+            bindViewTarget(cmd, *outputRT, &m_gbufferPass->getGBuffer(), w, h);
+
+            m_billboardPass->render(cmd, billboards, w, h);
+        }
+    }
+
+    if (m_trailPass && moduleScene && outputRT && outputRT->isValid() && !trails.empty()){
+        const Vector3 camPos = viewCamPos;
+        std::sort(trails.begin(), trails.end(),
+                  [&camPos](const TrailInstance& a, const TrailInstance& b){
+                      if (a.additive != b.additive) return !a.additive && b.additive;
+                      float da = Vector3::DistanceSquared(a.sortPos, camPos);
+                      float db = Vector3::DistanceSquared(b.sortPos, camPos);
+                      return da > db;
+                  });
+
+        bindViewTarget(cmd, *outputRT, &m_gbufferPass->getGBuffer(), w, h);
+
+        m_trailPass->render(cmd, trails, viewProj, w, h);
+    }
+
+    if (m_particlePass && moduleScene && outputRT && outputRT->isValid()
+                       && !gpuParticleRequests.empty()){
+        const Vector3 camPos = viewCamPos;
+        std::sort(gpuParticleRequests.begin(), gpuParticleRequests.end(),
+                  [&camPos](const ParticleDrawRequest& a, const ParticleDrawRequest& b){
+                      if (a.additive != b.additive) return !a.additive && b.additive;
+                      if (a.particles.empty() || b.particles.empty()) return false;
+                      const auto& pa = a.particles.front();
+                      const auto& pb = b.particles.front();
+                      Vector3 pa3(pa.position[0], pa.position[1], pa.position[2]);
+                      Vector3 pb3(pb.position[0], pb.position[1], pb.position[2]);
+                      return Vector3::DistanceSquared(pa3, camPos)
+                           > Vector3::DistanceSquared(pb3, camPos);
+                  });
+
+        bindViewTarget(cmd, *outputRT, &m_gbufferPass->getGBuffer(), w, h);
+
+        m_particlePass->render(cmd, gpuParticleRequests, viewProj,
+                               camera->getRight(), camera->getUp(),
+                               (float)app->getElapsedMilis() / 1000.f,
+                               w, h);
+    }
+
+    // X-ray silhouette: last in the scene pass so it overlays transparents/particles; before fog, bloom and
+    // tonemap (those run in each caller), so both the standalone player and the editor Game view get it.
+    if (m_xrayPass && viewAllowsOcclusionFx && xrayEnabled && xrayGroupCount > 0 && outputRT && outputRT->isValid()){
+        std::vector<MeshEntry*> xrayMeshes;
+        for (MeshEntry* e : opaqueMeshes)
+            if (e->xrayGroup != 0 && e->xrayGroup <= xrayGroupCount && xrayTags[e->xrayGroup - 1].enabled)
+                xrayMeshes.push_back(e);
+
+        if (!xrayMeshes.empty()){
+            // Tonemap scales by 2^exposure; undo it so the configured colour reads the same at any exposure.
+            const float exposureComp = exp2f(-s.postProcess.exposure);
+            XRayGroupStyle styles[XRayPass::kMaxGroups];
+            for (int i = 0; i < xrayGroupCount; ++i){
+                const auto& xt = xrayTags[i];
+                styles[i].color = Vector3(xt.color.x, xt.color.y, xt.color.z) * exposureComp;
+                styles[i].fillAlpha = std::clamp(xt.fillAlpha * xt.color.w, 0.f, 1.f);
+                styles[i].outlineWidth = std::max(0.f, xt.outlineWidth);
+            }
+            m_xrayPass->render(cmd, *m_gbufferPass, xrayMeshes, styles, xrayGroupCount,
+                               outputRT, w, h, gbufferViewportIndex);
+        }
+    }
+
+    ID3D12DescriptorHeap* heaps2[] = { app->getShaderDescriptors()->getHeap(),
+                                       app->getSamplerHeap()->getHeap() };
+    cmd->SetDescriptorHeaps(2, heaps2);
+}
+
+// Scene view overlays: grid, axes, lights, camera frusta, component gizmos, bounds, broad-phase cells,
+// nav graph and culling results, recorded through debug draw.
+void RuntimeCore::drawEditorDebug(ID3D12GraphicsCommandList* cmd, SceneView& v){
+    ModuleCamera* camera = v.camera;
+    SceneGraph* moduleScene = v.scene;
+    const EditorSceneSettings& s = *v.settings;
+    const Matrix& view = v.view;
+    const Matrix& proj = v.proj;
+    const uint32_t w = v.width;
+    const uint32_t h = v.height;
+    if (s.showGrid) dd::xzSquareGrid(-100.f, 100.f, 0.f, 1.f, dd::colors::Gray);
+    if (s.showAxis){ Matrix id = Matrix::Identity; dd::axisTriad(id.m[0], 0.f, 2.f, 2.f); }
+    if (s.debugDrawLights && moduleScene) debugDrawLights(moduleScene, s.debugLightSize);
+
+    FrustumDebugDraw fdd;
+    camera->buildDebugLines(fdd);
+    for (const auto& line : fdd.lines){
+        ddVec3 f = { line.from.x, line.from.y, line.from.z };
+        ddVec3 t = { line.to.x, line.to.y, line.to.z };
+        const Vector3& c = line.color;
+        if (c.x > .5f && c.y > .5f && c.z < .5f) dd::line(f, t, dd::colors::Yellow);
+        else if (c.x < .5f && c.y > .5f && c.z < .5f) dd::line(f, t, dd::colors::Green);
+        else if (c.x < .5f && c.y > .5f && c.z > .5f) dd::line(f, t, dd::colors::Cyan);
+        else if (c.x > .5f && c.y < .5f && c.z < .5f) dd::line(f, t, dd::colors::Red);
+        else if (c.x < .5f && c.y < .5f && c.z > .5f) dd::line(f, t, dd::colors::Blue);
+        else dd::line(f, t, dd::colors::White);
+    }
+    if (moduleScene){
+        std::function<void(GameObject*)> drawGizmos = [&](GameObject* node){
+            if (!node || !node->isActive()) return;
+            for (const auto& comp : node->getComponents())
+                comp->onDrawGizmos();
+            for (auto* child : node->getChildren())
+                drawGizmos(child);
+        };
+        drawGizmos(moduleScene->getRoot());
+    }
+
+    if (s.debugDrawBounds && moduleScene) drawBoundsDebug(moduleScene);
+
+    if (s.debugDrawGrid && m_collisionSystem)
+        m_collisionSystem->drawBroadPhaseDebug();
+
+    if (s.debugDrawNav && m_navigationSystem)
+        m_navigationSystem->drawDebug();
+
+    if (camera->showFrustumCullingDebug){
+        if (camera->hasGameFrustum()){
+            FrustumDebugDraw gameFdd;
+            gameFdd.addFrustum(camera->getGameFrustum(), Vector3(1.f, 0.5f, 0.f));
+            for (const auto& line : gameFdd.lines){
+                ddVec3 f = { line.from.x, line.from.y, line.from.z };
+                ddVec3 t = { line.to.x, line.to.y, line.to.z };
+                dd::line(f, t, dd::colors::Orange);
+            }
+        }
+
         if (moduleScene){
-            std::function<void(GameObject*)> drawGizmos = [&](GameObject* node){
+            std::function<void(GameObject*)> drawCullDebug = [&](GameObject* node){
                 if (!node || !node->isActive()) return;
-                for (const auto& comp : node->getComponents())
-                    comp->onDrawGizmos();
-                for (auto* child : node->getChildren())
-                    drawGizmos(child);
+                if (auto* cm = node->getComponent<ComponentMesh>(); cm && cm->hasAABB()){
+                    Vector3 mn, mx;
+                    cm->getWorldAABB(mn, mx);
+                    const float* color = cm->isVisible() ? dd::colors::Green : dd::colors::Red;
+                    dd::aabb(ddConvert(mn), ddConvert(mx), color);
+                }
+                for (auto* child : node->getChildren()) drawCullDebug(child);
             };
-            drawGizmos(moduleScene->getRoot());
+            drawCullDebug(moduleScene->getRoot());
         }
+    }
 
-        if (s.debugDrawBounds && moduleScene){
-            struct BoundsEntry {
-                BVType type;
-                AABB box;
-                Sphere sphere;
-                int colorIdx = 0;   // which palette color this part uses
-            };
-            std::vector<BoundsEntry> boundsEntries;
+    m_debugDraw->record(cmd, w, h, view, proj);
+}
 
-            std::function<void(GameObject*)> collectBounds = [&](GameObject* node){
-                if (!node || !node->isActive()) return;
-                if (auto* cm = node->getComponent<ComponentMesh>()){
-                    BoundsEntry e;
-                    bool hasEntry = false;
-                    const ComponentBounds* cb = node->getComponent<ComponentBounds>();
+// Debug boxes / spheres per mesh. Skinned meshes get one box per limb (or one tight box for a weapon or prop
+// that only references a few bones) so a character's pose reads at a glance.
+void RuntimeCore::drawBoundsDebug(SceneGraph* moduleScene){
+    struct BoundsEntry {
+        BVType type;
+        AABB box;
+        Sphere sphere;
+        int colorIdx = 0;   // which palette color this part uses
+    };
+    std::vector<BoundsEntry> boundsEntries;
 
-                    if (cm->hasSkinData()){
-                        const auto& joints = cm->getSkinJoints();
-                        const int jn = (int)joints.size();
-                        constexpr float kBig = FLT_MAX;
+    std::function<void(GameObject*)> collectBounds = [&](GameObject* node){
+        if (!node || !node->isActive()) return;
+        if (auto* cm = node->getComponent<ComponentMesh>()){
+            BoundsEntry e;
+            bool hasEntry = false;
+            const ComponentBounds* cb = node->getComponent<ComponentBounds>();
 
-                        // Measure skeleton span and mesh span to decide strategy:
-                        // A weapon/accessory mesh is much smaller than the full skeleton it
-                        // references (GLTF exporters often put all bones in every skin).
-                        // Detect this by comparing local AABB diagonal to joint span diagonal.
-                        if (!cm->hasAABB()) cm->computeLocalAABB();
-                        const bool localOK = cm->hasAABB();
+            if (cm->hasSkinData()){
+                const auto& joints = cm->getSkinJoints();
+                const int jn = (int)joints.size();
+                constexpr float kBig = FLT_MAX;
 
-                        Vector3 allJMin(kBig,kBig,kBig), allJMax(-kBig,-kBig,-kBig);
-                        int rootJoint = -1;
-                        for (int i = 0; i < jn; ++i){
-                            if (!joints[i] || !joints[i]->getTransform()) continue;
-                            Vector3 wp = joints[i]->getTransform()->getGlobalMatrix().Translation();
-                            allJMin = Vector3::Min(allJMin, wp);
-                            allJMax = Vector3::Max(allJMax, wp);
-                        }
-                        // Find root joint (first with no parent in joint list) for weapon transform
-                        {
-                            std::vector<bool> hasParent(jn, false);
-                            for (int i = 0; i < jn; ++i){
-                                if (!joints[i]) continue;
-                                GameObject* p = joints[i]->getParent();
-                                for (int j = 0; j < jn; ++j)
-                                    if (i != j && joints[j] == p){ hasParent[i] = true; break; }
-                            }
-                            for (int i = 0; i < jn; ++i)
-                                if (!hasParent[i] && joints[i]){ rootJoint = i; break; }
-                        }
+                // Measure skeleton span and mesh span to decide strategy:
+                // A weapon/accessory mesh is much smaller than the full skeleton it
+                // references (GLTF exporters often put all bones in every skin).
+                // Detect this by comparing local AABB diagonal to joint span diagonal.
+                if (!cm->hasAABB()) cm->computeLocalAABB();
+                const bool localOK = cm->hasAABB();
 
-                        float jointSpan = (allJMax - allJMin).Length();
-                        float meshSpan  = localOK ? (cm->getLocalAABBMax() - cm->getLocalAABBMin()).Length() : -1.f;
-
-                        // Treat as weapon/accessory (one tight box from local AABB × root joint):
-                        //  - mesh geometry is much smaller than the skeleton it references
-                        //    (GLTF exporters sometimes bake all bones into every skin)
-                        //  - OR joints are very tightly clustered (1-3 weapon/prop bones)
-                        //  - OR very few joints total
-                        const bool jointsAreTight = (jointSpan < 0.4f);
-                        const bool fewJoints      = (jn <= 3);
-                        const bool meshSmall      = localOK && meshSpan > 0.f && (meshSpan < jointSpan * 0.45f);
-                        const bool isAccessory    = localOK && rootJoint >= 0 && (fewJoints || jointsAreTight || meshSmall);
-
-                        if (isAccessory){
-                            // Weapon/prop: use the proper skinning transform
-                            // (joint_current_world × inverseBindMatrix) to map the
-                            // rest-pose local AABB into world space correctly.
-                            const auto& ibms = cm->getLocalSkin().inverseBindMatrices;
-                            Matrix skinTransform = joints[rootJoint]->getTransform()->getGlobalMatrix();
-                            if (rootJoint < (int)ibms.size())
-                                skinTransform = ibms[rootJoint] * skinTransform;
-                            Vector3 lMin = cm->getLocalAABBMin(), lMax = cm->getLocalAABBMax();
-                            Vector3 corners[8] = {
-                                {lMin.x,lMin.y,lMin.z},{lMax.x,lMin.y,lMin.z},
-                                {lMin.x,lMax.y,lMin.z},{lMax.x,lMax.y,lMin.z},
-                                {lMin.x,lMin.y,lMax.z},{lMax.x,lMin.y,lMax.z},
-                                {lMin.x,lMax.y,lMax.z},{lMax.x,lMax.y,lMax.z},
-                            };
-                            Vector3 wMin(kBig,kBig,kBig), wMax(-kBig,-kBig,-kBig);
-                            for (auto& c : corners){
-                                Vector3 wc = Vector3::Transform(c, skinTransform);
-                                wMin = Vector3::Min(wMin, wc); wMax = Vector3::Max(wMax, wc);
-                            }
-                            BoundsEntry be;
-                            be.colorIdx = 0; // weapons/props -> palette slot 0
-                            if (cb && cb->bvType == BVType::Sphere){
-                                Vector3 center = (wMin + wMax) * 0.5f;
-                                float radius = (cb->radiusOverride >= 0.f)
-                                    ? cb->radiusOverride : (wMax - center).Length();
-                                be.type = BVType::Sphere; be.sphere = { center, radius };
-                            } else {
-                                be.type = BVType::AABB; be.box = { wMin, wMax };
-                            }
-                            boundsEntries.push_back(be);
-                        } else {
-                            // Body/full-skeleton mesh: one box per major limb branch.
-                            // Build parent + children maps within this joint list.
-                            std::vector<int> jpar(jn, -1);
-                            std::vector<std::vector<int>> jchildren(jn);
-                            for (int i = 0; i < jn; ++i){
-                                if (!joints[i]) continue;
-                                GameObject* p = joints[i]->getParent();
-                                for (int j = 0; j < jn; ++j)
-                                    if (i != j && joints[j] == p){ jpar[i] = j; jchildren[j].push_back(i); break; }
-                            }
-                            std::function<void(int, std::vector<int>&)> collectDesc;
-                            collectDesc = [&](int idx, std::vector<int>& out){
-                                out.push_back(idx);
-                                for (int c : jchildren[idx]) collectDesc(c, out);
-                            };
-
-                            // Single-pass split: walk each root down its chain to the first
-                            // branch point, then collect each child sub-tree as its own group.
-                            // This gives ~4-6 boxes (pelvis+spine, head+neck, L-arm, R-arm,
-                            // L-leg, R-leg) without deep nesting.
-                            std::vector<std::vector<int>> groups;
-                            auto splitOnce = [&](int startIdx){
-                                // Walk straight chain from startIdx to first branch/leaf
-                                std::vector<int> chain;
-                                int cur = startIdx;
-                                while (true){
-                                    chain.push_back(cur);
-                                    if (jchildren[cur].size() == 1) cur = jchildren[cur][0];
-                                    else break;
-                                }
-                                if (jchildren[cur].empty()){
-                                    groups.push_back(chain); // leaf chain
-                                } else {
-                                    groups.push_back(chain); // connector (spine/pelvis)
-                                    for (int c : jchildren[cur]){
-                                        std::vector<int> g;
-                                        collectDesc(c, g);
-                                        groups.push_back(g);
-                                    }
-                                }
-                            };
-
-                            for (int i = 0; i < jn; ++i)
-                                if (jpar[i] == -1 && joints[i]) splitOnce(i);
-
-                            if (groups.empty()){
-                                std::vector<int> g;
-                                for (int i = 0; i < jn; ++i) if (joints[i]) g.push_back(i);
-                                if (!g.empty()) groups.push_back(g);
-                            }
-
-                            constexpr float kPad = 0.12f;
-                            int groupColor = 1; // body parts start at palette slot 1
-                            for (const auto& group : groups){
-                                Vector3 wMin(kBig,kBig,kBig), wMax(-kBig,-kBig,-kBig);
-                                bool any = false;
-                                for (int idx : group){
-                                    if (!joints[idx] || !joints[idx]->getTransform()) continue;
-                                    Vector3 wp = joints[idx]->getTransform()->getGlobalMatrix().Translation();
-                                    wMin = Vector3::Min(wMin, wp); wMax = Vector3::Max(wMax, wp);
-                                    any = true;
-                                }
-                                if (!any) continue;
-                                const Vector3 pad(kPad, kPad, kPad);
-                                wMin -= pad; wMax += pad;
-                                BoundsEntry be;
-                                be.colorIdx = groupColor++; // each limb a distinct color
-                                if (cb && cb->bvType == BVType::Sphere){
-                                    Vector3 center = (wMin + wMax) * 0.5f;
-                                    float radius = (cb->radiusOverride >= 0.f)
-                                        ? cb->radiusOverride : (wMax - center).Length();
-                                    be.type = BVType::Sphere; be.sphere = { center, radius };
-                                } else {
-                                    be.type = BVType::AABB; be.box = { wMin, wMax };
-                                }
-                                boundsEntries.push_back(be);
-                            }
-                        }
-                        hasEntry = false; // entries already pushed directly above
-                    } else {
-                        e.colorIdx = 3; // plain static meshes -> green
-                        if (!cm->hasAABB()) cm->computeLocalAABB();
-                        if (cm->hasAABB()){
-                            if (cb && cb->bvType == BVType::Sphere){
-                                const Matrix& W = node->getTransform()->getGlobalMatrix();
-                                const Vector3 lMin = cm->getLocalAABBMin();
-                                const Vector3 lMax = cm->getLocalAABBMax();
-                                const Vector3 lHalf = (lMax - lMin) * 0.5f;
-                                const Vector3 lCtr = (lMin + lMax) * 0.5f;
-                                Vector3 center = Vector3::Transform(lCtr, W);
-                                Vector3 cx(W._11,W._12,W._13), cy(W._21,W._22,W._23), cz(W._31,W._32,W._33);
-                                float hx = lHalf.x * cx.Length();
-                                float hy = lHalf.y * cy.Length();
-                                float hz = lHalf.z * cz.Length();
-                                float radius = (cb->radiusOverride >= 0.f)
-                                    ? cb->radiusOverride
-                                    : sqrtf(hx*hx + hy*hy + hz*hz);
-                                e.type = BVType::Sphere;
-                                e.sphere = { center, radius };
-                            } else {
-                                Vector3 mn, mx;
-                                cm->getWorldAABB(mn, mx);
-                                e.type = BVType::AABB;
-                                e.box = { mn, mx };
-                            }
-                            hasEntry = true;
-                        }
+                Vector3 allJMin(kBig,kBig,kBig), allJMax(-kBig,-kBig,-kBig);
+                int rootJoint = -1;
+                for (int i = 0; i < jn; ++i){
+                    if (!joints[i] || !joints[i]->getTransform()) continue;
+                    Vector3 wp = joints[i]->getTransform()->getGlobalMatrix().Translation();
+                    allJMin = Vector3::Min(allJMin, wp);
+                    allJMax = Vector3::Max(allJMax, wp);
+                }
+                // Find root joint (first with no parent in joint list) for weapon transform
+                {
+                    std::vector<bool> hasParent(jn, false);
+                    for (int i = 0; i < jn; ++i){
+                        if (!joints[i]) continue;
+                        GameObject* p = joints[i]->getParent();
+                        for (int j = 0; j < jn; ++j)
+                            if (i != j && joints[j] == p){ hasParent[i] = true; break; }
                     }
-                    if (hasEntry) boundsEntries.push_back(e);
+                    for (int i = 0; i < jn; ++i)
+                        if (!hasParent[i] && joints[i]){ rootJoint = i; break; }
                 }
-                for (auto* child : node->getChildren()) collectBounds(child);
-            };
-            collectBounds(moduleScene->getRoot());
 
-            // Distinct color palette so each body part / weapon is easy to tell apart.
-            // Slot 0 is reserved for weapons/props; 1+ cycle through the limb colors.
-            static const float kPartPalette[][3] = {
-                { 1.00f, 0.20f, 0.90f }, // 0 weapon/prop   - magenta
-                { 0.95f, 0.25f, 0.25f }, // 1 - red
-                { 0.30f, 0.65f, 1.00f }, // 2 - blue
-                { 0.30f, 0.95f, 0.40f }, // 3 - green
-                { 1.00f, 0.80f, 0.15f }, // 4 - yellow
-                { 0.20f, 0.95f, 0.95f }, // 5 - cyan
-                { 1.00f, 0.55f, 0.10f }, // 6 - orange
-                { 0.70f, 0.45f, 1.00f }, // 7 - purple
-            };
-            constexpr int kPaletteSize = (int)(sizeof(kPartPalette) / sizeof(kPartPalette[0]));
+                float jointSpan = (allJMax - allJMin).Length();
+                float meshSpan  = localOK ? (cm->getLocalAABBMax() - cm->getLocalAABBMin()).Length() : -1.f;
 
-            const size_t N = boundsEntries.size();
-            for (size_t i = 0; i < N; ++i){
-                const BoundsEntry& e = boundsEntries[i];
-                const float* color = kPartPalette[((e.colorIdx % kPaletteSize) + kPaletteSize) % kPaletteSize];
-                if (e.type == BVType::Sphere)
-                    dd::sphere(ddConvert(e.sphere.center), color, e.sphere.radius);
-                else
-                    dd::aabb(ddConvert(e.box.min), ddConvert(e.box.max), color);
-            }
-        }
+                // Treat as weapon/accessory (one tight box from local AABB × root joint):
+                //  - mesh geometry is much smaller than the skeleton it references
+                //    (GLTF exporters sometimes bake all bones into every skin)
+                //  - OR joints are very tightly clustered (1-3 weapon/prop bones)
+                //  - OR very few joints total
+                const bool jointsAreTight = (jointSpan < 0.4f);
+                const bool fewJoints      = (jn <= 3);
+                const bool meshSmall      = localOK && meshSpan > 0.f && (meshSpan < jointSpan * 0.45f);
+                const bool isAccessory    = localOK && rootJoint >= 0 && (fewJoints || jointsAreTight || meshSmall);
 
-        if (s.debugDrawGrid && m_collisionSystem)
-            m_collisionSystem->drawBroadPhaseDebug();
+                if (isAccessory){
+                    // Weapon/prop: use the proper skinning transform
+                    // (joint_current_world × inverseBindMatrix) to map the
+                    // rest-pose local AABB into world space correctly.
+                    const auto& ibms = cm->getLocalSkin().inverseBindMatrices;
+                    Matrix skinTransform = joints[rootJoint]->getTransform()->getGlobalMatrix();
+                    if (rootJoint < (int)ibms.size())
+                        skinTransform = ibms[rootJoint] * skinTransform;
+                    Vector3 lMin = cm->getLocalAABBMin(), lMax = cm->getLocalAABBMax();
+                    Vector3 corners[8] = {
+                        {lMin.x,lMin.y,lMin.z},{lMax.x,lMin.y,lMin.z},
+                        {lMin.x,lMax.y,lMin.z},{lMax.x,lMax.y,lMin.z},
+                        {lMin.x,lMin.y,lMax.z},{lMax.x,lMin.y,lMax.z},
+                        {lMin.x,lMax.y,lMax.z},{lMax.x,lMax.y,lMax.z},
+                    };
+                    Vector3 wMin(kBig,kBig,kBig), wMax(-kBig,-kBig,-kBig);
+                    for (auto& c : corners){
+                        Vector3 wc = Vector3::Transform(c, skinTransform);
+                        wMin = Vector3::Min(wMin, wc); wMax = Vector3::Max(wMax, wc);
+                    }
+                    BoundsEntry be;
+                    be.colorIdx = 0; // weapons/props -> palette slot 0
+                    if (cb && cb->bvType == BVType::Sphere){
+                        Vector3 center = (wMin + wMax) * 0.5f;
+                        float radius = (cb->radiusOverride >= 0.f)
+                            ? cb->radiusOverride : (wMax - center).Length();
+                        be.type = BVType::Sphere; be.sphere = { center, radius };
+                    } else {
+                        be.type = BVType::AABB; be.box = { wMin, wMax };
+                    }
+                    boundsEntries.push_back(be);
+                } else {
+                    // Body/full-skeleton mesh: one box per major limb branch.
+                    // Build parent + children maps within this joint list.
+                    std::vector<int> jpar(jn, -1);
+                    std::vector<std::vector<int>> jchildren(jn);
+                    for (int i = 0; i < jn; ++i){
+                        if (!joints[i]) continue;
+                        GameObject* p = joints[i]->getParent();
+                        for (int j = 0; j < jn; ++j)
+                            if (i != j && joints[j] == p){ jpar[i] = j; jchildren[j].push_back(i); break; }
+                    }
+                    std::function<void(int, std::vector<int>&)> collectDesc;
+                    collectDesc = [&](int idx, std::vector<int>& out){
+                        out.push_back(idx);
+                        for (int c : jchildren[idx]) collectDesc(c, out);
+                    };
 
-        if (s.debugDrawNav && m_navigationSystem)
-            m_navigationSystem->drawDebug();
+                    // Single-pass split: walk each root down its chain to the first
+                    // branch point, then collect each child sub-tree as its own group.
+                    // This gives ~4-6 boxes (pelvis+spine, head+neck, L-arm, R-arm,
+                    // L-leg, R-leg) without deep nesting.
+                    std::vector<std::vector<int>> groups;
+                    auto splitOnce = [&](int startIdx){
+                        // Walk straight chain from startIdx to first branch/leaf
+                        std::vector<int> chain;
+                        int cur = startIdx;
+                        while (true){
+                            chain.push_back(cur);
+                            if (jchildren[cur].size() == 1) cur = jchildren[cur][0];
+                            else break;
+                        }
+                        if (jchildren[cur].empty()){
+                            groups.push_back(chain); // leaf chain
+                        } else {
+                            groups.push_back(chain); // connector (spine/pelvis)
+                            for (int c : jchildren[cur]){
+                                std::vector<int> g;
+                                collectDesc(c, g);
+                                groups.push_back(g);
+                            }
+                        }
+                    };
 
-        if (camera->showFrustumCullingDebug){
-            if (camera->hasGameFrustum()){
-                FrustumDebugDraw gameFdd;
-                gameFdd.addFrustum(camera->getGameFrustum(), Vector3(1.f, 0.5f, 0.f));
-                for (const auto& line : gameFdd.lines){
-                    ddVec3 f = { line.from.x, line.from.y, line.from.z };
-                    ddVec3 t = { line.to.x, line.to.y, line.to.z };
-                    dd::line(f, t, dd::colors::Orange);
+                    for (int i = 0; i < jn; ++i)
+                        if (jpar[i] == -1 && joints[i]) splitOnce(i);
+
+                    if (groups.empty()){
+                        std::vector<int> g;
+                        for (int i = 0; i < jn; ++i) if (joints[i]) g.push_back(i);
+                        if (!g.empty()) groups.push_back(g);
+                    }
+
+                    constexpr float kPad = 0.12f;
+                    int groupColor = 1; // body parts start at palette slot 1
+                    for (const auto& group : groups){
+                        Vector3 wMin(kBig,kBig,kBig), wMax(-kBig,-kBig,-kBig);
+                        bool any = false;
+                        for (int idx : group){
+                            if (!joints[idx] || !joints[idx]->getTransform()) continue;
+                            Vector3 wp = joints[idx]->getTransform()->getGlobalMatrix().Translation();
+                            wMin = Vector3::Min(wMin, wp); wMax = Vector3::Max(wMax, wp);
+                            any = true;
+                        }
+                        if (!any) continue;
+                        const Vector3 pad(kPad, kPad, kPad);
+                        wMin -= pad; wMax += pad;
+                        BoundsEntry be;
+                        be.colorIdx = groupColor++; // each limb a distinct color
+                        if (cb && cb->bvType == BVType::Sphere){
+                            Vector3 center = (wMin + wMax) * 0.5f;
+                            float radius = (cb->radiusOverride >= 0.f)
+                                ? cb->radiusOverride : (wMax - center).Length();
+                            be.type = BVType::Sphere; be.sphere = { center, radius };
+                        } else {
+                            be.type = BVType::AABB; be.box = { wMin, wMax };
+                        }
+                        boundsEntries.push_back(be);
+                    }
                 }
-            }
-
-            if (moduleScene){
-                std::function<void(GameObject*)> drawCullDebug = [&](GameObject* node){
-                    if (!node || !node->isActive()) return;
-                    if (auto* cm = node->getComponent<ComponentMesh>(); cm && cm->hasAABB()){
+                hasEntry = false; // entries already pushed directly above
+            } else {
+                e.colorIdx = 3; // plain static meshes -> green
+                if (!cm->hasAABB()) cm->computeLocalAABB();
+                if (cm->hasAABB()){
+                    if (cb && cb->bvType == BVType::Sphere){
+                        const Matrix& W = node->getTransform()->getGlobalMatrix();
+                        const Vector3 lMin = cm->getLocalAABBMin();
+                        const Vector3 lMax = cm->getLocalAABBMax();
+                        const Vector3 lHalf = (lMax - lMin) * 0.5f;
+                        const Vector3 lCtr = (lMin + lMax) * 0.5f;
+                        Vector3 center = Vector3::Transform(lCtr, W);
+                        Vector3 cx(W._11,W._12,W._13), cy(W._21,W._22,W._23), cz(W._31,W._32,W._33);
+                        float hx = lHalf.x * cx.Length();
+                        float hy = lHalf.y * cy.Length();
+                        float hz = lHalf.z * cz.Length();
+                        float radius = (cb->radiusOverride >= 0.f)
+                            ? cb->radiusOverride
+                            : sqrtf(hx*hx + hy*hy + hz*hz);
+                        e.type = BVType::Sphere;
+                        e.sphere = { center, radius };
+                    } else {
                         Vector3 mn, mx;
                         cm->getWorldAABB(mn, mx);
-                        const float* color = cm->isVisible() ? dd::colors::Green : dd::colors::Red;
-                        dd::aabb(ddConvert(mn), ddConvert(mx), color);
+                        e.type = BVType::AABB;
+                        e.box = { mn, mx };
                     }
-                    for (auto* child : node->getChildren()) drawCullDebug(child);
-                };
-                drawCullDebug(moduleScene->getRoot());
+                    hasEntry = true;
+                }
             }
+            if (hasEntry) boundsEntries.push_back(e);
         }
+        for (auto* child : node->getChildren()) collectBounds(child);
+    };
+    collectBounds(moduleScene->getRoot());
 
-        m_debugDraw->record(cmd, w, h, view, proj);
+    // Distinct color palette so each body part / weapon is easy to tell apart.
+    // Slot 0 is reserved for weapons/props; 1+ cycle through the limb colors.
+    static const float kPartPalette[][3] = {
+        { 1.00f, 0.20f, 0.90f }, // 0 weapon/prop   - magenta
+        { 0.95f, 0.25f, 0.25f }, // 1 - red
+        { 0.30f, 0.65f, 1.00f }, // 2 - blue
+        { 0.30f, 0.95f, 0.40f }, // 3 - green
+        { 1.00f, 0.80f, 0.15f }, // 4 - yellow
+        { 0.20f, 0.95f, 0.95f }, // 5 - cyan
+        { 1.00f, 0.55f, 0.10f }, // 6 - orange
+        { 0.70f, 0.45f, 1.00f }, // 7 - purple
+    };
+    constexpr int kPaletteSize = (int)(sizeof(kPartPalette) / sizeof(kPartPalette[0]));
+
+    const size_t N = boundsEntries.size();
+    for (size_t i = 0; i < N; ++i){
+        const BoundsEntry& e = boundsEntries[i];
+        const float* color = kPartPalette[((e.colorIdx % kPaletteSize) + kPaletteSize) % kPaletteSize];
+        if (e.type == BVType::Sphere)
+            dd::sphere(ddConvert(e.sphere.center), color, e.sphere.radius);
+        else
+            dd::aabb(ddConvert(e.box.min), ddConvert(e.box.max), color);
+    }
+
+}
+
+namespace {
+    // A point light with a NaN anywhere (or a zero radius, which the lighting divides by) is skipped.
+    bool lightIsSane(GameObject* node, float radius, float intensity, const Vector3& color){
+        const Vector3 pos = node->getTransform()->getGlobalMatrix().Translation();
+        if (!VfxGuards::finite(pos) || !VfxGuards::finite(radius) || !VfxGuards::finite(intensity) ||
+            !VfxGuards::finite(color)){
+            VfxGuards::RejectOnce(node, "point light", "(non-finite position/radius/intensity/colour)");
+            return false;
+        }
+        if (radius < 0.01f){
+            VfxGuards::RejectOnce(node, "point light radius", "%.4f", radius);
+            return false;
+        }
+        return true;
     }
 }
 
@@ -1595,7 +1791,8 @@ void RuntimeCore::gatherLights(GameObject* node, FrameLightData& out, bool trans
 
     if (transientPass){
         if (auto* pl = node->getComponent<ComponentPointLight>(); pl && pl->enabled && pl->transient &&
-            pl->intensity > 0.f && out.pointLights.size() < (size_t)kMaxTransientLights){
+            pl->intensity > 0.f && out.pointLights.size() < (size_t)kMaxTransientLights &&
+            lightIsSane(node, pl->radius, pl->intensity, pl->color)){
             MeshPipeline::GPUPointLight p;
             p.position = node->getTransform()->getGlobalMatrix().Translation();
             p.squaredRadius = pl->radius * pl->radius;
@@ -1620,7 +1817,7 @@ void RuntimeCore::gatherLights(GameObject* node, FrameLightData& out, bool trans
     }
 
     if (auto* pl = node->getComponent<ComponentPointLight>(); pl && pl->enabled && !pl->transient){
-        if (out.pointLights.size() < MeshPipeline::MAX_POINT_LIGHTS){
+        if (out.pointLights.size() < MeshPipeline::MAX_POINT_LIGHTS && lightIsSane(node, pl->radius, pl->intensity, pl->color)){
             MeshPipeline::GPUPointLight p;
             p.position = node->getTransform()->getGlobalMatrix().Translation();
             p.squaredRadius = pl->radius * pl->radius;
@@ -1655,8 +1852,8 @@ void RuntimeCore::gatherDecals(GameObject* node, std::vector<DecalInstance>& out
     if (!node || !node->isActive()) return;
 
     if (auto* dc = node->getComponent<ComponentDecal>(); dc && dc->enabled){
-        if (out.size() < DecalPass::MAX_DECALS){
-            Matrix worldMat = node->getTransform()->getGlobalMatrix();
+        Matrix worldMat = node->getTransform()->getGlobalMatrix();
+        if (out.size() < DecalPass::MAX_DECALS && VfxGuards::SanitizeDecalWorld(node, worldMat)){
             Matrix viewProj = view * proj;
 
             DecalInstance inst;
@@ -1672,7 +1869,11 @@ void RuntimeCore::gatherDecals(GameObject* node, std::vector<DecalInstance>& out
             inst.emissiveAlbedoMix = Vector4(dc->emissive, dc->emissive, dc->emissive, dc->albedoMix);
             inst.texturePath = dc->texturePath;
 
-            out.push_back(std::move(inst));
+            if (VfxGuards::finite(inst.mvp) && VfxGuards::finite(inst.invModel) && VfxGuards::finite(inst.invViewProj) &&
+                VfxGuards::finite(inst.colourOpacity) && VfxGuards::finite(inst.emissiveAlbedoMix))
+                out.push_back(std::move(inst));
+            else
+                VfxGuards::RejectOnce(node, "decal matrix", "(non-finite after inversion)");
         }
     }
 

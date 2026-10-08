@@ -39,15 +39,15 @@ namespace {
 
 bool PostProcessChain::init(ID3D12Device* device){
     if (!createRootSignature(device)){
-        LOG("PostProcessChain: root signature creation failed");
+        PHX_LOG(Render, Error, "PostProcessChain: root signature creation failed");
         return false;
     }
     if (!createFallbackAux(device)){
-        LOG("PostProcessChain: fallback aux texture creation failed");
+        PHX_LOG(Render, Error, "PostProcessChain: fallback aux texture creation failed");
         return false;
     }
     reload(device);
-    LOG("PostProcessChain: init OK (%zu plugin effects loaded)", m_effects.size());
+    PHX_LOG(Render, Info, "PostProcessChain: init OK (%zu plugin effects loaded)", m_effects.size());
     return true;
 }
 
@@ -72,7 +72,7 @@ bool PostProcessChain::createRootSignature(ID3D12Device* device){
 
     ComPtr<ID3DBlob> blob, err;
     if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))){
-        LOG("PostProcessChain: root signature serialise failed: %s", err ? (char*)err->GetBufferPointer() : "unknown error");
+        PHX_LOG(Render, Error, "PostProcessChain: root signature serialise failed: %s", err ? (char*)err->GetBufferPointer() : "unknown error");
         return false;
     }
 
@@ -101,7 +101,7 @@ ComPtr<ID3D12PipelineState> PostProcessChain::buildPSO(ID3D12Device* device, con
         ps = DX::FileExists(toWide(localPath).c_str()) ? DX::ReadData(toWide(localPath).c_str())
                                                          : DX::ReadData(toWide(def.shaderFile).c_str());
     } catch (const std::exception&){
-        LOG("PostProcessChain: failed to load shader '%s' for effect '%s'", def.shaderFile.c_str(), def.name.c_str());
+        PHX_LOG(Render, Error, "PostProcessChain: failed to load shader '%s' for effect '%s'", def.shaderFile.c_str(), def.name.c_str());
         return nullptr;
     }
 
@@ -124,7 +124,7 @@ ComPtr<ID3D12PipelineState> PostProcessChain::buildPSO(ID3D12Device* device, con
 
     ComPtr<ID3D12PipelineState> pso;
     if (FAILED(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pso)))){
-        LOG("PostProcessChain: PSO creation failed for effect '%s'", def.name.c_str());
+        PHX_LOG(Render, Error, "PostProcessChain: PSO creation failed for effect '%s'", def.name.c_str());
         return nullptr;
     }
     return pso;
@@ -194,7 +194,7 @@ void PostProcessChain::reload(ID3D12Device* device){
         delete[] buf;
 
         if (doc.HasParseError() || !doc.IsObject() || !doc.HasMember("name") || !doc.HasMember("shader")){
-            LOG("PostProcessChain: invalid manifest '%s'", path.c_str());
+            PHX_LOG(Render, Error, "PostProcessChain: invalid manifest '%s'", path.c_str());
             continue;
         }
 

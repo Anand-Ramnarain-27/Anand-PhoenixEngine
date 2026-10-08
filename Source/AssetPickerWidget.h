@@ -1,4 +1,6 @@
 #pragma once
+// Combo-style asset picker for inspector fields, filtered by extension, with drag-and-drop.
+
 #include <string>
 #include <vector>
 #include <algorithm>

@@ -1,4 +1,6 @@
 #pragma once
+// Sample script: an enemy stub showing AI tick culling (shouldTickAI ticks off-screen, distant enemies less often).
+
 #include "IScript.h"
 #include "ScriptExport.h"
 

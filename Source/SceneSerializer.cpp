@@ -17,10 +17,15 @@
 
 using namespace rapidjson;
 
-static void pushVec3(Value& arr, const Vector3& v, Document::AllocatorType& a){ arr.PushBack(v.x, a).PushBack(v.y, a).PushBack(v.z, a); }
-static void pushQuat(Value& arr, const Quaternion& q, Document::AllocatorType& a){ arr.PushBack(q.x, a).PushBack(q.y, a).PushBack(q.z, a).PushBack(q.w, a); }
+namespace {
 
-static uint32_t readUID(const Value& node, const char* key){
+using Allocator = Document::AllocatorType;
+
+void pushVec3(Value& arr, const Vector3& v, Allocator& a){ arr.PushBack(v.x, a).PushBack(v.y, a).PushBack(v.z, a); }
+void pushQuat(Value& arr, const Quaternion& q, Allocator& a){ arr.PushBack(q.x, a).PushBack(q.y, a).PushBack(q.z, a).PushBack(q.w, a); }
+
+// A UID may be stored as a signed or an unsigned JSON integer.
+uint32_t readUID(const Value& node, const char* key){
     if (!node.HasMember(key)) return 0;
     const Value& v = node[key];
     if (v.IsUint()) return v.GetUint();
@@ -28,164 +33,163 @@ static uint32_t readUID(const Value& node, const char* key){
     return 0;
 }
 
-bool SceneSerializer::SaveScene(const SceneGraph* scene, const std::string& filePath, const EditorSceneSettings* settings){
-    if (!scene) return false;
-    try{
-        Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
-        Value sceneObj(kObjectType);
-        sceneObj.AddMember("Version", 1, a);
-        Value goArray(kArrayType);
+// Depth-first, so a parent always precedes its children in the file. Top-level objects save ParentUID 0.
+void writeGameObject(GameObject* go, const SceneGraph* scene, Value& goArray, Allocator& a){
+    if (go == scene->getRoot()) return;
+    Value node(kObjectType);
+    node.AddMember("UID", go->getUID(), a);
+    node.AddMember("ParentUID",
+        (go->getParent() && go->getParent() != scene->getRoot())
+            ? go->getParent()->getUID() : 0u, a);
+    node.AddMember("Name", Value(go->getName().c_str(), a), a);
+    node.AddMember("Active", go->isActive(), a);
+    node.AddMember("Tag", Value(go->getTag().c_str(), a), a);
 
-        std::function<void(GameObject*)> serialize = [&](GameObject* go){
-                if (go == scene->getRoot()) return;
-                Value node(kObjectType);
-                node.AddMember("UID", go->getUID(), a);
-                node.AddMember("ParentUID",
-                    (go->getParent() && go->getParent() != scene->getRoot())
-                        ? go->getParent()->getUID() : 0u, a);
-                node.AddMember("Name", Value(go->getName().c_str(), a), a);
-                node.AddMember("Active", go->isActive(), a);
-                node.AddMember("Tag", Value(go->getTag().c_str(), a), a);
-
-                if (PrefabManager::isPrefabInstance(go)){
-                    Value pfLink(kObjectType);
-                    pfLink.AddMember("PrefabName", Value(PrefabManager::getPrefabName(go).c_str(), a), a);
-                    pfLink.AddMember("PrefabUID", PrefabManager::getPrefabUID(go), a);
-                    node.AddMember("PrefabLink", pfLink, a);
-                }
-
-                auto* t = go->getTransform();
-                Value tf(kObjectType);
-                Value pos(kArrayType); pushVec3(pos, t->position, a); tf.AddMember("position", pos, a);
-                Value rot(kArrayType); pushQuat(rot, t->rotation, a); tf.AddMember("rotation", rot, a);
-                Value scl(kArrayType); pushVec3(scl, t->scale, a); tf.AddMember("scale", scl, a);
-                node.AddMember("Transform", tf, a);
-
-                Value comps(kArrayType);
-                for (const auto& comp : go->getComponents()){
-                    if (comp->getType() == Component::Type::Transform) continue;
-                    std::string data; comp->onSave(data);
-                    Value c(kObjectType);
-                    c.AddMember("Type", (int)comp->getType(), a);
-                    c.AddMember("Data", Value(data.c_str(), a), a);
-                    comps.PushBack(c, a);
-                }
-                node.AddMember("Components", comps, a);
-                goArray.PushBack(node, a);
-                for (auto* child : go->getChildren()) serialize(child);
-            };
-
-        for (auto* child : scene->getRoot()->getChildren()) serialize(child);
-        sceneObj.AddMember("GameObjects", goArray, a);
-
-        if (settings){
-            Value set(kObjectType);
-
-            Value skyObj(kObjectType);
-            skyObj.AddMember("enabled", settings->skybox.enabled, a);
-            skyObj.AddMember("cubemapPath", Value(settings->skybox.cubemapPath.c_str(), a), a);
-            set.AddMember("Skybox", skyObj, a);
-
-            Value ambObj(kObjectType);
-            Value ambColor(kArrayType); pushVec3(ambColor, settings->ambient.color, a);
-            ambObj.AddMember("color", ambColor, a);
-            ambObj.AddMember("intensity", settings->ambient.intensity, a);
-            set.AddMember("Ambient", ambObj, a);
-
-            set.AddMember("GravityY", settings->gravityY, a);
-
-            Value ppObj(kObjectType);
-            ppObj.AddMember("exposure", settings->postProcess.exposure, a);
-            ppObj.AddMember("bloomEnabled", settings->postProcess.bloomEnabled, a);
-            ppObj.AddMember("bloomThreshold", settings->postProcess.bloomThreshold, a);
-            ppObj.AddMember("bloomIntensity", settings->postProcess.bloomIntensity, a);
-            ppObj.AddMember("lutEnabled", settings->postProcess.lutEnabled, a);
-            ppObj.AddMember("lutPath", Value(settings->postProcess.lutPath.c_str(), a), a);
-            set.AddMember("PostProcess", ppObj, a);
-
-            Value fogObj(kObjectType);
-            fogObj.AddMember("enabled", settings->fog.enabled, a);
-            fogObj.AddMember("mode", (int)settings->fog.mode, a);
-            Value fogColor(kArrayType); pushVec3(fogColor, settings->fog.color, a);
-            fogObj.AddMember("color", fogColor, a);
-            fogObj.AddMember("startDistance", settings->fog.startDistance, a);
-            fogObj.AddMember("endDistance", settings->fog.endDistance, a);
-            fogObj.AddMember("maxOpacity", settings->fog.maxOpacity, a);
-            fogObj.AddMember("density", settings->fog.density, a);
-            fogObj.AddMember("heightFalloff", settings->fog.heightFalloff, a);
-            fogObj.AddMember("heightOffset", settings->fog.heightOffset, a);
-            fogObj.AddMember("numSteps", settings->fog.numSteps, a);
-            fogObj.AddMember("extinctionCoeff", settings->fog.extinctionCoeff, a);
-            fogObj.AddMember("noiseAmount", settings->fog.noiseAmount, a);
-            fogObj.AddMember("fogIntensity", settings->fog.fogIntensity, a);
-            fogObj.AddMember("anisotropyG", settings->fog.anisotropyG, a);
-            fogObj.AddMember("halfResolution", settings->fog.halfResolution, a);
-            fogObj.AddMember("boundedRayLength", settings->fog.boundedRayLength, a);
-            set.AddMember("Fog", fogObj, a);
-
-            Value xrObj(kObjectType);
-            xrObj.AddMember("enabled", settings->xray.enabled, a);
-            Value xrTags(kArrayType);
-            for (const auto& xt : settings->xray.tags){
-                Value t(kObjectType);
-                t.AddMember("tag", Value(xt.tag.c_str(), a), a);
-                Value c(kArrayType); c.PushBack(xt.color.x, a).PushBack(xt.color.y, a).PushBack(xt.color.z, a).PushBack(xt.color.w, a);
-                t.AddMember("color", c, a);
-                t.AddMember("fillAlpha", xt.fillAlpha, a);
-                t.AddMember("outlineWidth", xt.outlineWidth, a);
-                t.AddMember("enabled", xt.enabled, a);
-                xrTags.PushBack(t, a);
-            }
-            xrObj.AddMember("tags", xrTags, a);
-            set.AddMember("XRay", xrObj, a);
-
-            Value ofObj(kObjectType);
-            ofObj.AddMember("enabled", settings->occlusionFade.enabled, a);
-            ofObj.AddMember("radius", settings->occlusionFade.radius, a);
-            ofObj.AddMember("feather", settings->occlusionFade.feather, a);
-            ofObj.AddMember("floorClearance", settings->occlusionFade.floorClearance, a);
-            ofObj.AddMember("focusHeight", settings->occlusionFade.focusHeight, a);
-            ofObj.AddMember("coneNearScale", settings->occlusionFade.coneNearScale, a);
-            ofObj.AddMember("previewInSceneView", settings->occlusionFade.previewInSceneView, a);
-            set.AddMember("OcclusionFade", ofObj, a);
-
-            sceneObj.AddMember("Settings", set, a);
-        }
-
-        doc.AddMember("Scene", sceneObj, a);
-
-        StringBuffer sb;
-        PrettyWriter<StringBuffer> writer(sb);
-        doc.Accept(writer);
-        return app->getFileSystem()->Save(filePath.c_str(), sb.GetString(), (unsigned)sb.GetSize());
+    if (PrefabManager::isPrefabInstance(go)){
+        Value pfLink(kObjectType);
+        pfLink.AddMember("PrefabName", Value(PrefabManager::getPrefabName(go).c_str(), a), a);
+        pfLink.AddMember("PrefabUID", PrefabManager::getPrefabUID(go), a);
+        node.AddMember("PrefabLink", pfLink, a);
     }
-    catch (const std::exception& e){ LOG("SceneSerializer: Save exception: %s", e.what()); return false; }
-    catch (...){ LOG("SceneSerializer: Unknown save exception"); return false; }
+
+    auto* t = go->getTransform();
+    Value tf(kObjectType);
+    Value pos(kArrayType); pushVec3(pos, t->position, a); tf.AddMember("position", pos, a);
+    Value rot(kArrayType); pushQuat(rot, t->rotation, a); tf.AddMember("rotation", rot, a);
+    Value scl(kArrayType); pushVec3(scl, t->scale, a); tf.AddMember("scale", scl, a);
+    node.AddMember("Transform", tf, a);
+
+    Value comps(kArrayType);
+    for (const auto& comp : go->getComponents()){
+        if (comp->getType() == Component::Type::Transform) continue;
+        std::string data; comp->onSave(data);
+        Value c(kObjectType);
+        c.AddMember("Type", (int)comp->getType(), a);
+        c.AddMember("Data", Value(data.c_str(), a), a);
+        comps.PushBack(c, a);
+    }
+    node.AddMember("Components", comps, a);
+    goArray.PushBack(node, a);
+    for (auto* child : go->getChildren()) writeGameObject(child, scene, goArray, a);
 }
 
-bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, EditorSceneSettings* settings){
-    if (!scene) return false;
-    auto* fs = app->getFileSystem();
-    if (!fs->Exists(filePath.c_str())){ LOG("SceneSerializer: File not found: %s", filePath.c_str()); return false; }
+void writeXRay(const EditorSceneSettings::XRay& xray, Value& set, Allocator& a){
+    Value xrObj(kObjectType);
+    xrObj.AddMember("enabled", xray.enabled, a);
+    Value xrTags(kArrayType);
+    for (const auto& xt : xray.tags){
+        Value t(kObjectType);
+        t.AddMember("tag", Value(xt.tag.c_str(), a), a);
+        Value c(kArrayType); c.PushBack(xt.color.x, a).PushBack(xt.color.y, a).PushBack(xt.color.z, a).PushBack(xt.color.w, a);
+        t.AddMember("color", c, a);
+        t.AddMember("fillAlpha", xt.fillAlpha, a);
+        t.AddMember("outlineWidth", xt.outlineWidth, a);
+        t.AddMember("enabled", xt.enabled, a);
+        xrTags.PushBack(t, a);
+    }
+    xrObj.AddMember("tags", xrTags, a);
+    set.AddMember("XRay", xrObj, a);
+}
 
-    char* buf = nullptr;
-    unsigned size = fs->Load(filePath.c_str(), &buf);
-    if (!buf || size == 0) return false;
+void writeSettings(const EditorSceneSettings& settings, Value& sceneObj, Allocator& a){
+    Value set(kObjectType);
 
-    Document doc;
-    doc.Parse(buf, size);
-    delete[] buf;
+    Value skyObj(kObjectType);
+    skyObj.AddMember("enabled", settings.skybox.enabled, a);
+    skyObj.AddMember("cubemapPath", Value(settings.skybox.cubemapPath.c_str(), a), a);
+    set.AddMember("Skybox", skyObj, a);
 
-    if (doc.HasParseError() || !doc.HasMember("Scene") || !doc["Scene"].HasMember("GameObjects")){ LOG("SceneSerializer: Invalid file or parse error"); return false; }
+    Value ambObj(kObjectType);
+    Value ambColor(kArrayType); pushVec3(ambColor, settings.ambient.color, a);
+    ambObj.AddMember("color", ambColor, a);
+    ambObj.AddMember("intensity", settings.ambient.intensity, a);
+    set.AddMember("Ambient", ambObj, a);
 
-    const Value& goArray = doc["Scene"]["GameObjects"];
-    scene->clear();
+    set.AddMember("GravityY", settings.gravityY, a);
 
+    Value ppObj(kObjectType);
+    ppObj.AddMember("exposure", settings.postProcess.exposure, a);
+    ppObj.AddMember("bloomEnabled", settings.postProcess.bloomEnabled, a);
+    ppObj.AddMember("bloomThreshold", settings.postProcess.bloomThreshold, a);
+    ppObj.AddMember("bloomIntensity", settings.postProcess.bloomIntensity, a);
+    ppObj.AddMember("lutEnabled", settings.postProcess.lutEnabled, a);
+    ppObj.AddMember("lutPath", Value(settings.postProcess.lutPath.c_str(), a), a);
+    set.AddMember("PostProcess", ppObj, a);
+
+    Value fogObj(kObjectType);
+    fogObj.AddMember("enabled", settings.fog.enabled, a);
+    fogObj.AddMember("mode", (int)settings.fog.mode, a);
+    Value fogColor(kArrayType); pushVec3(fogColor, settings.fog.color, a);
+    fogObj.AddMember("color", fogColor, a);
+    fogObj.AddMember("startDistance", settings.fog.startDistance, a);
+    fogObj.AddMember("endDistance", settings.fog.endDistance, a);
+    fogObj.AddMember("maxOpacity", settings.fog.maxOpacity, a);
+    fogObj.AddMember("density", settings.fog.density, a);
+    fogObj.AddMember("heightFalloff", settings.fog.heightFalloff, a);
+    fogObj.AddMember("heightOffset", settings.fog.heightOffset, a);
+    fogObj.AddMember("numSteps", settings.fog.numSteps, a);
+    fogObj.AddMember("extinctionCoeff", settings.fog.extinctionCoeff, a);
+    fogObj.AddMember("noiseAmount", settings.fog.noiseAmount, a);
+    fogObj.AddMember("fogIntensity", settings.fog.fogIntensity, a);
+    fogObj.AddMember("anisotropyG", settings.fog.anisotropyG, a);
+    fogObj.AddMember("halfResolution", settings.fog.halfResolution, a);
+    fogObj.AddMember("boundedRayLength", settings.fog.boundedRayLength, a);
+    set.AddMember("Fog", fogObj, a);
+
+    writeXRay(settings.xray, set, a);
+
+    Value ofObj(kObjectType);
+    ofObj.AddMember("enabled", settings.occlusionFade.enabled, a);
+    ofObj.AddMember("radius", settings.occlusionFade.radius, a);
+    ofObj.AddMember("feather", settings.occlusionFade.feather, a);
+    ofObj.AddMember("floorClearance", settings.occlusionFade.floorClearance, a);
+    ofObj.AddMember("focusHeight", settings.occlusionFade.focusHeight, a);
+    ofObj.AddMember("coneNearScale", settings.occlusionFade.coneNearScale, a);
+    ofObj.AddMember("previewInSceneView", settings.occlusionFade.previewInSceneView, a);
+    set.AddMember("OcclusionFade", ofObj, a);
+
+    sceneObj.AddMember("Settings", set, a);
+}
+
+// Second pass: every object exists by now, so parents, prefab links, transforms and components can be resolved.
+void readGameObjectBody(const Value& node, GameObject* go, const std::unordered_map<uint32_t, GameObject*>& uidMap){
+    uint32_t parentID = readUID(node, "ParentUID");
+    if (parentID != 0){
+        auto pit = uidMap.find(parentID);
+        if (pit != uidMap.end()) go->setParent(pit->second);
+        else PHX_LOG(Scene, Warning, "SceneSerializer: Parent UID %u not found for %s", parentID, go->getName().c_str());
+    }
+
+    if (node.HasMember("PrefabLink") && node["PrefabLink"].IsObject()){
+        const Value& lk = node["PrefabLink"];
+        PrefabInstanceData d;
+        d.prefabName = lk.HasMember("PrefabName") ? lk["PrefabName"].GetString() : "";
+        d.prefabUID = lk.HasMember("PrefabUID") ? lk["PrefabUID"].GetUint() : 0;
+        if (!d.prefabName.empty()) PrefabManager::linkInstance(go, d);
+    }
+
+    auto* t = go->getTransform();
+    const Value& tf = node["Transform"];
+    const auto& p = tf["position"]; t->position = { p[0].GetFloat(), p[1].GetFloat(), p[2].GetFloat() };
+    const auto& r = tf["rotation"]; t->rotation = { r[0].GetFloat(), r[1].GetFloat(), r[2].GetFloat(), r[3].GetFloat() };
+    const auto& s = tf["scale"]; t->scale = { s[0].GetFloat(), s[1].GetFloat(), s[2].GetFloat() };
+    t->markDirty();
+
+    for (SizeType j = 0; j < node["Components"].Size(); ++j){
+        const Value& cn = node["Components"][j];
+        auto type = (Component::Type)cn["Type"].GetInt();
+        auto comp = ComponentFactory::CreateComponent(type, go);
+        if (comp){ comp->onLoad(cn["Data"].GetString()); go->addComponent(std::move(comp)); }
+        else PHX_LOG(Scene, Error, "SceneSerializer: Failed to create component type %d", (int)type);
+    }
+}
+
+void readGameObjects(const Value& goArray, SceneGraph* scene){
     std::unordered_map<uint32_t, GameObject*> uidMap;
     for (SizeType i = 0; i < goArray.Size(); ++i){
         const Value& node = goArray[i];
         uint32_t uid = readUID(node, "UID");
-        if (!uid){ LOG("SceneSerializer: UID has unexpected type, skipping"); continue; }
+        if (!uid){ PHX_LOG(Scene, Warning, "SceneSerializer: UID has unexpected type, skipping"); continue; }
         auto* go = scene->createGameObject(node["Name"].GetString());
         go->setActive(node["Active"].GetBool());
         if (node.HasMember("Tag") && node["Tag"].IsString()) go->setTag(node["Tag"].GetString());
@@ -198,135 +202,155 @@ bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, 
         if (!uid) continue;
         auto it = uidMap.find(uid);
         if (it == uidMap.end()) continue;
-        auto* go = it->second;
-
-        uint32_t parentID = readUID(node, "ParentUID");
-        if (parentID != 0){
-            auto pit = uidMap.find(parentID);
-            if (pit != uidMap.end()) go->setParent(pit->second);
-            else LOG("SceneSerializer: Parent UID %u not found for %s", parentID, go->getName().c_str());
-        }
-
-        if (node.HasMember("PrefabLink") && node["PrefabLink"].IsObject()){
-            const Value& lk = node["PrefabLink"];
-            PrefabInstanceData d;
-            d.prefabName = lk.HasMember("PrefabName") ? lk["PrefabName"].GetString() : "";
-            d.prefabUID = lk.HasMember("PrefabUID") ? lk["PrefabUID"].GetUint() : 0;
-            if (!d.prefabName.empty()) PrefabManager::linkInstance(go, d);
-        }
-
-        auto* t = go->getTransform();
-        const Value& tf = node["Transform"];
-        const auto& p = tf["position"]; t->position = { p[0].GetFloat(), p[1].GetFloat(), p[2].GetFloat() };
-        const auto& r = tf["rotation"]; t->rotation = { r[0].GetFloat(), r[1].GetFloat(), r[2].GetFloat(), r[3].GetFloat() };
-        const auto& s = tf["scale"]; t->scale = { s[0].GetFloat(), s[1].GetFloat(), s[2].GetFloat() };
-        t->markDirty();
-
-        for (SizeType j = 0; j < node["Components"].Size(); ++j){
-            const Value& cn = node["Components"][j];
-            auto type = (Component::Type)cn["Type"].GetInt();
-            auto comp = ComponentFactory::CreateComponent(type, go);
-            if (comp){ comp->onLoad(cn["Data"].GetString()); go->addComponent(std::move(comp)); }
-            else LOG("SceneSerializer: Failed to create component type %d", (int)type);
-        }
+        readGameObjectBody(node, it->second, uidMap);
     }
 
+    // Skinned meshes bind their joints by name, which needs the whole hierarchy in place.
     std::function<void(GameObject*)> resolveSkins = [&](GameObject* go){
         if (auto* cm = go->getComponent<ComponentMesh>()) cm->resolveDeferredSkin();
         for (auto* child : go->getChildren()) resolveSkins(child);
     };
     resolveSkins(scene->getRoot());
+}
 
-    if (settings){
-        EditorSceneSettings defaults;
-        settings->skybox = defaults.skybox;
-        settings->ambient = defaults.ambient;
-        settings->gravityY = defaults.gravityY;
-        settings->postProcess = defaults.postProcess;
-        settings->fog = defaults.fog;
-        settings->xray = defaults.xray;
-        settings->occlusionFade = defaults.occlusionFade;
+void readFog(const Value& fg, EditorSceneSettings::Fog& fog){
+    if (fg.HasMember("enabled")) fog.enabled = fg["enabled"].GetBool();
+    if (fg.HasMember("mode")) fog.mode = (EditorSceneSettings::Fog::Mode)fg["mode"].GetInt();
+    if (fg.HasMember("color")){
+        const auto& c = fg["color"];
+        fog.color = { c[0].GetFloat(), c[1].GetFloat(), c[2].GetFloat() };
+    }
+    if (fg.HasMember("startDistance")) fog.startDistance = fg["startDistance"].GetFloat();
+    if (fg.HasMember("endDistance")) fog.endDistance = fg["endDistance"].GetFloat();
+    if (fg.HasMember("maxOpacity")) fog.maxOpacity = fg["maxOpacity"].GetFloat();
+    if (fg.HasMember("density")) fog.density = fg["density"].GetFloat();
+    if (fg.HasMember("heightFalloff")) fog.heightFalloff = fg["heightFalloff"].GetFloat();
+    if (fg.HasMember("heightOffset")) fog.heightOffset = fg["heightOffset"].GetFloat();
+    if (fg.HasMember("numSteps")) fog.numSteps = fg["numSteps"].GetInt();
+    if (fg.HasMember("extinctionCoeff")) fog.extinctionCoeff = fg["extinctionCoeff"].GetFloat();
+    if (fg.HasMember("noiseAmount")) fog.noiseAmount = fg["noiseAmount"].GetFloat();
+    if (fg.HasMember("fogIntensity")) fog.fogIntensity = fg["fogIntensity"].GetFloat();
+    if (fg.HasMember("anisotropyG")) fog.anisotropyG = fg["anisotropyG"].GetFloat();
+    if (fg.HasMember("halfResolution")) fog.halfResolution = fg["halfResolution"].GetBool();
+    if (fg.HasMember("boundedRayLength")) fog.boundedRayLength = fg["boundedRayLength"].GetBool();
+}
 
-        if (doc["Scene"].HasMember("Settings")){
-            const Value& set = doc["Scene"]["Settings"];
-            if (set.HasMember("Skybox")){
-                const Value& sk = set["Skybox"];
-                if (sk.HasMember("enabled")) settings->skybox.enabled = sk["enabled"].GetBool();
-                if (sk.HasMember("cubemapPath")) settings->skybox.cubemapPath = sk["cubemapPath"].GetString();
+void readXRay(const Value& xr, EditorSceneSettings::XRay& xray){
+    if (xr.HasMember("enabled")) xray.enabled = xr["enabled"].GetBool();
+    if (xr.HasMember("tags") && xr["tags"].IsArray()){
+        xray.tags.clear();
+        const Value& tags = xr["tags"];
+        for (SizeType i = 0; i < tags.Size(); ++i){
+            const Value& t = tags[i];
+            EditorSceneSettings::XRayTag xt;
+            if (t.HasMember("tag") && t["tag"].IsString()) xt.tag = t["tag"].GetString();
+            if (t.HasMember("color") && t["color"].IsArray() && t["color"].Size() >= 4){
+                const auto& c = t["color"];
+                xt.color = { c[0].GetFloat(), c[1].GetFloat(), c[2].GetFloat(), c[3].GetFloat() };
             }
-            if (set.HasMember("Ambient")){
-                const Value& amb = set["Ambient"];
-                if (amb.HasMember("color")){
-                    const auto& c = amb["color"];
-                    settings->ambient.color = { c[0].GetFloat(), c[1].GetFloat(), c[2].GetFloat() };
-                }
-                if (amb.HasMember("intensity")) settings->ambient.intensity = amb["intensity"].GetFloat();
-            }
-            if (set.HasMember("GravityY")) settings->gravityY = set["GravityY"].GetFloat();
-            if (set.HasMember("PostProcess")){
-                const Value& pp = set["PostProcess"];
-                if (pp.HasMember("exposure")) settings->postProcess.exposure = pp["exposure"].GetFloat();
-                if (pp.HasMember("bloomEnabled")) settings->postProcess.bloomEnabled = pp["bloomEnabled"].GetBool();
-                if (pp.HasMember("bloomThreshold")) settings->postProcess.bloomThreshold = pp["bloomThreshold"].GetFloat();
-                if (pp.HasMember("bloomIntensity")) settings->postProcess.bloomIntensity = pp["bloomIntensity"].GetFloat();
-                if (pp.HasMember("lutEnabled")) settings->postProcess.lutEnabled = pp["lutEnabled"].GetBool();
-                if (pp.HasMember("lutPath")) settings->postProcess.lutPath = pp["lutPath"].GetString();
-            }
-            if (set.HasMember("Fog")){
-                const Value& fg = set["Fog"];
-                if (fg.HasMember("enabled")) settings->fog.enabled = fg["enabled"].GetBool();
-                if (fg.HasMember("mode")) settings->fog.mode = (EditorSceneSettings::Fog::Mode)fg["mode"].GetInt();
-                if (fg.HasMember("color")){
-                    const auto& c = fg["color"];
-                    settings->fog.color = { c[0].GetFloat(), c[1].GetFloat(), c[2].GetFloat() };
-                }
-                if (fg.HasMember("startDistance")) settings->fog.startDistance = fg["startDistance"].GetFloat();
-                if (fg.HasMember("endDistance")) settings->fog.endDistance = fg["endDistance"].GetFloat();
-                if (fg.HasMember("maxOpacity")) settings->fog.maxOpacity = fg["maxOpacity"].GetFloat();
-                if (fg.HasMember("density")) settings->fog.density = fg["density"].GetFloat();
-                if (fg.HasMember("heightFalloff")) settings->fog.heightFalloff = fg["heightFalloff"].GetFloat();
-                if (fg.HasMember("heightOffset")) settings->fog.heightOffset = fg["heightOffset"].GetFloat();
-                if (fg.HasMember("numSteps")) settings->fog.numSteps = fg["numSteps"].GetInt();
-                if (fg.HasMember("extinctionCoeff")) settings->fog.extinctionCoeff = fg["extinctionCoeff"].GetFloat();
-                if (fg.HasMember("noiseAmount")) settings->fog.noiseAmount = fg["noiseAmount"].GetFloat();
-                if (fg.HasMember("fogIntensity")) settings->fog.fogIntensity = fg["fogIntensity"].GetFloat();
-                if (fg.HasMember("anisotropyG")) settings->fog.anisotropyG = fg["anisotropyG"].GetFloat();
-                if (fg.HasMember("halfResolution")) settings->fog.halfResolution = fg["halfResolution"].GetBool();
-                if (fg.HasMember("boundedRayLength")) settings->fog.boundedRayLength = fg["boundedRayLength"].GetBool();
-            }
-            if (set.HasMember("XRay") && set["XRay"].IsObject()){
-                const Value& xr = set["XRay"];
-                if (xr.HasMember("enabled")) settings->xray.enabled = xr["enabled"].GetBool();
-                if (xr.HasMember("tags") && xr["tags"].IsArray()){
-                    settings->xray.tags.clear();
-                    const Value& tags = xr["tags"];
-                    for (SizeType i = 0; i < tags.Size(); ++i){
-                        const Value& t = tags[i];
-                        EditorSceneSettings::XRayTag xt;
-                        if (t.HasMember("tag") && t["tag"].IsString()) xt.tag = t["tag"].GetString();
-                        if (t.HasMember("color") && t["color"].IsArray() && t["color"].Size() >= 4){
-                            const auto& c = t["color"];
-                            xt.color = { c[0].GetFloat(), c[1].GetFloat(), c[2].GetFloat(), c[3].GetFloat() };
-                        }
-                        if (t.HasMember("fillAlpha")) xt.fillAlpha = t["fillAlpha"].GetFloat();
-                        if (t.HasMember("outlineWidth")) xt.outlineWidth = t["outlineWidth"].GetFloat();
-                        if (t.HasMember("enabled")) xt.enabled = t["enabled"].GetBool();
-                        settings->xray.tags.push_back(std::move(xt));
-                    }
-                }
-            }
-            if (set.HasMember("OcclusionFade") && set["OcclusionFade"].IsObject()){
-                const Value& of = set["OcclusionFade"];
-                if (of.HasMember("enabled")) settings->occlusionFade.enabled = of["enabled"].GetBool();
-                if (of.HasMember("radius")) settings->occlusionFade.radius = of["radius"].GetFloat();
-                if (of.HasMember("feather")) settings->occlusionFade.feather = of["feather"].GetFloat();
-                if (of.HasMember("floorClearance")) settings->occlusionFade.floorClearance = of["floorClearance"].GetFloat();
-                if (of.HasMember("focusHeight")) settings->occlusionFade.focusHeight = of["focusHeight"].GetFloat();
-                if (of.HasMember("coneNearScale")) settings->occlusionFade.coneNearScale = of["coneNearScale"].GetFloat();
-                if (of.HasMember("previewInSceneView")) settings->occlusionFade.previewInSceneView = of["previewInSceneView"].GetBool();
-            }
+            if (t.HasMember("fillAlpha")) xt.fillAlpha = t["fillAlpha"].GetFloat();
+            if (t.HasMember("outlineWidth")) xt.outlineWidth = t["outlineWidth"].GetFloat();
+            if (t.HasMember("enabled")) xt.enabled = t["enabled"].GetBool();
+            xray.tags.push_back(std::move(xt));
         }
     }
+}
+
+void readOcclusionFade(const Value& of, EditorSceneSettings::OcclusionFade& fade){
+    if (of.HasMember("enabled")) fade.enabled = of["enabled"].GetBool();
+    if (of.HasMember("radius")) fade.radius = of["radius"].GetFloat();
+    if (of.HasMember("feather")) fade.feather = of["feather"].GetFloat();
+    if (of.HasMember("floorClearance")) fade.floorClearance = of["floorClearance"].GetFloat();
+    if (of.HasMember("focusHeight")) fade.focusHeight = of["focusHeight"].GetFloat();
+    if (of.HasMember("coneNearScale")) fade.coneNearScale = of["coneNearScale"].GetFloat();
+    if (of.HasMember("previewInSceneView")) fade.previewInSceneView = of["previewInSceneView"].GetBool();
+}
+
+// Settings a file doesn't mention go back to their defaults, so nothing leaks over from the previous scene.
+void readSettings(const Value& sceneObj, EditorSceneSettings& settings){
+    EditorSceneSettings defaults;
+    settings.skybox = defaults.skybox;
+    settings.ambient = defaults.ambient;
+    settings.gravityY = defaults.gravityY;
+    settings.postProcess = defaults.postProcess;
+    settings.fog = defaults.fog;
+    settings.xray = defaults.xray;
+    settings.occlusionFade = defaults.occlusionFade;
+
+    if (!sceneObj.HasMember("Settings")) return;
+    const Value& set = sceneObj["Settings"];
+    if (set.HasMember("Skybox")){
+        const Value& sk = set["Skybox"];
+        if (sk.HasMember("enabled")) settings.skybox.enabled = sk["enabled"].GetBool();
+        if (sk.HasMember("cubemapPath")) settings.skybox.cubemapPath = sk["cubemapPath"].GetString();
+    }
+    if (set.HasMember("Ambient")){
+        const Value& amb = set["Ambient"];
+        if (amb.HasMember("color")){
+            const auto& c = amb["color"];
+            settings.ambient.color = { c[0].GetFloat(), c[1].GetFloat(), c[2].GetFloat() };
+        }
+        if (amb.HasMember("intensity")) settings.ambient.intensity = amb["intensity"].GetFloat();
+    }
+    if (set.HasMember("GravityY")) settings.gravityY = set["GravityY"].GetFloat();
+    if (set.HasMember("PostProcess")){
+        const Value& pp = set["PostProcess"];
+        if (pp.HasMember("exposure")) settings.postProcess.exposure = pp["exposure"].GetFloat();
+        if (pp.HasMember("bloomEnabled")) settings.postProcess.bloomEnabled = pp["bloomEnabled"].GetBool();
+        if (pp.HasMember("bloomThreshold")) settings.postProcess.bloomThreshold = pp["bloomThreshold"].GetFloat();
+        if (pp.HasMember("bloomIntensity")) settings.postProcess.bloomIntensity = pp["bloomIntensity"].GetFloat();
+        if (pp.HasMember("lutEnabled")) settings.postProcess.lutEnabled = pp["lutEnabled"].GetBool();
+        if (pp.HasMember("lutPath")) settings.postProcess.lutPath = pp["lutPath"].GetString();
+    }
+    if (set.HasMember("Fog")) readFog(set["Fog"], settings.fog);
+    if (set.HasMember("XRay") && set["XRay"].IsObject()) readXRay(set["XRay"], settings.xray);
+    if (set.HasMember("OcclusionFade") && set["OcclusionFade"].IsObject()) readOcclusionFade(set["OcclusionFade"], settings.occlusionFade);
+}
+
+} // namespace
+
+bool SceneSerializer::SaveScene(const SceneGraph* scene, const std::string& filePath, const EditorSceneSettings* settings){
+    if (!scene) return false;
+    try{
+        Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
+        Value sceneObj(kObjectType);
+        sceneObj.AddMember("Version", 1, a);
+        Value goArray(kArrayType);
+        for (auto* child : scene->getRoot()->getChildren()) writeGameObject(child, scene, goArray, a);
+        sceneObj.AddMember("GameObjects", goArray, a);
+
+        if (settings) writeSettings(*settings, sceneObj, a);
+
+        doc.AddMember("Scene", sceneObj, a);
+
+        StringBuffer sb;
+        PrettyWriter<StringBuffer> writer(sb);
+        doc.Accept(writer);
+        return app->getFileSystem()->Save(filePath.c_str(), sb.GetString(), (unsigned)sb.GetSize());
+    }
+    catch (const std::exception& e){ PHX_LOG(Scene, Error, "SceneSerializer: Save exception: %s", e.what()); return false; }
+    catch (...){ PHX_LOG(Scene, Error, "SceneSerializer: Unknown save exception"); return false; }
+}
+
+bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, EditorSceneSettings* settings){
+    if (!scene) return false;
+    auto* fs = app->getFileSystem();
+    if (!fs->Exists(filePath.c_str())){ PHX_LOG(Scene, Warning, "SceneSerializer: File not found: %s", filePath.c_str()); return false; }
+
+    char* buf = nullptr;
+    unsigned size = fs->Load(filePath.c_str(), &buf);
+    if (!buf || size == 0) return false;
+
+    Document doc;
+    doc.Parse(buf, size);
+    delete[] buf;
+
+    if (doc.HasParseError() || !doc.HasMember("Scene") || !doc["Scene"].HasMember("GameObjects")){ PHX_LOG(Scene, Error, "SceneSerializer: Invalid file or parse error"); return false; }
+
+    scene->clear();
+    readGameObjects(doc["Scene"]["GameObjects"], scene);
+
+    if (settings) readSettings(doc["Scene"], *settings);
 
     return true;
 }

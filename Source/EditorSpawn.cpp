@@ -234,7 +234,7 @@ GameObject* ModuleEditor::spawnModel(const std::string& path){
             app->getResources()->ReleaseResource(model);
             if (root){
                 bool animComp = root->getComponent<ComponentAnimation>() != nullptr;
-                LOG("spawnModel '%s': meshNodes=%d skin=%s anim=%s AnimComponent=%s",
+                PHX_LOG(Editor, Verbose, "spawnModel '%s': meshNodes=%d skin=%s anim=%s AnimComponent=%s",
                     stem.c_str(), meshNodeCount,
                     hasSkin ? "yes" : "no",
                     hasAnimations ? "yes" : "no",
@@ -444,7 +444,7 @@ GameObject* ModuleEditor::spawnSwordTrail(const Vector3& position){
 
         auto* cm = swordGO->createComponent<ComponentMesh>();
         if (!cm->loadModel(swordModel.c_str()))
-            LOG("spawnSwordTrail: could not load '%s'", swordModel.c_str());
+            PHX_LOG(Editor, Error, "spawnSwordTrail: could not load '%s'", swordModel.c_str());
     }
 
     {

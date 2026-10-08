@@ -1,4 +1,6 @@
 #pragma once
+// The application: owns every engine module and drives them through init, the per-frame update/render cycle and
+// shutdown. One instance, reachable everywhere through the global `app`.
 
 #include "Globals.h"
 #include "ModuleFileSystem.h"
@@ -24,72 +26,74 @@ class ModuleStaticBuffer;
 class ModuleUI;
 class RuntimeCore;
 
+/// Owns the engine modules and runs them in registration order (cleanup in reverse). The editor build adds
+/// ModuleEditor after RuntimeCore; the Player build runs RuntimeCore standalone.
 class Application {
 public:
     Application(int argc, wchar_t** argv, void* hWnd);
     ~Application();
 
     bool init();
+    /// One frame: update, preRender, render and postRender on every module. Skipped while paused (minimised).
     void update();
     bool cleanUp();
 
-    ModuleInput* getInput(){ return input; }
-    ModuleD3D12* getD3D12(){ return d3d12Module; }
-    ModuleGPUResources* getGPUResources(){ return gpuresources; }
-    ModuleResources* getResources(){ return resources; }
-    ModuleSamplerHeap* getSamplerHeap(){ return samplerHeaps; }
-    ModuleFileSystem* getFileSystem(){ return fileSystem; }
-    ModuleCamera* getCamera(){ return camera; }
-    ModuleEditor* getEditor(){ return editor; }
-    RuntimeCore* getRuntimeCore(){ return runtimeCore; }
-    ModuleShaderDescriptors* getShaderDescriptors(){ return shaderDescriptors; }
-    ModuleRingBuffer* getRingBuffer(){ return ringBuffer; }
-    ModuleRTDescriptors* getRTDescriptors(){ return rtDescriptors; }
-    ModuleDSDescriptors* getDSDescriptors(){ return dsDescriptors; }
-    ModuleAssets* getAssets(){ return assets; }
-    ModuleStaticBuffer* getStaticBuffer(){ return staticBuffer; }
-    ModuleUI* getUI(){ return ui; }
+    ModuleInput* getInput(){ return m_input; }
+    ModuleD3D12* getD3D12(){ return m_d3d12; }
+    ModuleGPUResources* getGPUResources(){ return m_gpuResources; }
+    ModuleResources* getResources(){ return m_resources; }
+    ModuleSamplerHeap* getSamplerHeap(){ return m_samplerHeaps; }
+    ModuleFileSystem* getFileSystem(){ return m_fileSystem; }
+    ModuleCamera* getCamera(){ return m_camera; }
+    /// Null in the Player build.
+    ModuleEditor* getEditor(){ return m_editor; }
+    RuntimeCore* getRuntimeCore(){ return m_runtimeCore; }
+    ModuleShaderDescriptors* getShaderDescriptors(){ return m_shaderDescriptors; }
+    ModuleRingBuffer* getRingBuffer(){ return m_ringBuffer; }
+    ModuleRTDescriptors* getRTDescriptors(){ return m_rtDescriptors; }
+    ModuleDSDescriptors* getDSDescriptors(){ return m_dsDescriptors; }
+    ModuleAssets* getAssets(){ return m_assets; }
+    ModuleStaticBuffer* getStaticBuffer(){ return m_staticBuffer; }
+    ModuleUI* getUI(){ return m_ui; }
 
-    void swapModule(Module* from, Module* to){ swapModules.push_back(std::make_pair(from, to)); }
+    /// Frames per second averaged over the last kFpsTicks frames.
+    float getFPS() const { return 1000.0f * float(kFpsTicks) / float(m_tickSum); }
+    float getAvgElapsedMs() const { return float(m_tickSum) / float(kFpsTicks); }
+    /// Wall-clock length of the current frame.
+    uint64_t getElapsedMilis() const { return m_elapsedMilis; }
 
-    float getFPS() const { return 1000.0f * float(MAX_FPS_TICKS) / float(tickSum); }
-    float getAvgElapsedMs() const { return float(tickSum) / float(MAX_FPS_TICKS); }
-    uint64_t getElapsedMilis() const { return elapsedMilis; }
-
-    bool isPaused() const { return paused; }
-    bool setPaused(bool p){ paused = p; return paused; }
+    bool isPaused() const { return m_paused; }
+    bool setPaused(bool p){ m_paused = p; return m_paused; }
 
 private:
-    enum { MAX_FPS_TICKS = 30 };
-    typedef std::array<uint64_t, MAX_FPS_TICKS> TickList;
+    static constexpr size_t kFpsTicks = 30;
 
-    std::vector<Module*> modules;
-    std::vector<std::pair<Module*, Module*>> swapModules;
+    std::vector<Module*> m_modules;
 
-    ModuleInput* input = nullptr;
-    ModuleD3D12* d3d12Module = nullptr;
-    ModuleGPUResources* gpuresources = nullptr;
-    ModuleResources* resources = nullptr;
-    ModuleSamplerHeap* samplerHeaps = nullptr;
-    ModuleFileSystem* fileSystem = nullptr;
-    ModuleCamera* camera = nullptr;
-    ModuleShaderDescriptors* shaderDescriptors = nullptr;
-    ModuleRingBuffer* ringBuffer = nullptr;
-    ModuleRTDescriptors* rtDescriptors = nullptr;
-    ModuleDSDescriptors* dsDescriptors = nullptr;
-    ModuleAssets* assets = nullptr;
-    ModuleUI* ui = nullptr;
-    ModuleEditor* editor = nullptr;
-    ModuleStaticBuffer* staticBuffer = nullptr;
-    RuntimeCore* runtimeCore = nullptr;
+    ModuleInput* m_input = nullptr;
+    ModuleD3D12* m_d3d12 = nullptr;
+    ModuleGPUResources* m_gpuResources = nullptr;
+    ModuleResources* m_resources = nullptr;
+    ModuleSamplerHeap* m_samplerHeaps = nullptr;
+    ModuleFileSystem* m_fileSystem = nullptr;
+    ModuleCamera* m_camera = nullptr;
+    ModuleShaderDescriptors* m_shaderDescriptors = nullptr;
+    ModuleRingBuffer* m_ringBuffer = nullptr;
+    ModuleRTDescriptors* m_rtDescriptors = nullptr;
+    ModuleDSDescriptors* m_dsDescriptors = nullptr;
+    ModuleAssets* m_assets = nullptr;
+    ModuleUI* m_ui = nullptr;
+    ModuleEditor* m_editor = nullptr;
+    ModuleStaticBuffer* m_staticBuffer = nullptr;
+    RuntimeCore* m_runtimeCore = nullptr;
 
-    uint64_t lastMilis = 0;
-    TickList tickList = {};
-    uint64_t tickIndex = 0;
-    uint64_t tickSum = 0;
-    uint64_t elapsedMilis = 0;
-    bool paused = false;
-    bool updating = false;
+    uint64_t m_lastMilis = 0;
+    std::array<uint64_t, kFpsTicks> m_tickList = {};
+    uint64_t m_tickIndex = 0;
+    uint64_t m_tickSum = 0;
+    uint64_t m_elapsedMilis = 0;
+    bool m_paused = false;
+    bool m_updating = false;
 };
 
 extern Application* app;

@@ -1,4 +1,6 @@
 #pragma once
+// Editor panel listing the scene's GameObject tree, with search, drag-and-drop reparenting and context menus.
+
 #include "EditorPanel.h"
 
 class GameObject;
@@ -14,6 +16,10 @@ protected:
 private:
     void drawNode(GameObject* go, bool prefabMode = false, bool isRoot = false);
     void itemContextMenu(GameObject* go);
+    void prefabEditMenuItems();
+    void addComponentMenuItems(GameObject* go);
+    void addScriptMenuItems(GameObject* go);
+    void prefabMenuItems(GameObject* go);
     void blankContextMenu();
 
     char m_search[128] = {};

@@ -1,4 +1,6 @@
 #pragma once
+// Draws the in-game UI (ModuleUI draw lists) with DirectXTK12's SpriteBatch and SpriteFont.
+
 #include "Globals.h"
 #include "ShaderTableDesc.h"
 #include "UIDrawItem.h"

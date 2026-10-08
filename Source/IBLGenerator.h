@@ -1,4 +1,5 @@
 #pragma once
+// Bakes irradiance, pre-filtered specular and the BRDF LUT from an environment cubemap.
 
 #include <wrl.h>
 #include <d3d12.h>

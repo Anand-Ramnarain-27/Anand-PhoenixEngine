@@ -1,4 +1,6 @@
 #pragma once
+// Imports files and folders dropped on the editor window into Assets/ on a worker thread.
+
 #include <filesystem>
 #include <vector>
 #include <deque>
@@ -11,6 +13,8 @@
 #include <chrono>
 #include <array>
 
+/// Singleton fed by EngineDropTarget. Copies supported files into Assets/, reports progress for the
+/// drop overlay and calls the refresh callback when a batch finishes.
 class DragDropManager {
 public:
     struct ImportProgress {
@@ -33,8 +37,6 @@ public:
     };
 
     void QueueItems(std::vector<DropItem> items);
-
-    void QueueFiles(const std::vector<std::filesystem::path>& paths);
 
     void Update();
 

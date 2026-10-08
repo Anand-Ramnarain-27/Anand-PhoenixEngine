@@ -1,8 +1,12 @@
 #pragma once
+// Base class of the Scene and Game views: an ImGui window showing a scene render target.
+
 #include "EditorPanel.h"
 #include "EditorViewport.h"
 #include <d3d12.h>
 
+/// Renders the scene into its EditorViewport (via RuntimeCore) at the window's size and shows the result;
+/// subclasses supply the camera and draw overlays on top.
 class ViewportPanel : public EditorPanel {
 public:
     explicit ViewportPanel(ModuleEditor* editor) : EditorPanel(editor){}

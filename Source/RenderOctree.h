@@ -1,4 +1,6 @@
 #pragma once
+// Loose octree over mesh bounds, used as the broad phase of frustum culling when ModuleCamera selects Octree.
+
 #include "BoundingVolume.h"
 #include "Frustum.h"
 #include <vector>
@@ -6,6 +8,8 @@
 
 class GameObject;
 
+/// Rebuilt from the entries add()ed each frame, but only when a transform changed or the entry count did.
+/// query() is conservative (it tests node regions, not entries): callers confirm each result exactly.
 class RenderOctree {
 public:
     struct Entry {
@@ -13,6 +17,7 @@ public:
         AABB worldAABB;
     };
 
+    /// Called by ComponentTransform whenever any transform moves.
     static void notifyTransformChanged(){ s_dirty = true; }
 
     void clear();
@@ -47,8 +52,8 @@ private:
     int m_nodeCount = 0;
     int m_leafCount = 0;
 
-    static constexpr int NODE_CAPACITY = 8;
-    static constexpr int MAX_DEPTH = 6;
+    static constexpr int kNodeCapacity = 8;
+    static constexpr int kMaxDepth = 6;
 
     static bool s_dirty;
 };

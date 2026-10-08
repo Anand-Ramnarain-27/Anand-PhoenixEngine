@@ -160,6 +160,7 @@
     <ClInclude Include="ComponentScript.h" />
     <ClInclude Include="PrefabManager.h" />
     <ClInclude Include="Globals.h" />
+    <ClInclude Include="PhoenixLog.h" />
     <ClInclude Include="API\Phoenix_Time.h" />
     <ClInclude Include="API\Phoenix_Input.h" />
     <ClInclude Include="Module.h" />
@@ -205,6 +206,7 @@
     <ClInclude Include="API\Phoenix_Scene.h" />
     <ClInclude Include="API\Phoenix_Render.h" />
     <ClInclude Include="API\Phoenix_VFX.h" />
+    <ClInclude Include="VfxGuards.h" />
     <ClInclude Include="ResourceStateMachine.h" />
     <ClInclude Include="ModuleAssets.h" />
     <ClInclude Include="ModuleResources.h" />
@@ -213,6 +215,7 @@
     <ClInclude Include="ModuleFileSystem.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="PhoenixLog.cpp" />
     <ClCompile Include="Globals.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>

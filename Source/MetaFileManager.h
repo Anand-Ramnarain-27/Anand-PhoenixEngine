@@ -1,8 +1,11 @@
 #pragma once
+// Library/metadata/*.meta files: an asset's UID, type and last import time.
+
 #include "ResourceCommon.h"
 #include <string>
 #include <cstdint>
 
+/// Reads and writes .meta files; getOrCreateUID gives an asset a stable UID on first import.
 class MetaFileManager {
 public:
     static std::string getMetaPath(const std::string& assetPath);

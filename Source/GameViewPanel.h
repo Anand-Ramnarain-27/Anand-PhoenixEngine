@@ -1,6 +1,10 @@
 #pragma once
+// The Game view: renders the scene through the active game camera, with the in-game UI.
+
 #include "ViewportPanel.h"
 
+/// While playing, feeds the mouse and gamepad to the in-game UI and the scripts' pointer queries; can outline UI
+/// rects for debugging (Debug > UI Rects / Anchors).
 class GameViewPanel : public ViewportPanel {
 public:
     explicit GameViewPanel(ModuleEditor* editor);

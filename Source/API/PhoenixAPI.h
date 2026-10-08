@@ -1,4 +1,6 @@
 #pragma once
+// The scripting API in one include: every Phoenix:: module, IScript and SCRIPT_API, plus `using` declarations
+// so scripts can write Input, Scene, VFX, Vec3 ... without the namespace.
 
 #include "API/Phoenix_Types.h"
 #include "API/Phoenix_Keys.h"

@@ -58,6 +58,11 @@ void GameViewPanel::onImageDrawn(){
     const bool hovered = ImGui::IsItemHovered();
     const ImVec2 mouse = ImGui::GetMousePos();
 
+    // Scripts' view of the pointer (Phoenix::UI::GetGamePointer / GetMouseWheel): only while over the image.
+    if (viewport.size.x > 0.f && viewport.size.y > 0.f)
+        ui->setGamePointer(hovered, Vector2((mouse.x - viewport.pos.x) / viewport.size.x, (mouse.y - viewport.pos.y) / viewport.size.y),
+                           hovered ? ImGui::GetIO().MouseWheel : 0.f);
+
     UIInput in;
     // A drag that started on a widget keeps tracking the pointer after it leaves the image.
     in.pointerValid = hovered || ImGui::IsMouseDown(ImGuiMouseButton_Left);

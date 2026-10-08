@@ -1,4 +1,6 @@
 #pragma once
+// State of the editor's prefab edit mode (a prefab opened on its own in an isolated scene).
+
 #include "SceneGraph.h"
 #include <string>
 #include <memory>

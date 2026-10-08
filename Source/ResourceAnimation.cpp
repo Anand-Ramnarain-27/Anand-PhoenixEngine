@@ -131,10 +131,10 @@ bool ResourceAnimation::LoadInMemory(){
             nodeList += "'" + name + "'(" + std::to_string(mc.numTargets) + " targets/"
                       + std::to_string(mc.numTime) + " keys)";
         }
-        LOG("ResourceAnimation '%s': %zu morph channel(s) — %s",
+        PHX_LOG(Assets, Verbose, "ResourceAnimation '%s': %zu morph channel(s) — %s",
             m_name.c_str(), m_morphChannels.size(), nodeList.c_str());
     } else if (!m_channels.empty()){
-        LOG("ResourceAnimation '%s': %zu transform channel(s), no morph channels",
+        PHX_LOG(Assets, Verbose, "ResourceAnimation '%s': %zu transform channel(s), no morph channels",
             m_name.c_str(), m_channels.size());
     }
 

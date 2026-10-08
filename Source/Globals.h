@@ -1,4 +1,6 @@
 #pragma once
+// Precompiled header for every engine translation unit: Windows, D3D12, SimpleMath, logging, debug draw, ImGui
+// and the engine-wide constants. Include it first.
 
 #define NOMINMAX
 #define INITGUID
@@ -29,11 +31,15 @@ using namespace DirectX;
 using namespace DirectX::SimpleMath;
 using Microsoft::WRL::ComPtr;
 
-#define LOG(format, ...) ::log(__FILE__, __LINE__, format, __VA_ARGS__);
+#include "PhoenixLog.h"
+
+/// Uncategorised debugger output. Engine code logs through PHX_LOG; this stays for Phoenix::Debug (script API).
 void log(const char file[], int line, const char* format, ...);
 
+/// Frames the CPU may record ahead of the GPU; per-frame upload rings are sized by it.
 #define FRAMES_IN_FLIGHT 3
 
+/// HDR scene colour, before tonemapping.
 static constexpr DXGI_FORMAT kSceneColorFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
 #include "debug_draw.hpp"

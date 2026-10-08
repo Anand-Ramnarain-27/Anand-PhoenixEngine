@@ -121,7 +121,13 @@ void ComponentParticleSystem::spawnParticle(){
     p.age = 0.f;
     p.lifetime = std::max(0.01f, randRange(m_rng, lifeRange.x, lifeRange.y));
     p.position = randomEmitPosition(m_rng);
-    p.velocity = randomEmitDirection(m_rng) * randRange(m_rng, speedRange.x, speedRange.y);
+    Vector3 dir = randomEmitDirection(m_rng);
+    if (directionMode == DirectionMode::Radial && owner){
+        // Out from the centre through the spawn point; a spawn at the centre keeps the shape's direction.
+        Vector3 out = p.position - owner->getTransform()->getGlobalMatrix().Translation();
+        if (out.LengthSquared() > 1e-8f){ out.Normalize(); dir = out; }
+    }
+    p.velocity = dir * randRange(m_rng, speedRange.x, speedRange.y);
     p.rotationDeg = randRange(m_rng, rotationRange.x, rotationRange.y);
     p.baseSize = std::max(0.001f, randRange(m_rng, sizeRange.x, sizeRange.y));
 
@@ -192,8 +198,9 @@ void ComponentParticleSystem::update(float dt){
     }
 }
 
-void ComponentParticleSystem::onEditor(){
 #ifdef PHOENIX_EDITOR
+// Play / Stop / Restart for particle and trail previews in edit mode (ModuleEditor's effects transport).
+void ComponentParticleSystem::drawEffectsTransport(){
     if (auto* ed = app->getEditor()){
         bool fxPlaying = ed->isEffectsPlaying();
         ImGui::SeparatorText("Effects Transport");
@@ -209,16 +216,9 @@ void ComponentParticleSystem::onEditor(){
         if (ImGui::Button("Restart All##fxps")) ed->effectsRestartAll();
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Clear + replay ALL particles and trails in scene");
     }
-    ImGui::Separator();
+}
 
-    ImGui::Checkbox("Enabled##ps", &enabled);
-    ImGui::SameLine();
-    if (ImGui::Checkbox("Playing##ps", &playing)){}
-    ImGui::SameLine();
-    if (ImGui::Button("Clear##ps")) clear();
-
-    ImGui::Spacing();
-
+void ComponentParticleSystem::drawEmitterSection(){
     if (RedCollapsingHeader("Emitter", ImGuiTreeNodeFlags_DefaultOpen)){
         ImGui::Checkbox("Looping", &looping);
         if (!looping) ImGui::DragFloat("Duration", &duration, 0.1f, 0.01f, 120.f);
@@ -235,8 +235,17 @@ void ComponentParticleSystem::onEditor(){
             ImGui::DragFloat("Shape radius", &shapeRadius, 0.01f, 0.f, 1000.f);
         if (shape == EmitterShape::Cone)
             ImGui::DragFloat("Cone angle (deg)", &coneAngleDeg, 0.5f, 0.f, 89.f);
-    }
 
+        static const char* kDirModes[] = { "Random (shape)", "Radial (from centre)" };
+        int dirIdx = (int)directionMode;
+        if (ImGui::Combo("Direction", &dirIdx, kDirModes, IM_ARRAYSIZE(kDirModes)))
+            directionMode = (DirectionMode)dirIdx;
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Radial: each particle flies straight out from the centre through where it spawned.\nA negative speed pulls it inwards.");
+    }
+}
+
+void ComponentParticleSystem::drawInitialValuesSection(){
     if (RedCollapsingHeader("Initial Values", ImGuiTreeNodeFlags_DefaultOpen)){
         ImGui::TextDisabled("Random range applied when each particle spawns");
         ImGui::DragFloat2("Lifetime", &lifeRange.x, 0.05f, 0.01f, 120.f);
@@ -245,7 +254,9 @@ void ComponentParticleSystem::onEditor(){
         ImGui::DragFloat2("Rotation (deg)", &rotationRange.x, 0.5f, -360.f, 360.f);
         ImGui::DragFloat3("Gravity", &gravity.x, 0.05f, -100.f, 100.f);
     }
+}
 
+void ComponentParticleSystem::drawTurbulenceSection(){
     if (RedCollapsingHeader("Turbulence (Perlin Noise)")){
         if (ImGui::Checkbox("Use turbulence##ps", &useTurbulence)) m_noisePreviewDirty = true;
         if (useTurbulence){
@@ -269,14 +280,18 @@ void ComponentParticleSystem::onEditor(){
             }
         }
     }
+}
 
+void ComponentParticleSystem::drawLifetimeSection(){
     if (RedCollapsingHeader("Over Lifetime", ImGuiTreeNodeFlags_DefaultOpen)){
         ImGui::ColorEdit4("Start colour", &startColor.x);
         ImGui::ColorEdit4("End colour", &endColor.x);
         ImGui::TextUnformatted("Size over lifetime");
         CurveWidget::Edit("##sizeCurve", sizeCurve, &startSizeMul, &endSizeMul, 0.01f, 0.f, 100.f);
     }
+}
 
+void ComponentParticleSystem::drawRenderSection(){
     if (RedCollapsingHeader("Render", ImGuiTreeNodeFlags_DefaultOpen)){
         ImGui::TextUnformatted("Texture");
         ImGui::SameLine(90.f);
@@ -303,7 +318,9 @@ void ComponentParticleSystem::onEditor(){
 
         ImGui::DragInt("Layer", &layer, 1.f, -100, 100);
     }
+}
 
+void ComponentParticleSystem::drawGpuSection(){
     if (RedCollapsingHeader("GPU Rendering")){
         ImGui::Checkbox("Use GPU batch rendering (ParticlePass)", &useGPU);
         if (useGPU){
@@ -313,6 +330,28 @@ void ComponentParticleSystem::onEditor(){
                                "on the GPU.");
         }
     }
+}
+#endif
+
+void ComponentParticleSystem::onEditor(){
+#ifdef PHOENIX_EDITOR
+    drawEffectsTransport();
+    ImGui::Separator();
+
+    ImGui::Checkbox("Enabled##ps", &enabled);
+    ImGui::SameLine();
+    ImGui::Checkbox("Playing##ps", &playing);
+    ImGui::SameLine();
+    if (ImGui::Button("Clear##ps")) clear();
+
+    ImGui::Spacing();
+
+    drawEmitterSection();
+    drawInitialValuesSection();
+    drawTurbulenceSection();
+    drawLifetimeSection();
+    drawRenderSection();
+    drawGpuSection();
 
     ImGui::Separator();
     int alive = (int)std::count_if(m_particles.begin(), m_particles.end(), [](const Particle& p){ return p.alive; });
@@ -360,6 +399,7 @@ void ComponentParticleSystem::onSave(std::string& outJson) const{
     outJson += "\"shape\":" + std::to_string((int)shape) + ",";
     outJson += "\"shapeRadius\":" + std::to_string(shapeRadius) + ",";
     outJson += "\"coneAngleDeg\":" + std::to_string(coneAngleDeg) + ",";
+    outJson += "\"directionMode\":" + std::to_string((int)directionMode) + ",";
     outJson += "\"worldSpace\":" + std::string(worldSpace ? "true" : "false") + ",";
     outJson += "\"lifeRange\":[" + std::to_string(lifeRange.x) + "," + std::to_string(lifeRange.y) + "],";
     outJson += "\"speedRange\":[" + std::to_string(speedRange.x) + "," + std::to_string(speedRange.y) + "],";
@@ -438,6 +478,7 @@ void ComponentParticleSystem::onLoad(const std::string& json){
     shape = (EmitterShape)getInt("shape", (int)shape);
     shapeRadius = getFloat("shapeRadius", shapeRadius);
     coneAngleDeg = getFloat("coneAngleDeg", coneAngleDeg);
+    directionMode = (DirectionMode)getInt("directionMode", (int)directionMode);
     worldSpace = getBool("worldSpace", worldSpace);
 
     if (auto v = extract("lifeRange"); !v.empty()) extractArray(v, &lifeRange.x, 2);

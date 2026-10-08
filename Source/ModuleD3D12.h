@@ -1,4 +1,5 @@
 #pragma once
+// D3D12 device, swap chain, command queue and per-frame fences.
 
 #include "Module.h"
 #include <dxgi1_6.h>
@@ -7,6 +8,8 @@
 
 namespace DirectX { inline namespace DX12 { class GraphicsMemory; } }
 
+/// Creates the device and the window's swap chain, records each frame's command list and tracks which frames
+/// the GPU has finished, so deferred releases know when a resource is safe to free.
 class ModuleD3D12 : public Module {
 public:
     ModuleD3D12(HWND hWnd);
@@ -41,12 +44,6 @@ public:
     D3D12_CPU_DESCRIPTOR_HANDLE getDepthStencilDescriptor() const;
 
     UINT64 signalDrawQueue();
-    ID3D12GraphicsCommandList* beginFrameRender();
-    void setBackBufferRenderTarget(const Vector4& clearColor = Vector4(0.f, 0.f, 0.f, 1.f));
-    void endFrameRender();
-
-    D3D12_CPU_DESCRIPTOR_HANDLE createRTV(ID3D12Resource* resource);
-    D3D12_CPU_DESCRIPTOR_HANDLE createDSV(ID3D12Resource* resource);
 
     bool useVSync = true;
 

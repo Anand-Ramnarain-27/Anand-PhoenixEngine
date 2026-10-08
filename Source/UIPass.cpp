@@ -51,13 +51,13 @@ bool UIPass::init(ID3D12Device* device, ID3D12CommandQueue* queue){
         upload.End(queue).wait();
     }
     catch (const std::exception& e){
-        LOG("UIPass: SpriteBatch creation failed: %s", e.what());
+        PHX_LOG(Render, Error, "UIPass: SpriteBatch creation failed: %s", e.what());
         return false;
     }
 
     if (!createWhiteTexture()) return false;
 
-    LOG("UIPass: init OK");
+    PHX_LOG(Render, Info, "UIPass: init OK");
     return true;
 }
 
@@ -73,7 +73,7 @@ bool UIPass::createWhiteTexture(){
     const uint32_t white = 0xFFFFFFFFu;
     m_white.resource = app->getGPUResources()->createRawTexture2D(&white, sizeof(white), 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
     if (!m_white.resource){
-        LOG("UIPass: white texture creation failed");
+        PHX_LOG(Render, Error, "UIPass: white texture creation failed");
         return false;
     }
     m_white.resource->SetName(L"UI_WhiteTexture");
@@ -93,7 +93,7 @@ bool UIPass::loadFont(const std::string& name, const std::wstring& path){
         FontEntry entry;
         entry.srv = app->getShaderDescriptors()->allocTable(("UI_Font_" + name).c_str());
         if (!entry.srv.isValid()){
-            LOG("UIPass: no descriptor table for font '%s'", name.c_str());
+            PHX_LOG(Render, Warning, "UIPass: no descriptor table for font '%s'", name.c_str());
             return false;
         }
 
@@ -106,11 +106,11 @@ bool UIPass::loadFont(const std::string& name, const std::wstring& path){
         m_fonts[name] = std::move(entry);
     }
     catch (const std::exception& e){
-        LOG("UIPass: failed to load font '%s': %s", name.c_str(), e.what());
+        PHX_LOG(Render, Error, "UIPass: failed to load font '%s': %s", name.c_str(), e.what());
         return false;
     }
 
-    LOG("UIPass: loaded font '%s'", name.c_str());
+    PHX_LOG(Render, Verbose, "UIPass: loaded font '%s'", name.c_str());
     return true;
 }
 
@@ -153,7 +153,7 @@ const UIPass::TextureEntry& UIPass::getTexture(const std::string& path){
             entry.resource = std::move(tex);
         }
     }
-    if (!entry.resource) LOG("UIPass: failed to load texture '%s', drawing white", path.c_str());
+    if (!entry.resource) PHX_LOG(Render, Error, "UIPass: failed to load texture '%s', drawing white", path.c_str());
 
     auto inserted = m_textures.emplace(path, std::move(entry));
     return inserted.first->second.resource ? inserted.first->second : m_white;

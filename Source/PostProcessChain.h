@@ -1,4 +1,6 @@
 #pragma once
+// Data-driven post-process effects loaded from Assets/PostProcess, run before or after tonemapping.
+
 #include "ShaderTableDesc.h"
 #include <d3d12.h>
 #include <wrl.h>

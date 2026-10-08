@@ -143,7 +143,7 @@ void ComponentCamera::onSave(std::string& outJson) const{
 
 void ComponentCamera::onLoad(const std::string& jsonStr){
     Document doc; doc.Parse(jsonStr.c_str());
-    if (doc.HasParseError()){ LOG("ComponentCamera: JSON parse error"); return; }
+    if (doc.HasParseError()){ PHX_LOG(Scene, Error, "ComponentCamera: JSON parse error"); return; }
     if (doc.HasMember("FOV")) m_fov = doc["FOV"].GetFloat();
     if (doc.HasMember("NearPlane")) m_nearPlane = doc["NearPlane"].GetFloat();
     if (doc.HasMember("FarPlane")) m_farPlane = doc["FarPlane"].GetFloat();

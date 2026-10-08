@@ -1,4 +1,5 @@
 #pragma once
+// Shadow maps: cascaded directional, spot and point (cube) shadows with PCF, VSM or ESM filtering.
 
 #include "MeshEntry.h"
 #include "ShaderTableDesc.h"
@@ -173,6 +174,7 @@ private:
     ComPtr<ID3D12PipelineState> m_pso;
 };
 
+/// Renders the shadow-casting lights' depth (or moments) and exposes the results to the lighting passes.
 class ShadowMapPass {
 public:
     bool init(ID3D12Device* device);

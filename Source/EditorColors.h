@@ -1,4 +1,6 @@
 #pragma once
+// The editor's colour palette (status colours, background / line / text tiers, accent) and helpers.
+
 #include <imgui.h>
 
 namespace EditorColors {

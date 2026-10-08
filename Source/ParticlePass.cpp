@@ -18,29 +18,25 @@ namespace {
 
 bool ParticlePass::init(ID3D12Device* device){
     if (!m_pipeline.init(device)){
-        LOG("ParticlePass: pipeline init failed");
+        PHX_LOG(Render, Error, "ParticlePass: pipeline init failed");
         return false;
     }
     if (!createCbRing(device)) return false;
     if (!createFallbackTexture(device)) return false;
 
-    LOG("ParticlePass: init OK");
-#ifdef PHOENIX_EDITOR
-    if (auto* ed = app->getEditor())
-        ed->log("ParticlePass: initialized OK", ImVec4(0.5f, 1.f, 0.5f, 1.f));
-#endif
+    PHX_LOG(Render, Info, "ParticlePass: init OK");
     return true;
 }
 
 bool ParticlePass::createCbRing(ID3D12Device* device){
-    const UINT slots = MAX_EMITTERS * 2;
+    const UINT slots = CB_SLOTS_PER_FRAME * FRAMES_IN_FLIGHT;   // one slice per frame in flight
     const UINT64 total = (UINT64)cbAlign(sizeof(CbParticle)) * slots;
     auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     auto bd = CD3DX12_RESOURCE_DESC::Buffer(total);
     HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                                                   D3D12_RESOURCE_STATE_GENERIC_READ,
                                                   nullptr, IID_PPV_ARGS(&m_cbRing));
-    if (FAILED(hr)){ LOG("ParticlePass: CB ring alloc failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "ParticlePass: CB ring alloc failed 0x%08X", hr); return false; }
     m_cbRing->SetName(L"Particle_CBRing");
     m_cbRing->Map(0, nullptr, &m_cbMapped);
     return true;
@@ -51,12 +47,12 @@ bool ParticlePass::createFallbackTexture(ID3D12Device* device){
     const uint32_t white = 0xFFFFFFFFu;
     m_fallbackTex = app->getGPUResources()->createRawTexture2D(&white, sizeof(white), 1, 1,
                                                                 DXGI_FORMAT_R8G8B8A8_UNORM);
-    if (!m_fallbackTex){ LOG("ParticlePass: fallback texture creation failed"); return false; }
+    if (!m_fallbackTex){ PHX_LOG(Render, Error, "ParticlePass: fallback texture creation failed"); return false; }
     m_fallbackTex->SetName(L"Particle_FallbackTex");
 
     auto* sd = app->getShaderDescriptors();
     m_fallbackSRV = sd->allocTable("Particle_FallbackSRV");
-    if (!m_fallbackSRV.isValid()){ LOG("ParticlePass: fallback SRV alloc failed"); return false; }
+    if (!m_fallbackSRV.isValid()){ PHX_LOG(Render, Error, "ParticlePass: fallback SRV alloc failed"); return false; }
 
     D3D12_SHADER_RESOURCE_VIEW_DESC sv = {};
     sv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -75,14 +71,14 @@ D3D12_GPU_DESCRIPTOR_HANDLE ParticlePass::getOrLoadTexture(const std::string& pa
 
     ComPtr<ID3D12Resource> tex = loadEffectTexture(path);
     if (!tex){
-        LOG("ParticlePass: failed to load texture '%s', using fallback", path.c_str());
+        PHX_LOG(Render, Error, "ParticlePass: failed to load texture '%s', using fallback", path.c_str());
         m_textureCache.emplace(path, CachedTexture{ nullptr, m_fallbackSRV });
         return m_fallbackSRV.getGPUHandle(0);
     }
 
     ShaderTableDesc srv = app->getShaderDescriptors()->allocTable(("Particle_SRV_" + path).c_str());
     if (!srv.isValid()){
-        LOG("ParticlePass: SRV alloc failed for '%s', using fallback", path.c_str());
+        PHX_LOG(Render, Error, "ParticlePass: SRV alloc failed for '%s', using fallback", path.c_str());
         m_textureCache.emplace(path, CachedTexture{ nullptr, m_fallbackSRV });
         return m_fallbackSRV.getGPUHandle(0);
     }
@@ -114,7 +110,7 @@ ParticlePass::EmitterBuffers& ParticlePass::getOrCreateBuffers(ID3D12Device* dev
         auto bd = CD3DX12_RESOURCE_DESC::Buffer(bufSize);
         if (FAILED(device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                     D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&eb.uploadBuf)))){
-            LOG("ParticlePass: upload buf alloc failed for key %zu", key);
+            PHX_LOG(Render, Error, "ParticlePass: upload buf alloc failed for key %zu", key);
             return eb;
         }
         eb.uploadBuf->SetName(L"Particle_Upload");
@@ -138,7 +134,7 @@ ParticlePass::EmitterBuffers& ParticlePass::getOrCreateBuffers(ID3D12Device* dev
                       D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
         if (FAILED(device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                     D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&eb.uavBuf)))){
-            LOG("ParticlePass: UAV buf alloc failed for key %zu", key);
+            PHX_LOG(Render, Error, "ParticlePass: UAV buf alloc failed for key %zu", key);
             return eb;
         }
         eb.uavBuf->SetName(L"Particle_UAV");
@@ -189,11 +185,13 @@ void ParticlePass::render(ID3D12GraphicsCommandList* cmd,
     const UINT cbStride = cbAlign(sizeof(CbParticle));
     UINT cbSlot = m_frameCBCursor;
     UINT drawCount = 0;
+    const UINT64 cbFrameBase = (UINT64)app->getD3D12()->getCurrentBackBufferIdx() * CB_SLOTS_PER_FRAME;
 
 
     for (const auto& req : requests){
         if (req.particles.empty()) continue;
         if (drawCount >= MAX_EMITTERS) break;
+        if (cbSlot + 2 > CB_SLOTS_PER_FRAME) break;   // an update CB + a draw CB
 
         const UINT liveCount = std::min((UINT)req.particles.size(), MAX_PARTICLES_PER_EMITTER);
         EmitterBuffers& eb = getOrCreateBuffers(device, req.emitterKey,
@@ -215,9 +213,9 @@ void ParticlePass::render(ID3D12GraphicsCommandList* cmd,
             cbUpdate.turbStrength = req.turbStrength;
             cbUpdate.turbScrollSpeed = req.turbScrollSpeed;
             cbUpdate.time = req.time;
-            void* cbDst = reinterpret_cast<uint8_t*>(m_cbMapped) + cbSlot * cbStride;
+            void* cbDst = reinterpret_cast<uint8_t*>(m_cbMapped) + (cbFrameBase + cbSlot) * cbStride;
             memcpy(cbDst, &cbUpdate, sizeof(CbParticleUpdate));
-            D3D12_GPU_VIRTUAL_ADDRESS cbVA = m_cbRing->GetGPUVirtualAddress() + cbSlot * cbStride;
+            D3D12_GPU_VIRTUAL_ADDRESS cbVA = m_cbRing->GetGPUVirtualAddress() + (cbFrameBase + cbSlot) * cbStride;
             cmd->SetComputeRootConstantBufferView(ParticlePipeline::CS_SLOT_CB, cbVA);
             cmd->SetComputeRootDescriptorTable(ParticlePipeline::CS_SLOT_INPUT,
                                                eb.uploadSRV.getGPUHandle(0));
@@ -256,9 +254,9 @@ void ParticlePass::render(ID3D12GraphicsCommandList* cmd,
         cb.viewProj = viewProj.Transpose();
         cb.camRight = Vector4(camRight.x, camRight.y, camRight.z, 0.f);
         cb.camUp = Vector4(camUp.x, camUp.y, camUp.z, 0.f);
-        void* cbDst = reinterpret_cast<uint8_t*>(m_cbMapped) + cbSlot * cbStride;
+        void* cbDst = reinterpret_cast<uint8_t*>(m_cbMapped) + (cbFrameBase + cbSlot) * cbStride;
         memcpy(cbDst, &cb, sizeof(CbParticle));
-        D3D12_GPU_VIRTUAL_ADDRESS cbVA = m_cbRing->GetGPUVirtualAddress() + cbSlot * cbStride;
+        D3D12_GPU_VIRTUAL_ADDRESS cbVA = m_cbRing->GetGPUVirtualAddress() + (cbFrameBase + cbSlot) * cbStride;
         cmd->SetGraphicsRootConstantBufferView(ParticlePipeline::GFX_SLOT_CB, cbVA);
         cmd->SetGraphicsRootDescriptorTable(ParticlePipeline::GFX_SLOT_PARTICLES, renderParticlesSRV);
         cmd->SetGraphicsRootDescriptorTable(ParticlePipeline::GFX_SLOT_TEXTURE,
@@ -318,13 +316,13 @@ bool ParticlePipeline::createGfxRootSignature(ID3D12Device* device){
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
     if (FAILED(hr)){
-        if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
-        LOG("ParticlePipeline: serialize gfx root sig failed 0x%08X", hr);
+        if (error) PHX_LOG(Render, Error, "%s", static_cast<char*>(error->GetBufferPointer()));
+        PHX_LOG(Render, Error, "ParticlePipeline: serialize gfx root sig failed 0x%08X", hr);
         return false;
     }
     hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
                                       IID_PPV_ARGS(&m_gfxRootSig));
-    if (FAILED(hr)){ LOG("ParticlePipeline: CreateRootSignature (gfx) failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "ParticlePipeline: CreateRootSignature (gfx) failed 0x%08X", hr); return false; }
     return true;
 }
 
@@ -346,13 +344,13 @@ bool ParticlePipeline::createCsRootSignature(ID3D12Device* device){
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
     if (FAILED(hr)){
-        if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
-        LOG("ParticlePipeline: serialize cs root sig failed 0x%08X", hr);
+        if (error) PHX_LOG(Render, Error, "%s", static_cast<char*>(error->GetBufferPointer()));
+        PHX_LOG(Render, Error, "ParticlePipeline: serialize cs root sig failed 0x%08X", hr);
         return false;
     }
     hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
                                       IID_PPV_ARGS(&m_csRootSig));
-    if (FAILED(hr)){ LOG("ParticlePipeline: CreateRootSignature (cs) failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "ParticlePipeline: CreateRootSignature (cs) failed 0x%08X", hr); return false; }
     return true;
 }
 
@@ -393,12 +391,12 @@ bool ParticlePipeline::createGraphicsPSOs(ID3D12Device* device){
     desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 
     HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_pso));
-    if (FAILED(hr)){ LOG("ParticlePipeline: alpha PSO failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "ParticlePipeline: alpha PSO failed 0x%08X", hr); return false; }
 
     auto& art = desc.BlendState.RenderTarget[0];
     art.DestBlend = D3D12_BLEND_ONE;
     hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_additivePso));
-    if (FAILED(hr)){ LOG("ParticlePipeline: additive PSO failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "ParticlePipeline: additive PSO failed 0x%08X", hr); return false; }
 
     return true;
 }
@@ -411,6 +409,6 @@ bool ParticlePipeline::createComputePSO(ID3D12Device* device){
     desc.CS = { cs.data(), cs.size() };
 
     HRESULT hr = device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&m_computePso));
-    if (FAILED(hr)){ LOG("ParticlePipeline: compute PSO failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "ParticlePipeline: compute PSO failed 0x%08X", hr); return false; }
     return true;
 }

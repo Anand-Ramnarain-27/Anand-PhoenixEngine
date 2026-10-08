@@ -1,4 +1,7 @@
 #pragma once
+// The runtime: owns the scene, the simulation step and the whole render pipeline. Shared by the editor (which
+// renders it into its viewports) and the standalone Player (which renders it to the window).
+
 #include "Module.h"
 #include "HotReloadManager.h"
 #include "ForwardMeshPass.h"
@@ -17,6 +20,7 @@
 #include "PostProcessChain.h"
 #include "ColorLUT.h"
 #include "XRayPass.h"
+#include "EditorSceneSettings.h"
 
 #include <memory>
 #include <vector>
@@ -38,8 +42,13 @@ class NavigationSystem;
 class RenderTexture;
 class GameObject;
 class SceneGraph;
+class ModuleCamera;
+class ComponentDirectionalLight;
 struct EditorViewport;
 
+/// Scene, simulation and rendering. `standalone` (the Player) drives its own frame: preRender() ticks and
+/// render() draws to the back buffer. In the editor ModuleEditor calls tick() and renderSceneWithCamera() for
+/// each viewport instead.
 class RuntimeCore : public Module {
 public:
     explicit RuntimeCore(bool standalone);
@@ -50,8 +59,13 @@ public:
     void preRender() override;
     void render() override;
 
+    /// One simulation step: scene and script update, level transitions, queued script requests, animation,
+    /// culling against the game camera, collision and its response. `aspectRatio` <= 0 keeps the camera's.
     void tick(float dt, float aspectRatio);
 
+    /// Records the whole scene pass (shadows, G-buffer, lighting, transparents, VFX, x-ray) into `outputRT`.
+    /// `editorExtras` is true for the editor's Scene view: no game-camera culling, debug overlays (shadow cascades,
+    /// debug draw), and the occlusion fade / x-ray only when the scene settings preview them there.
     void renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Matrix& view, const Matrix& proj,
                                 uint32_t w, uint32_t h, bool editorExtras, RenderTexture* outputRT = nullptr);
 
@@ -78,12 +92,38 @@ public:
     const FrameLightData& getFrameLights() const { return m_frameLights; }
     const ShadowRenderData& getFrameShadowData() const { return m_frameShadowData; }
 
+    /// Defined in RuntimeCoreCore.cpp so it links into GameScript.dll without the renderer.
     SceneGraph* getActiveModuleScene() const;
     int getFrameDrawCalls() const { return m_frameDrawCalls; }
 
+    /// Loads the skybox the active scene's settings name (.hdr is converted to a cubemap).
     void applySkyboxFromSettings();
 
 private:
+    void installEngineHooks();
+    void loadScriptLibraries();
+    bool createRenderPasses(ID3D12Device* device);
+    void createPlayerViewport(uint32_t w, uint32_t h);
+    void resizePlayerViewport(uint32_t w, uint32_t h);
+    void bootStandaloneScene();
+    void cullScene(ModuleCamera& cam);
+    void updatePlayerUI(uint32_t w, uint32_t h);
+
+    // Steps of renderSceneWithCamera.
+    struct SceneView;
+    void gatherSceneMeshes(SceneView& v);
+    void dispatchSkinning(ID3D12GraphicsCommandList* cmd, SceneView& v);
+    void sortMeshesByPass(SceneView& v);
+    void gatherEffects(SceneView& v);
+    void renderShadows(ID3D12GraphicsCommandList* cmd, SceneView& v, ShadowRenderData& shadowData);
+    void renderDirectionalShadows(ID3D12GraphicsCommandList* cmd, SceneView& v, const ComponentDirectionalLight& light,
+                                  ShadowRenderData& shadowData);
+    OcclusionParams buildOcclusionParams(const SceneView& v) const;
+    void renderScenePasses(ID3D12GraphicsCommandList* cmd, SceneView& v, const ShadowRenderData& shadowData,
+                           const OcclusionParams& occlusion);
+    void drawEditorDebug(ID3D12GraphicsCommandList* cmd, SceneView& v);
+    void drawBoundsDebug(SceneGraph* scene);
+
     bool m_standalone;
 
     std::unique_ptr<DebugDrawPass> m_debugDraw;
@@ -114,12 +154,11 @@ private:
     RenderOctree m_renderOctree;
 
     int m_frameDrawCalls = 0;
-    int m_frameMeshCount = 0;
 
     std::unique_ptr<EditorViewport> m_playerViewport;
 
-    // Transient point lights (Phoenix::VFX, at most kMaxTransientLights) are gathered in a first pass so they always
-    // get a slot ahead of the level's lights; the light pass budgets levels to 28 of the 32 point slots.
+    /// Transient point lights (Phoenix::VFX, at most kMaxTransientLights) are gathered in a first pass so they always
+    /// get a slot ahead of the level's lights; the light pass budgets levels to 28 of the 32 point slots.
     static constexpr int kMaxTransientLights = 4;
     void gatherLights(GameObject* node, FrameLightData& out, bool transientPass) const;
     void gatherDecals(GameObject* node, std::vector<DecalInstance>& out,
@@ -139,6 +178,8 @@ private:
     void debugDrawLights(SceneGraph* scene, float lightSize);
 
     void renderStandaloneFrame();
+    RenderTexture* applyPlayerFog(ID3D12GraphicsCommandList* cmd, RenderTexture* hdrResult, const Matrix& view,
+                                  const Matrix& proj, const Vector3& pos, const EditorSceneSettings::Fog& fog);
 
     std::unique_ptr<XRayPass> m_xrayPass;
 

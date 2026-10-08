@@ -17,18 +17,18 @@ namespace {
 
 bool FogPass::init(ID3D12Device* device){
     if (!createRootSignature(device)){
-        LOG("FogPass: root signature creation failed");
+        PHX_LOG(Render, Error, "FogPass: root signature creation failed");
         return false;
     }
     if (!createPSO(device)){
-        LOG("FogPass: PSO creation failed");
+        PHX_LOG(Render, Error, "FogPass: PSO creation failed");
         return false;
     }
     if (!createUploadBuffers(device)){
-        LOG("FogPass: upload buffer creation failed");
+        PHX_LOG(Render, Error, "FogPass: upload buffer creation failed");
         return false;
     }
-    LOG("FogPass: init OK");
+    PHX_LOG(Render, Info, "FogPass: init OK");
     return true;
 }
 
@@ -53,7 +53,7 @@ bool FogPass::createRootSignature(ID3D12Device* device){
 
     ComPtr<ID3DBlob> blob, err;
     if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))){
-        LOG("FogPass: root signature serialise failed: %s", err ? (char*)err->GetBufferPointer() : "unknown error");
+        PHX_LOG(Render, Error, "FogPass: root signature serialise failed: %s", err ? (char*)err->GetBufferPointer() : "unknown error");
         return false;
     }
 
@@ -92,7 +92,7 @@ bool FogPass::createUploadBuffers(ID3D12Device* device){
                                                       D3D12_RESOURCE_STATE_GENERIC_READ,
                                                       nullptr, IID_PPV_ARGS(&m_perFrameCB[i]));
         if (FAILED(hr)){
-            LOG("FogPass: CB create failed 0x%08X", hr);
+            PHX_LOG(Render, Error, "FogPass: CB create failed 0x%08X", hr);
             return false;
         }
         m_perFrameCB[i]->SetName(L"Fog_PerFrameCB");

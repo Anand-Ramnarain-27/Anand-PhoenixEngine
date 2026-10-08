@@ -64,7 +64,7 @@ bool Scene::RequestLevelTransition(const std::string& sceneNameOrPath){
     SceneManager* sm = getSceneManager();
     if (!sm) return false;
     if (!SceneExists(sceneNameOrPath)){
-        LOG("Phoenix::Scene: transition target '%s' not found", sceneNameOrPath.c_str());
+        PHX_LOG(Script, Warning, "Phoenix::Scene: transition target '%s' not found", sceneNameOrPath.c_str());
         return false;
     }
     return sm->requestTransition(resolveScenePath(sceneNameOrPath));

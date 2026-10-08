@@ -23,7 +23,7 @@ namespace {
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                                                       D3D12_RESOURCE_STATE_GENERIC_READ,
                                                       nullptr, IID_PPV_ARGS(&buf));
-        if (FAILED(hr)){ LOG("DeferredLightingPass: buf create failed 0x%08X", hr); return nullptr; }
+        if (FAILED(hr)){ PHX_LOG(Render, Error, "DeferredLightingPass: buf create failed 0x%08X", hr); return nullptr; }
         buf->SetName(name);
         if (mapped) buf->Map(0, nullptr, mapped);
         return buf;
@@ -63,17 +63,17 @@ namespace {
 
 bool DeferredLightingPass::init(ID3D12Device* device){
     if (!m_pipeline.init(device)){
-        LOG("DeferredLightingPass: pipeline init failed");
+        PHX_LOG(Render, Error, "DeferredLightingPass: pipeline init failed");
         return false;
     }
     if (!m_lightCulling.init(device)){
-        LOG("DeferredLightingPass: light culling init failed");
+        PHX_LOG(Render, Error, "DeferredLightingPass: light culling init failed");
         return false;
     }
     if (!createUploadBuffers(device)) return false;
     if (!createLightSRVs()) return false;
     if (!createFallbackIBL(device)) return false;
-    LOG("DeferredLightingPass: init OK");
+    PHX_LOG(Render, Info, "DeferredLightingPass: init OK");
     return true;
 }
 
@@ -109,7 +109,7 @@ bool DeferredLightingPass::createLightSRVs(){
         m_pointLightSRV[i] = sd->allocTable("DeferredLight_PointSRV");
         m_spotLightSRV[i] = sd->allocTable("DeferredLight_SpotSRV");
         if (!m_dirLightSRV[i].isValid() || !m_pointLightSRV[i].isValid() || !m_spotLightSRV[i].isValid()){
-            LOG("DeferredLightingPass: light SRV alloc failed");
+            PHX_LOG(Render, Error, "DeferredLightingPass: light SRV alloc failed");
             return false;
         }
         makeStructuredSRV(m_dirLightSRV[i], 0, m_dirLightBuf[i].Get(),
@@ -136,7 +136,7 @@ bool DeferredLightingPass::createFallbackIBL(ID3D12Device* device){
                                                       D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                                                       nullptr, IID_PPV_ARGS(&m_fallbackCube));
         if (FAILED(hr)){
-            LOG("DeferredLightingPass: fallback cube failed 0x%08X", hr);
+            PHX_LOG(Render, Error, "DeferredLightingPass: fallback cube failed 0x%08X", hr);
             return false;
         }
         m_fallbackCube->SetName(L"DeferredLight_FallbackCube");
@@ -154,7 +154,7 @@ bool DeferredLightingPass::createFallbackIBL(ID3D12Device* device){
                                                       D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                                                       nullptr, IID_PPV_ARGS(&m_fallbackTex2D));
         if (FAILED(hr)){
-            LOG("DeferredLightingPass: fallback 2D failed 0x%08X", hr);
+            PHX_LOG(Render, Error, "DeferredLightingPass: fallback 2D failed 0x%08X", hr);
             return false;
         }
         m_fallbackTex2D->SetName(L"DeferredLight_FallbackTex2D");
@@ -166,12 +166,12 @@ bool DeferredLightingPass::createFallbackIBL(ID3D12Device* device){
     m_fallbackBRDFSRV = sd->allocTable("DeferredLight_FallbackBRDF");
     if (!m_fallbackIrradianceSRV.isValid() || !m_fallbackPrefilterSRV.isValid()
                                            || !m_fallbackBRDFSRV.isValid()){
-        LOG("DeferredLightingPass: fallback IBL SRV alloc failed");
+        PHX_LOG(Render, Error, "DeferredLightingPass: fallback IBL SRV alloc failed");
         return false;
     }
     m_fallbackShadowSRV = sd->allocTable("DeferredLight_FallbackShadow");
     if (!m_fallbackShadowSRV.isValid()){
-        LOG("DeferredLightingPass: fallback shadow SRV alloc failed");
+        PHX_LOG(Render, Error, "DeferredLightingPass: fallback shadow SRV alloc failed");
         return false;
     }
 
@@ -419,14 +419,14 @@ bool DeferredLightingPipeline::createRootSignature(ID3D12Device* device){
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
     if (FAILED(hr)){
-        if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
-        LOG("DeferredLightingPipeline: serialize root sig failed 0x%08X", hr);
+        if (error) PHX_LOG(Render, Error, "%s", static_cast<char*>(error->GetBufferPointer()));
+        PHX_LOG(Render, Error, "DeferredLightingPipeline: serialize root sig failed 0x%08X", hr);
         return false;
     }
     hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
                                       IID_PPV_ARGS(&m_rootSig));
     if (FAILED(hr)){
-        LOG("DeferredLightingPipeline: CreateRootSignature failed 0x%08X", hr);
+        PHX_LOG(Render, Error, "DeferredLightingPipeline: CreateRootSignature failed 0x%08X", hr);
         return false;
     }
     return true;
@@ -459,7 +459,7 @@ bool DeferredLightingPipeline::createPSO(ID3D12Device* device){
 
     HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_pso));
     if (FAILED(hr)){
-        LOG("DeferredLightingPipeline: CreateGraphicsPipelineState failed 0x%08X", hr);
+        PHX_LOG(Render, Error, "DeferredLightingPipeline: CreateGraphicsPipelineState failed 0x%08X", hr);
         return false;
     }
     return true;

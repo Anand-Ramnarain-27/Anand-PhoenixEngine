@@ -6,9 +6,6 @@
 
 namespace fs = std::filesystem;
 
-// ---------------------------------------------------------------------------
-// Header template
-// ---------------------------------------------------------------------------
 bool ScriptCreator::writeHeader(const std::string& name, const std::string& path){
     std::string h =
         "#pragma once\n"
@@ -35,9 +32,6 @@ bool ScriptCreator::writeHeader(const std::string& name, const std::string& path
     return true;
 }
 
-// ---------------------------------------------------------------------------
-// Source template
-// ---------------------------------------------------------------------------
 bool ScriptCreator::writeSource(const std::string& name, const std::string& path){
     std::string cpp =
         "#include \"" + name + ".h\"\n"
@@ -62,9 +56,7 @@ bool ScriptCreator::writeSource(const std::string& name, const std::string& path
     return true;
 }
 
-// ---------------------------------------------------------------------------
-// .vcxproj patcher — inserts ClInclude / ClCompile entries
-// ---------------------------------------------------------------------------
+// Adds the new .h / .cpp to the project as ClInclude / ClCompile items.
 bool ScriptCreator::patchVcxproj(const std::string& name, const std::string& vcxPath){
     if (!fs::exists(vcxPath)) return false;
 
@@ -94,9 +86,6 @@ bool ScriptCreator::patchVcxproj(const std::string& name, const std::string& vcx
     return true;
 }
 
-// ---------------------------------------------------------------------------
-// Public entry point
-// ---------------------------------------------------------------------------
 ScriptCreator::Result ScriptCreator::create(const std::string& name, const std::string& gameScriptDir){
     Result r;
     if (name.empty()){

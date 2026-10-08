@@ -1,4 +1,5 @@
 #pragma once
+// Debug line, point and text rendering (the debug_draw library on D3D12).
 
 #include <windows.h>
 #include <wrl.h>
@@ -6,9 +7,7 @@
 
 class DDRenderInterfaceCoreD3D12;
 
-// DebugDrawPass provides an interface for rendering debug geometry (lines, points, text, etc.) in a DirectX 12 application.
-// It wraps the DebugDraw library's D3D12 implementation, manages its lifetime, and exposes a simple API for recording debug draw commands.
-// Use this class to visualize geometry and diagnostics during development and debugging of graphics applications.
+/// Renders the debug_draw library's queued lines, points and text (dd:: calls) with D3D12.
 class DebugDrawPass
 {
 

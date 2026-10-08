@@ -117,7 +117,7 @@ bool ComponentMesh::loadModel(const char* filePath){
 
     UID sceneUID = 0;
     std::string canonicalPath = resolveCanonicalPath(filePath, sceneUID);
-    if (canonicalPath.empty()){ LOG("ComponentMesh: Cannot resolve '%s' - import it first", filePath); return false; }
+    if (canonicalPath.empty()){ PHX_LOG(Scene, Error, "ComponentMesh: Cannot resolve '%s' - import it first", filePath); return false; }
     m_modelUID = sceneUID;
     m_modelPath = canonicalPath;
     std::string sceneName = std::filesystem::path(canonicalPath).stem().string();
@@ -126,7 +126,7 @@ bool ComponentMesh::loadModel(const char* filePath){
     int meshCount = 0;
     while (app->getFileSystem()->Exists((meshFolder + std::to_string(meshCount) + ".mesh").c_str())) ++meshCount;
     if (meshCount == 0){
-        LOG("ComponentMesh: No meshes found, forcing reimport for '%s'", sceneName.c_str());
+        PHX_LOG(Scene, Warning, "ComponentMesh: No meshes found, forcing reimport for '%s'", sceneName.c_str());
         return false;
     }
 
@@ -147,7 +147,7 @@ bool ComponentMesh::loadModel(const char* filePath){
             }
 
             if (e.materialUID == 0){
-                LOG("ComponentMesh: submesh %d has invalid material, using default", i);
+                PHX_LOG(Scene, Error, "ComponentMesh: submesh %d has invalid material, using default", i);
                 e.materialUID = 0;
             }
         }
@@ -178,7 +178,7 @@ bool ComponentMesh::loadMeshSubset(const std::string& assetPath, int startMesh, 
 
     UID sceneUID = 0;
     std::string canonical = resolveCanonicalPath(assetPath.c_str(), sceneUID);
-    if (canonical.empty()){ LOG("ComponentMesh: Cannot resolve '%s' - import it first", assetPath.c_str()); return false; }
+    if (canonical.empty()){ PHX_LOG(Scene, Error, "ComponentMesh: Cannot resolve '%s' - import it first", assetPath.c_str()); return false; }
     m_modelUID = sceneUID;
     m_modelPath = canonical;
     m_meshFileStart = startMesh;
@@ -354,26 +354,16 @@ static void drawTexturePicker(ComponentMesh* mesh, Material* mat, int submeshIdx
     if (ImGui::Button("Cancel", ImVec2(80, 0))) ImGui::CloseCurrentPopup();
     ImGui::EndPopup();
 }
-#endif // PHOENIX_EDITOR
 
-void ComponentMesh::onEditor(){
-#ifdef PHOENIX_EDITOR
-    ComponentMesh* mesh = this;
-    bool hasEntries = !mesh->getEntries().empty();
-    bool hasProcedural = (mesh->getProceduralModel() != nullptr);
-    bool hasAnything = hasEntries || hasProcedural;
-    std::string modelPath = mesh->getModelPath();
-    std::string modelName = hasEntries ? (modelPath.empty() ? "(unknown)" : fs::path(modelPath).stem().string()) : hasProcedural ? "(procedural)" : "None";
+// "[Albedo] Applied" / "[Albedo] None" in front of a texture slot's picker button.
+static void drawTextureStatus(const char* tag, bool applied, const ImVec4& appliedColor = EditorColors::Success){
+    ImGui::PushStyleColor(ImGuiCol_Text, applied ? appliedColor : EditorColors::Muted);
+    ImGui::Text("%s %s", tag, applied ? "Applied" : "None");
+    ImGui::PopStyleColor();
+}
 
-    if (hasAnything){
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success);
-        ImGui::Text("[M]  %s", modelName.c_str());
-        ImGui::PopStyleColor();
-        ImGui::SameLine();
-        ImGui::TextDisabled(hasEntries ? "  %d submesh(es)" : "  procedural", (int)mesh->getEntries().size());
-    }
-    else ImGui::TextColored(EditorColors::Danger, "[M]  No model loaded");
-
+// Path box + Load, and a picker over the models imported into Library/Meshes.
+static void drawModelSelector(ComponentMesh* mesh, const std::string& modelName){
     static char meshPathBuf[256] = "";
     ImGui::SetNextItemWidth(-160.0f);
     ImGui::InputTextWithHint("##meshpath", "Assets/Models/name/name.gltf", meshPathBuf, sizeof(meshPathBuf));
@@ -387,151 +377,176 @@ void ComponentMesh::onEditor(){
     if (ImGui::Button("Pick##ml", ImVec2(70, 0))) ImGui::OpenPopup("##ModelPicker");
 
     ImGui::SetNextWindowSize(ImVec2(320, 280), ImGuiCond_Appearing);
-    if (ImGui::BeginPopup("##ModelPicker")){
-        ImGui::TextDisabled("Imported models  (double-click to load)");
-        ImGui::Separator();
-        static char pickerSearch[64] = "";
-        ImGui::SetNextItemWidth(-1);
-        ImGui::InputTextWithHint("##pksearch", "Search...", pickerSearch, sizeof(pickerSearch));
-        ImGui::Separator();
-        std::string search = toLower(pickerSearch);
-        std::string meshesRoot = app->getFileSystem()->GetLibraryPath() + "Meshes/";
-        bool any = false;
-        try {
-            for (const auto& entry : fs::directory_iterator(meshesRoot)){
-                if (!entry.is_directory()) continue;
-                std::string name = entry.path().filename().string();
-                if (!search.empty() && toLower(name).find(search) == std::string::npos) continue;
-                std::string assetPath = app->getAssets()->getAssetPathForScene(name);
-                bool isCurrent = (modelName == name);
-                if (isCurrent) ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success);
-                bool clicked = ImGui::Selectable(("  [M]  " + name).c_str(), isCurrent, ImGuiSelectableFlags_AllowDoubleClick);
-                if (isCurrent) ImGui::PopStyleColor();
-                if (clicked && ImGui::IsMouseDoubleClicked(0)){
-                    if (assetPath.empty()) app->getEditor()->log(("No asset path for: " + name).c_str(), EditorColors::Danger);
-                    else { bool ok = mesh->loadModel(assetPath.c_str()); logResult(app->getEditor(), ok, ("Loaded: " + name).c_str(), ("Failed: " + assetPath).c_str()); }
-                    ImGui::CloseCurrentPopup();
-                }
-                any = true;
+    if (!ImGui::BeginPopup("##ModelPicker")) return;
+    ImGui::TextDisabled("Imported models  (double-click to load)");
+    ImGui::Separator();
+    static char pickerSearch[64] = "";
+    ImGui::SetNextItemWidth(-1);
+    ImGui::InputTextWithHint("##pksearch", "Search...", pickerSearch, sizeof(pickerSearch));
+    ImGui::Separator();
+    std::string search = toLower(pickerSearch);
+    std::string meshesRoot = app->getFileSystem()->GetLibraryPath() + "Meshes/";
+    bool any = false;
+    try {
+        for (const auto& entry : fs::directory_iterator(meshesRoot)){
+            if (!entry.is_directory()) continue;
+            std::string name = entry.path().filename().string();
+            if (!search.empty() && toLower(name).find(search) == std::string::npos) continue;
+            std::string assetPath = app->getAssets()->getAssetPathForScene(name);
+            bool isCurrent = (modelName == name);
+            if (isCurrent) ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success);
+            bool clicked = ImGui::Selectable(("  [M]  " + name).c_str(), isCurrent, ImGuiSelectableFlags_AllowDoubleClick);
+            if (isCurrent) ImGui::PopStyleColor();
+            if (clicked && ImGui::IsMouseDoubleClicked(0)){
+                if (assetPath.empty()) app->getEditor()->log(("No asset path for: " + name).c_str(), EditorColors::Danger);
+                else { bool ok = mesh->loadModel(assetPath.c_str()); logResult(app->getEditor(), ok, ("Loaded: " + name).c_str(), ("Failed: " + assetPath).c_str()); }
+                ImGui::CloseCurrentPopup();
             }
+            any = true;
         }
-        catch (...){}
-        if (!any){ ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("    No models imported yet."); ImGui::PopStyleColor(); }
-        ImGui::EndPopup();
     }
+    catch (...){}
+    if (!any){ ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("    No models imported yet."); ImGui::PopStyleColor(); }
+    ImGui::EndPopup();
+}
 
-    ImGui::Spacing();
+// Joint count and, per submesh, whether its bone weights have reached the GPU.
+static void drawSkinningInfo(ComponentMesh* mesh){
     ImGui::SeparatorText("Skinning");
-    if (mesh->hasSkinData()){
-        int jointCount = (int)mesh->getSkinJoints().size();
-        ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f), "Skin data: %d joints", jointCount);
-
-        const auto& entries = mesh->getEntries();
-        int gpuCount = 0, totalCount = 0;
-        for (const auto& e : entries){
-            if (!e.meshRes || !e.meshRes->getMesh()) continue;
-            ++totalCount;
-            const Mesh* m = e.meshRes->getMesh();
-            bool onGPU = (m->getBoneWeightBufferVA() != 0);
-            bool hasBW = m->hasBoneWeights();
-            if (onGPU) ++gpuCount;
-            ImGui::PushID(totalCount);
-            if (onGPU)
-                ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f),
-                    "  [%d] Bone weights: GPU", totalCount - 1);
-            else if (hasBW)
-                ImGui::TextColored(ImVec4(1.f, 0.8f, 0.2f, 1.f),
-                    "  [%d] Bone weights: CPU only (uploading...)", totalCount - 1);
-            else
-                ImGui::TextColored(ImVec4(1.f, 0.4f, 0.4f, 1.f),
-                    "  [%d] No bone weights (re-import model)", totalCount - 1);
-            ImGui::PopID();
-        }
-        if (totalCount > 0 && gpuCount < totalCount)
-            ImGui::TextDisabled("  Tip: delete model from Library/ and re-drag to reimport");
-    } else {
+    if (!mesh->hasSkinData()){
         ImGui::TextColored(ImVec4(1.f, 0.6f, 0.2f, 1.f), "No skin data");
         ImGui::TextDisabled("  (normal for non-skinned meshes)");
+        return;
+    }
+    int jointCount = (int)mesh->getSkinJoints().size();
+    ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f), "Skin data: %d joints", jointCount);
+
+    const auto& entries = mesh->getEntries();
+    int gpuCount = 0, totalCount = 0;
+    for (const auto& e : entries){
+        if (!e.meshRes || !e.meshRes->getMesh()) continue;
+        ++totalCount;
+        const Mesh* m = e.meshRes->getMesh();
+        bool onGPU = (m->getBoneWeightBufferVA() != 0);
+        bool hasBW = m->hasBoneWeights();
+        if (onGPU) ++gpuCount;
+        ImGui::PushID(totalCount);
+        if (onGPU)
+            ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f),
+                "  [%d] Bone weights: GPU", totalCount - 1);
+        else if (hasBW)
+            ImGui::TextColored(ImVec4(1.f, 0.8f, 0.2f, 1.f),
+                "  [%d] Bone weights: CPU only (uploading...)", totalCount - 1);
+        else
+            ImGui::TextColored(ImVec4(1.f, 0.4f, 0.4f, 1.f),
+                "  [%d] No bone weights (re-import model)", totalCount - 1);
+        ImGui::PopID();
+    }
+    if (totalCount > 0 && gpuCount < totalCount)
+        ImGui::TextDisabled("  Tip: delete model from Library/ and re-drag to reimport");
+}
+
+// One submesh's material: base colour, roughness and the albedo / normal / AO / emissive maps. Every change
+// rebuilds the material constant buffers after a GPU flush (they may be in flight).
+static void drawSubmeshMaterial(ComponentMesh* mesh, MeshEntry& e, int mi, const std::string& modelName){
+    Material* mat = e.instanceMaterial.get();
+    if (!mat) mat = e.material;
+    if (!mat && e.materialRes) mat = e.materialRes->getMaterial();
+    if (!mat){ ImGui::PushID(mi); ImGui::TextDisabled("Submesh %d  (no material)", mi); ImGui::PopID(); return; }
+    Material::Data& data = mat->getData();
+
+    ImGui::PushID(mi);
+    std::string header = "Submesh " + std::to_string(mi) + "  (" + modelName + ")";
+    if (!ImGui::CollapsingHeader(header.c_str(), ImGuiTreeNodeFlags_DefaultOpen)){ ImGui::PopID(); return; }
+    ImGui::Indent(8.0f);
+
+    ImGui::SeparatorText("Base Color");
+    if (ImGui::ColorEdit4("Color##bc", &data.baseColor.x)){ app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
+    ImGui::Spacing();
+
+    drawTextureStatus("[Albedo]", mat->hasTexture());
+    ImGui::SameLine();
+    drawTexturePicker(mesh, mat, mi, "Albedo", mat->hasTexture(), "Base color / albedo texture (.dds)",
+        [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv){ mat->setBaseColorTexture(tex, srv); });
+
+    ImGui::SeparatorText("Surface");
+    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(4, 3));
+    if (ImGui::BeginTable("##pbr", 2, ImGuiTableFlags_SizingFixedFit)){
+        ImGui::TableSetupColumn("##l", ImGuiTableColumnFlags_WidthFixed, 80.f);
+        ImGui::TableSetupColumn("##v", ImGuiTableColumnFlags_WidthStretch);
+
+        ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); textMuted("Roughness");
+        ImGui::TableSetColumnIndex(1); ImGui::SetNextItemWidth(-1);
+        if (ImGui::SliderFloat("##rough", &data.roughness, 0.f, 1.f)){ app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
+        ImGui::EndTable();
+    }
+    ImGui::PopStyleVar();
+
+    ImGui::SeparatorText("Normal Map");
+    drawTextureStatus("[N]", mat->hasNormalMap());
+    ImGui::SameLine();
+    drawTexturePicker(mesh, mat, mi, "Normal", mat->hasNormalMap(), "Tangent-space normal map (.dds)",
+        [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv){ mat->setNormalMap(tex, srv); });
+    if (mat->hasNormalMap()){
+        ImGui::SetNextItemWidth(-1);
+        if (ImGui::SliderFloat("Strength##ns", &data.normalStrength, 0.f, 3.f, "%.2f")){ app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Scales XY deviation of the normal map.\n1.0 = full strength, 0.0 = flat surface.");
     }
 
-    if (!hasAnything || !hasEntries) return;
+    ImGui::SeparatorText("Ambient Occlusion");
+    drawTextureStatus("[AO]", mat->hasAOMap());
+    ImGui::SameLine();
+    drawTexturePicker(mesh, mat, mi, "AO", mat->hasAOMap(), "Ambient Occlusion map - single channel (.dds)",
+        [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv){ mat->setAOMap(tex, srv); });
+    if (mat->hasAOMap()){
+        ImGui::SetNextItemWidth(-1);
+        if (ImGui::SliderFloat("Strength##aos", &data.aoStrength, 0.f, 1.f, "%.2f")){ app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("0 = AO ignored (fully lit)\n1 = Full AO effect applied");
+    }
+
+    ImGui::SeparatorText("Emissive");
+    drawTextureStatus("[E]", mat->hasEmissive(), ImVec4(1.f, 0.9f, 0.3f, 1.f));
+    ImGui::SameLine();
+    drawTexturePicker(mesh, mat, mi, "Emissive", mat->hasEmissive(), "Emissive color map - additively blended (.dds)",
+        [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv){ mat->setEmissiveMap(tex, srv); });
+    if (ImGui::ColorEdit3("Tint##emtint", &data.emissiveFactor.x)){ app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Multiplied with emissive map.\nWhite = use map as-is, Black = no emission.");
+
+    ImGui::Unindent(8.0f);
+    ImGui::Spacing();
+    ImGui::PopID();
+}
+#endif // PHOENIX_EDITOR
+
+void ComponentMesh::onEditor(){
+#ifdef PHOENIX_EDITOR
+    const bool hasEntries = !getEntries().empty();
+    const bool hasProcedural = (getProceduralModel() != nullptr);
+    const bool hasAnything = hasEntries || hasProcedural;
+    const std::string modelPath = getModelPath();
+    const std::string modelName = hasEntries ? (modelPath.empty() ? "(unknown)" : fs::path(modelPath).stem().string()) : hasProcedural ? "(procedural)" : "None";
+
+    if (hasAnything){
+        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success);
+        ImGui::Text("[M]  %s", modelName.c_str());
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        ImGui::TextDisabled(hasEntries ? "  %d submesh(es)" : "  procedural", (int)getEntries().size());
+    }
+    else ImGui::TextColored(EditorColors::Danger, "[M]  No model loaded");
+
+    drawModelSelector(this, modelName);
+
+    ImGui::Spacing();
+    drawSkinningInfo(this);
+
+    if (!hasEntries) return;
     ImGui::Spacing();
     ImGui::SeparatorText("Materials");
 
-    auto& entries = mesh->getEntries();
-    for (int mi = 0; mi < (int)entries.size(); ++mi){
-        MeshEntry& e = entries[mi];
-        Material* mat = e.instanceMaterial.get();
-        if (!mat) mat = e.material;
-        if (!mat && e.materialRes) mat = e.materialRes->getMaterial();
-        if (!mat){ ImGui::PushID(mi); ImGui::TextDisabled("Submesh %d  (no material)", mi); ImGui::PopID(); continue; }
-        Material::Data& data = mat->getData();
-
-        ImGui::PushID(mi);
-        std::string header = "Submesh " + std::to_string(mi) + "  (" + modelName + ")";
-        if (!ImGui::CollapsingHeader(header.c_str(), ImGuiTreeNodeFlags_DefaultOpen)){ ImGui::PopID(); continue; }
-        ImGui::Indent(8.0f);
-
-        ImGui::SeparatorText("Base Color");
-        if (ImGui::ColorEdit4("Color##bc", &data.baseColor.x)){ app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
-        ImGui::Spacing();
-
-        if (mat->hasTexture()){ ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::Text("[Albedo] Applied"); ImGui::PopStyleColor(); }
-        else { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("[Albedo] None"); ImGui::PopStyleColor(); }
-        ImGui::SameLine();
-        drawTexturePicker(mesh, mat, mi, "Albedo", mat->hasTexture(), "Base color / albedo texture (.dds)",
-            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv){ mat->setBaseColorTexture(tex, srv); });
-
-        ImGui::SeparatorText("Surface");
-        ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(4, 3));
-        if (ImGui::BeginTable("##pbr", 2, ImGuiTableFlags_SizingFixedFit)){
-            ImGui::TableSetupColumn("##l", ImGuiTableColumnFlags_WidthFixed, 80.f);
-            ImGui::TableSetupColumn("##v", ImGuiTableColumnFlags_WidthStretch);
-
-            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); textMuted("Roughness");
-            ImGui::TableSetColumnIndex(1); ImGui::SetNextItemWidth(-1);
-            if (ImGui::SliderFloat("##rough", &data.roughness, 0.f, 1.f)){ app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
-            ImGui::EndTable();
-        }
-        ImGui::PopStyleVar();
-
-        ImGui::SeparatorText("Normal Map");
-        if (mat->hasNormalMap()){ ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::Text("[N] Applied"); ImGui::PopStyleColor(); }
-        else { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("[N] None"); ImGui::PopStyleColor(); }
-        ImGui::SameLine();
-        drawTexturePicker(mesh, mat, mi, "Normal", mat->hasNormalMap(), "Tangent-space normal map (.dds)",
-            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv){ mat->setNormalMap(tex, srv); });
-        if (mat->hasNormalMap()){
-            ImGui::SetNextItemWidth(-1);
-            if (ImGui::SliderFloat("Strength##ns", &data.normalStrength, 0.f, 3.f, "%.2f")){ app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Scales XY deviation of the normal map.\n1.0 = full strength, 0.0 = flat surface.");
-        }
-
-        ImGui::SeparatorText("Ambient Occlusion");
-        if (mat->hasAOMap()){ ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Success); ImGui::Text("[AO] Applied"); ImGui::PopStyleColor(); }
-        else { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("[AO] None"); ImGui::PopStyleColor(); }
-        ImGui::SameLine();
-        drawTexturePicker(mesh, mat, mi, "AO", mat->hasAOMap(), "Ambient Occlusion map - single channel (.dds)",
-            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv){ mat->setAOMap(tex, srv); });
-        if (mat->hasAOMap()){
-            ImGui::SetNextItemWidth(-1);
-            if (ImGui::SliderFloat("Strength##aos", &data.aoStrength, 0.f, 1.f, "%.2f")){ app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("0 = AO ignored (fully lit)\n1 = Full AO effect applied");
-        }
-
-        ImGui::SeparatorText("Emissive");
-        if (mat->hasEmissive()){ ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.9f, 0.3f, 1.f)); ImGui::Text("[E] Applied"); ImGui::PopStyleColor(); }
-        else { ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Muted); ImGui::Text("[E] None"); ImGui::PopStyleColor(); }
-        ImGui::SameLine();
-        drawTexturePicker(mesh, mat, mi, "Emissive", mat->hasEmissive(), "Emissive color map - additively blended (.dds)",
-            [&](ComPtr<ID3D12Resource> tex, D3D12_GPU_DESCRIPTOR_HANDLE srv){ mat->setEmissiveMap(tex, srv); });
-        if (ImGui::ColorEdit3("Tint##emtint", &data.emissiveFactor.x)){ app->getD3D12()->flush(); mesh->rebuildMaterialBuffers(); }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Multiplied with emissive map.\nWhite = use map as-is, Black = no emission.");
-
-        ImGui::Unindent(8.0f);
-        ImGui::Spacing();
-        ImGui::PopID();
-    }
+    auto& entries = getEntries();
+    for (int mi = 0; mi < (int)entries.size(); ++mi)
+        drawSubmeshMaterial(this, entries[mi], mi, modelName);
 #endif // PHOENIX_EDITOR
 }
 
@@ -654,7 +669,7 @@ void ComponentMesh::onLoad(const std::string& jsonStr){
             m_hasPendingSkin = true;
         }
     } else if (doc.HasMember("SkinJointNames") && !doc.HasMember("SkinIBMs")){
-        LOG("ComponentMesh: scene JSON has SkinJointNames but no SkinIBMs — "
+        PHX_LOG(Scene, Warning, "ComponentMesh: scene JSON has SkinJointNames but no SkinIBMs — "
             "IBP was not saved. Re-import the model and re-save the scene.");
     }
 }
@@ -669,7 +684,7 @@ void ComponentMesh::resolveDeferredSkin(){
     bool ok = true;
     for (const auto& name : m_pendingJointNames){
         GameObject* jgo = findInSubtree(root, name);
-        if (!jgo){ LOG("ComponentMesh: skin joint '%s' not found", name.c_str()); ok = false; break; }
+        if (!jgo){ PHX_LOG(Scene, Warning, "ComponentMesh: skin joint '%s' not found", name.c_str()); ok = false; break; }
         joints.push_back(jgo);
     }
     if (ok) setSkinData(m_pendingSkin, std::move(joints));

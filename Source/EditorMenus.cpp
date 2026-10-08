@@ -32,6 +32,8 @@
 #include "UITestScene.h"
 #include "AshfallHUDBuilder.h"
 #include "AshfallHubBuilder.h"
+#include "AshfallVfxBuilder.h"
+#include "AshfallEnemyBuilder.h"
 #include "ModuleUI.h"
 #include "HotReloadManager.h"
 #include "ComponentParticleSystem.h"
@@ -164,390 +166,401 @@ namespace {
             if (GameObject* found = findCanvas(child)) return found;
         return nullptr;
     }
+
+    /// Adds a "Text" child whose Label fills the parent's rect, less `inset` on each side, shifted right by `offsetX`.
+    ComponentLabel* addFillLabel(SceneGraph* sc, GameObject* parent, const Vector2& sizeDelta, float offsetX){
+        GameObject* text = sc->createGameObject("Text", parent);
+        text->addComponent(ComponentFactory::CreateComponent(Component::Type::Transform2D, text));
+        auto* t = text->getComponent<ComponentTransform2D>();
+        t->anchorMin = Vector2(0.f, 0.f);
+        t->anchorMax = Vector2(1.f, 1.f);
+        t->size = sizeDelta;
+        if (offsetX != 0.f) t->position = Vector2(offsetX, 0.f);
+        text->addComponent(ComponentFactory::CreateComponent(Component::Type::Label, text));
+        return text->getComponent<ComponentLabel>();
+    }
+
+    /// The panels listed under Window > PROFILING rather than with the main panels.
+    bool isProfilingPanel(const char* n){
+        return strcmp(n, "Render Graph") == 0 || strcmp(n, "GPU Memory") == 0 ||
+               strcmp(n, "Collision Debug") == 0 || strcmp(n, "Navigation Debug") == 0 ||
+               strcmp(n, "Performance") == 0;
+    }
 }
 
 void ModuleEditor::drawMenuBar(){
     if (!ImGui::BeginMainMenuBar()) return;
 
-    {
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx0);
-        ImGui::Text("Phoenix");
-        ImGui::PopStyleColor();
-        ImGui::SameLine(0, 4);
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
-        ImGui::Text("v0.4");
-        ImGui::PopStyleColor();
-        ImGui::SameLine(0, 8);
-    }
+    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx0);
+    ImGui::Text("Phoenix");
+    ImGui::PopStyleColor();
+    ImGui::SameLine(0, 4);
+    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
+    ImGui::Text("v0.4");
+    ImGui::PopStyleColor();
+    ImGui::SameLine(0, 8);
 
-    auto saveScene = [&](){
+    drawFileMenu();
+    drawEditMenu();
+    drawGameObjectMenu();
+    drawComponentMenu();
+    drawDebugMenu();
+    drawWindowMenu();
+
+    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
+    char gpuInfo[128];
+    snprintf(gpuInfo, sizeof(gpuInfo), "RTX \xC2\xB7 build Development    %.0f fps",
+        (double)app->getFPS());
+    float textW = ImGui::CalcTextSize(gpuInfo).x;
+    float rightX = ImGui::GetWindowWidth() - textW - 14.f;
+    if (rightX > ImGui::GetCursorPosX())
+        ImGui::SetCursorPosX(rightX);
+    ImGui::TextUnformatted(gpuInfo);
+    ImGui::PopStyleColor();
+
+    ImGui::EndMainMenuBar();
+}
+
+void ModuleEditor::drawFileMenu(){
+    if (!ImGui::BeginMenu("File")) return;
+    if (ImGui::MenuItem("New Scene", "Ctrl+N")) m_showNewSceneConfirm = true;
+    if (ImGui::MenuItem("Open Scene", "Ctrl+O")) m_loadDialog->open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
+    ImGui::Separator();
+    if (ImGui::MenuItem("Save Scene", "Ctrl+S")){
         if (!m_currentScenePath.empty() && getSceneManager()->getActiveScene()){
             bool ok = getSceneManager()->saveCurrentScene(m_currentScenePath);
             log(ok ? "Scene saved!" : "Failed to save.", ok ? EditorColors::Success : EditorColors::Danger);
         }
         else m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes");
-    };
+    }
+    if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
+    ImGui::Separator();
+    if (ImGui::MenuItem("Build Settings...")) m_buildSettings->open = true;
+    ImGui::Separator();
+    if (ImGui::MenuItem("Quit", "Alt+F4")){}
+    ImGui::EndMenu();
+}
 
-    if (ImGui::BeginMenu("File")){
-        if (ImGui::MenuItem("New Scene", "Ctrl+N")) m_showNewSceneConfirm = true;
-        if (ImGui::MenuItem("Open Scene", "Ctrl+O")) m_loadDialog->open(FileDialog::Type::Open, "Load Scene", "Library/Scenes/");
-        ImGui::Separator();
-        if (ImGui::MenuItem("Save Scene", "Ctrl+S")) saveScene();
-        if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) m_saveDialog->open(FileDialog::Type::Save, "Save Scene", "Library/Scenes/");
-        ImGui::Separator();
-        if (ImGui::MenuItem("Build Settings...")) m_buildSettings->open = true;
-        ImGui::Separator();
-        if (ImGui::MenuItem("Quit", "Alt+F4")){}
+void ModuleEditor::drawEditMenu(){
+    if (!ImGui::BeginMenu("Edit")) return;
+    if (ImGui::MenuItem("Undo", "Ctrl+Z", false, canUndo())) undoToSavePoint();
+    if (ImGui::MenuItem("Redo", "Ctrl+Y", false, canRedo())) redo();
+    ImGui::Separator();
+    if (ImGui::MenuItem("Copy", "Ctrl+C", false, m_selection.has())) copySelected();
+    if (ImGui::MenuItem("Paste", "Ctrl+V", false, !m_clipboard.serialized.empty())) pasteClipboard();
+    if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, m_selection.has())) duplicateSelected();
+    ImGui::Separator();
+    if (ImGui::MenuItem("Create Empty", "Ctrl+Shift+N")) createEmptyGameObject();
+    ImGui::EndMenu();
+}
+
+void ModuleEditor::drawGameObjectMenu(){
+    if (!ImGui::BeginMenu("GameObject")) return;
+    if (ImGui::MenuItem("Create Empty")) createEmptyGameObject();
+    if (ImGui::MenuItem("Create Empty Child") && m_selection.has()) createEmptyGameObject("Empty", m_selection.object);
+    ImGui::Separator();
+    if (ImGui::BeginMenu("Primitives")){
+        if (ImGui::MenuItem("Cube")) spawnPrimitive(PrimitiveType::Cube);
+        if (ImGui::MenuItem("Sphere")) spawnPrimitive(PrimitiveType::Sphere);
+        if (ImGui::MenuItem("Capsule")) spawnPrimitive(PrimitiveType::Capsule);
+        if (ImGui::MenuItem("Plane")) spawnPrimitive(PrimitiveType::Plane);
+        if (ImGui::MenuItem("Cylinder")) spawnPrimitive(PrimitiveType::Cylinder);
         ImGui::EndMenu();
     }
-    if (ImGui::BeginMenu("Edit")){
-        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, canUndo())) undoToSavePoint();
-        if (ImGui::MenuItem("Redo", "Ctrl+Y", false, canRedo())) redo();
-        ImGui::Separator();
-        if (ImGui::MenuItem("Copy", "Ctrl+C", false, m_selection.has())) copySelected();
-        if (ImGui::MenuItem("Paste", "Ctrl+V", false, !m_clipboard.serialized.empty())) pasteClipboard();
-        if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, m_selection.has())) duplicateSelected();
-        ImGui::Separator();
-        if (ImGui::MenuItem("Create Empty", "Ctrl+Shift+N")) createEmptyGameObject();
-        ImGui::EndMenu();
-    }
-    if (ImGui::BeginMenu("GameObject")){
-        if (ImGui::MenuItem("Create Empty")) createEmptyGameObject();
-        if (ImGui::MenuItem("Create Empty Child") && m_selection.has()) createEmptyGameObject("Empty", m_selection.object);
-        ImGui::Separator();
-        if (ImGui::BeginMenu("Primitives")){
-            if (ImGui::MenuItem("Cube")) spawnPrimitive(PrimitiveType::Cube);
-            if (ImGui::MenuItem("Sphere")) spawnPrimitive(PrimitiveType::Sphere);
-            if (ImGui::MenuItem("Capsule")) spawnPrimitive(PrimitiveType::Capsule);
-            if (ImGui::MenuItem("Plane")) spawnPrimitive(PrimitiveType::Plane);
-            if (ImGui::MenuItem("Cylinder")) spawnPrimitive(PrimitiveType::Cylinder);
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("Lights")){
-            auto spawnLight = [&](const char* name, Component::Type type){
-                SceneGraph* sc = getActiveModuleScene();
-                if (!sc) return;
-                GameObject* go = sc->createGameObject(name);
-                go->addComponent(ComponentFactory::CreateComponent(type, go));
-                m_selection.object = go;
-                log((std::string("Created ") + name).c_str(), EditorColors::Success);
-            };
-            if (ImGui::MenuItem("Directional Light")) spawnLight("Directional Light", Component::Type::DirectionalLight);
-            if (ImGui::MenuItem("Point Light")) spawnLight("Point Light", Component::Type::PointLight);
-            if (ImGui::MenuItem("Spot Light")) spawnLight("Spot Light", Component::Type::SpotLight);
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("Particle Effects")){
-            if (ImGui::MenuItem("Fire (Exercise 1)"))
-                spawnFireParticleSystem(Vector3(0.f, 0.f, 0.f));
-            if (ImGui::MenuItem("Sword Trail"))
-                spawnSwordTrail(Vector3(0.f, 0.f, 0.f));
-            ImGui::Separator();
-            if (ImGui::MenuItem("Fire Comet (Trail + Particles Prefab)"))
-                spawnFireComet(Vector3(0.f, 1.5f, 0.f));
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("UI")){
-            // Widgets are created under the selected UI object, else under an existing Canvas, else a new one.
-            // Undo below only covers the widget itself: if this call also auto-creates the Canvas, that Canvas
-            // is left behind by an undo (reasonable, since later widgets may already be relying on it).
-            auto spawnUI = [&](const char* name, Component::Type type, Vector2 size){
-                SceneGraph* sc = getActiveModuleScene();
-                if (!sc) return;
-
-                GameObject* parent = m_selection.has() && isUnderCanvas(m_selection.object) ? m_selection.object : findCanvas(sc->getRoot());
-                if (!parent){
-                    parent = sc->createGameObject("Canvas");
-                    parent->addComponent(ComponentFactory::CreateComponent(Component::Type::Canvas, parent));
-                }
-                GameObject* go = sc->createGameObject(name, parent);
-                go->addComponent(ComponentFactory::CreateComponent(Component::Type::Transform2D, go));
-                go->getComponent<ComponentTransform2D>()->size = size;
-                go->addComponent(ComponentFactory::CreateComponent(type, go));
-                m_selection.object = go;
-                log((std::string("Created ") + name).c_str(), EditorColors::Success);
-            };
-            if (ImGui::MenuItem("Canvas")){
-                if (SceneGraph* sc = getActiveModuleScene()){
-                    GameObject* go = sc->createGameObject("Canvas");
-                    go->addComponent(ComponentFactory::CreateComponent(Component::Type::Canvas, go));
-                    m_selection.object = go;
-                    log("Created Canvas", EditorColors::Success);
-                    pushCreateSubtreeUndo(go, "Canvas");
-                }
-            }
-            if (ImGui::MenuItem("Image")){ spawnUI("Image", Component::Type::Image, Vector2(100.f, 100.f)); pushCreateSubtreeUndo(m_selection.object, "Image"); }
-            if (ImGui::MenuItem("Label")){ spawnUI("Label", Component::Type::Label, Vector2(300.f, 60.f)); pushCreateSubtreeUndo(m_selection.object, "Label"); }
-            if (ImGui::MenuItem("Progress Bar")){ spawnUI("Progress Bar", Component::Type::ProgressBar, Vector2(400.f, 32.f)); pushCreateSubtreeUndo(m_selection.object, "Progress Bar"); }
-            if (ImGui::MenuItem("Slider")){ spawnUI("Slider", Component::Type::Slider, Vector2(400.f, 34.f)); pushCreateSubtreeUndo(m_selection.object, "Slider"); }
-            if (ImGui::MenuItem("Input Box")){ spawnUI("Input Box", Component::Type::InputBox, Vector2(420.f, 48.f)); pushCreateSubtreeUndo(m_selection.object, "Input Box"); }
-            if (ImGui::MenuItem("Checkbox")){
-                spawnUI("Checkbox", Component::Type::CheckBox, Vector2(300.f, 40.f));
-                // The box takes the row height on the left; a Label fills the rest and is part of the click target.
-                if (GameObject* go = m_selection.object){
-                    SceneGraph* sc = getActiveModuleScene();
-                    GameObject* text = sc->createGameObject("Text", go);
-                    text->addComponent(ComponentFactory::CreateComponent(Component::Type::Transform2D, text));
-                    auto* t = text->getComponent<ComponentTransform2D>();
-                    t->anchorMin = Vector2(0.f, 0.f);
-                    t->anchorMax = Vector2(1.f, 1.f);
-                    t->size = Vector2(-50.f, 0.f);
-                    t->position = Vector2(25.f, 0.f);
-                    text->addComponent(ComponentFactory::CreateComponent(Component::Type::Label, text));
-                    auto* label = text->getComponent<ComponentLabel>();
-                    label->text = "Checkbox";
-                    label->hAlign = ComponentLabel::HAlign::Left;
-                    pushCreateSubtreeUndo(go, "Checkbox");
-                }
-            }
-            if (ImGui::MenuItem("Radio Group")){
-                spawnUI("Radio Group", Component::Type::RadioGroup, Vector2(300.f, 150.f));
-                // Three stacked options, each with the same row-is-the-click-target shape as a standalone
-                // Checkbox; the first one starts selected so the group never looks empty.
-                if (GameObject* group = m_selection.object){
-                    SceneGraph* sc = getActiveModuleScene();
-                    for (int i = 0; i < 3; ++i){
-                        GameObject* option = sc->createGameObject(("Option " + std::to_string(i + 1)).c_str(), group);
-                        option->addComponent(ComponentFactory::CreateComponent(Component::Type::Transform2D, option));
-                        auto* ot = option->getComponent<ComponentTransform2D>();
-                        ot->anchorMin = ot->anchorMax = ot->pivot = Vector2(0.f, 0.f);
-                        ot->position = Vector2(0.f, float(i) * 50.f);
-                        ot->size = Vector2(300.f, 40.f);
-                        option->addComponent(ComponentFactory::CreateComponent(Component::Type::CheckBox, option));
-                        option->getComponent<ComponentCheckBox>()->checked = (i == 0);
-
-                        GameObject* text = sc->createGameObject("Text", option);
-                        text->addComponent(ComponentFactory::CreateComponent(Component::Type::Transform2D, text));
-                        auto* t = text->getComponent<ComponentTransform2D>();
-                        t->anchorMin = Vector2(0.f, 0.f);
-                        t->anchorMax = Vector2(1.f, 1.f);
-                        t->size = Vector2(-50.f, 0.f);
-                        t->position = Vector2(25.f, 0.f);
-                        text->addComponent(ComponentFactory::CreateComponent(Component::Type::Label, text));
-                        auto* label = text->getComponent<ComponentLabel>();
-                        label->text = "Option " + std::to_string(i + 1);
-                        label->hAlign = ComponentLabel::HAlign::Left;
-                    }
-                    m_selection.object = group;
-                    pushCreateSubtreeUndo(group, "Radio Group");
-                }
-            }
-            ImGui::Separator();
-            if (ImGui::MenuItem("UI Test Scene (adds to current scene)")){
-                if (SceneGraph* sc = getActiveModuleScene()){
-                    CreateUITestScene(sc, getHotReloadManager());
-                    spawnPrimitive(PrimitiveType::Cube, Vector3(0.f, 0.5f, 0.f));
-                    log("Created UI test scene: check the Game view (press Play to interact)", EditorColors::Success);
-                }
-            }
-            const bool playing = getSceneManager() && getSceneManager()->isPlaying();
-            if (ImGui::MenuItem("Build HUD Prefab (from hud_layout.json)", nullptr, false, !playing)){
-                if (SceneGraph* sc = getActiveModuleScene()){
-                    std::string message;
-                    if (BuildAshfallHUDPrefab(sc, getHotReloadManager(), message))
-                        log(("HUD prefab saved: " + message).c_str(), EditorColors::Success);
-                    else
-                        log(("HUD prefab not built: " + message).c_str(), EditorColors::Danger);
-                }
-            }
-            if (ImGui::MenuItem("Build Hub Pages Prefab (from hub_pages_layout.json)", nullptr, false, !playing)){
-                if (SceneGraph* sc = getActiveModuleScene()){
-                    std::string message;
-                    if (BuildAshfallHubPagesPrefab(sc, getHotReloadManager(), message))
-                        log(("Hub pages prefab saved: " + message).c_str(), EditorColors::Success);
-                    else
-                        log(("Hub pages prefab not built: " + message).c_str(), EditorColors::Danger);
-                }
-            }
-            ImGui::Separator();
-            if (ImGui::MenuItem("Button")){
-                spawnUI("Button", Component::Type::Button, Vector2(240.f, 64.f));
-                // A flat-colour button with a stretched text child, ready to click.
-                GameObject* go = m_selection.object;
-                if (go){
-                    go->addComponent(ComponentFactory::CreateComponent(Component::Type::Image, go));
-                    go->getComponent<ComponentImage>()->tint = Vector4(0.24f, 0.36f, 0.68f, 1.f);
-
-                    SceneGraph* sc = getActiveModuleScene();
-                    GameObject* text = sc->createGameObject("Text", go);
-                    text->addComponent(ComponentFactory::CreateComponent(Component::Type::Transform2D, text));
-                    auto* t = text->getComponent<ComponentTransform2D>();
-                    t->anchorMin = Vector2(0.f, 0.f);
-                    t->anchorMax = Vector2(1.f, 1.f);
-                    t->size = Vector2::Zero;
-                    text->addComponent(ComponentFactory::CreateComponent(Component::Type::Label, text));
-                    text->getComponent<ComponentLabel>()->text = "Button";
-                    pushCreateSubtreeUndo(go, "Button");
-                }
-            }
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("Ashfall")){
-            const bool playing = getSceneManager() && getSceneManager()->isPlaying();
-            if (ImGui::MenuItem("Build Hub NPC Prefabs", nullptr, false, !playing)){
-                if (SceneGraph* sc = getActiveModuleScene()){
-                    std::string message;
-                    if (BuildAshfallHubNPCPrefabs(sc, getHotReloadManager(), message))
-                        log(("Hub NPC prefabs saved: " + message).c_str(), EditorColors::Success);
-                    else
-                        log(("Hub NPC prefabs not built: " + message).c_str(), EditorColors::Danger);
-                }
-            }
-            ImGui::EndMenu();
-        }
-        ImGui::Separator();
-        if (ImGui::MenuItem("Random Primitive + Physics", "Shift+P")){
-            static int menuSpawnIdx = 0; ++menuSpawnIdx;
-            static const PrimitiveType kT[] = { PrimitiveType::Cube, PrimitiveType::Sphere, PrimitiveType::Capsule, PrimitiveType::Cylinder };
-            spawnPrimitive(kT[menuSpawnIdx % 4],
-                Vector3((float)((menuSpawnIdx*3)%11-5), 5.f, (float)((menuSpawnIdx*7)%11-5)),
-                Vector3::One, true);
-        }
-        ImGui::EndMenu();
-    }
-    if (ImGui::BeginMenu("Component")){
-        auto addToSel = [&](const char* label, Component::Type type){
-            if (!m_selection.has()) return;
-            if (ImGui::MenuItem(label)){
-                m_selection.object->addComponent(ComponentFactory::CreateComponent(type, m_selection.object));
-                log((std::string("Added ") + label).c_str(), EditorColors::Success);
-            }
+    if (ImGui::BeginMenu("Lights")){
+        auto spawnLight = [&](const char* name, Component::Type type){
+            SceneGraph* sc = getActiveModuleScene();
+            if (!sc) return;
+            GameObject* go = sc->createGameObject(name);
+            go->addComponent(ComponentFactory::CreateComponent(type, go));
+            m_selection.object = go;
+            log((std::string("Created ") + name).c_str(), EditorColors::Success);
         };
-        addToSel("Mesh", Component::Type::Mesh);
-        addToSel("Rigidbody", Component::Type::Rigidbody);
-        addToSel("Camera", Component::Type::Camera);
-        addToSel("Directional Light", Component::Type::DirectionalLight);
-        addToSel("Point Light", Component::Type::PointLight);
-        addToSel("Spot Light", Component::Type::SpotLight);
-        addToSel("Animation", Component::Type::Animation);
-        addToSel("Bounds", Component::Type::Bounds);
-        addToSel("Decal", Component::Type::Decal);
-        addToSel("Billboard", Component::Type::Billboard);
-        addToSel("Particle System", Component::Type::ParticleSystem);
-        addToSel("Trail", Component::Type::Trail);
-        ImGui::Separator();
-        addToSel("Transform 2D", Component::Type::Transform2D);
-        addToSel("Canvas", Component::Type::Canvas);
-        addToSel("Image", Component::Type::Image);
-        addToSel("Label", Component::Type::Label);
-        addToSel("Button", Component::Type::Button);
-        addToSel("Progress Bar", Component::Type::ProgressBar);
-        addToSel("Checkbox", Component::Type::CheckBox);
-        addToSel("Slider", Component::Type::Slider);
-        addToSel("Input Box", Component::Type::InputBox);
-        addToSel("Radio Group", Component::Type::RadioGroup);
+        if (ImGui::MenuItem("Directional Light")) spawnLight("Directional Light", Component::Type::DirectionalLight);
+        if (ImGui::MenuItem("Point Light")) spawnLight("Point Light", Component::Type::PointLight);
+        if (ImGui::MenuItem("Spot Light")) spawnLight("Spot Light", Component::Type::SpotLight);
         ImGui::EndMenu();
     }
-    if (ImGui::BeginMenu("Debug")){
-        if (getSceneManager()){
-            EditorSceneSettings& s = getSceneManager()->getSettings();
-            ImGui::MenuItem("AABB Bounding Volumes", nullptr, &s.debugDrawBounds);
-            ImGui::MenuItem("Broadphase Grid", nullptr, &s.debugDrawGrid);
-            ImGui::MenuItem("Show Light Proxies", nullptr, &s.debugDrawLights);
-            ImGui::MenuItem("UI Rects / Anchors", nullptr, &s.debugDrawUIRects);
-            if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Game View: outlines every widget's rect, and marks its pivot and anchors.");
-        }
+    if (ImGui::BeginMenu("Particle Effects")){
+        if (ImGui::MenuItem("Fire (Exercise 1)"))
+            spawnFireParticleSystem(Vector3(0.f, 0.f, 0.f));
+        if (ImGui::MenuItem("Sword Trail"))
+            spawnSwordTrail(Vector3(0.f, 0.f, 0.f));
         ImGui::Separator();
-        if (ImGui::BeginMenu("Camera & Culling")){
-            ModuleCamera* cam = app->getCamera();
-            if (cam){
-                ImGui::Text("Active Game Camera");
-                GameObject* activeCamGO = cam->getActiveCamera();
-                const char* preview = activeCamGO ? activeCamGO->getName().c_str() : "(none)";
-                if (ImGui::BeginCombo("##ActiveGameCamera", preview)){
-                    if (ImGui::Selectable("(none)", activeCamGO == nullptr)){
-                        cam->setActiveCamera(nullptr);
-                        cam->clearGameCameraFrustum();
-                    }
-                    if (SceneGraph* scene = getActiveModuleScene()){
-                        std::function<void(GameObject*)> listCams = [&](GameObject* node){
-                            if (!node) return;
-                            if (node->getComponent<ComponentCamera>()){
-                                bool selected = (node == activeCamGO);
-                                if (ImGui::Selectable(node->getName().c_str(), selected))
-                                    cam->setActiveCamera(node);
-                            }
-                            for (auto* child : node->getChildren()) listCams(child);
-                        };
-                        listCams(scene->getRoot());
-                    }
-                    ImGui::EndCombo();
-                }
-                ImGui::Separator();
+        if (ImGui::MenuItem("Fire Comet (Trail + Particles Prefab)"))
+            spawnFireComet(Vector3(0.f, 1.5f, 0.f));
+        ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("UI")){
+        drawUIMenuItems();
+        ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("Ashfall")){
+        drawAshfallMenuItems();
+        ImGui::EndMenu();
+    }
+    ImGui::Separator();
+    if (ImGui::MenuItem("Random Primitive + Physics", "Shift+P")){
+        static int menuSpawnIdx = 0; ++menuSpawnIdx;
+        static const PrimitiveType kT[] = { PrimitiveType::Cube, PrimitiveType::Sphere, PrimitiveType::Capsule, PrimitiveType::Cylinder };
+        spawnPrimitive(kT[menuSpawnIdx % 4],
+            Vector3((float)((menuSpawnIdx*3)%11-5), 5.f, (float)((menuSpawnIdx*7)%11-5)),
+            Vector3::One, true);
+    }
+    ImGui::EndMenu();
+}
 
-                int cm = (int)cam->cullMode;
-                ImGui::Text("Cull Mode"); ImGui::SameLine();
-                if (ImGui::RadioButton("Off##cm", &cm, 0)) cam->cullMode = ModuleCamera::CullMode::None;
-                ImGui::SameLine();
-                if (ImGui::RadioButton("Frustum##cm", &cm, 1)) cam->cullMode = ModuleCamera::CullMode::Frustum;
-                int cs = (int)cam->cullSource;
-                ImGui::Text("Cull From"); ImGui::SameLine();
-                if (ImGui::RadioButton("Editor##cs", &cs, 0)) cam->cullSource = ModuleCamera::CullSource::EditorCamera;
-                ImGui::SameLine();
-                if (ImGui::RadioButton("Game##cs", &cs, 1)) cam->cullSource = ModuleCamera::CullSource::GameCamera;
-                ImGui::Separator();
-                ImGui::Text("Debug Draw");
-                ImGui::MenuItem("Editor Frustum", nullptr, &cam->debugDrawEditorFrustum);
-                ImGui::MenuItem("Cull Frustum", nullptr, &cam->debugDrawCullFrustum);
-                ImGui::MenuItem("Camera Axes", nullptr, &cam->debugDrawCameraAxes);
-                ImGui::MenuItem("Forward Ray", nullptr, &cam->debugDrawForwardRay);
-                ImGui::Separator();
-                ImGui::Text("Camera Parameters");
-                float fovDeg = cam->fovY * 57.2957795f;
-                ImGui::SetNextItemWidth(140.f);
-                if (ImGui::SliderFloat("FOV##cam", &fovDeg, 10.f, 170.f)) cam->fovY = fovDeg * 0.0174532925f;
-                ImGui::SetNextItemWidth(140.f);
-                ImGui::DragFloat("Near##cam", &cam->nearZ, 0.01f, 0.01f, 10.f);
-                ImGui::SetNextItemWidth(140.f);
-                ImGui::DragFloat("Far##cam", &cam->farZ, 1.f, 10.f, 5000.f);
-                ImGui::SetNextItemWidth(140.f);
-                ImGui::SliderFloat("Aspect##cam", &cam->aspectRatio, 0.5f, 4.f);
-                ImGui::Separator();
-                Vector3 fwd = cam->getForward();
-                ImGui::TextDisabled("Pos: %.2f  %.2f  %.2f", cam->getPos().x, cam->getPos().y, cam->getPos().z);
-                ImGui::TextDisabled("Fwd: %.2f  %.2f  %.2f", fwd.x, fwd.y, fwd.z);
+void ModuleEditor::drawUIMenuItems(){
+    // Widgets are created under the selected UI object, else under an existing Canvas, else a new one.
+    // Undo below only covers the widget itself: if this call also auto-creates the Canvas, that Canvas
+    // is left behind by an undo (reasonable, since later widgets may already be relying on it).
+    auto spawnUI = [&](const char* name, Component::Type type, Vector2 size){
+        SceneGraph* sc = getActiveModuleScene();
+        if (!sc) return;
+
+        GameObject* parent = m_selection.has() && isUnderCanvas(m_selection.object) ? m_selection.object : findCanvas(sc->getRoot());
+        if (!parent){
+            parent = sc->createGameObject("Canvas");
+            parent->addComponent(ComponentFactory::CreateComponent(Component::Type::Canvas, parent));
+        }
+        GameObject* go = sc->createGameObject(name, parent);
+        go->addComponent(ComponentFactory::CreateComponent(Component::Type::Transform2D, go));
+        go->getComponent<ComponentTransform2D>()->size = size;
+        go->addComponent(ComponentFactory::CreateComponent(type, go));
+        m_selection.object = go;
+        log((std::string("Created ") + name).c_str(), EditorColors::Success);
+    };
+    if (ImGui::MenuItem("Canvas")){
+        if (SceneGraph* sc = getActiveModuleScene()){
+            GameObject* go = sc->createGameObject("Canvas");
+            go->addComponent(ComponentFactory::CreateComponent(Component::Type::Canvas, go));
+            m_selection.object = go;
+            log("Created Canvas", EditorColors::Success);
+            pushCreateSubtreeUndo(go, "Canvas");
+        }
+    }
+    if (ImGui::MenuItem("Image")){ spawnUI("Image", Component::Type::Image, Vector2(100.f, 100.f)); pushCreateSubtreeUndo(m_selection.object, "Image"); }
+    if (ImGui::MenuItem("Label")){ spawnUI("Label", Component::Type::Label, Vector2(300.f, 60.f)); pushCreateSubtreeUndo(m_selection.object, "Label"); }
+    if (ImGui::MenuItem("Progress Bar")){ spawnUI("Progress Bar", Component::Type::ProgressBar, Vector2(400.f, 32.f)); pushCreateSubtreeUndo(m_selection.object, "Progress Bar"); }
+    if (ImGui::MenuItem("Slider")){ spawnUI("Slider", Component::Type::Slider, Vector2(400.f, 34.f)); pushCreateSubtreeUndo(m_selection.object, "Slider"); }
+    if (ImGui::MenuItem("Input Box")){ spawnUI("Input Box", Component::Type::InputBox, Vector2(420.f, 48.f)); pushCreateSubtreeUndo(m_selection.object, "Input Box"); }
+    if (ImGui::MenuItem("Checkbox")){
+        spawnUI("Checkbox", Component::Type::CheckBox, Vector2(300.f, 40.f));
+        // The box takes the row height on the left; a Label fills the rest and is part of the click target.
+        if (GameObject* go = m_selection.object){
+            ComponentLabel* label = addFillLabel(getActiveModuleScene(), go, Vector2(-50.f, 0.f), 25.f);
+            label->text = "Checkbox";
+            label->hAlign = ComponentLabel::HAlign::Left;
+            pushCreateSubtreeUndo(go, "Checkbox");
+        }
+    }
+    if (ImGui::MenuItem("Radio Group")){
+        spawnUI("Radio Group", Component::Type::RadioGroup, Vector2(300.f, 150.f));
+        // Three stacked options, each with the same row-is-the-click-target shape as a standalone
+        // Checkbox; the first one starts selected so the group never looks empty.
+        if (GameObject* group = m_selection.object){
+            SceneGraph* sc = getActiveModuleScene();
+            for (int i = 0; i < 3; ++i){
+                GameObject* option = sc->createGameObject(("Option " + std::to_string(i + 1)).c_str(), group);
+                option->addComponent(ComponentFactory::CreateComponent(Component::Type::Transform2D, option));
+                auto* ot = option->getComponent<ComponentTransform2D>();
+                ot->anchorMin = ot->anchorMax = ot->pivot = Vector2(0.f, 0.f);
+                ot->position = Vector2(0.f, float(i) * 50.f);
+                ot->size = Vector2(300.f, 40.f);
+                option->addComponent(ComponentFactory::CreateComponent(Component::Type::CheckBox, option));
+                option->getComponent<ComponentCheckBox>()->checked = (i == 0);
+
+                ComponentLabel* label = addFillLabel(sc, option, Vector2(-50.f, 0.f), 25.f);
+                label->text = "Option " + std::to_string(i + 1);
+                label->hAlign = ComponentLabel::HAlign::Left;
             }
-            ImGui::EndMenu();
+            m_selection.object = group;
+            pushCreateSubtreeUndo(group, "Radio Group");
         }
+    }
+    ImGui::Separator();
+    if (ImGui::MenuItem("UI Test Scene (adds to current scene)")){
+        if (SceneGraph* sc = getActiveModuleScene()){
+            CreateUITestScene(sc, getHotReloadManager());
+            spawnPrimitive(PrimitiveType::Cube, Vector3(0.f, 0.5f, 0.f));
+            log("Created UI test scene: check the Game view (press Play to interact)", EditorColors::Success);
+        }
+    }
+    const bool playing = getSceneManager() && getSceneManager()->isPlaying();
+    if (ImGui::MenuItem("Build HUD Prefab (from hud_layout.json)", nullptr, false, !playing))
+        runSceneBuilder(BuildAshfallHUDPrefab, "HUD prefab saved: ", "HUD prefab not built: ");
+    if (ImGui::MenuItem("Build Hub Pages Prefab (from hub_pages_layout.json)", nullptr, false, !playing))
+        runSceneBuilder(BuildAshfallHubPagesPrefab, "Hub pages prefab saved: ", "Hub pages prefab not built: ");
+    ImGui::Separator();
+    if (ImGui::MenuItem("Button")){
+        spawnUI("Button", Component::Type::Button, Vector2(240.f, 64.f));
+        // A flat-colour button with a stretched text child, ready to click.
+        GameObject* go = m_selection.object;
+        if (go){
+            go->addComponent(ComponentFactory::CreateComponent(Component::Type::Image, go));
+            go->getComponent<ComponentImage>()->tint = Vector4(0.24f, 0.36f, 0.68f, 1.f);
+            addFillLabel(getActiveModuleScene(), go, Vector2::Zero, 0.f)->text = "Button";
+            pushCreateSubtreeUndo(go, "Button");
+        }
+    }
+}
+
+void ModuleEditor::runSceneBuilder(bool (*build)(SceneGraph*, HotReloadManager*, std::string&),
+                                   const char* okPrefix, const char* failPrefix){
+    SceneGraph* sc = getActiveModuleScene();
+    if (!sc) return;
+    std::string message;
+    if (build(sc, getHotReloadManager(), message))
+        log((okPrefix + message).c_str(), EditorColors::Success);
+    else
+        log((failPrefix + message).c_str(), EditorColors::Danger);
+}
+
+void ModuleEditor::runSceneManagerBuilder(bool (*build)(SceneManager*, HotReloadManager*, std::string&),
+                                          const char* okPrefix, const char* failPrefix){
+    std::string message;
+    if (build(getSceneManager(), getHotReloadManager(), message))
+        log((okPrefix + message).c_str(), EditorColors::Success);
+    else
+        log((failPrefix + message).c_str(), EditorColors::Danger);
+}
+
+void ModuleEditor::drawAshfallMenuItems(){
+    const bool playing = getSceneManager() && getSceneManager()->isPlaying();
+    if (ImGui::MenuItem("Build Hub NPC Prefabs", nullptr, false, !playing))
+        runSceneBuilder(BuildAshfallHubNPCPrefabs, "Hub NPC prefabs saved: ", "Hub NPC prefabs not built: ");
+    if (ImGui::MenuItem("Build Enemy Prefabs", nullptr, false, !playing))
+        runSceneBuilder(BuildAshfallEnemyPrefabs, "Enemy prefabs saved: ", "Enemy prefabs not built: ");
+    if (ImGui::MenuItem("Set Up Kraug Arena (AF_KraugsDen)", nullptr, false, !playing))
+        runSceneManagerBuilder(SetUpAshfallKraugArena, "Kraug arena set up: ", "Kraug arena not set up: ");
+    if (ImGui::MenuItem("Build VFX Test Scene (on a new scene)", nullptr, false, !playing))
+        runSceneManagerBuilder(BuildAshfallVfxTestScene, "VFX test scene saved: ", "VFX test scene not built: ");
+}
+
+void ModuleEditor::drawComponentMenu(){
+    if (!ImGui::BeginMenu("Component")) return;
+    auto addToSel = [&](const char* label, Component::Type type){
+        if (!m_selection.has()) return;
+        if (ImGui::MenuItem(label)){
+            m_selection.object->addComponent(ComponentFactory::CreateComponent(type, m_selection.object));
+            log((std::string("Added ") + label).c_str(), EditorColors::Success);
+        }
+    };
+    addToSel("Mesh", Component::Type::Mesh);
+    addToSel("Rigidbody", Component::Type::Rigidbody);
+    addToSel("Camera", Component::Type::Camera);
+    addToSel("Directional Light", Component::Type::DirectionalLight);
+    addToSel("Point Light", Component::Type::PointLight);
+    addToSel("Spot Light", Component::Type::SpotLight);
+    addToSel("Animation", Component::Type::Animation);
+    addToSel("Bounds", Component::Type::Bounds);
+    addToSel("Decal", Component::Type::Decal);
+    addToSel("Billboard", Component::Type::Billboard);
+    addToSel("Particle System", Component::Type::ParticleSystem);
+    addToSel("Trail", Component::Type::Trail);
+    ImGui::Separator();
+    addToSel("Transform 2D", Component::Type::Transform2D);
+    addToSel("Canvas", Component::Type::Canvas);
+    addToSel("Image", Component::Type::Image);
+    addToSel("Label", Component::Type::Label);
+    addToSel("Button", Component::Type::Button);
+    addToSel("Progress Bar", Component::Type::ProgressBar);
+    addToSel("Checkbox", Component::Type::CheckBox);
+    addToSel("Slider", Component::Type::Slider);
+    addToSel("Input Box", Component::Type::InputBox);
+    addToSel("Radio Group", Component::Type::RadioGroup);
+    ImGui::EndMenu();
+}
+
+void ModuleEditor::drawDebugMenu(){
+    if (!ImGui::BeginMenu("Debug")) return;
+    if (getSceneManager()){
+        EditorSceneSettings& s = getSceneManager()->getSettings();
+        ImGui::MenuItem("AABB Bounding Volumes", nullptr, &s.debugDrawBounds);
+        ImGui::MenuItem("Broadphase Grid", nullptr, &s.debugDrawGrid);
+        ImGui::MenuItem("Show Light Proxies", nullptr, &s.debugDrawLights);
+        ImGui::MenuItem("UI Rects / Anchors", nullptr, &s.debugDrawUIRects);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Game View: outlines every widget's rect, and marks its pivot and anchors.");
+    }
+    ImGui::Separator();
+    if (ImGui::BeginMenu("Camera & Culling")){
+        if (ModuleCamera* cam = app->getCamera())
+            drawCameraCullingMenuItems(*cam);
         ImGui::EndMenu();
     }
-    if (ImGui::BeginMenu("Window")){
-        for (EditorPanel* p : m_panels){
-            const char* n = p->getName();
-            if (strcmp(n,"Render Graph")==0 || strcmp(n,"GPU Memory")==0 ||
-                strcmp(n,"Collision Debug")==0 || strcmp(n,"Navigation Debug")==0 ||
-                strcmp(n,"Performance")==0) continue;
-            ImGui::MenuItem(n, nullptr, &p->open);
-        }
-        ImGui::Separator();
-        ImGui::SeparatorText("PROFILING");
-        for (EditorPanel* p : m_panels){
-            const char* n = p->getName();
-            if (strcmp(n,"Render Graph")==0 || strcmp(n,"GPU Memory")==0 ||
-                strcmp(n,"Collision Debug")==0 || strcmp(n,"Navigation Debug")==0 ||
-                strcmp(n,"Performance")==0)
-                ImGui::MenuItem(n, nullptr, &p->open);
-        }
-        ImGui::Separator();
-        if (ImGui::MenuItem("Reset Layout")) m_firstFrame = true;
-        ImGui::EndMenu();
-    }
+    ImGui::EndMenu();
+}
 
-    {
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
-        char gpuInfo[128];
-        snprintf(gpuInfo, sizeof(gpuInfo), "RTX \xC2\xB7 build Development    %.0f fps",
-            (double)app->getFPS());
-        float textW = ImGui::CalcTextSize(gpuInfo).x;
-        float rightX = ImGui::GetWindowWidth() - textW - 14.f;
-        if (rightX > ImGui::GetCursorPosX())
-            ImGui::SetCursorPosX(rightX);
-        ImGui::TextUnformatted(gpuInfo);
-        ImGui::PopStyleColor();
+void ModuleEditor::drawCameraCullingMenuItems(ModuleCamera& cam){
+    ImGui::Text("Active Game Camera");
+    GameObject* activeCamGO = cam.getActiveCamera();
+    const char* preview = activeCamGO ? activeCamGO->getName().c_str() : "(none)";
+    if (ImGui::BeginCombo("##ActiveGameCamera", preview)){
+        if (ImGui::Selectable("(none)", activeCamGO == nullptr)){
+            cam.setActiveCamera(nullptr);
+            cam.clearGameCameraFrustum();
+        }
+        if (SceneGraph* scene = getActiveModuleScene()){
+            std::function<void(GameObject*)> listCams = [&](GameObject* node){
+                if (!node) return;
+                if (node->getComponent<ComponentCamera>()){
+                    bool selected = (node == activeCamGO);
+                    if (ImGui::Selectable(node->getName().c_str(), selected))
+                        cam.setActiveCamera(node);
+                }
+                for (auto* child : node->getChildren()) listCams(child);
+            };
+            listCams(scene->getRoot());
+        }
+        ImGui::EndCombo();
     }
+    ImGui::Separator();
 
-    ImGui::EndMainMenuBar();
+    int cm = (int)cam.cullMode;
+    ImGui::Text("Cull Mode"); ImGui::SameLine();
+    if (ImGui::RadioButton("Off##cm", &cm, 0)) cam.cullMode = ModuleCamera::CullMode::None;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Frustum##cm", &cm, 1)) cam.cullMode = ModuleCamera::CullMode::Frustum;
+    int cs = (int)cam.cullSource;
+    ImGui::Text("Cull From"); ImGui::SameLine();
+    if (ImGui::RadioButton("Editor##cs", &cs, 0)) cam.cullSource = ModuleCamera::CullSource::EditorCamera;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Game##cs", &cs, 1)) cam.cullSource = ModuleCamera::CullSource::GameCamera;
+    ImGui::Separator();
+    ImGui::Text("Debug Draw");
+    ImGui::MenuItem("Editor Frustum", nullptr, &cam.debugDrawEditorFrustum);
+    ImGui::MenuItem("Cull Frustum", nullptr, &cam.debugDrawCullFrustum);
+    ImGui::MenuItem("Camera Axes", nullptr, &cam.debugDrawCameraAxes);
+    ImGui::MenuItem("Forward Ray", nullptr, &cam.debugDrawForwardRay);
+    ImGui::Separator();
+    ImGui::Text("Camera Parameters");
+    float fovDeg = cam.fovY * 57.2957795f;
+    ImGui::SetNextItemWidth(140.f);
+    if (ImGui::SliderFloat("FOV##cam", &fovDeg, 10.f, 170.f)) cam.fovY = fovDeg * 0.0174532925f;
+    ImGui::SetNextItemWidth(140.f);
+    ImGui::DragFloat("Near##cam", &cam.nearZ, 0.01f, 0.01f, 10.f);
+    ImGui::SetNextItemWidth(140.f);
+    ImGui::DragFloat("Far##cam", &cam.farZ, 1.f, 10.f, 5000.f);
+    ImGui::SetNextItemWidth(140.f);
+    ImGui::SliderFloat("Aspect##cam", &cam.aspectRatio, 0.5f, 4.f);
+    ImGui::Separator();
+    Vector3 fwd = cam.getForward();
+    ImGui::TextDisabled("Pos: %.2f  %.2f  %.2f", cam.getPos().x, cam.getPos().y, cam.getPos().z);
+    ImGui::TextDisabled("Fwd: %.2f  %.2f  %.2f", fwd.x, fwd.y, fwd.z);
+}
+
+void ModuleEditor::drawWindowMenu(){
+    if (!ImGui::BeginMenu("Window")) return;
+    for (EditorPanel* p : m_panels)
+        if (!isProfilingPanel(p->getName())) ImGui::MenuItem(p->getName(), nullptr, &p->open);
+    ImGui::Separator();
+    ImGui::SeparatorText("PROFILING");
+    for (EditorPanel* p : m_panels)
+        if (isProfilingPanel(p->getName())) ImGui::MenuItem(p->getName(), nullptr, &p->open);
+    ImGui::Separator();
+    if (ImGui::MenuItem("Reset Layout")) m_firstFrame = true;
+    ImGui::EndMenu();
 }
 
 void ModuleEditor::drawStatusBar(){

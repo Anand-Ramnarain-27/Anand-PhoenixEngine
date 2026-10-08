@@ -35,11 +35,11 @@ bool HotReloadManager::reloadLibrary(const std::string& dllPath){
     }
     ScriptLibrary lib;
     if (!loadLibraryInternal(key, lib)){
-        LOG("[HotReload] FAILED to reload: %s", key.c_str());
+        PHX_LOG(Script, Error, "[HotReload] FAILED to reload: %s", key.c_str());
         return false;
     }
     m_libraries[key] = std::move(lib);
-    LOG("[HotReload] Reloaded: %s", key.c_str());
+    PHX_LOG(Script, Info, "[HotReload] Reloaded: %s", key.c_str());
     if (m_reloadCb) m_reloadCb(key);
     return true;
 }
@@ -62,7 +62,7 @@ IScript* HotReloadManager::createScript(const std::string& className) const{
         auto it = lib.factories.find(className);
         if (it != lib.factories.end()) return it->second();
     }
-    LOG("[HotReload] Unknown script class: '%s'", className.c_str());
+    PHX_LOG(Script, Warning, "[HotReload] Unknown script class: '%s'", className.c_str());
     return nullptr;
 }
 
@@ -86,32 +86,33 @@ bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLib
 
     out.handle = LoadLibraryA(dllPath.c_str());
     if (!out.handle){
-        LOG("[HotReload] LoadLibraryA failed for '%s' (GetLastError=%lu)",
+        PHX_LOG(Script, Error, "[HotReload] LoadLibraryA failed for '%s' (GetLastError=%lu)",
             dllPath.c_str(), GetLastError());
         return false;
     }
     out.dllPath = dllPath;
 
-    // Hand this process's Application* across the DLL boundary, if the DLL
-    // wants it (GameScript.dll's GameScriptGlobals.cpp exports this so that
-    // Phoenix::Input/etc, statically linked into the DLL from PhoenixCore.lib,
-    // have a real Application to reach instead of a permanently-null one -
-    // a DLL has its own separate copy of any global, it never shares the
-    // EXE's). Optional: older/other script DLLs without this export just skip it.
+    // A DLL gets its own copy of every global, so the API code linked into it from PhoenixCore.lib would see a
+    // null `app`: hand it this process's Application. Optional - a DLL without the export skips it.
     using SetAppFn = void(*)(Application*);
     if (auto setApp = reinterpret_cast<SetAppFn>(GetProcAddress(out.handle, "SetPhoenixEngineApp")))
         setApp(app);
 
-    // Same handoff, for forwarding Platform::LogDebug-style calls into the
-    // editor's visible Console panel instead of just OutputDebugStringA.
-    // PhoenixEngineLogToConsole() is defined in EngineLogBridge.cpp (real
-    // forward to ModuleEditor::log) or PlayerLogBridge.cpp (no-op stub) -
-    // whichever this binary links.
+    // Same handoff for the Console: the DLL's log lines also go to PhoenixEngineLogToConsole() (EngineLogBridge.cpp
+    // in the editor, a no-op PlayerLogBridge.cpp in the Player).
     using LogFn = void(*)(const char*, float, float, float, float);
     extern void PhoenixEngineLogToConsole(const char*, float, float, float, float);
     using SetLogFn = void(*)(LogFn);
     if (auto setLog = reinterpret_cast<SetLogFn>(GetProcAddress(out.handle, "SetPhoenixEngineLogFn")))
         setLog(&PhoenixEngineLogToConsole);
+
+    // The script DLL asks this before formatting a message, so the Console panel's per-category levels apply to
+    // script logs too. Optional, like the two above.
+    using LogFilterFn = bool(*)(const char*, int);
+    extern bool PhoenixEngineLogEnabled(const char*, int);
+    using SetLogFilterFn = void(*)(LogFilterFn);
+    if (auto setFilter = reinterpret_cast<SetLogFilterFn>(GetProcAddress(out.handle, "SetPhoenixEngineLogFilterFn")))
+        setFilter(&PhoenixEngineLogEnabled);
 
     auto base = reinterpret_cast<const BYTE*>(out.handle);
     auto dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
@@ -130,7 +131,7 @@ bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLib
             if (fn){
                 std::string className = sym + 7;
                 out.factories[className] = fn;
-                LOG("[HotReload] Registered script: '%s'", className.c_str());
+                PHX_LOG(Script, Verbose, "[HotReload] Registered script: '%s'", className.c_str());
             }
         }
     }
@@ -145,6 +146,19 @@ bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLib
         if (fs::exists(old)) fs::remove(old);
     }
     return true;
+}
+
+int HotReloadManager::notifyDataChanged(const std::string& assetPath, const std::string& text) const{
+    using DataChangedFn = void(*)(const char*, const char*);
+    int n = 0;
+    for (const auto& [path, lib] : m_libraries){
+        if (!lib.handle) continue;
+        if (auto fn = reinterpret_cast<DataChangedFn>(GetProcAddress(lib.handle, "PhoenixScripts_OnDataChanged"))){
+            fn(assetPath.c_str(), text.c_str());
+            ++n;
+        }
+    }
+    return n;
 }
 
 std::string HotReloadManager::versionedPdbPath(const std::string& dllPath){

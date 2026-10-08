@@ -12,7 +12,7 @@
 
 bool BloomPass::init(ID3D12Device* device){
     if (!createRootSignature(device)){
-        LOG("BloomPass: root signature creation failed");
+        PHX_LOG(Render, Error, "BloomPass: root signature creation failed");
         return false;
     }
 
@@ -21,11 +21,11 @@ bool BloomPass::init(ID3D12Device* device){
     m_upsamplePSO = createPSO(device, L"KawaseUpsamplePS.cso", true);
 
     if (!m_extractPSO || !m_downsamplePSO || !m_upsamplePSO){
-        LOG("BloomPass: PSO creation failed");
+        PHX_LOG(Render, Error, "BloomPass: PSO creation failed");
         return false;
     }
 
-    LOG("BloomPass: init OK");
+    PHX_LOG(Render, Info, "BloomPass: init OK");
     return true;
 }
 
@@ -46,7 +46,7 @@ bool BloomPass::createRootSignature(ID3D12Device* device){
 
     ComPtr<ID3DBlob> blob, err;
     if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))){
-        LOG("BloomPass: root signature serialise failed: %s", err ? (char*)err->GetBufferPointer() : "unknown error");
+        PHX_LOG(Render, Error, "BloomPass: root signature serialise failed: %s", err ? (char*)err->GetBufferPointer() : "unknown error");
         return false;
     }
 

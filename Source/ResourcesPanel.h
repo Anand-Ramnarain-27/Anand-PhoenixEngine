@@ -1,4 +1,6 @@
 #pragma once
+// The Resources panel: loaded resources by type with their reference counts.
+
 #include "EditorPanel.h"
 #include "ResourceCommon.h"
 

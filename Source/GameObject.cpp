@@ -137,7 +137,7 @@ bool GameObject::removeComponent(){
 }
 
 bool GameObject::removeComponentByType(Component::Type type){
-    if (type == Component::Type::Transform){ LOG("GameObject: Cannot remove Transform component."); return false; }
+    if (type == Component::Type::Transform){ PHX_LOG(Scene, Error, "GameObject: Cannot remove Transform component."); return false; }
     for (auto it = components.begin(); it != components.end(); ++it){
         if ((*it)->getType() == type){
             components.erase(it);

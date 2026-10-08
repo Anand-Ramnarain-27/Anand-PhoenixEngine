@@ -19,29 +19,27 @@ namespace {
 
 bool BillboardPass::init(ID3D12Device* device){
     if (!m_pipeline.init(device)){
-        LOG("BillboardPass: pipeline init failed");
+        PHX_LOG(Render, Error, "BillboardPass: pipeline init failed");
         return false;
     }
     if (!createUploadBuffer(device)) return false;
     if (!createFallbackTexture(device)) return false;
 
-    LOG("BillboardPass: init OK");
-#ifdef PHOENIX_EDITOR
-    if (auto* ed = app->getEditor())
-        ed->log("BillboardPass: initialized OK", ImVec4(0.5f, 1.f, 0.5f, 1.f));
-#endif
+    PHX_LOG(Render, Info, "BillboardPass: init OK");
     return true;
 }
 
 bool BillboardPass::createUploadBuffer(ID3D12Device* device){
     const UINT stride = cbAlign(sizeof(BillboardInstanceCB));
-    const UINT64 total = stride * MAX_BILLBOARDS * 2; // *2 for Scene View + Game View in same frame
+    // One slice per frame in flight (the CPU records up to FRAMES_IN_FLIGHT-1 frames ahead of the GPU); each slice
+    // holds both views of a frame (Scene View + Game View).
+    const UINT64 total = (UINT64)stride * SLOTS_PER_FRAME * FRAMES_IN_FLIGHT;
     auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     auto bd = CD3DX12_RESOURCE_DESC::Buffer(total);
     HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                                                   D3D12_RESOURCE_STATE_GENERIC_READ,
                                                   nullptr, IID_PPV_ARGS(&m_cbRing));
-    if (FAILED(hr)){ LOG("BillboardPass: CB ring alloc failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "BillboardPass: CB ring alloc failed 0x%08X", hr); return false; }
     m_cbRing->SetName(L"Billboard_CBRing");
     m_cbRing->Map(0, nullptr, &m_cbMapped);
     return true;
@@ -52,7 +50,7 @@ bool BillboardPass::createFallbackTexture(ID3D12Device* device){
     const uint32_t white = 0xFFFFFFFFu;
     m_fallbackTex = app->getGPUResources()->createRawTexture2D(&white, sizeof(white), 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
     if (!m_fallbackTex){
-        LOG("BillboardPass: fallback texture creation failed");
+        PHX_LOG(Render, Error, "BillboardPass: fallback texture creation failed");
         return false;
     }
     m_fallbackTex->SetName(L"Billboard_FallbackTex");
@@ -60,7 +58,7 @@ bool BillboardPass::createFallbackTexture(ID3D12Device* device){
     auto* sd = app->getShaderDescriptors();
     m_fallbackSRV = sd->allocTable("Billboard_FallbackSRV");
     if (!m_fallbackSRV.isValid()){
-        LOG("BillboardPass: fallback SRV alloc failed");
+        PHX_LOG(Render, Error, "BillboardPass: fallback SRV alloc failed");
         return false;
     }
     D3D12_SHADER_RESOURCE_VIEW_DESC sv = {};
@@ -83,36 +81,23 @@ D3D12_GPU_DESCRIPTOR_HANDLE BillboardPass::getOrLoadTexture(const std::string& p
     std::string resolvedPath = path;
     ComPtr<ID3D12Resource> tex = loadEffectTexture(path, &resolvedPath);
     if (!tex){
-        LOG("BillboardPass: failed to load texture '%s', using fallback", path.c_str());
-#ifdef PHOENIX_EDITOR
-        if (auto* ed = app->getEditor())
-            ed->log(("Billboard: failed to load texture '" + path + "' (using fallback)").c_str(), ImVec4(1.f, 0.4f, 0.4f, 1.f));
-#endif
+        PHX_LOG(Render, Error, "BillboardPass: failed to load texture '%s', using fallback", path.c_str());
         m_textureCache.emplace(path, CachedTexture{ nullptr, m_fallbackSRV });
         return m_fallbackSRV.getGPUHandle(0);
     }
 
     ShaderTableDesc srv = app->getShaderDescriptors()->allocTable(("Billboard_SRV_" + path).c_str());
     if (!srv.isValid()){
-        LOG("BillboardPass: SRV alloc failed for '%s', using fallback", path.c_str());
-#ifdef PHOENIX_EDITOR
-        if (auto* ed = app->getEditor())
-            ed->log(("Billboard: SRV alloc failed for '" + path + "' (using fallback)").c_str(), ImVec4(1.f, 0.4f, 0.4f, 1.f));
-#endif
+        PHX_LOG(Render, Error, "BillboardPass: SRV alloc failed for '%s', using fallback", path.c_str());
         m_textureCache.emplace(path, CachedTexture{ nullptr, m_fallbackSRV });
         return m_fallbackSRV.getGPUHandle(0);
     }
     srv.createTexture2DSRV(tex.Get(), 0);
 
-#ifdef PHOENIX_EDITOR
-    if (auto* ed = app->getEditor()){
-        D3D12_RESOURCE_DESC rd = tex->GetDesc();
-        std::string logMsg = "Billboard: loaded '" + resolvedPath + "'";
-        if (resolvedPath != path) logMsg += " (resolved from '" + path + "')";
-        logMsg += " (" + std::to_string(rd.Width) + "x" + std::to_string(rd.Height) + ", fmt " + std::to_string((int)rd.Format) + ")";
-        ed->log(logMsg.c_str(), ImVec4(0.5f, 1.f, 0.5f, 1.f));
-    }
-#endif
+    const D3D12_RESOURCE_DESC rd = tex->GetDesc();
+    PHX_LOG(Render, Verbose, "BillboardPass: loaded '%s'%s%s%s (%llux%u, fmt %d)", resolvedPath.c_str(),
+            resolvedPath != path ? " (resolved from '" : "", resolvedPath != path ? path.c_str() : "",
+            resolvedPath != path ? "')" : "", (unsigned long long)rd.Width, rd.Height, (int)rd.Format);
 
     auto handle = srv.getGPUHandle(0);
     m_textureCache.emplace(path, CachedTexture{ std::move(tex), std::move(srv) });
@@ -142,8 +127,9 @@ void BillboardPass::render(ID3D12GraphicsCommandList* cmd,
     cmd->IASetIndexBuffer(nullptr);
 
     const UINT cbStride = cbAlign(sizeof(BillboardInstanceCB));
-    const UINT remaining = (m_frameCBCursor < MAX_BILLBOARDS) ? MAX_BILLBOARDS - m_frameCBCursor : 0u;
-    const UINT count = std::min((UINT)billboards.size(), remaining);
+    const UINT remaining = (m_frameCBCursor < SLOTS_PER_FRAME) ? SLOTS_PER_FRAME - m_frameCBCursor : 0u;
+    const UINT count = std::min({ (UINT)billboards.size(), MAX_BILLBOARDS, remaining });
+    const UINT64 frameBase = (UINT64)app->getD3D12()->getCurrentBackBufferIdx() * SLOTS_PER_FRAME;
 
     // 0 = alpha, 1 = additive, 2 = premultiplied
     int blendBound = 0;
@@ -159,7 +145,7 @@ void BillboardPass::render(ID3D12GraphicsCommandList* cmd,
                                  : blend == 1 ? m_pipeline.getAdditivePSO() : m_pipeline.getPSO());
         }
 
-        const UINT slot = m_frameCBCursor + i;
+        const UINT64 slot = frameBase + m_frameCBCursor + i;
         void* dst = reinterpret_cast<uint8_t*>(m_cbMapped) + slot * cbStride;
         memcpy(dst, &bb.cb, sizeof(BillboardInstanceCB));
 
@@ -201,13 +187,13 @@ bool BillboardPipeline::createRootSignature(ID3D12Device* device){
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
     if (FAILED(hr)){
-        if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
-        LOG("BillboardPipeline: serialize root sig failed 0x%08X", hr);
+        if (error) PHX_LOG(Render, Error, "%s", static_cast<char*>(error->GetBufferPointer()));
+        PHX_LOG(Render, Error, "BillboardPipeline: serialize root sig failed 0x%08X", hr);
         return false;
     }
     hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
                                       IID_PPV_ARGS(&m_rootSig));
-    if (FAILED(hr)){ LOG("BillboardPipeline: CreateRootSignature failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "BillboardPipeline: CreateRootSignature failed 0x%08X", hr); return false; }
     return true;
 }
 
@@ -248,20 +234,20 @@ bool BillboardPipeline::createPSO(ID3D12Device* device){
     desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 
     HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_pso));
-    if (FAILED(hr)){ LOG("BillboardPipeline: CreateGraphicsPipelineState failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "BillboardPipeline: CreateGraphicsPipelineState failed 0x%08X", hr); return false; }
 
     auto& art = desc.BlendState.RenderTarget[0];
     art.SrcBlend = D3D12_BLEND_SRC_ALPHA;
     art.DestBlend = D3D12_BLEND_ONE;
     hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_additivePso));
-    if (FAILED(hr)){ LOG("BillboardPipeline: CreateGraphicsPipelineState (additive) failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "BillboardPipeline: CreateGraphicsPipelineState (additive) failed 0x%08X", hr); return false; }
 
     // Premultiplied: colour adds, alpha only occludes. A particle fading its tint alpha to 0 turns from a normal
     // alpha blend into a pure additive glow with the same texture.
     art.SrcBlend = D3D12_BLEND_ONE;
     art.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
     hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_premultipliedPso));
-    if (FAILED(hr)){ LOG("BillboardPipeline: CreateGraphicsPipelineState (premultiplied) failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "BillboardPipeline: CreateGraphicsPipelineState (premultiplied) failed 0x%08X", hr); return false; }
 
     return true;
 }

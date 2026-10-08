@@ -1,8 +1,10 @@
 #pragma once
+// Per-frame upload ring for transient constant and vertex data.
 
 #include "Module.h"
 #include <cstdint>
 
+/// Linear allocator over an upload heap; space is reclaimed once the frame that used it has completed.
 class ModuleRingBuffer : public Module {
 public:
     ModuleRingBuffer() = default;

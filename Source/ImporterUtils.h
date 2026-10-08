@@ -1,4 +1,6 @@
 #pragma once
+// Helpers shared by the importers: .meta paths and binary blob load / save.
+
 #include "Application.h"
 #include "ModuleFileSystem.h"
 #include <vector>

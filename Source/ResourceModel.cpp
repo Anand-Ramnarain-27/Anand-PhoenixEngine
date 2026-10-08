@@ -21,7 +21,7 @@ bool ResourceModel::LoadInMemory(){
 
     std::vector<SceneImporter::NodeInfo> nodeInfos;
     if (!SceneImporter::LoadNodeTree(sceneName, nodeInfos)){
-        LOG("ResourceModel: Failed to load node tree for '%s'", sceneName.c_str());
+        PHX_LOG(Assets, Error, "ResourceModel: Failed to load node tree for '%s'", sceneName.c_str());
         return false;
     }
 
@@ -129,7 +129,7 @@ GameObject* ResourceModel::spawnIntoScene(SceneGraph* scene, GameObject* parent)
 
     for (size_t i = 0; i < m_nodes.size(); ++i){
         const Node& n = m_nodes[i];
-        LOG("ResourceModel: node[%zu] name='%s' skin=%d meshes=%zu",
+        PHX_LOG(Assets, Verbose, "ResourceModel: node[%zu] name='%s' skin=%d meshes=%zu",
             i, n.name.c_str(), n.skinIndex, n.meshes.size());
     }
 
@@ -139,7 +139,7 @@ GameObject* ResourceModel::spawnIntoScene(SceneGraph* scene, GameObject* parent)
         if (uid == 0) break;
         animUIDs.push_back(uid);
     }
-    LOG("ResourceModel: spawning '%s' — found %d anim UID(s) via findSubUID",
+    PHX_LOG(Assets, Verbose, "ResourceModel: spawning '%s' — found %d anim UID(s) via findSubUID",
         modelName.c_str(), (int)animUIDs.size());
     if (!animUIDs.empty()){
         auto* animComp = root->createComponent<ComponentAnimation>();
@@ -149,19 +149,18 @@ GameObject* ResourceModel::spawnIntoScene(SceneGraph* scene, GameObject* parent)
         // exists (either auto-generated at import by
         // ModuleAssets::registerSceneSubResources, or hand/graph-editor
         // authored) - LoadStateMachineFromPath() also starts it playing via
-        // its own OnPlay(). Falls back to just playing the first clip
-        // directly, as before, if no such file exists.
+        // its own OnPlay(). Without one, the first clip plays directly.
         std::string smPath = app->getFileSystem()->GetAssetsPath() + "StateMachines/" + modelName + ".json";
         if (app->getFileSystem()->Exists(smPath.c_str())){
             animComp->LoadStateMachineFromPath(smPath);
-            LOG("ResourceModel: auto-loaded state machine for '%s' from %s", modelName.c_str(), smPath.c_str());
+            PHX_LOG(Assets, Info, "ResourceModel: auto-loaded state machine for '%s' from %s", modelName.c_str(), smPath.c_str());
         } else {
             animComp->OnPlay(animUIDs[0], true);
-            LOG("ResourceModel: ComponentAnimation added to root '%s' — playing anim[0] (no state machine at %s)",
+            PHX_LOG(Assets, Info, "ResourceModel: ComponentAnimation added to root '%s' — playing anim[0] (no state machine at %s)",
                 modelName.c_str(), smPath.c_str());
         }
     } else {
-        LOG("ResourceModel: no anim UIDs — ComponentAnimation NOT created. "
+        PHX_LOG(Assets, Warning, "ResourceModel: no anim UIDs — ComponentAnimation NOT created. "
             "Delete Library/Animations/%s/ and re-import to regenerate.",
             modelName.c_str());
     }

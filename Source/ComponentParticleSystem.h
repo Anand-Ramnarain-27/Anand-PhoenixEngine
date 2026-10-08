@@ -1,4 +1,6 @@
 #pragma once
+// Particle emitter: CPU-simulated billboards, or GPU-simulated through ParticlePass.
+
 #include "Component.h"
 #include "Globals.h"
 #include "ShaderTableDesc.h"
@@ -9,6 +11,8 @@
 #include <d3d12.h>
 #include <wrl/client.h>
 
+/// Emits from a shape (point, box, sphere, cone) with size and colour over lifetime, gravity, optional
+/// sprite-sheet animation and noise turbulence. useGPU hands simulation and drawing to ParticlePass.
 class ComponentParticleSystem : public Component {
 public:
     enum class EmitterShape {
@@ -24,11 +28,17 @@ public:
         Premultiplied = 2,   // CPU path only; the GPU path draws it as Additive
     };
 
-    // How a particle picks its sprite-sheet tile.
+    /// How a particle picks its sprite-sheet tile.
     enum class SheetMode {
         Fixed = 0,          // tile 0, or a random tile with randomFrame
         OverLifetime = 1,   // plays every tile once across the particle's life
         Fps = 2,            // plays at sheetFps from the particle's start tile; loops or holds the last tile
+    };
+
+    /// Which way a new particle flies.
+    enum class DirectionMode {
+        Random = 0,   // the shape's own direction (cone: inside the cone; sphere: any way; box/point: +Y)
+        Radial = 1,   // straight out from the emitter's centre through the spawn point (negative speed = inwards)
     };
 
     explicit ComponentParticleSystem(GameObject* owner);
@@ -50,6 +60,7 @@ public:
     EmitterShape shape = EmitterShape::Cone;
     float shapeRadius = 0.5f;
     float coneAngleDeg = 25.f;
+    DirectionMode directionMode = DirectionMode::Random;
 
     bool worldSpace = true;
 
@@ -85,11 +96,11 @@ public:
     BlendMode blendMode = BlendMode::Alpha;
     int layer = 0;
 
-    // CPU path: billboards stretch along their on-screen velocity, length x (1 + velocityStretch x speed).
-    // 0 = round sprites. For sparks and streaks.
+    /// CPU path: billboards stretch along their on-screen velocity, length x (1 + velocityStretch x speed).
+    /// 0 = round sprites. For sparks and streaks.
     float velocityStretch = 0.f;
 
-    // Particles to spawn on the next update, whether or not the system is playing (Phoenix::VFX::Burst).
+    /// Particles to spawn on the next update, whether or not the system is playing (Phoenix::VFX::Burst).
     int pendingBurst = 0;
 
     struct Particle {
@@ -143,6 +154,14 @@ private:
     Vector3 randomEmitDirection(std::mt19937& rng) const;
     Vector3 randomEmitPosition(std::mt19937& rng) const;
 
+    // Inspector sections (editor build only).
+    void drawEffectsTransport();
+    void drawEmitterSection();
+    void drawInitialValuesSection();
+    void drawTurbulenceSection();
+    void drawLifetimeSection();
+    void drawRenderSection();
+    void drawGpuSection();
     void updateNoisePreview();
 
     std::vector<Particle> m_particles;

@@ -1,4 +1,6 @@
 #pragma once
+// Skeletal and morph animation: plays clips directly or through a state machine with cross-fades.
+
 #include "Component.h"
 #include "AnimationController.h"
 #include "ResourceCommon.h"
@@ -12,6 +14,7 @@ class ResourceAnimation;
 class StateMachineGraphEditor;
 #endif
 
+/// One clip in the cross-fade chain; the newest layer fades in over transitionTimeMs on top of the older ones.
 struct AnimLayer {
     ResourceAnimation* anim = nullptr;
     float currentTimeMs = 0.f;
@@ -21,6 +24,8 @@ struct AnimLayer {
     AnimLayer* next = nullptr;
 };
 
+/// Animates the GameObject's children (bones and morph targets). With a state machine, SendTrigger() follows
+/// its transitions and blends into the target state's clip.
 class ComponentAnimation final : public Component {
 public:
     explicit ComponentAnimation(GameObject* owner);
@@ -45,11 +50,13 @@ public:
         return n;
     }
 
+    /// Takes the active state's transition for `trigger`, if any. Defined in ComponentAnimationTrigger.cpp so it
+    /// links into GameScript.dll.
     void SendTrigger(const HashString& trigger);
 
     void drawStateMachineSection();
 
-    float mSpeed = 1.f;
+    float speed = 1.f;
 
     void setAnimationList(const std::vector<UID>& uids);
     const std::vector<UID>& getAnimationUIDs() const { return m_animUIDs; }

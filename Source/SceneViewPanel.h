@@ -1,8 +1,12 @@
 #pragma once
+// The Scene view: the editor camera's view with gizmos, toolbar, picking and asset drops.
+
 #include "ViewportPanel.h"
 #include "AssetBrowserPanel.h"
 #include <ImGuizmo.h>
 
+/// Renders with editor extras (debug draw, light proxies), draws the ImGuizmo transform gizmo for the
+/// selection and the toolbar (gizmo mode, play controls, view options).
 class SceneViewPanel : public ViewportPanel {
 public:
     explicit SceneViewPanel(ModuleEditor* editor);
@@ -20,6 +24,10 @@ protected:
 
 private:
     void drawGizmoToolbar();
+    void handleGizmoHotkeys();
+    void drawTransformButtons(ImDrawList* dl, ImVec2 toolOrigin, float toolH, float btnSz);
+    void drawPlayControls(ImVec2 toolOrigin, float cW, float btnSz);
+    void drawViewOptions(ImVec2 toolOrigin, float cW, float btnSz);
     void drawGizmo();
     void drawOverlay();
     void drawPrefabExitButton();

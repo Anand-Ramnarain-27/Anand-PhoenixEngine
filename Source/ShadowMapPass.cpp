@@ -71,7 +71,7 @@ namespace {
         desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
         ComPtr<ID3D12PipelineState> pso;
         HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pso));
-        if (FAILED(hr)) LOG("ShadowMapPass: masked PSO (%ls) failed 0x%08X", psFile, hr);
+        if (FAILED(hr)) PHX_LOG(Render, Error, "ShadowMapPass: masked PSO (%ls) failed 0x%08X", psFile, hr);
         return pso;
     }
 
@@ -122,14 +122,14 @@ bool ShadowMapPipeline::createRootSignature(ID3D12Device* device){
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
     if (FAILED(hr)){
-        if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
-        LOG("ShadowMapPipeline: serialize root sig failed 0x%08X", hr);
+        if (error) PHX_LOG(Render, Error, "%s", static_cast<char*>(error->GetBufferPointer()));
+        PHX_LOG(Render, Error, "ShadowMapPipeline: serialize root sig failed 0x%08X", hr);
         return false;
     }
     hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
                                      IID_PPV_ARGS(&m_rootSig));
     if (FAILED(hr)){
-        LOG("ShadowMapPipeline: CreateRootSignature failed 0x%08X", hr);
+        PHX_LOG(Render, Error, "ShadowMapPipeline: CreateRootSignature failed 0x%08X", hr);
         return false;
     }
     return true;
@@ -163,7 +163,7 @@ bool ShadowMapPipeline::createPSO(ID3D12Device* device){
 
     HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_pso));
     if (FAILED(hr)){
-        LOG("ShadowMapPipeline: CreateGraphicsPipelineState failed 0x%08X", hr);
+        PHX_LOG(Render, Error, "ShadowMapPipeline: CreateGraphicsPipelineState failed 0x%08X", hr);
         return false;
     }
     m_maskedPso = makeMaskedPSO(device, desc, L"ShadowDepthMaskedPS.cso");
@@ -185,13 +185,13 @@ bool ShadowMomentsPipeline::init(ID3D12Device* device){
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
     if (FAILED(hr)){
-        if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
-        LOG("ShadowMomentsPipeline: serialize root sig failed 0x%08X", hr);
+        if (error) PHX_LOG(Render, Error, "%s", static_cast<char*>(error->GetBufferPointer()));
+        PHX_LOG(Render, Error, "ShadowMomentsPipeline: serialize root sig failed 0x%08X", hr);
         return false;
     }
     hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
                                      IID_PPV_ARGS(&m_rootSig));
-    if (FAILED(hr)){ LOG("ShadowMomentsPipeline: CreateRootSignature failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "ShadowMomentsPipeline: CreateRootSignature failed 0x%08X", hr); return false; }
 
     auto vs = DX::ReadData(L"ShadowDepthVS.cso");
     auto ps = DX::ReadData(L"ShadowMomentsPS.cso");
@@ -213,7 +213,7 @@ bool ShadowMomentsPipeline::init(ID3D12Device* device){
     pso.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 
     hr = device->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(&m_pso));
-    if (FAILED(hr)){ LOG("ShadowMomentsPipeline: CreatePSO failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "ShadowMomentsPipeline: CreatePSO failed 0x%08X", hr); return false; }
     m_maskedPso = makeMaskedPSO(device, pso, L"ShadowMomentsMaskedPS.cso");
     return m_maskedPso != nullptr;
 }
@@ -232,13 +232,13 @@ bool ShadowCubePipeline::init(ID3D12Device* device){
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
     if (FAILED(hr)){
-        if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
-        LOG("ShadowCubePipeline: serialize root sig failed 0x%08X", hr);
+        if (error) PHX_LOG(Render, Error, "%s", static_cast<char*>(error->GetBufferPointer()));
+        PHX_LOG(Render, Error, "ShadowCubePipeline: serialize root sig failed 0x%08X", hr);
         return false;
     }
     hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
                                      IID_PPV_ARGS(&m_rootSig));
-    if (FAILED(hr)){ LOG("ShadowCubePipeline: CreateRootSignature failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "ShadowCubePipeline: CreateRootSignature failed 0x%08X", hr); return false; }
 
     auto vs = DX::ReadData(L"ShadowCubeVS.cso");
     auto ps = DX::ReadData(L"ShadowCubePS.cso");
@@ -260,7 +260,7 @@ bool ShadowCubePipeline::init(ID3D12Device* device){
     pso.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 
     hr = device->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(&m_pso));
-    if (FAILED(hr)){ LOG("ShadowCubePipeline: CreatePSO failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "ShadowCubePipeline: CreatePSO failed 0x%08X", hr); return false; }
     m_maskedPso = makeMaskedPSO(device, pso, L"ShadowCubeMaskedPS.cso");
     return m_maskedPso != nullptr;
 }
@@ -288,20 +288,20 @@ bool ShadowBlurPipeline::init(ID3D12Device* device){
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
     if (FAILED(hr)){
-        if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
-        LOG("ShadowBlurPipeline: serialize root sig failed 0x%08X", hr);
+        if (error) PHX_LOG(Render, Error, "%s", static_cast<char*>(error->GetBufferPointer()));
+        PHX_LOG(Render, Error, "ShadowBlurPipeline: serialize root sig failed 0x%08X", hr);
         return false;
     }
     hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
                                      IID_PPV_ARGS(&m_rootSig));
-    if (FAILED(hr)){ LOG("ShadowBlurPipeline: CreateRootSignature failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "ShadowBlurPipeline: CreateRootSignature failed 0x%08X", hr); return false; }
 
     auto cs = DX::ReadData(L"ShadowBlurCS.cso");
     D3D12_COMPUTE_PIPELINE_STATE_DESC pso = {};
     pso.pRootSignature = m_rootSig.Get();
     pso.CS = { cs.data(), cs.size() };
     hr = device->CreateComputePipelineState(&pso, IID_PPV_ARGS(&m_pso));
-    if (FAILED(hr)){ LOG("ShadowBlurPipeline: CreatePSO failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "ShadowBlurPipeline: CreatePSO failed 0x%08X", hr); return false; }
     return true;
 }
 
@@ -319,7 +319,7 @@ namespace {
         desc.Init(_countof(p), p, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
         ComPtr<ID3DBlob> blob, err;
         HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err);
-        if (FAILED(hr)){ if (err) OutputDebugStringA((char*)err->GetBufferPointer()); return false; }
+        if (FAILED(hr)){ if (err) PHX_LOG(Render, Error, "%s", (char*)err->GetBufferPointer()); return false; }
         return SUCCEEDED(device->CreateRootSignature(0, blob->GetBufferPointer(),
                          blob->GetBufferSize(), IID_PPV_ARGS(&out)));
     }
@@ -337,7 +337,7 @@ namespace {
 
 bool ShadowReducePipeline::init(ID3D12Device* device){
     if (!makeComputeRootSig(device, false, 4, m_rootSig)){
-        LOG("ShadowReducePipeline: root sig failed"); return false;
+        PHX_LOG(Render, Error, "ShadowReducePipeline: root sig failed"); return false;
     }
     m_initPso = makeCS(device, m_rootSig.Get(), L"ShadowReduceInitCS.cso");
     m_reducePso = makeCS(device, m_rootSig.Get(), L"ShadowReduceCS.cso");
@@ -346,7 +346,7 @@ bool ShadowReducePipeline::init(ID3D12Device* device){
 
 bool ShadowLightMatrixPipeline::init(ID3D12Device* device){
     if (!makeComputeRootSig(device, true, 0, m_rootSig)){
-        LOG("ShadowLightMatrixPipeline: root sig failed"); return false;
+        PHX_LOG(Render, Error, "ShadowLightMatrixPipeline: root sig failed"); return false;
     }
     m_pso = makeCS(device, m_rootSig.Get(), L"ShadowLightMatrixCS.cso");
     return m_pso != nullptr;
@@ -363,8 +363,8 @@ bool ShadowDepthGpuPipeline::init(ID3D12Device* device){
     desc.Init(_countof(p), p, 1, &samp, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
     ComPtr<ID3DBlob> blob, err;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err);
-    if (FAILED(hr)){ if (err) OutputDebugStringA((char*)err->GetBufferPointer());
-                     LOG("ShadowDepthGpuPipeline: root sig failed"); return false; }
+    if (FAILED(hr)){ if (err) PHX_LOG(Render, Error, "%s", (char*)err->GetBufferPointer());
+                     PHX_LOG(Render, Error, "ShadowDepthGpuPipeline: root sig failed"); return false; }
     if (FAILED(device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
                                            IID_PPV_ARGS(&m_rootSig)))) return false;
 
@@ -393,24 +393,24 @@ bool ShadowDepthGpuPipeline::init(ID3D12Device* device){
 
 bool ShadowMapPass::init(ID3D12Device* device){
     if (!m_pipeline.init(device)){
-        LOG("ShadowMapPass: pipeline init failed");
+        PHX_LOG(Render, Error, "ShadowMapPass: pipeline init failed");
         return false;
     }
     if (!m_momentPipeline.init(device)){
-        LOG("ShadowMapPass: moment pipeline init failed");
+        PHX_LOG(Render, Error, "ShadowMapPass: moment pipeline init failed");
         return false;
     }
     if (!m_cubePipeline.init(device)){
-        LOG("ShadowMapPass: cube pipeline init failed");
+        PHX_LOG(Render, Error, "ShadowMapPass: cube pipeline init failed");
         return false;
     }
     if (!m_blurPipeline.init(device)){
-        LOG("ShadowMapPass: blur pipeline init failed");
+        PHX_LOG(Render, Error, "ShadowMapPass: blur pipeline init failed");
         return false;
     }
     if (!m_reducePipeline.init(device) || !m_lightMatrixPipeline.init(device) ||
         !m_depthGpuPipeline.init(device)){
-        LOG("ShadowMapPass: Phase 5 pipeline init failed");
+        PHX_LOG(Render, Error, "ShadowMapPass: Phase 5 pipeline init failed");
         return false;
     }
 
@@ -420,7 +420,7 @@ bool ShadowMapPass::init(ID3D12Device* device){
         if (FAILED(device->CreateCommittedResource(&hpDef, D3D12_HEAP_FLAG_NONE, &bd,
                 D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, nullptr,
                 IID_PPV_ARGS(&m_vpBuffer)))){
-            LOG("ShadowMapPass: VP buffer create failed"); return false;
+            PHX_LOG(Render, Error, "ShadowMapPass: VP buffer create failed"); return false;
         }
         m_vpBuffer->SetName(L"ShadowMap_GpuVP");
         m_vpUav = app->getShaderDescriptors()->allocTable("ShadowMap_VPUav");
@@ -439,7 +439,7 @@ bool ShadowMapPass::init(ID3D12Device* device){
                                                  D3D12_RESOURCE_STATE_GENERIC_READ,
                                                  nullptr, IID_PPV_ARGS(&m_mvpRing));
     if (FAILED(hr)){
-        LOG("ShadowMapPass: MVP ring create failed 0x%08X", hr);
+        PHX_LOG(Render, Error, "ShadowMapPass: MVP ring create failed 0x%08X", hr);
         return false;
     }
     m_mvpRing->SetName(L"ShadowMapPass_MVPRing");
@@ -451,7 +451,7 @@ bool ShadowMapPass::init(ID3D12Device* device){
                                          D3D12_RESOURCE_STATE_GENERIC_READ,
                                          nullptr, IID_PPV_ARGS(&m_cubeRing));
     if (FAILED(hr)){
-        LOG("ShadowMapPass: cube ring create failed 0x%08X", hr);
+        PHX_LOG(Render, Error, "ShadowMapPass: cube ring create failed 0x%08X", hr);
         return false;
     }
     m_cubeRing->SetName(L"ShadowMapPass_CubeRing");
@@ -462,18 +462,18 @@ bool ShadowMapPass::init(ID3D12Device* device){
         auto lbd = CD3DX12_RESOURCE_DESC::Buffer((UINT64)sz * FRAMES_IN_FLIGHT);
         if (FAILED(device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &lbd,
                 D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_lightMatrixCB)))){
-            LOG("ShadowMapPass: light-matrix CB create failed"); return false;
+            PHX_LOG(Render, Error, "ShadowMapPass: light-matrix CB create failed"); return false;
         }
         m_lightMatrixCB->SetName(L"ShadowMap_LightMatrixCB");
         m_lightMatrixCB->Map(0, nullptr, &m_lightMatrixMapped);
     }
 
     m_nullMaskSrv = app->getShaderDescriptors()->allocTable("ShadowMap_NullMaskSRV");
-    if (!m_nullMaskSrv.isValid()){ LOG("ShadowMapPass: null mask SRV alloc failed"); return false; }
+    if (!m_nullMaskSrv.isValid()){ PHX_LOG(Render, Error, "ShadowMapPass: null mask SRV alloc failed"); return false; }
     m_nullMaskSrv.createNullSRV(0);
 
     if (!ensureResources(2048, 1)) return false;
-    LOG("ShadowMapPass: init OK");
+    PHX_LOG(Render, Info, "ShadowMapPass: init OK");
     return true;
 }
 
@@ -527,7 +527,7 @@ bool ShadowMapPass::ensureResources(uint32_t resolution, int cascadeCount){
         &hp, D3D12_HEAP_FLAG_NONE, &dd, D3D12_RESOURCE_STATE_DEPTH_WRITE,
         &cv, IID_PPV_ARGS(&m_depthTexture));
     if (FAILED(hr)){
-        LOG("ShadowMapPass: depth texture create failed 0x%08X", hr);
+        PHX_LOG(Render, Error, "ShadowMapPass: depth texture create failed 0x%08X", hr);
         return false;
     }
     m_depthTexture->SetName(L"ShadowMap_DepthArray");
@@ -679,7 +679,7 @@ bool ShadowMapPass::ensureMomentResources(){
         auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &dd,
                                                      state, nullptr, IID_PPV_ARGS(&out));
-        if (FAILED(hr)){ LOG("ShadowMapPass: moment texture create failed 0x%08X", hr); return false; }
+        if (FAILED(hr)){ PHX_LOG(Render, Error, "ShadowMapPass: moment texture create failed 0x%08X", hr); return false; }
         out->SetName(name);
         return true;
     };
@@ -901,7 +901,7 @@ bool ShadowMapPass::ensureSpotResources(uint32_t resolution){
     HRESULT hr = app->getD3D12()->getDevice()->CreateCommittedResource(
         &hp, D3D12_HEAP_FLAG_NONE, &dd, D3D12_RESOURCE_STATE_DEPTH_WRITE, &cv,
         IID_PPV_ARGS(&m_spotDepth));
-    if (FAILED(hr)){ LOG("ShadowMapPass: spot depth create failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "ShadowMapPass: spot depth create failed 0x%08X", hr); return false; }
     m_spotDepth->SetName(L"ShadowMap_SpotDepth");
     m_spotReadable = false;
 
@@ -997,7 +997,7 @@ bool ShadowMapPass::ensurePointResources(uint32_t resolution){
     cd.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
     HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &cd,
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&m_pointCube));
-    if (FAILED(hr)){ LOG("ShadowMapPass: point cube create failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "ShadowMapPass: point cube create failed 0x%08X", hr); return false; }
     m_pointCube->SetName(L"ShadowMap_PointCube");
     m_pointReadable = true;
 
@@ -1011,7 +1011,7 @@ bool ShadowMapPass::ensurePointResources(uint32_t resolution){
     D3D12_CLEAR_VALUE cv = {}; cv.Format = DXGI_FORMAT_D32_FLOAT; cv.DepthStencil.Depth = 1.0f;
     hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &dd,
         D3D12_RESOURCE_STATE_DEPTH_WRITE, &cv, IID_PPV_ARGS(&m_pointDepth));
-    if (FAILED(hr)){ LOG("ShadowMapPass: point depth create failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "ShadowMapPass: point depth create failed 0x%08X", hr); return false; }
     m_pointDepth->SetName(L"ShadowMap_PointDepth");
 
     auto* rtd = app->getRTDescriptors();
@@ -1335,7 +1335,7 @@ bool ShadowMapPass::copyPreview(ID3D12GraphicsCommandList* cmd, int slice){
             &hp, D3D12_HEAP_FLAG_NONE, &dd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
             nullptr, IID_PPV_ARGS(&m_previewTex));
         if (FAILED(hr)){
-            LOG("ShadowMapPass: preview create failed 0x%08X", hr);
+            PHX_LOG(Render, Error, "ShadowMapPass: preview create failed 0x%08X", hr);
             return false;
         }
         m_previewTex->SetName(L"ShadowMap_Preview");

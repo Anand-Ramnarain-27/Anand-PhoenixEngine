@@ -1,10 +1,14 @@
 #pragma once
+// Base class of the editor's dockable panels.
+
 #include "EditorColors.h"
 #include <imgui.h>
 #include <string>
 
 class ModuleEditor;
 
+/// draw() opens the panel's window (getName() is its title and dock id) and calls drawContent(); `open` is
+/// the Window menu toggle. Also holds small text-colour helpers shared by the panels.
 class EditorPanel {
 public:
     explicit EditorPanel(ModuleEditor* editor) : m_editor(editor){}

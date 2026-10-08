@@ -448,3 +448,14 @@ cmake_install.cmake
 .claude/
 .claudeignore
 CLAUDE.md
+
+# Release export script: the "[Rr]elease/" build-output rule above would otherwise swallow it.
+!tools/release/
+!tools/release/**
+
+# Per-machine editor layout, rewritten by every editor session.
+Source/imgui.ini
+
+# Python bytecode
+__pycache__/
+*.pyc

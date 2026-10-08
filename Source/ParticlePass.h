@@ -1,4 +1,6 @@
 #pragma once
+// GPU particles: compute simulation and instanced drawing for ComponentParticleSystem with useGPU.
+
 #include <d3d12.h>
 #include <wrl.h>
 using Microsoft::WRL::ComPtr;
@@ -88,6 +90,7 @@ class ParticlePass {
 public:
     static constexpr UINT MAX_PARTICLES_PER_EMITTER = 4096;
     static constexpr UINT MAX_EMITTERS = 32;
+    static constexpr UINT CB_SLOTS_PER_FRAME = MAX_EMITTERS * 2 * 2;   // update + draw CB, Scene View + Game View
 
     bool init(ID3D12Device* device);
 

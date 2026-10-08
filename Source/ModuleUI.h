@@ -92,6 +92,17 @@ public:
 
     UIPass* getPass() const { return m_pass.get(); }
 
+    // The pointer over the game image (editor Game view or the player window) for scripts: 0..1 across it (x right,
+    // y down), whether it is over the image at all, and the mouse wheel this frame (notches, + = away from the user).
+    // Written once a frame by GameViewPanel / RuntimeCore's player loop; read through Phoenix::UI (inline only).
+    void setGamePointer(bool valid, const Vector2& normalized, float wheel){
+        m_gamePointerValid = valid;
+        m_gamePointer = normalized;
+        m_gameWheel = wheel;
+    }
+    bool getGamePointer(Vector2& normalized) const { normalized = m_gamePointer; return m_gamePointerValid; }
+    float getGameWheel() const { return m_gameWheel; }
+
     // One widget's gizmo geometry, in the same screen-pixel space renderUI draws into, refreshed every
     // renderUI/updateInteraction call whether or not anything reads it. Editor-only (a debug overlay tool).
     struct UIDebugRect {
@@ -168,4 +179,7 @@ private:
     bool m_textInputActive = false;
     std::string m_typed;
     EditKeys m_keys;
+    bool m_gamePointerValid = false;
+    Vector2 m_gamePointer = Vector2::Zero;
+    float m_gameWheel = 0.f;
 };

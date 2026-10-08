@@ -1,4 +1,6 @@
 #pragma once
+// 3D colour-grading LUT loaded from a .cube file, applied by the tonemap pass.
+
 #include "ShaderTableDesc.h"
 #include <d3d12.h>
 #include <wrl.h>

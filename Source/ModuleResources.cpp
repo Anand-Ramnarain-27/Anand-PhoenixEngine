@@ -39,14 +39,6 @@ std::string ModuleResources::getLibraryPath(UID uid) const{
     return it != m_registry.end() ? it->second.libraryPath : "";
 }
 
-// ModuleResources::RequestResource()/ReleaseResource()/RequestAnimation()/
-// CreateResourceFromUID() live in ModuleResourcesCore.cpp now - kept separate
-// so they can be linked into GameScript.dll (via PhoenixCore) without this
-// class's constructor/vtable (init()/cleanUp() are virtual overrides, and
-// cleanUp() calls StopAssetWatcher() below - GameScript.dll never
-// constructs/destroys a ModuleResources itself, only calls RequestAnimation
-// on an already-running instance via app->getResources()).
-
 ResourceMesh* ModuleResources::RequestMesh(UID uid){ return static_cast<ResourceMesh*>(RequestResource(uid)); }
 ResourceMaterial* ModuleResources::RequestMaterial(UID uid){ return static_cast<ResourceMaterial*>(RequestResource(uid)); }
 ResourceTexture* ModuleResources::RequestTexture(UID uid){ return static_cast<ResourceTexture*>(RequestResource(uid)); }
@@ -60,8 +52,6 @@ void ModuleResources::uploadPendingMeshes(ID3D12GraphicsCommandList* cmd, Module
         if (rm->getMesh() && !rm->isOnGPU()) rm->LoadInMemory(cmd, staticBuffer);
     }
 }
-
-// ModuleResources::CreateResourceFromUID() lives in ModuleResourcesCore.cpp now.
 
 void ModuleResources::StartAssetWatcher(){
     m_watcherRunning = true;
@@ -84,10 +74,10 @@ void ModuleResources::AssetWatcherLoop(){
                 std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
                 if (ext == kMetaExt) continue;
                 std::string path = entry.path().string();
-                if (app->getAssets()->needsReimport(path)){ LOG("ModuleResources: Watcher: reimporting %s", path.c_str()); app->getAssets()->importAsset(path.c_str()); }
+                if (app->getAssets()->needsReimport(path)){ PHX_LOG(Assets, Info, "ModuleResources: Watcher: reimporting %s", path.c_str()); app->getAssets()->importAsset(path.c_str()); }
             }
         }
-        catch (const std::exception& e){ LOG("ModuleResources: Watcher error: %s", e.what()); }
+        catch (const std::exception& e){ PHX_LOG(Assets, Error, "ModuleResources: Watcher error: %s", e.what()); }
         std::this_thread::sleep_for(std::chrono::seconds(2));
     }
 }

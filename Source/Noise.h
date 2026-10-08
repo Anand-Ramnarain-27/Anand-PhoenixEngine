@@ -1,4 +1,6 @@
 #pragma once
+// Hash-based gradient noise and fBm on the CPU (particle turbulence). Deterministic: same input, same output.
+
 #include "Globals.h"
 #include <cstdint>
 #include <cmath>
@@ -22,24 +24,7 @@ inline float hashToFloat01(uint32_t h){
     return float(h >> 8) * (1.0f / 16777216.0f);
 }
 
-inline float hermiteFade(float t){ return t * t * (3.0f - 2.0f * t); }
 inline float quinticFade(float t){ return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f); }
-
-inline float valueNoise1D(float x){
-    float i = std::floor(x);
-    float f = x - i;
-    float u = hermiteFade(f);
-    float a = hashToFloat01(hash((uint32_t)(int64_t)i));
-    float b = hashToFloat01(hash((uint32_t)(int64_t)i + 1u));
-    return lerpf(a, b, u);
-}
-
-inline float grad1D(int32_t xi){ return hashToFloat01(hash((uint32_t)xi)) * 2.0f - 1.0f; }
-
-inline Vector2 grad2D(int32_t xi, int32_t yi){
-    float angle = hashToFloat01(hash2((uint32_t)xi, (uint32_t)yi)) * kTau;
-    return Vector2(std::cos(angle), std::sin(angle));
-}
 
 inline Vector3 grad3D(int32_t xi, int32_t yi, int32_t zi){
     uint32_t h0 = hash3((uint32_t)xi, (uint32_t)yi, (uint32_t)zi);
@@ -49,35 +34,6 @@ inline Vector3 grad3D(int32_t xi, int32_t yi, int32_t zi){
     float phi = kTau * hashToFloat01(h1);
     return Vector3(std::cos(phi) * s, std::sin(phi) * s, c);
 }
-
-inline float gradientNoise1D(float x){
-    float i = std::floor(x);
-    float f = x - i;
-    int32_t ii = (int32_t)i;
-    float ga = grad1D(ii);
-    float gb = grad1D(ii + 1);
-    return lerpf(ga * f, gb * (f - 1.0f), hermiteFade(f));
-}
-
-inline float gradientNoise2D(float x, float y){
-    float ix = std::floor(x), iy = std::floor(y);
-    float fx = x - ix, fy = y - iy;
-    int32_t xi = (int32_t)ix, yi = (int32_t)iy;
-
-    Vector2 ga = grad2D(xi, yi);
-    Vector2 gb = grad2D(xi + 1, yi);
-    Vector2 gc = grad2D(xi, yi + 1);
-    Vector2 gd = grad2D(xi + 1, yi + 1);
-
-    float va = ga.x * fx + ga.y * fy;
-    float vb = gb.x * (fx - 1.f) + gb.y * fy;
-    float vc = gc.x * fx + gc.y * (fy - 1.f);
-    float vd = gd.x * (fx - 1.f) + gd.y * (fy - 1.f);
-
-    float ux = hermiteFade(fx), uy = hermiteFade(fy);
-    return lerpf(lerpf(va, vb, ux), lerpf(vc, vd, ux), uy);
-}
-inline float gradientNoise2D(const Vector2& p){ return gradientNoise2D(p.x, p.y); }
 
 inline float gradientNoise3D(float x, float y, float z){
     float ix = std::floor(x), iy = std::floor(y), iz = std::floor(z);
@@ -110,6 +66,7 @@ inline float gradientNoise3D(float x, float y, float z){
 }
 inline float gradientNoise3D(const Vector3& p){ return gradientNoise3D(p.x, p.y, p.z); }
 
+/// Fractal sum of `octaves` noise layers, each at twice the frequency and half the amplitude of the last.
 inline float fbm3D(const Vector3& p, int octaves = 5, float frequency = 0.1f, float amplitude = 0.5f){
     float value = 0.0f;
     for (int i = 0; i < octaves; ++i){
@@ -120,8 +77,9 @@ inline float fbm3D(const Vector3& p, int octaves = 5, float frequency = 0.1f, fl
     return value;
 }
 
+/// Maps a noise value (about -1..1) to an angle 0..2pi.
 inline float noiseToAngle(float n){
     return std::clamp(n * 0.5f + 0.5f, 0.0f, 1.0f) * kTau;
 }
 
-}
+} // namespace Noise

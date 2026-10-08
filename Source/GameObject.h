@@ -1,4 +1,6 @@
 #pragma once
+// A node in the scene hierarchy: a name, a tag, a transform, child objects and a list of components.
+
 #include "Component.h"
 #include <string>
 #include <vector>
@@ -7,11 +9,15 @@
 class ComponentTransform;
 struct ID3D12GraphicsCommandList;
 
+/// Scene node. Every GameObject has a ComponentTransform; other components are added with createComponent<T>()
+/// or addComponent(). Children are owned by the SceneGraph, not by their parent. The layout of this class is
+/// mirrored in GameScript's EngineDecls: don't reorder or add members without re-exporting.
 class GameObject {
 public:
     explicit GameObject(const std::string& name);
     ~GameObject();
 
+    /// Updates this object's components, then its children's, when active.
     void update(float deltaTime);
     void render(ID3D12GraphicsCommandList* cmd);
 
@@ -22,6 +28,8 @@ public:
 
     ComponentTransform* getTransform() const { return transform; }
 
+    /// Constructs a T owned by this object. Only types with an explicit instantiation (GameObject.cpp,
+    /// GameObjectComponentFactories.cpp) link.
     template<typename T, typename... Args>
     T* createComponent(Args&&... args);
 

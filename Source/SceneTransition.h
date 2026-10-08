@@ -1,4 +1,6 @@
 #pragma once
+// The faded level-transition controller (fade out, blocking load, warm-up, fade in).
+
 #include <chrono>
 #include <cstddef>
 #include <string>
@@ -6,27 +8,27 @@
 class RuntimeCore;
 class SceneManager;
 
-// Runs the faded level change asked for through Phoenix::Scene::RequestLevelTransition. The state it drives is
-// SceneManager::getTransition(), which scripts read through Phoenix::Scene:
-//
-//   Idle -> FadingOut -> HoldBlack -> Loading -> WarmUp -> FadingIn -> Idle
-//
-// FadingOut ramps the black overlay (ModuleUI::renderTransitionFade) to 1. HoldBlack waits one whole frame at
-// full black, so the frame on screen during the load is a black one. Loading swaps the scene in one blocking
-// call. WarmUp keeps the screen black while the new level spawns its player, camera and HUD (the level calls
-// NotifyTransitionReady) and a few frames render behind the overlay; FadingIn ramps it back to 0 and releases
-// player input.
-//
-// RuntimeCore::tick() calls update() once per frame, after the scene update and before anything is recorded
-// for rendering, so the swap always happens at a frame boundary - including when the request came from a
-// script's trigger callback. Timings: Assets/Settings/scene_transition.json (defaults below if absent), re-read
-// at the start of every transition. Load and warm-up times go to the log and to scene_transitions.log in the
-// working directory.
-//
-// Engine-only (Engine and Player projects), never linked into GameScript.dll.
+/// Runs the faded level change asked for through Phoenix::Scene::RequestLevelTransition. The state it drives is
+/// SceneManager::getTransition(), which scripts read through Phoenix::Scene:
+///
+///   Idle -> FadingOut -> HoldBlack -> Loading -> WarmUp -> FadingIn -> Idle
+///
+/// FadingOut ramps the black overlay (ModuleUI::renderTransitionFade) to 1. HoldBlack waits one whole frame at
+/// full black, so the frame on screen during the load is a black one. Loading swaps the scene in one blocking
+/// call. WarmUp keeps the screen black while the new level spawns its player, camera and HUD (the level calls
+/// NotifyTransitionReady) and a few frames render behind the overlay; FadingIn ramps it back to 0 and releases
+/// player input.
+///
+/// RuntimeCore::tick() calls update() once per frame, after the scene update and before anything is recorded
+/// for rendering, so the swap always happens at a frame boundary - including when the request came from a
+/// script's trigger callback. Timings: Assets/Settings/scene_transition.json (defaults below if absent), re-read
+/// at the start of every transition. Load and warm-up times go to the log and to scene_transitions.log in the
+/// working directory.
+///
+/// Engine-only (Engine and Player projects), never linked into GameScript.dll.
 class SceneTransition {
 public:
-    // Returns true on the tick that loaded the new scene: the next frame's delta includes the load.
+    /// Returns true on the tick that loaded the new scene: the next frame's delta includes the load.
     bool update(SceneManager& sm, RuntimeCore& rc);
 
 private:

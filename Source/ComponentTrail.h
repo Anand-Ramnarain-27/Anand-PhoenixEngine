@@ -1,4 +1,6 @@
 #pragma once
+// Ribbon trail that follows a GameObject (sword swings, projectiles).
+
 #include "Component.h"
 #include "Globals.h"
 #include "CurveWidget.h"
@@ -6,6 +8,8 @@
 #include <string>
 #include <deque>
 
+/// Records points as the owner moves and builds a camera-facing ribbon from them, optionally smoothed with
+/// Catmull-Rom. Drawn by TrailPass.
 class ComponentTrail : public Component {
 public:
     enum class BlendMode {
@@ -62,6 +66,7 @@ public:
 
     void clear(){ m_points.clear(); m_orbitInitialized = false; }
 
+    /// Triangle-list vertices for the current points, facing `camPos`; false when there is nothing to draw.
     bool buildMesh(const Vector3& camPos, std::vector<TrailVertex>& outVertices) const;
 
 private:

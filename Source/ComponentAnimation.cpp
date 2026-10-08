@@ -116,14 +116,6 @@ void ComponentAnimation::clearLayers(){
     m_layerHead = nullptr;
 }
 
-// ComponentAnimation::pushLayer() lives in ComponentAnimationTrigger.cpp now
-// (alongside SendTrigger(), its only caller that GameScript.dll needs) - kept
-// separate from this file's ctor/onEditor()/onDrawGizmos()/update() so it can
-// be linked into GameScript.dll (via PhoenixCore) without ImGui, the
-// debug-draw gizmo library, or this class's vtable (GameScript.dll never
-// constructs a ComponentAnimation itself, only calls a method on one that
-// already exists).
-
 void ComponentAnimation::OnPlay(UID uid, bool loop){
     clearLayers();
     m_controller.Play(uid, loop);
@@ -148,13 +140,11 @@ void ComponentAnimation::OnPlay(){
     pushLayer(clip->animationUID, 0.f, clip->loop);
 }
 
-// ComponentAnimation::SendTrigger() lives in ComponentAnimationTrigger.cpp now.
-
 void ComponentAnimation::LoadStateMachineFromPath(const std::string& path){
     if (path.empty()) return;
     auto sm = std::make_unique<ResourceStateMachine>(0);
     if (!sm->Load(path)){
-        LOG("ComponentAnimation: failed to load SM from '%s'", path.c_str());
+        PHX_LOG(Scene, Error, "ComponentAnimation: failed to load SM from '%s'", path.c_str());
         return;
     }
     m_ownedStateMachine = std::move(sm);
@@ -198,7 +188,7 @@ void ComponentAnimation::update(float deltaTime){
         const float dtMs = deltaTime * 1000.f;
 
         for (AnimLayer* l = m_layerHead; l; l = l->next){
-            l->currentTimeMs += dtMs * mSpeed;
+            l->currentTimeMs += dtMs * speed;
             if (l->anim){
                 const float durMs = l->anim->getDuration() * 1000.f;
                 if (durMs > 0.f){
@@ -231,9 +221,11 @@ void ComponentAnimation::update(float deltaTime){
             for (auto* child : owner->getChildren())
                 applyAnimation(child);
 
+        // Once a second, the morph weights of every mesh under this object (diagnostics; skipped unless shown).
         m_logTimer += deltaTime;
         if (m_logTimer >= 1.f){
             m_logTimer = 0.f;
+            if (!PhoenixLog::isEnabled(LogCategory::Scene, LogLevel::Verbose)) return;
             std::function<void(GameObject*)> logWeights = [&](GameObject* go){
                 if (auto* cm = go->getComponent<ComponentMesh>()){
                     const auto& entries = cm->getEntries();
@@ -246,7 +238,7 @@ void ComponentAnimation::update(float deltaTime){
                                 ws += std::to_string(w[i]);
                                 if (i + 1 < n && i + 1 < 8) ws += ", ";
                             }
-                            LOG("ComponentAnimation '%s': node='%s' morph weights=[%s]",
+                            PHX_LOG(Scene, Verbose, "ComponentAnimation '%s': node='%s' morph weights=[%s]",
                                 owner->getName().c_str(), go->getName().c_str(), ws.c_str());
                         }
                     }
@@ -596,7 +588,7 @@ void ComponentAnimation::onSave(std::string& outJson) const{
     doc.AddMember("loop", Value(m_controller.Loop), a);
     doc.AddMember("playing", Value(m_controller.isPlaying()), a);
     doc.AddMember("currentTime", Value(m_controller.CurrentTime), a);
-    doc.AddMember("speed", Value(mSpeed), a);
+    doc.AddMember("speed", Value(speed), a);
     doc.AddMember("smPath", Value(m_stateMachinePath.c_str(), a), a);
 
     Value uids(kArrayType);
@@ -609,7 +601,7 @@ void ComponentAnimation::onSave(std::string& outJson) const{
 
 void ComponentAnimation::onLoad(const std::string& json){
     Document doc; doc.Parse(json.c_str());
-    if (doc.HasParseError()){ LOG("ComponentAnimation: JSON parse error"); return; }
+    if (doc.HasParseError()){ PHX_LOG(Scene, Error, "ComponentAnimation: JSON parse error"); return; }
 
     if (doc.HasMember("animUIDs") && doc["animUIDs"].IsArray()){
         std::vector<UID> uids;
@@ -627,7 +619,7 @@ void ComponentAnimation::onLoad(const std::string& json){
     bool loop = doc.HasMember("loop") ? doc["loop"].GetBool() : false;
     bool playing = doc.HasMember("playing") ? doc["playing"].GetBool() : false;
     float time = doc.HasMember("currentTime") ? doc["currentTime"].GetFloat() : 0.f;
-    mSpeed = doc.HasMember("speed") ? doc["speed"].GetFloat() : 1.f;
+    speed = doc.HasMember("speed") ? doc["speed"].GetFloat() : 1.f;
 
     if (uid != 0){
         m_controller.Play(uid, loop);

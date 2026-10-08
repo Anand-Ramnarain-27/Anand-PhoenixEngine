@@ -1,4 +1,6 @@
 #pragma once
+// Line list for the editor's camera-frustum visualisation (ModuleCamera).
+
 #include "Frustum.h"
 #include <vector>
 
@@ -37,20 +39,5 @@ public:
         addLine(c[CI::FBR], c[CI::FBL], color); addLine(c[CI::FBL], c[CI::FTL], color);
         addLine(c[CI::NTL], c[CI::FTL], color); addLine(c[CI::NTR], c[CI::FTR], color);
         addLine(c[CI::NBL], c[CI::FBL], color); addLine(c[CI::NBR], c[CI::FBR], color);
-    }
-
-    void addAABB(const Vector3& mn, const Vector3& mx, const Vector3& color){
-        addLine({ mn.x, mn.y, mn.z }, { mx.x, mn.y, mn.z }, color);
-        addLine({ mx.x, mn.y, mn.z }, { mx.x, mn.y, mx.z }, color);
-        addLine({ mx.x, mn.y, mx.z }, { mn.x, mn.y, mx.z }, color);
-        addLine({ mn.x, mn.y, mx.z }, { mn.x, mn.y, mn.z }, color);
-        addLine({ mn.x, mx.y, mn.z }, { mx.x, mx.y, mn.z }, color);
-        addLine({ mx.x, mx.y, mn.z }, { mx.x, mx.y, mx.z }, color);
-        addLine({ mx.x, mx.y, mx.z }, { mn.x, mx.y, mx.z }, color);
-        addLine({ mn.x, mx.y, mx.z }, { mn.x, mx.y, mn.z }, color);
-        addLine({ mn.x, mn.y, mn.z }, { mn.x, mx.y, mn.z }, color);
-        addLine({ mx.x, mn.y, mn.z }, { mx.x, mx.y, mn.z }, color);
-        addLine({ mx.x, mn.y, mx.z }, { mx.x, mx.y, mx.z }, color);
-        addLine({ mn.x, mn.y, mx.z }, { mn.x, mx.y, mx.z }, color);
     }
 };

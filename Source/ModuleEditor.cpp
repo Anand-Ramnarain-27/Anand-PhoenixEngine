@@ -1,5 +1,6 @@
 ﻿#include "Globals.h"
 #include "ModuleEditor.h"
+#include "ComponentScript.h"
 #include "Application.h"
 #include "RuntimeCore.h"
 #include <ole2.h>
@@ -49,6 +50,7 @@
 #include "GameViewPanel.h"
 #include "HierarchyPanel.h"
 #include "InspectorPanel.h"
+#include "AshfallDataPanel.h"
 #include "AssetBrowserPanel.h"
 #include "SceneSettingsPanel.h"
 #include "PostProcessPanel.h"
@@ -77,16 +79,20 @@ namespace fs = std::filesystem;
 ModuleEditor::ModuleEditor() = default;
 ModuleEditor::~ModuleEditor() = default;
 
-ComPtr<ID3D12Resource> ModuleEditor::createUploadBuffer(ID3D12Device* device, SIZE_T size, const wchar_t* name){
-    auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-    auto bd = CD3DX12_RESOURCE_DESC::Buffer((size + 255) & ~255);
-    ComPtr<ID3D12Resource> buf;
-    device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buf));
-    if (name) buf->SetName(name);
-    return buf;
+namespace {
+// Routed PHX_LOG messages, handed over on the main thread by PhoenixLog::drainConsole().
+void consoleSink(LogLevel level, const char* text){
+    if (!app || !app->getEditor()) return;
+    ImVec4 color = EditorColors::White;
+    if (level == LogLevel::Error) color = EditorColors::Danger;
+    else if (level == LogLevel::Warning) color = EditorColors::Warning;
+    else if (level == LogLevel::Verbose) color = EditorColors::Muted;
+    app->getEditor()->log(text, color);
+}
 }
 
 bool ModuleEditor::init(){
+    PhoenixLog::setConsoleSink(&consoleSink);
     ModuleD3D12* d3d12 = app->getD3D12();
     ModuleShaderDescriptors* descs = app->getShaderDescriptors();
     ID3D12Device* device = d3d12->getDevice();
@@ -138,6 +144,7 @@ bool ModuleEditor::init(){
     m_gameView = addPanel<GameViewPanel>(this);
     addPanel<HierarchyPanel>(this);
     addPanel<InspectorPanel>(this);
+    addPanel<AshfallDataPanel>(this);
     m_console = addPanel<ConsolePanel>(this);
     m_performance = addPanel<PerformancePanel>(this);
     m_assetBrowser = addPanel<AssetBrowserPanel>(this);
@@ -167,6 +174,7 @@ bool ModuleEditor::init(){
 }
 
 bool ModuleEditor::cleanUp(){
+    PhoenixLog::setConsoleSink(nullptr);
     DragDropManager::Get().Shutdown();
 
     if (m_dropTarget){
@@ -191,7 +199,6 @@ SceneGraph* ModuleEditor::getActiveModuleScene() const{
 }
 
 SceneManager* ModuleEditor::getSceneManager() const{ return app->getRuntimeCore()->getSceneManager(); }
-ForwardMeshPass* ModuleEditor::getMeshRenderPass() const{ return app->getRuntimeCore()->getMeshRenderPass(); }
 MeshPipeline* ModuleEditor::getMeshPipeline() const{ return app->getRuntimeCore()->getMeshPipeline(); }
 EnvironmentSystem* ModuleEditor::getEnvSystem() const{ return app->getRuntimeCore()->getEnvSystem(); }
 DebugDrawPass* ModuleEditor::getDebugDraw() const{ return app->getRuntimeCore()->getDebugDraw(); }
@@ -260,6 +267,12 @@ void ModuleEditor::stopPlay(){
     m_undoStack.clear();
     m_redoStack.clear();
     m_savePointIndex = 0;
+    // Script fields kept with "Keep changes" during Play go back on now that the scene is restored.
+    if (const int kept = ComponentScript::applyKeptChanges(getActiveModuleScene())){
+        m_savePointIndex = -1;   // modified: save the scene to keep them
+        log(("Kept Play-mode field changes on " + std::to_string(kept) + " script(s) - save the scene to keep them").c_str(),
+            EditorColors::Success);
+    }
 }
 
 

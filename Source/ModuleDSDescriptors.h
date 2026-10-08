@@ -1,4 +1,5 @@
 #pragma once
+// CPU heap of depth-stencil views.
 
 #include "ModuleDescriptorsBase.h"
 #include "DepthStencilDesc.h"

@@ -38,14 +38,14 @@ bool Model::load(const char* fileName, ID3D12GraphicsCommandList* cmd, ModuleSta
     bool meshFolderExists = app->getFileSystem()->Exists(meshFolder.c_str());
 
     if (!meshFolderExists){
-        LOG("Model: importing %s", fileName);
-        if (!importFromGLTF(fileName)){ LOG("Model: Failed to import %s", fileName); return false; }
+        PHX_LOG(Render, Verbose, "Model: importing %s", fileName);
+        if (!importFromGLTF(fileName)){ PHX_LOG(Render, Error, "Model: Failed to import %s", fileName); return false; }
     }
     else {
         SceneImporter::SceneHeader sceneHeader;
         if (SceneImporter::LoadSceneMetadata(modelName, sceneHeader)){
             if (materialsNeedReimport(matFolder, sceneHeader.materialCount)){
-                LOG("Model: Material cache outdated, re-importing %s", fileName);
+                PHX_LOG(Render, Info, "Model: Material cache outdated, re-importing %s", fileName);
                 importFromGLTF(fileName);
             }
         }
@@ -59,10 +59,10 @@ bool Model::importFromGLTF(const char* fileName){
     tinygltf::Model gltfModel;
     std::string error, warning;
     if (!loader.LoadASCIIFromFile(&gltfModel, &error, &warning, fileName)){
-        LOG("Model: Failed to load GLTF: %s", error.c_str());
+        PHX_LOG(Render, Error, "Model: Failed to load GLTF: %s", error.c_str());
         return false;
     }
-    if (!warning.empty()) LOG("Model: GLTF Warning: %s", warning.c_str());
+    if (!warning.empty()) PHX_LOG(Render, Warning, "Model: GLTF Warning: %s", warning.c_str());
     std::string baseDir = std::filesystem::path(fileName).parent_path().string();
     for (char& c : baseDir) if (c == '\\') c = '/';
     baseDir += '/';
@@ -71,11 +71,11 @@ bool Model::importFromGLTF(const char* fileName){
 
 bool Model::loadFromLibrary(const std::string& folder, ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer){
     ModuleFileSystem* fs = app->getFileSystem();
-    if (!fs->Exists(folder.c_str())){ LOG("Model: Folder does not exist: %s", folder.c_str()); return false; }
+    if (!fs->Exists(folder.c_str())){ PHX_LOG(Render, Warning, "Model: Folder does not exist: %s", folder.c_str()); return false; }
 
     SceneImporter::SceneHeader header;
     if (!SceneImporter::LoadSceneMetadata(std::filesystem::path(folder).filename().string(), header)){
-        LOG("Model: Failed to load scene metadata");
+        PHX_LOG(Render, Error, "Model: Failed to load scene metadata");
         return false;
     }
 
@@ -86,7 +86,7 @@ bool Model::loadFromLibrary(const std::string& folder, ID3D12GraphicsCommandList
         std::unique_ptr<Mesh> mesh;
         std::string meshFile = ImporterUtils::IndexedPath(folder, i, ".mesh");
         if (MeshImporter::Load(meshFile, cmd, staticBuffer, mesh)) m_meshes.push_back(std::move(mesh));
-        else LOG("Failed to load mesh: %s", meshFile.c_str());
+        else PHX_LOG(Render, Error, "Failed to load mesh: %s", meshFile.c_str());
     }
 
     std::string matFolder = fs->GetLibraryPath() + "Materials/" + std::filesystem::path(folder).filename().string();
@@ -94,12 +94,12 @@ bool Model::loadFromLibrary(const std::string& folder, ID3D12GraphicsCommandList
         std::unique_ptr<Material> material;
         std::string matFile = ImporterUtils::IndexedPath(matFolder, i, ".mat");
         if (MaterialImporter::Load(matFile, material)) m_materials.push_back(std::move(material));
-        else { LOG("Failed to load material: %s", matFile.c_str()); m_materials.push_back(std::make_unique<Material>()); }
+        else { PHX_LOG(Render, Error, "Failed to load material: %s", matFile.c_str()); m_materials.push_back(std::make_unique<Material>()); }
     }
 
     while (m_materials.size() < m_meshes.size()) m_materials.push_back(std::make_unique<Material>());
 
-    LOG("Model: Loaded %d meshes, %d materials from %s", (int)m_meshes.size(), (int)m_materials.size(), folder.c_str());
+    PHX_LOG(Render, Verbose, "Model: Loaded %d meshes, %d materials from %s", (int)m_meshes.size(), (int)m_materials.size(), folder.c_str());
     return !m_meshes.empty();
 }
 

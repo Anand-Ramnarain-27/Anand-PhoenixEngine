@@ -1,16 +1,20 @@
 #pragma once
+// Waypoint-graph path finding for scripts.
+
 #include "API/Phoenix_Types.h"
 #include <string>
 #include <vector>
 
 namespace Phoenix {
 
+/// Path queries on the scene's waypoint graphs. FindPath fills `outPath` with waypoints from start to end and
+/// returns false when no path exists.
 struct Navigation {
-    // Uses the scene's active waypoint graph.
+    /// Uses the scene's active waypoint graph.
     static bool FindPath(Vec3 start, Vec3 end, std::vector<Vec3>& outPath);
     static bool IsWalkable(Vec3 point);
 
-    // Additional named graphs alongside the active one (climb anchors, burrow islands, etc).
+    /// Additional named graphs alongside the active one (climb anchors, burrow islands, etc).
     static bool LoadGraph(const std::string& name, const std::string& path);
     static bool FindPathNamed(const std::string& name, Vec3 start, Vec3 end, std::vector<Vec3>& outPath);
     static bool IsWalkableNamed(const std::string& name, Vec3 point);

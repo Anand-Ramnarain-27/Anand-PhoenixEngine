@@ -1,4 +1,6 @@
 #pragma once
+// Ray-marched volumetric fog with light scattering.
+
 #include "ShaderTableDesc.h"
 #include "ShadowMapPass.h"
 #include "MeshPipeline.h"

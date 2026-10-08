@@ -89,7 +89,7 @@ void RenderOctree::build(){
     m_root->region = root;
     m_root->depth = 0;
     for (uint32_t i = 0; i < (uint32_t)m_pending.size(); ++i)
-        m_root->insert(i, m_pending[i].worldAABB, m_pending, NODE_CAPACITY, MAX_DEPTH);
+        m_root->insert(i, m_pending[i].worldAABB, m_pending, kNodeCapacity, kMaxDepth);
 
     m_root->countStats(m_nodeCount, m_leafCount);
 }

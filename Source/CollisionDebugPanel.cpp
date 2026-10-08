@@ -23,6 +23,26 @@ void CollisionDebugPanel::drawContent(){
     float winW = ImGui::GetContentRegionAvail().x;
     float leftW = winW * 0.6f;
 
+    drawTimingTable(r, leftW);
+    ImGui::SameLine(leftW + 20.f);
+    drawDebugToggles(s);
+
+    ImGui::Separator();
+
+    drawBroadPhaseControls(cs);
+    drawPipelineStats(cs, r);
+
+    if (r.contacts.empty()){
+        ImGui::Spacing();
+        textMuted("No contacts.");
+        return;
+    }
+
+    drawContacts(r);
+}
+
+/// Per-phase pair counts and timings, as a table `leftW` wide.
+void CollisionDebugPanel::drawTimingTable(const CollisionResults& r, float leftW){
     ImGui::BeginGroup();
 
     ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
@@ -31,7 +51,6 @@ void CollisionDebugPanel::drawContent(){
     ImGui::Spacing();
 
     struct PhaseRow { const char* phase; const char* impl; uint32_t pairs; float gpuMs; float cpuMs; };
-    float totalGpu = r.broadPhaseMs;
     PhaseRow rows[] = {
         { "Broad", "(SAP grid)", r.broadCount, r.broadPhaseMs, r.broadPhaseMs * 2.1f },
         { "Mid", "(AABB tree)", r.midCount, r.broadPhaseMs * 0.45f, r.broadPhaseMs * 0.7f },
@@ -108,8 +127,9 @@ void CollisionDebugPanel::drawContent(){
         ImGui::EndTable();
     }
     ImGui::EndGroup();
+}
 
-    ImGui::SameLine(leftW + 20.f);
+void CollisionDebugPanel::drawDebugToggles(EditorSceneSettings* s){
     ImGui::BeginGroup();
 
     ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
@@ -125,9 +145,10 @@ void CollisionDebugPanel::drawContent(){
             ImGui::Checkbox("Camera Frustum", &cam->debugDrawEditorFrustum);
     }
     ImGui::EndGroup();
+}
 
-    ImGui::Separator();
-
+/// Broad-phase picker plus the active implementation's tuning (grid cell size, octree capacity / depth).
+void CollisionDebugPanel::drawBroadPhaseControls(CollisionSystem* cs){
     ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
     ImGui::TextUnformatted("BROAD PHASE");
     ImGui::PopStyleColor();
@@ -174,7 +195,9 @@ void CollisionDebugPanel::drawContent(){
             ImGui::SetTooltip("Hard limit on tree depth.\n"
                               "Depth 6 ≈ 8^6 = 262 144 possible leaf nodes.");
     }
+}
 
+void CollisionDebugPanel::drawPipelineStats(CollisionSystem* cs, const CollisionResults& r){
     ImGui::SeparatorText("Pipeline  (this frame)");
 
     {
@@ -200,13 +223,9 @@ void CollisionDebugPanel::drawContent(){
     if (anyHit) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.35f, 0.35f, 1.f));
     ImGui::Text("Narrow phase confirmed hits  : %u", r.narrowCount);
     if (anyHit) ImGui::PopStyleColor();
+}
 
-    if (r.contacts.empty()){
-        ImGui::Spacing();
-        textMuted("No contacts.");
-        return;
-    }
-
+void CollisionDebugPanel::drawContacts(const CollisionResults& r){
     ImGui::SeparatorText("Contacts");
     ImGui::BeginChild("##contacts", ImVec2(0, 0), false);
     for (uint32_t i = 0; i < static_cast<uint32_t>(r.contacts.size()); ++i){

@@ -64,8 +64,8 @@ bool BuildSettings::Save(const std::string& filePath) const{
         doc.Accept(writer);
         return app->getFileSystem()->Save(filePath.c_str(), sb.GetString(), (unsigned)sb.GetSize());
     }
-    catch (const std::exception& e){ LOG("BuildSettings: Save exception: %s", e.what()); return false; }
-    catch (...){ LOG("BuildSettings: Unknown save exception"); return false; }
+    catch (const std::exception& e){ PHX_LOG(Core, Error, "BuildSettings: Save exception: %s", e.what()); return false; }
+    catch (...){ PHX_LOG(Core, Error, "BuildSettings: Unknown save exception"); return false; }
 }
 
 int BuildSettings::getBuildIndex(const std::string& scenePath) const{

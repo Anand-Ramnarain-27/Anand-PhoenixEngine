@@ -1,4 +1,6 @@
 #pragma once
+// One drawable mesh + material pair, as gathered for a frame.
+
 #include "ResourceCommon.h"
 #include "Material.h"
 #include <SimpleMath.h>

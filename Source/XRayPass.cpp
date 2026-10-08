@@ -45,7 +45,7 @@ namespace {
                           ComPtr<ID3D12RootSignature>& out, const char* who){
         ComPtr<ID3DBlob> blob, err;
         if (FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))){
-            LOG("XRayPass: %s root signature serialise failed: %s", who, err ? (char*)err->GetBufferPointer() : "unknown error");
+            PHX_LOG(Render, Error, "XRayPass: %s root signature serialise failed: %s", who, err ? (char*)err->GetBufferPointer() : "unknown error");
             return false;
         }
         return SUCCEEDED(device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&out)));
@@ -54,14 +54,14 @@ namespace {
 
 bool XRayPass::init(ID3D12Device* device){
     if (!createMaskPipeline(device)){
-        LOG("XRayPass: mask pipeline creation failed");
+        PHX_LOG(Render, Error, "XRayPass: mask pipeline creation failed");
         return false;
     }
     if (!createCompositePipeline(device)){
-        LOG("XRayPass: composite pipeline creation failed");
+        PHX_LOG(Render, Error, "XRayPass: composite pipeline creation failed");
         return false;
     }
-    LOG("XRayPass: init OK");
+    PHX_LOG(Render, Info, "XRayPass: init OK");
     return true;
 }
 
@@ -227,7 +227,7 @@ void XRayPass::render(ID3D12GraphicsCommandList* cmd, GBufferPass& gbufferPass,
     const D3D12_VIEWPORT vp = { 0.f, 0.f, float(width), float(height), 0.f, 1.f };
     const D3D12_RECT sc = { 0, 0, LONG(width), LONG(height) };
 
-    // --- Mask ---------------------------------------------------------------------------------------
+    // 1. Mask (see XRayPass.h).
     BEGIN_EVENT(cmd, L"XRay Mask");
 
     if (mask.state != D3D12_RESOURCE_STATE_RENDER_TARGET){
@@ -277,7 +277,7 @@ void XRayPass::render(ID3D12GraphicsCommandList* cmd, GBufferPass& gbufferPass,
 
     END_EVENT(cmd);
 
-    // --- Composite ----------------------------------------------------------------------------------
+    // 2. Composite.
     BEGIN_EVENT(cmd, L"XRay Composite");
 
     CompositeConstants cc;

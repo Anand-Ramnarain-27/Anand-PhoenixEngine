@@ -1,4 +1,6 @@
 #pragma once
+// Loads script DLLs (GameScript.dll), creates scripts by class name and reloads them on rebuild.
+
 #include "IScript.h"
 #include "IScriptFactory.h"
 #include <string>
@@ -34,6 +36,12 @@ public:
     void setReloadCallback(ReloadCallback cb){ m_reloadCb = std::move(cb); }
 
     bool isLoaded(const std::string& dllPath) const;
+
+    /// A data file changed in the editor while playing (Ashfall Data window): hands `assetPath` ("Assets/...") and
+    /// the file's new text to every script DLL exporting
+    ///   extern "C" void PhoenixScripts_OnDataChanged(const char* assetPath, const char* text);
+    /// Returns how many DLLs took it.
+    int notifyDataChanged(const std::string& assetPath, const std::string& text) const;
 
 private:
     void clearUIListeners();

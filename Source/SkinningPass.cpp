@@ -33,7 +33,7 @@ bool SkinningPass::createBuffers(ID3D12Device* device){
         auto bd = CD3DX12_RESOURCE_DESC::Buffer(sz);
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
             D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_upload));
-        if (FAILED(hr)){ LOG("SkinningPass: upload buffer failed 0x%08X", hr); return false; }
+        if (FAILED(hr)){ PHX_LOG(Render, Error, "SkinningPass: upload buffer failed 0x%08X", hr); return false; }
         m_upload->SetName(L"SkinningUpload");
         m_upload->Map(0, nullptr, reinterpret_cast<void**>(&m_uploadMapped));
     }
@@ -47,7 +47,7 @@ bool SkinningPass::createBuffers(ID3D12Device* device){
             auto bd = CD3DX12_RESOURCE_DESC::Buffer(paletteSz);
             HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                 D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_palettes[i]));
-            if (FAILED(hr)){ LOG("SkinningPass: palette[%d] failed 0x%08X", i, hr); return false; }
+            if (FAILED(hr)){ PHX_LOG(Render, Error, "SkinningPass: palette[%d] failed 0x%08X", i, hr); return false; }
             wchar_t name[32]; swprintf_s(name, L"SkinPalette[%d]", i);
             m_palettes[i]->SetName(name);
             m_paletteStates[i] = D3D12_RESOURCE_STATE_COPY_DEST;
@@ -58,7 +58,7 @@ bool SkinningPass::createBuffers(ID3D12Device* device){
             auto bd = CD3DX12_RESOURCE_DESC::Buffer(paletteSz);
             HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                 D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_paletteNormals[i]));
-            if (FAILED(hr)){ LOG("SkinningPass: paletteNormal[%d] failed 0x%08X", i, hr); return false; }
+            if (FAILED(hr)){ PHX_LOG(Render, Error, "SkinningPass: paletteNormal[%d] failed 0x%08X", i, hr); return false; }
             wchar_t name[40]; swprintf_s(name, L"SkinPaletteNormal[%d]", i);
             m_paletteNormals[i]->SetName(name);
             m_paletteNormalStates[i] = D3D12_RESOURCE_STATE_COPY_DEST;
@@ -70,7 +70,7 @@ bool SkinningPass::createBuffers(ID3D12Device* device){
                 D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
             HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                 D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, nullptr, IID_PPV_ARGS(&m_outputs[i]));
-            if (FAILED(hr)){ LOG("SkinningPass: output[%d] failed 0x%08X", i, hr); return false; }
+            if (FAILED(hr)){ PHX_LOG(Render, Error, "SkinningPass: output[%d] failed 0x%08X", i, hr); return false; }
             wchar_t name[32]; swprintf_s(name, L"SkinOutput[%d]", i);
             m_outputs[i]->SetName(name);
         }
@@ -81,7 +81,7 @@ bool SkinningPass::createBuffers(ID3D12Device* device){
         auto bd = CD3DX12_RESOURCE_DESC::Buffer(256);
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
             D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&m_dummyBuffer));
-        if (FAILED(hr)){ LOG("SkinningPass: dummy buffer failed 0x%08X", hr); return false; }
+        if (FAILED(hr)){ PHX_LOG(Render, Error, "SkinningPass: dummy buffer failed 0x%08X", hr); return false; }
         m_dummyBuffer->SetName(L"SkinDummy");
     }
 
@@ -107,13 +107,13 @@ bool SkinningPass::createPipeline(ID3D12Device* device){
         HRESULT hr = D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1,
             &blob, &error);
         if (FAILED(hr)){
-            if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
-            LOG("SkinningPass: SerializeRootSignature failed 0x%08X", hr);
+            if (error) PHX_LOG(Render, Error, "%s", static_cast<char*>(error->GetBufferPointer()));
+            PHX_LOG(Render, Error, "SkinningPass: SerializeRootSignature failed 0x%08X", hr);
             return false;
         }
         hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
             IID_PPV_ARGS(&m_rootSig));
-        if (FAILED(hr)){ LOG("SkinningPass: CreateRootSignature failed 0x%08X", hr); return false; }
+        if (FAILED(hr)){ PHX_LOG(Render, Error, "SkinningPass: CreateRootSignature failed 0x%08X", hr); return false; }
     }
 
     {
@@ -123,7 +123,7 @@ bool SkinningPass::createPipeline(ID3D12Device* device){
         desc.CS = { cs.data(), cs.size() };
         HRESULT hr = device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&m_pso));
         if (FAILED(hr)){
-            LOG("SkinningPass: CreateComputePipelineState failed 0x%08X", hr);
+            PHX_LOG(Render, Error, "SkinningPass: CreateComputePipelineState failed 0x%08X", hr);
             return false;
         }
     }
@@ -158,7 +158,7 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
                     static bool s_tposeLogged = false;
                     if (!s_tposeLogged){
                         s_tposeLogged = true;
-                        LOG("[TposeCheck] Palette[0] r0: %.3f %.3f %.3f %.3f  r3: %.3f %.3f %.3f %.3f",
+                        PHX_LOG(Render, Verbose, "[TposeCheck] Palette[0] r0: %.3f %.3f %.3f %.3f  r3: %.3f %.3f %.3f %.3f",
                             m._11, m._12, m._13, m._14,
                             m._41, m._42, m._43, m._44);
                     }
@@ -236,7 +236,7 @@ void SkinningPass::dispatch(ID3D12GraphicsCommandList* cmd,
         const D3D12_GPU_VIRTUAL_ADDRESS morphVtxRaw = hasMorph ? job.mesh->getMorphTargetBufferVA() : 0;
         const bool validMorph = hasMorph && (morphVtxRaw != 0);
         if (hasMorph && !validMorph)
-            LOG("SkinningPass: getMorphTargetBufferVA()==0 — morph disabled this frame (buffer still uploading?)");
+            PHX_LOG(Render, Warning, "SkinningPass: getMorphTargetBufferVA()==0 — morph disabled this frame (buffer still uploading?)");
         const D3D12_GPU_VIRTUAL_ADDRESS morphVtxVA = validMorph ? morphVtxRaw : dummyVA;
         const D3D12_GPU_VIRTUAL_ADDRESS morphWgtVA = validMorph
             ? m_palettes[frameIndex]->GetGPUVirtualAddress() + jointSz + UINT64(job.morphWeightOffset) * sizeof(float)

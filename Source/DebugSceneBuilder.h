@@ -1,4 +1,6 @@
 #pragma once
+// Animation test scene: a character + face model driven by a state machine, and a check of its setup.
+
 #include <string>
 
 class SceneGraph;

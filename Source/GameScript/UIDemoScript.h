@@ -1,10 +1,12 @@
 #pragma once
+// Sample script for the UI API.
+
 #include "IScript.h"
 #include "ScriptExport.h"
 #include "API/Phoenix_UI.h"
 
-// Example of the UI script API. Attach to a Button: clicking it counts up and writes the count into the first
-// child Label. Doubles as a link test for the Phoenix::UI surface.
+/// Example of the UI script API. Attach to a Button: clicking it counts up and writes the count into the first
+/// child Label. Doubles as a link test for the Phoenix::UI surface.
 class SCRIPT_API UIDemoScript : public IScript {
 public:
     UIDemoScript();

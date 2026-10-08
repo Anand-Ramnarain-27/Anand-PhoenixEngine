@@ -12,7 +12,7 @@ ResourceMaterial::~ResourceMaterial(){ UnloadFromMemory(); }
 bool ResourceMaterial::LoadInMemory(){
     if (m_material) return true;
     std::unique_ptr<Material> mat;
-    if (!MaterialImporter::Load(libraryFile, mat)){ LOG("ResourceMaterial: Failed to load %s", libraryFile.c_str()); m_material = std::make_unique<Material>(); return true; }
+    if (!MaterialImporter::Load(libraryFile, mat)){ PHX_LOG(Assets, Error, "ResourceMaterial: Failed to load %s", libraryFile.c_str()); m_material = std::make_unique<Material>(); return true; }
     m_material = std::move(mat);
     if (textureUID != 0){
         auto* texRes = static_cast<ResourceTexture*>(app->getResources()->RequestResource(textureUID));

@@ -1,4 +1,5 @@
 #pragma once
+// Ref-counted handle to a render-target view.
 
 #include "DescriptorBase.h"
 

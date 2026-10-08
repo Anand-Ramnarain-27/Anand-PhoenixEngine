@@ -1,4 +1,5 @@
 #pragma once
+// Draws the environment cubemap behind the scene.
 
 #include <wrl.h>
 #include <d3d12.h>
@@ -8,27 +9,27 @@ using Microsoft::WRL::ComPtr;
 
 class SkyboxRenderer {
 public:
-	bool init(ID3D12Device* device, bool useMSAA = false);
+    bool init(ID3D12Device* device, bool useMSAA = false);
 
-	void render(ID3D12GraphicsCommandList* cmd, const EnvironmentMap& env, const Matrix& view, const Matrix& projection);
+    void render(ID3D12GraphicsCommandList* cmd, const EnvironmentMap& env, const Matrix& view, const Matrix& projection);
 
 private:
-	struct SkyboxCB {
-		Matrix vp;
-		uint32_t flipX = 0;
-		uint32_t flipZ = 0;
-		uint32_t padding[2] = {};
-	};
+    struct SkyboxCB {
+        Matrix vp;
+        uint32_t flipX = 0;
+        uint32_t flipZ = 0;
+        uint32_t padding[2] = {};
+    };
 
-	bool createRootSignature(ID3D12Device* device);
-	bool createPipeline(ID3D12Device* device, bool useMSAA);
-	bool createGeometry(ID3D12Device* device);
+    bool createRootSignature(ID3D12Device* device);
+    bool createPipeline(ID3D12Device* device, bool useMSAA);
+    bool createGeometry(ID3D12Device* device);
 
-	ComPtr<ID3D12RootSignature> rootSignature;
-	ComPtr<ID3D12PipelineState> pso;
+    ComPtr<ID3D12RootSignature> rootSignature;
+    ComPtr<ID3D12PipelineState> pso;
 
-	ComPtr<ID3D12Resource> vertexBuffer;
-	D3D12_VERTEX_BUFFER_VIEW vbView{};
+    ComPtr<ID3D12Resource> vertexBuffer;
+    D3D12_VERTEX_BUFFER_VIEW vbView{};
 
-	UINT vertexCount = 0;
+    UINT vertexCount = 0;
 };

@@ -1,4 +1,6 @@
 #pragma once
+// Animation state machine: clips, states and trigger-driven transitions (Assets/StateMachines).
+
 #include "ResourceCommon.h"
 #include <string>
 #include <vector>
