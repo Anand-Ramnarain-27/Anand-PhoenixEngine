@@ -149,8 +149,7 @@ GameObject* ResourceModel::spawnIntoScene(SceneGraph* scene, GameObject* parent)
         // exists (either auto-generated at import by
         // ModuleAssets::registerSceneSubResources, or hand/graph-editor
         // authored) - LoadStateMachineFromPath() also starts it playing via
-        // its own OnPlay(). Falls back to just playing the first clip
-        // directly, as before, if no such file exists.
+        // its own OnPlay(). Without one, the first clip plays directly.
         std::string smPath = app->getFileSystem()->GetAssetsPath() + "StateMachines/" + modelName + ".json";
         if (app->getFileSystem()->Exists(smPath.c_str())){
             animComp->LoadStateMachineFromPath(smPath);

@@ -79,15 +79,6 @@ namespace fs = std::filesystem;
 ModuleEditor::ModuleEditor() = default;
 ModuleEditor::~ModuleEditor() = default;
 
-ComPtr<ID3D12Resource> ModuleEditor::createUploadBuffer(ID3D12Device* device, SIZE_T size, const wchar_t* name){
-    auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-    auto bd = CD3DX12_RESOURCE_DESC::Buffer((size + 255) & ~255);
-    ComPtr<ID3D12Resource> buf;
-    device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buf));
-    if (name) buf->SetName(name);
-    return buf;
-}
-
 namespace {
 // Routed PHX_LOG messages, handed over on the main thread by PhoenixLog::drainConsole().
 void consoleSink(LogLevel level, const char* text){
@@ -208,7 +199,6 @@ SceneGraph* ModuleEditor::getActiveModuleScene() const{
 }
 
 SceneManager* ModuleEditor::getSceneManager() const{ return app->getRuntimeCore()->getSceneManager(); }
-ForwardMeshPass* ModuleEditor::getMeshRenderPass() const{ return app->getRuntimeCore()->getMeshRenderPass(); }
 MeshPipeline* ModuleEditor::getMeshPipeline() const{ return app->getRuntimeCore()->getMeshPipeline(); }
 EnvironmentSystem* ModuleEditor::getEnvSystem() const{ return app->getRuntimeCore()->getEnvSystem(); }
 DebugDrawPass* ModuleEditor::getDebugDraw() const{ return app->getRuntimeCore()->getDebugDraw(); }

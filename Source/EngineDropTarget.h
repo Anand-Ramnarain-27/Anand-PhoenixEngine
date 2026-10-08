@@ -1,4 +1,6 @@
 #pragma once
+// OLE drop target that accepts files dragged onto the editor window.
+
 #include <ole2.h>
 #include <shellapi.h>
 
@@ -7,6 +9,7 @@
 #include <filesystem>
 #include <vector>
 
+/// Collects the dropped paths (files and folders) and queues them on DragDropManager.
 class EngineDropTarget : public IDropTarget {
 public:
     EngineDropTarget() = default;

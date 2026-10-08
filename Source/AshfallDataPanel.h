@@ -1,11 +1,13 @@
 #pragma once
+// Window > Ashfall Data: browse and edit the game's JSON data files.
+
 #include "EditorPanel.h"
 #include <string>
 #include <vector>
 
-// Window > Ashfall Data: the game's JSON data (enemies, characters, party, encounters; VFX recipes read-only) with
-// typed, schema-aware widgets, Save / Revert / Duplicate, and live tuning while playing (AshfallData.h,
-// docs/ASHFALL_DATA.md).
+/// Window > Ashfall Data: the game's JSON data (enemies, characters, party, encounters; VFX recipes read-only) with
+/// typed, schema-aware widgets, Save / Revert / Duplicate, and live tuning while playing (AshfallData.h,
+/// docs/ASHFALL_DATA.md).
 class AshfallDataPanel : public EditorPanel {
 public:
     explicit AshfallDataPanel(ModuleEditor* editor) : EditorPanel(editor){ open = false; }

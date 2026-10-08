@@ -109,8 +109,6 @@ bool BuildAshfallEnemyPrefabs(SceneGraph* scene, HotReloadManager* hotReload, st
     return true;
 }
 
-// ---------------------------------------------------------------- Set Up Kraug Arena
-
 namespace {
     std::string hierarchyPath(GameObject* go){
         std::string p;

@@ -5,9 +5,9 @@
 #include "ModuleShaderDescriptors.h"
 
 ID3D12Device* CommandContext::getDevice(){
-	return m_d3d12 ? m_d3d12->getDevice() : nullptr;
+    return m_d3d12 ? m_d3d12->getDevice() : nullptr;
 }
 
 ID3D12CommandQueue* CommandContext::getDrawQueue(){
-	return m_d3d12 ? m_d3d12->getDrawCommandQueue() : nullptr;
+    return m_d3d12 ? m_d3d12->getDrawCommandQueue() : nullptr;
 }

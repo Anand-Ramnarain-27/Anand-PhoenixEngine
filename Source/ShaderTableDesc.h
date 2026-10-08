@@ -1,10 +1,13 @@
 #pragma once
+// Ref-counted table of 8 shader-visible descriptors (CBV / SRV / UAV).
+
 #include <d3d12.h>
 #include <dxgi1_4.h>
 #include <string>
 
 class ModuleShaderDescriptors;
 
+/// Copying shares the table; createXXX fill a slot, getGPUHandle(slot) binds it.
 class ShaderTableDesc {
 public:
     ShaderTableDesc() = default;

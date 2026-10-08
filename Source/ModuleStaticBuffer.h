@@ -1,4 +1,6 @@
 #pragma once
+// Pooled default-heap allocator for static mesh vertex / index data.
+
 #include <d3d12.h>
 #include <wrl/client.h>
 #include <string>
@@ -6,6 +8,7 @@
 
 using Microsoft::WRL::ComPtr;
 
+/// Sub-allocates vertex, index and constant buffers from one large pool; reset() recycles it between levels.
 class ModuleStaticBuffer {
 public:
     bool init(ID3D12Device* device, size_t poolSizeBytes = 512ull * 1024 * 1024);

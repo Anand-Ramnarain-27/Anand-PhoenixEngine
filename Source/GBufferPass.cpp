@@ -244,8 +244,7 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
             Mesh* mesh = entry->meshRes ? entry->meshRes->getMesh() : entry->mesh;
             if (!mesh) continue;
             if (slot >= MAX_INSTANCES){
-                // One-shot warning: this used to log every frame per viewport,
-                // which floods OutputDebugString and tanks the frame rate.
+                // Warn once: logging every frame per viewport floods the debugger output and tanks the frame rate.
                 static bool warned = false;
                 if (!warned){
                     PHX_LOG(Render, Warning, "GBufferPass: MAX_INSTANCES (%u) exceeded — extra meshes skipped this frame.", MAX_INSTANCES);
@@ -323,7 +322,7 @@ bool GBufferPipeline::createRootSignature(ID3D12Device* device){
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
     if (FAILED(hr)){
-        if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
+        if (error) PHX_LOG(Render, Error, "%s", static_cast<char*>(error->GetBufferPointer()));
         PHX_LOG(Render, Error, "GBufferPipeline: D3D12SerializeRootSignature failed 0x%08X", hr);
         return false;
     }

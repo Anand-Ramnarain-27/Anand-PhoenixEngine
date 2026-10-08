@@ -122,7 +122,7 @@ bool ShadowMapPipeline::createRootSignature(ID3D12Device* device){
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
     if (FAILED(hr)){
-        if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
+        if (error) PHX_LOG(Render, Error, "%s", static_cast<char*>(error->GetBufferPointer()));
         PHX_LOG(Render, Error, "ShadowMapPipeline: serialize root sig failed 0x%08X", hr);
         return false;
     }
@@ -185,7 +185,7 @@ bool ShadowMomentsPipeline::init(ID3D12Device* device){
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
     if (FAILED(hr)){
-        if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
+        if (error) PHX_LOG(Render, Error, "%s", static_cast<char*>(error->GetBufferPointer()));
         PHX_LOG(Render, Error, "ShadowMomentsPipeline: serialize root sig failed 0x%08X", hr);
         return false;
     }
@@ -232,7 +232,7 @@ bool ShadowCubePipeline::init(ID3D12Device* device){
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
     if (FAILED(hr)){
-        if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
+        if (error) PHX_LOG(Render, Error, "%s", static_cast<char*>(error->GetBufferPointer()));
         PHX_LOG(Render, Error, "ShadowCubePipeline: serialize root sig failed 0x%08X", hr);
         return false;
     }
@@ -288,7 +288,7 @@ bool ShadowBlurPipeline::init(ID3D12Device* device){
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
     if (FAILED(hr)){
-        if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
+        if (error) PHX_LOG(Render, Error, "%s", static_cast<char*>(error->GetBufferPointer()));
         PHX_LOG(Render, Error, "ShadowBlurPipeline: serialize root sig failed 0x%08X", hr);
         return false;
     }
@@ -319,7 +319,7 @@ namespace {
         desc.Init(_countof(p), p, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
         ComPtr<ID3DBlob> blob, err;
         HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err);
-        if (FAILED(hr)){ if (err) OutputDebugStringA((char*)err->GetBufferPointer()); return false; }
+        if (FAILED(hr)){ if (err) PHX_LOG(Render, Error, "%s", (char*)err->GetBufferPointer()); return false; }
         return SUCCEEDED(device->CreateRootSignature(0, blob->GetBufferPointer(),
                          blob->GetBufferSize(), IID_PPV_ARGS(&out)));
     }
@@ -363,7 +363,7 @@ bool ShadowDepthGpuPipeline::init(ID3D12Device* device){
     desc.Init(_countof(p), p, 1, &samp, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
     ComPtr<ID3DBlob> blob, err;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err);
-    if (FAILED(hr)){ if (err) OutputDebugStringA((char*)err->GetBufferPointer());
+    if (FAILED(hr)){ if (err) PHX_LOG(Render, Error, "%s", (char*)err->GetBufferPointer());
                      PHX_LOG(Render, Error, "ShadowDepthGpuPipeline: root sig failed"); return false; }
     if (FAILED(device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
                                            IID_PPV_ARGS(&m_rootSig)))) return false;

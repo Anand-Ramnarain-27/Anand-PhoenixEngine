@@ -1,4 +1,6 @@
 #pragma once
+// GPU particles: compute simulation and instanced drawing for ComponentParticleSystem with useGPU.
+
 #include <d3d12.h>
 #include <wrl.h>
 using Microsoft::WRL::ComPtr;

@@ -1,4 +1,5 @@
 #pragma once
+// Imports glTF materials into Library/Materials and loads them back as Materials.
 
 #include <string>
 #include <memory>
@@ -7,56 +8,57 @@
 
 class Material;
 namespace tinygltf {
-	class Model;
-	struct Material;
+    class Model;
+    struct Material;
 }
 
+/// Converts glTF PBR materials (base colour, metal / roughness, normal, AO, emissive) to the engine's format.
 class MaterialImporter {
 public:
-	struct MaterialHeader {
-		uint32_t magic = 0x4D415452;
-		uint32_t version = 9;
+    struct MaterialHeader {
+        uint32_t magic = 0x4D415452;
+        uint32_t version = 9;
 
-		uint32_t hasTexture = 0;
-		uint32_t texturePathLength = 0;
-		uint32_t hasNormalMap = 0;
-		uint32_t normalPathLength = 0;
-		uint32_t hasAOMap = 0;
-		uint32_t aoPathLength = 0;
-		uint32_t hasEmissiveMap = 0;
-		uint32_t emissivePathLength = 0;
-		uint32_t hasMetalRoughMap = 0;
-		uint32_t metalRoughPathLength = 0;
+        uint32_t hasTexture = 0;
+        uint32_t texturePathLength = 0;
+        uint32_t hasNormalMap = 0;
+        uint32_t normalPathLength = 0;
+        uint32_t hasAOMap = 0;
+        uint32_t aoPathLength = 0;
+        uint32_t hasEmissiveMap = 0;
+        uint32_t emissivePathLength = 0;
+        uint32_t hasMetalRoughMap = 0;
+        uint32_t metalRoughPathLength = 0;
 
-		float normalStrength = 1.f;
-		float aoStrength = 1.f;
-		float emissiveR = 0.f;
-		float emissiveG = 0.f;
-		float emissiveB = 0.f;
-		float metallic = 0.f;
-		float roughness = 0.5f;
-		float alphaCutoff = 0.f;
-		uint32_t flags = 0;
-		uint32_t _pad2 = 0;
-		float baseColorR = 1.f;
-		float baseColorG = 1.f;
-		float baseColorB = 1.f;
-		float baseColorA = 1.f;
-	};
+        float normalStrength = 1.f;
+        float aoStrength = 1.f;
+        float emissiveR = 0.f;
+        float emissiveG = 0.f;
+        float emissiveB = 0.f;
+        float metallic = 0.f;
+        float roughness = 0.5f;
+        float alphaCutoff = 0.f;
+        uint32_t flags = 0;
+        uint32_t _pad2 = 0;
+        float baseColorR = 1.f;
+        float baseColorG = 1.f;
+        float baseColorB = 1.f;
+        float baseColorA = 1.f;
+    };
 
-	static bool Import(const tinygltf::Material& gltfMaterial, const tinygltf::Model& model,
-		const std::string& sceneName, const std::string& outputFile,
-		int materialIndex, const std::string& basePath);
+    static bool Import(const tinygltf::Material& gltfMaterial, const tinygltf::Model& model,
+        const std::string& sceneName, const std::string& outputFile,
+        int materialIndex, const std::string& basePath);
 
-	static bool Load(const std::string& file, std::unique_ptr<Material>& outMaterial);
+    static bool Load(const std::string& file, std::unique_ptr<Material>& outMaterial);
 
 private:
-	static bool Save(const MaterialHeader& header,
-		const std::string& baseColorPath, const std::string& normalPath,
-		const std::string& aoPath, const std::string& emissivePath,
-		const std::string& metalRoughPath, const std::string& file);
+    static bool Save(const MaterialHeader& header,
+        const std::string& baseColorPath, const std::string& normalPath,
+        const std::string& aoPath, const std::string& emissivePath,
+        const std::string& metalRoughPath, const std::string& file);
 
-	static std::string importTexture(int texIndex, const tinygltf::Model& model,
-		const std::string& sceneName, const std::string& basePath,
-		TextureImporter::TextureType type);
+    static std::string importTexture(int texIndex, const tinygltf::Model& model,
+        const std::string& sceneName, const std::string& basePath,
+        TextureImporter::TextureType type);
 };

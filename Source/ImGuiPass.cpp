@@ -12,8 +12,7 @@ ImFont* g_fontUI = nullptr;
 ImFont* g_fontMono = nullptr;
 ImFont* g_fontBold = nullptr;
 
-// ---- Phoenix theme -------------------------------------------------------
-// Defined here (not in a separate .cpp) so no extra project file is needed.
+// The editor's Phoenix colour theme and metrics.
 static void PhoenixTheme_Apply(){
     using namespace EditorColors;
 
@@ -102,7 +101,6 @@ static void PhoenixTheme_Apply(){
     c[ImGuiCol_NavWindowingDimBg] = ImVec4(0.f, 0.f, 0.f, 0.4f);
     c[ImGuiCol_ModalWindowDimBg] = ImVec4(0.f, 0.f, 0.f, 0.5f);
 }
-// -------------------------------------------------------------------------
 
 ImGuiPass::ImGuiPass(ID3D12Device2* device, HWND hWnd,
     D3D12_CPU_DESCRIPTOR_HANDLE cpuTextHandle,

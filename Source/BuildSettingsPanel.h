@@ -1,4 +1,6 @@
 #pragma once
+// File > Build Settings: the scenes and output folder of a Player build, and the build button.
+
 #include "EditorPanel.h"
 #include "BuildSettings.h"
 #include "BuildPipeline.h"
@@ -7,6 +9,7 @@
 
 class FileDialog;
 
+/// Edits BuildSettings (saved to Library/BuildSettings.json) and runs BuildPipeline, showing its progress.
 class BuildSettingsPanel : public EditorPanel {
 public:
     explicit BuildSettingsPanel(ModuleEditor* editor);

@@ -115,15 +115,6 @@ ComPtr<ID3D12Resource> ModuleGPUResources::createRawTexture2D(const void* data, 
     return texture;
 }
 
-ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromMemory(const void* data, size_t size, const char* name){
-    ScratchImage image;
-    bool ok = SUCCEEDED(LoadFromDDSMemory(data, size, DDS_FLAGS_NONE, nullptr, image));
-    ok = ok || SUCCEEDED(LoadFromHDRMemory(data, size, nullptr, image));
-    ok = ok || SUCCEEDED(LoadFromTGAMemory(data, size, TGA_FLAGS_NONE, nullptr, image));
-    ok = ok || SUCCEEDED(LoadFromWICMemory(data, size, WIC_FLAGS_NONE, nullptr, image));
-    return ok ? createTextureFromImage(image, name) : nullptr;
-}
-
 ComPtr<ID3D12Resource> ModuleGPUResources::createTextureFromFile(const std::filesystem::path& path, bool defaultSRGB){
     std::filesystem::path absPath = path;
     if (!absPath.is_absolute()){

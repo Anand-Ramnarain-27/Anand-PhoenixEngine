@@ -1,4 +1,6 @@
 #pragma once
+// An imported animation clip: per-node transform and morph-weight keyframes.
+
 #include "ResourceCommon.h"
 #include <unordered_map>
 #include <string>

@@ -1,10 +1,13 @@
 #pragma once
+// The Console panel: editor and engine log messages, with per-category log levels.
+
 #include "EditorPanel.h"
 #include <vector>
 #include <string>
 
 struct ConsoleEntry { std::string text; ImVec4 color; };
 
+/// Shows the lines ModuleEditor::log() adds (PHX_LOG output reaches it through the console sink).
 class ConsolePanel : public EditorPanel {
 public:
     explicit ConsolePanel(ModuleEditor* editor) : EditorPanel(editor){}

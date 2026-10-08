@@ -1,4 +1,6 @@
 #pragma once
+// ImGui file browser used by the editor's open / save dialogs.
+
 #include <string>
 #include <vector>
 

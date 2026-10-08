@@ -327,7 +327,7 @@ bool DecalPipeline::createRootSignature(ID3D12Device* device){
     ComPtr<ID3DBlob> blob, error;
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
     if (FAILED(hr)){
-        if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
+        if (error) PHX_LOG(Render, Error, "%s", static_cast<char*>(error->GetBufferPointer()));
         PHX_LOG(Render, Error, "DecalPipeline: serialize root sig failed 0x%08X", hr);
         return false;
     }
@@ -374,8 +374,8 @@ bool DecalPipeline::createPSO(ID3D12Device* device){
     desc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
     desc.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
     // Albedo alpha is the G-buffer's "a surface was drawn here" flag (DeferredLightingPS discards below 0.5 and the
-    // sky shows through). Writing the decal's alpha there erased whatever was under a glow ring (albedo mix 0) -
-    // and the whole world when a decal covered the screen. Colour only.
+    // sky shows through). Writing the decal's alpha there would erase whatever is under a glow ring (albedo mix
+    // 0) - and the whole world when a decal covers the screen. Colour only.
     desc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_RED |
         D3D12_COLOR_WRITE_ENABLE_GREEN | D3D12_COLOR_WRITE_ENABLE_BLUE;
     desc.BlendState.RenderTarget[1].RenderTargetWriteMask = 0;

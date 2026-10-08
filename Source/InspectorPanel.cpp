@@ -65,22 +65,60 @@ static GameObject* findPrefabRoot(GameObject* go){
     return nullptr;
 }
 
+static const char* componentLabel(Component::Type type){
+    switch (type){
+    case Component::Type::Camera: return "Camera";
+    case Component::Type::Mesh: return "Mesh";
+    case Component::Type::DirectionalLight: return "Directional Light";
+    case Component::Type::PointLight: return "Point Light";
+    case Component::Type::SpotLight: return "Spot Light";
+    case Component::Type::Script: return "Script";
+    case Component::Type::Animation: return "Animation";
+    case Component::Type::CharacterMotion: return "Character Motion";
+    case Component::Type::SimpleCharacterController: return "Character Controller";
+    case Component::Type::Rigidbody: return "Rigidbody";
+    case Component::Type::Bounds: return "Bounds";
+    case Component::Type::Decal: return "Decal";
+    case Component::Type::Billboard: return "Billboard";
+    case Component::Type::ParticleSystem: return "Particle System";
+    case Component::Type::Trail: return "Trail";
+    case Component::Type::Transform2D: return "Transform 2D";
+    case Component::Type::Canvas: return "Canvas";
+    case Component::Type::Image: return "Image";
+    case Component::Type::Label: return "Label";
+    case Component::Type::Button: return "Button";
+    case Component::Type::ProgressBar: return "Progress Bar";
+    case Component::Type::CheckBox: return "Checkbox";
+    case Component::Type::Slider: return "Slider";
+    case Component::Type::InputBox: return "Input Box";
+    case Component::Type::RadioGroup: return "Radio Group";
+    default: return "Component";
+    }
+}
+
+/// Colour of the thin bar drawn at the left of a component's header.
+static ImU32 componentAccent(Component::Type type){
+    switch (type){
+    case Component::Type::Mesh: return ImGui::ColorConvertFloat4ToU32(EditorColors::Ok);
+    case Component::Type::Camera: return ImGui::ColorConvertFloat4ToU32(EditorColors::Inf);
+    case Component::Type::DirectionalLight:
+    case Component::Type::PointLight:
+    case Component::Type::SpotLight: return ImGui::ColorConvertFloat4ToU32(EditorColors::Warn);
+    case Component::Type::Animation: return ImGui::ColorConvertFloat4ToU32(EditorColors::Acc);
+    case Component::Type::Rigidbody: return ImGui::ColorConvertFloat4ToU32(EditorColors::Hot);
+    case Component::Type::Bounds: return ImGui::ColorConvertFloat4ToU32(EditorColors::Crit);
+    case Component::Type::Script: return ImGui::ColorConvertFloat4ToU32(EditorColors::Tx1);
+    case Component::Type::ParticleSystem:
+    case Component::Type::Trail: return ImGui::ColorConvertFloat4ToU32(EditorColors::Acc);
+    default: return ImGui::ColorConvertFloat4ToU32(EditorColors::Tx2);
+    }
+}
+
 void InspectorPanel::drawContent(){
     EditorSelection& sel = m_editor->getSelection();
     bool prefabMode = m_editor->getSceneManager() && m_editor->getSceneManager()->isEditingPrefab();
 
-    if (prefabMode){
-        ImVec2 p = ImGui::GetCursorScreenPos();
-        ImVec2 p2 = ImVec2(p.x + ImGui::GetContentRegionAvail().x, p.y + 28.f);
-        ImGui::GetWindowDrawList()->AddRectFilled(p, p2, IM_COL32(25, 80, 25, 210));
-        ImGui::GetWindowDrawList()->AddRect(p, p2, IM_COL32(50, 190, 50, 180));
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5.f);
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.35f, 1.f, 0.35f, 1.f));
-        ImGui::Text("  Prefab: %s", m_editor->getSceneManager()->getPrefabEditName().c_str());
-        ImGui::PopStyleColor();
-        ImGui::Spacing();
-        ImGui::Separator();
-    }
+    if (prefabMode) drawPrefabModeBanner();
 
     if (!sel.has()){ textMuted("No GameObject selected."); return; }
     GameObject* go = sel.object;
@@ -89,141 +127,123 @@ void InspectorPanel::drawContent(){
     bool isEditRoot = prefabMode && session && go == session->rootObject;
     bool isInPrefabEdit = prefabMode && session && session->rootObject;
 
-    {
-        bool active = go->isActive();
-        if (ImGui::Checkbox("##active", &active)) go->setActive(active);
-        ImGui::SameLine(0, 6);
-
-        char nameBuf[256];
-        strncpy_s(nameBuf, go->getName().c_str(), sizeof(nameBuf) - 1);
-        if (isEditRoot) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.28f, 0.18f, 0.04f, 1.f));
-        ImGui::SetNextItemWidth(-1.f);
-        if (ImGui::InputText("##goname", nameBuf, sizeof(nameBuf))) go->setName(nameBuf);
-        if (isEditRoot) ImGui::PopStyleColor();
-
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
-        ImGui::Text("Tag");
-        ImGui::PopStyleColor();
-        ImGui::SameLine();
-        char tagBuf[128];
-        strncpy_s(tagBuf, go->getTag().c_str(), sizeof(tagBuf) - 1);
-        ImGui::SetNextItemWidth(-1.f);
-        if (ImGui::InputText("##gotag", tagBuf, sizeof(tagBuf))) go->setTag(tagBuf);
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Free-form label for AI/gameplay queries, e.g. \"Player\" or a faction name.\n"
-                              "Used by FindNearestWithTag - unrelated to the Name field above.");
-
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
-        ImGui::Text("UID: %u", go->getUID());
-        ImGui::PopStyleColor();
-        ImGui::Separator();
-    }
-
-    if (isInPrefabEdit){
-        if (isEditRoot){
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.75f, 0.20f, 1.f));
-            ImGui::Text("Prefab root: %s", session->prefabName.c_str());
-            ImGui::PopStyleColor();
-        }
-
-        const float bw = (ImGui::GetContentRegionAvail().x - 8.f) / 3.f;
-        const PrefabInstanceData* instData = PrefabManager::getInstanceData(session->rootObject);
-        bool hasChanges = instData && !instData->overrides.isEmpty();
-
-        ImGui::BeginDisabled(!hasChanges);
-        ImGui::PushStyleColor(ImGuiCol_Button, hasChanges ? ImVec4(0.14f, 0.42f, 0.14f, 1.f) : ImVec4(0.15f, 0.15f, 0.15f, 1.f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.58f, 0.20f, 1.f));
-        if (ImGui::Button("Apply", ImVec2(bw, 0)) && session->rootObject){
-            PrefabManager::applyToPrefab(session->rootObject);
-            m_editor->log(("Applied prefab: " + session->prefabName).c_str(), EditorColors::Success);
-            m_editor->exitPrefabEdit();
-        }
-        ImGui::PopStyleColor(2);
-        ImGui::EndDisabled();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip(hasChanges ? "Save changes to prefab file" : "No changes");
-        ImGui::SameLine(0, 4);
-        ImGui::BeginDisabled(!hasChanges);
-        if (ImGui::Button("Revert", ImVec2(bw, 0)) && session->rootObject){
-            PrefabManager::revertToPrefab(session->rootObject, session->isolatedScene.get());
-            m_editor->getSelection().object = session->rootObject;
-            m_editor->log(("Reverted: " + session->prefabName).c_str(), EditorColors::Warning);
-        }
-        ImGui::EndDisabled();
-        ImGui::SameLine(0, 4);
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.50f, 0.12f, 0.12f, 1.f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.72f, 0.17f, 0.17f, 1.f));
-        if (ImGui::Button("Exit", ImVec2(bw, 0))) m_editor->exitPrefabEdit();
-        ImGui::PopStyleColor(2);
-        ImGui::Spacing();
-    }
-
-    if (!prefabMode && PrefabManager::isPrefabInstance(go)){
-        ImGui::SameLine();
-        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Active);
-        ImGui::Text("[Prefab: %s]", PrefabManager::getPrefabName(go).c_str());
-        ImGui::PopStyleColor();
-        const PrefabInstanceData* inst = PrefabManager::getInstanceData(go);
-        if (inst && !inst->overrides.isEmpty()){
-            ImGui::SameLine();
-            ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Override);
-            ImGui::Text("(overrides)");
-            ImGui::PopStyleColor();
-        }
-    }
+    drawObjectHeader(go, isEditRoot);
+    if (isInPrefabEdit) drawPrefabEditBar(*session, isEditRoot);
+    if (!prefabMode && PrefabManager::isPrefabInstance(go)) drawPrefabInstanceTag(go);
 
     ImGui::Separator();
     drawTransform();
+    drawComponents(go);
 
+    ImGui::Spacing(); ImGui::Separator();
+    drawAddComponentMenu();
+    ImGui::Spacing();
+    drawSaveAsPrefab(go);
+}
+
+void InspectorPanel::drawPrefabModeBanner(){
+    ImVec2 p = ImGui::GetCursorScreenPos();
+    ImVec2 p2 = ImVec2(p.x + ImGui::GetContentRegionAvail().x, p.y + 28.f);
+    ImGui::GetWindowDrawList()->AddRectFilled(p, p2, IM_COL32(25, 80, 25, 210));
+    ImGui::GetWindowDrawList()->AddRect(p, p2, IM_COL32(50, 190, 50, 180));
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5.f);
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.35f, 1.f, 0.35f, 1.f));
+    ImGui::Text("  Prefab: %s", m_editor->getSceneManager()->getPrefabEditName().c_str());
+    ImGui::PopStyleColor();
+    ImGui::Spacing();
+    ImGui::Separator();
+}
+
+void InspectorPanel::drawObjectHeader(GameObject* go, bool isEditRoot){
+    bool active = go->isActive();
+    if (ImGui::Checkbox("##active", &active)) go->setActive(active);
+    ImGui::SameLine(0, 6);
+
+    char nameBuf[256];
+    strncpy_s(nameBuf, go->getName().c_str(), sizeof(nameBuf) - 1);
+    if (isEditRoot) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.28f, 0.18f, 0.04f, 1.f));
+    ImGui::SetNextItemWidth(-1.f);
+    if (ImGui::InputText("##goname", nameBuf, sizeof(nameBuf))) go->setName(nameBuf);
+    if (isEditRoot) ImGui::PopStyleColor();
+
+    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
+    ImGui::Text("Tag");
+    ImGui::PopStyleColor();
+    ImGui::SameLine();
+    char tagBuf[128];
+    strncpy_s(tagBuf, go->getTag().c_str(), sizeof(tagBuf) - 1);
+    ImGui::SetNextItemWidth(-1.f);
+    if (ImGui::InputText("##gotag", tagBuf, sizeof(tagBuf))) go->setTag(tagBuf);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Free-form label for AI/gameplay queries, e.g. \"Player\" or a faction name.\n"
+                          "Used by FindNearestWithTag - unrelated to the Name field above.");
+
+    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Tx2);
+    ImGui::Text("UID: %u", go->getUID());
+    ImGui::PopStyleColor();
+    ImGui::Separator();
+}
+
+void InspectorPanel::drawPrefabEditBar(PrefabEditSession& session, bool isEditRoot){
+    if (isEditRoot){
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.75f, 0.20f, 1.f));
+        ImGui::Text("Prefab root: %s", session.prefabName.c_str());
+        ImGui::PopStyleColor();
+    }
+
+    const float bw = (ImGui::GetContentRegionAvail().x - 8.f) / 3.f;
+    const PrefabInstanceData* instData = PrefabManager::getInstanceData(session.rootObject);
+    bool hasChanges = instData && !instData->overrides.isEmpty();
+
+    ImGui::BeginDisabled(!hasChanges);
+    ImGui::PushStyleColor(ImGuiCol_Button, hasChanges ? ImVec4(0.14f, 0.42f, 0.14f, 1.f) : ImVec4(0.15f, 0.15f, 0.15f, 1.f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.58f, 0.20f, 1.f));
+    if (ImGui::Button("Apply", ImVec2(bw, 0)) && session.rootObject){
+        PrefabManager::applyToPrefab(session.rootObject);
+        m_editor->log(("Applied prefab: " + session.prefabName).c_str(), EditorColors::Success);
+        m_editor->exitPrefabEdit();
+    }
+    ImGui::PopStyleColor(2);
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip(hasChanges ? "Save changes to prefab file" : "No changes");
+    ImGui::SameLine(0, 4);
+    ImGui::BeginDisabled(!hasChanges);
+    if (ImGui::Button("Revert", ImVec2(bw, 0)) && session.rootObject){
+        PrefabManager::revertToPrefab(session.rootObject, session.isolatedScene.get());
+        m_editor->getSelection().object = session.rootObject;
+        m_editor->log(("Reverted: " + session.prefabName).c_str(), EditorColors::Warning);
+    }
+    ImGui::EndDisabled();
+    ImGui::SameLine(0, 4);
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.50f, 0.12f, 0.12f, 1.f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.72f, 0.17f, 0.17f, 1.f));
+    if (ImGui::Button("Exit", ImVec2(bw, 0))) m_editor->exitPrefabEdit();
+    ImGui::PopStyleColor(2);
+    ImGui::Spacing();
+}
+
+void InspectorPanel::drawPrefabInstanceTag(GameObject* go){
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Active);
+    ImGui::Text("[Prefab: %s]", PrefabManager::getPrefabName(go).c_str());
+    ImGui::PopStyleColor();
+    const PrefabInstanceData* inst = PrefabManager::getInstanceData(go);
+    if (inst && !inst->overrides.isEmpty()){
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Override);
+        ImGui::Text("(overrides)");
+        ImGui::PopStyleColor();
+    }
+}
+
+void InspectorPanel::drawComponents(GameObject* go){
     Component::Type toRemove = Component::Type::Transform;
     bool wantsRemove = false;
 
-    auto compBorderColor = [](Component::Type t) -> ImU32 {
-        switch (t){
-        case Component::Type::Mesh: return ImGui::ColorConvertFloat4ToU32(EditorColors::Ok);
-        case Component::Type::Camera: return ImGui::ColorConvertFloat4ToU32(EditorColors::Inf);
-        case Component::Type::DirectionalLight:
-        case Component::Type::PointLight:
-        case Component::Type::SpotLight: return ImGui::ColorConvertFloat4ToU32(EditorColors::Warn);
-        case Component::Type::Animation: return ImGui::ColorConvertFloat4ToU32(EditorColors::Acc);
-        case Component::Type::Rigidbody: return ImGui::ColorConvertFloat4ToU32(EditorColors::Hot);
-        case Component::Type::Bounds: return ImGui::ColorConvertFloat4ToU32(EditorColors::Crit);
-        case Component::Type::Script: return ImGui::ColorConvertFloat4ToU32(EditorColors::Tx1);
-        case Component::Type::ParticleSystem:
-        case Component::Type::Trail: return ImGui::ColorConvertFloat4ToU32(EditorColors::Acc);
-        default: return ImGui::ColorConvertFloat4ToU32(EditorColors::Tx2);
-        }
-    };
-
     for (const auto& comp : go->getComponents()){
         if (comp->getType() == Component::Type::Transform) continue;
-        const char* label =
-            comp->getType() == Component::Type::Camera ? "Camera" :
-            comp->getType() == Component::Type::Mesh ? "Mesh" :
-            comp->getType() == Component::Type::DirectionalLight ? "Directional Light" :
-            comp->getType() == Component::Type::PointLight ? "Point Light" :
-            comp->getType() == Component::Type::SpotLight ? "Spot Light" :
-            comp->getType() == Component::Type::Script ? "Script" :
-            comp->getType() == Component::Type::Animation ? "Animation" :
-            comp->getType() == Component::Type::CharacterMotion ? "Character Motion" :
-            comp->getType() == Component::Type::SimpleCharacterController ? "Character Controller" :
-            comp->getType() == Component::Type::Rigidbody ? "Rigidbody" :
-            comp->getType() == Component::Type::Bounds ? "Bounds" :
-            comp->getType() == Component::Type::Decal ? "Decal" :
-            comp->getType() == Component::Type::Billboard ? "Billboard" :
-            comp->getType() == Component::Type::ParticleSystem ? "Particle System" :
-            comp->getType() == Component::Type::Trail ? "Trail" :
-            comp->getType() == Component::Type::Transform2D ? "Transform 2D" :
-            comp->getType() == Component::Type::Canvas ? "Canvas" :
-            comp->getType() == Component::Type::Image ? "Image" :
-            comp->getType() == Component::Type::Label ? "Label" :
-            comp->getType() == Component::Type::Button ? "Button" :
-            comp->getType() == Component::Type::ProgressBar ? "Progress Bar" :
-            comp->getType() == Component::Type::CheckBox ? "Checkbox" :
-            comp->getType() == Component::Type::Slider ? "Slider" :
-            comp->getType() == Component::Type::InputBox ? "Input Box" :
-            comp->getType() == Component::Type::RadioGroup ? "Radio Group" :
-            "Component";
+        const char* label = componentLabel(comp->getType());
 
         ImGui::PushID((int)comp->getType());
 
@@ -235,12 +255,12 @@ void InspectorPanel::drawContent(){
             ImGuiTreeNodeFlags_ClipLabelForTrailingButton);
         if (!headerOpen){ toRemove = comp->getType(); wantsRemove = true; }
 
-        {
-            ImVec2 rMin = ImVec2(ImGui::GetWindowPos().x, headerY);
-            ImVec2 rMax = ImVec2(rMin.x + 2.f, ImGui::GetItemRectMax().y);
-            ImGui::GetWindowDrawList()->AddRectFilled(rMin, rMax, compBorderColor(comp->getType()));
-        }
+        ImVec2 rMin = ImVec2(ImGui::GetWindowPos().x, headerY);
+        ImVec2 rMax = ImVec2(rMin.x + 2.f, ImGui::GetItemRectMax().y);
+        ImGui::GetWindowDrawList()->AddRectFilled(rMin, rMax, componentAccent(comp->getType()));
+
         if (expanded){
+            // Any edit marks the component as overridden on the enclosing prefab instance.
             std::string before;
             comp->onSave(before);
 
@@ -269,10 +289,9 @@ void InspectorPanel::drawContent(){
             app->getD3D12()->flush();
         go->removeComponentByType(toRemove);
     }
+}
 
-    ImGui::Spacing(); ImGui::Separator();
-    drawAddComponentMenu();
-    ImGui::Spacing();
+void InspectorPanel::drawSaveAsPrefab(GameObject* go){
     ImGui::SeparatorText("Prefab");
 
     static char prefabBuf[256] = "";

@@ -1,4 +1,5 @@
 #pragma once
+// Geometry pass: draws opaque meshes into the G-buffer.
 
 #include "GBuffer.h"
 #include <d3d12.h>
@@ -55,6 +56,7 @@ static_assert(sizeof(OcclusionParams) == 12 * sizeof(float), "OcclusionParams mu
 
 using Microsoft::WRL::ComPtr;
 
+/// Owns the G-buffer per viewport and records the opaque draws, including the occlusion fade cut-out.
 class GBufferPass {
 public:
     GBufferPass() = default;

@@ -1,4 +1,6 @@
 #pragma once
+// Base class of every resource, and the metadata saved in .meta files.
+
 #include <string>
 #include <cstdint>
 

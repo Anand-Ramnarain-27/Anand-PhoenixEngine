@@ -30,8 +30,6 @@ const JNode* JNode::member(const std::string& k) const {
     return nullptr;
 }
 
-// ================================================================ parse
-
 namespace {
 
 struct Parser {
@@ -330,8 +328,6 @@ std::string Rebuild(const std::string& original, const JNode& root){
     return out;
 }
 
-// ================================================================ documents
-
 namespace {
 
 std::vector<std::unique_ptr<Doc>> g_docs;
@@ -522,8 +518,6 @@ void NotifyLive(Doc& d){
     RuntimeCore* rc = app ? app->getRuntimeCore() : nullptr;
     if (HotReloadManager* hr = rc ? rc->getHotReloadManager() : nullptr) hr->notifyDataChanged(d.assetPath, d.currentText());
 }
-
-// ================================================================ tree editor
 
 namespace {
 

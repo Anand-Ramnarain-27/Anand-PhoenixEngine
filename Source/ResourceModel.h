@@ -1,4 +1,6 @@
 #pragma once
+// An imported model: its node hierarchy, mesh / material UIDs and skins; spawns GameObjects.
+
 #include "ResourceCommon.h"
 #include <vector>
 #include <string>

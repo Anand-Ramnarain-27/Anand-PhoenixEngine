@@ -1,4 +1,6 @@
 #pragma once
+// Distance / height fog applied to the lit scene.
+
 #include <d3d12.h>
 #include <wrl.h>
 using Microsoft::WRL::ComPtr;

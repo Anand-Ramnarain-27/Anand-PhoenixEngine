@@ -143,12 +143,7 @@ void SceneViewPanel::onDrawOverlays(){
 }
 
 void SceneViewPanel::drawGizmoToolbar(){
-    if (!ImGui::GetIO().WantTextInput){
-        if (ImGui::IsKeyPressed(ImGuiKey_T)) m_gizmoOp = ImGuizmo::TRANSLATE;
-        if (ImGui::IsKeyPressed(ImGuiKey_R)) m_gizmoOp = ImGuizmo::ROTATE;
-        if (ImGui::IsKeyPressed(ImGuiKey_S)) m_gizmoOp = ImGuizmo::SCALE;
-        if (ImGui::IsKeyPressed(ImGuiKey_G)) m_gizmoMode = (m_gizmoMode == ImGuizmo::LOCAL) ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
-    }
+    handleGizmoHotkeys();
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
     float cW = viewport.size.x;
@@ -168,6 +163,26 @@ void SceneViewPanel::drawGizmoToolbar(){
 
     ImGui::SetCursorScreenPos(ImVec2(toolOrigin.x + 6.f, toolOrigin.y + padV));
 
+    drawTransformButtons(dl, toolOrigin, toolH, btnSz);
+    drawPlayControls(toolOrigin, cW, btnSz);
+    drawViewOptions(toolOrigin, cW, btnSz);
+
+    ImGui::PopStyleVar(2);
+
+    ImGui::SetCursorScreenPos(ImVec2(toolOrigin.x, toolOrigin.y + toolH));
+    ImGui::Dummy(ImVec2(cW, 1.f));
+}
+
+/// T / R / S pick the gizmo operation and G toggles local / world, unless a text field has focus.
+void SceneViewPanel::handleGizmoHotkeys(){
+    if (ImGui::IsKeyPressed(ImGuiKey_T)) m_gizmoOp = ImGuizmo::TRANSLATE;
+    if (ImGui::IsKeyPressed(ImGuiKey_R)) m_gizmoOp = ImGuizmo::ROTATE;
+    if (ImGui::IsKeyPressed(ImGuiKey_S)) m_gizmoOp = ImGuizmo::SCALE;
+    if (ImGui::IsKeyPressed(ImGuiKey_G)) m_gizmoMode = (m_gizmoMode == ImGuizmo::LOCAL) ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
+}
+
+/// Translate / rotate / scale buttons, a divider, then the local / world and snap toggles.
+void SceneViewPanel::drawTransformButtons(ImDrawList* dl, ImVec2 toolOrigin, float toolH, float btnSz){
     auto gBtn = [&](const char* lbl, const char* tip, ImGuizmo::OPERATION op){
         bool on = (m_gizmoOp == op);
         if (on){ ImGui::PushStyleColor(ImGuiCol_Button, EditorColors::Acc);
@@ -200,47 +215,51 @@ void SceneViewPanel::drawGizmoToolbar(){
     if (ImGui::Button("Snap", ImVec2(36.f, btnSz))) m_useSnap = !m_useSnap;
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Grid snap");
     if (m_useSnap) ImGui::PopStyleColor();
+}
 
-    {
-        bool playing = m_editor->getSceneManager() && m_editor->getSceneManager()->isPlaying();
-        bool paused = m_editor->getSceneManager() &&
-                       m_editor->getSceneManager()->getState() == SceneManager::PlayState::Paused;
-        const char* state = playing ? "PLAYING" : paused ? "PAUSED" : "EDIT";
+/// Play / pause / stop and the play-state label, centred in the toolbar.
+void SceneViewPanel::drawPlayControls(ImVec2 toolOrigin, float cW, float btnSz){
+    bool playing = m_editor->getSceneManager() && m_editor->getSceneManager()->isPlaying();
+    bool paused = m_editor->getSceneManager() &&
+                   m_editor->getSceneManager()->getState() == SceneManager::PlayState::Paused;
+    const char* state = playing ? "PLAYING" : paused ? "PAUSED" : "EDIT";
 
-        const float clusterW = btnSz * 3.f + 2.f * 2.f + 6.f
-                             + ImGui::CalcTextSize(state).x;
+    const float clusterW = btnSz * 3.f + 2.f * 2.f + 6.f
+                         + ImGui::CalcTextSize(state).x;
 
-        float leftEndX = ImGui::GetItemRectMax().x;
-        float centreX = toolOrigin.x + cW * 0.5f - clusterW * 0.5f;
-        float spacer = centreX - leftEndX;
-        ImGui::SameLine(0, spacer > 2.f ? spacer : 2.f);
+    float leftEndX = ImGui::GetItemRectMax().x;
+    float centreX = toolOrigin.x + cW * 0.5f - clusterW * 0.5f;
+    float spacer = centreX - leftEndX;
+    ImGui::SameLine(0, spacer > 2.f ? spacer : 2.f);
 
-        if (playing) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.10f,0.44f,0.20f,1.f));
-        else ImGui::PushStyleColor(ImGuiCol_Button, EditorColors::Bg3);
-        if (ImGui::Button("\xe2\x96\xb6##tb_play", ImVec2(btnSz, btnSz)) && !playing)
-            m_editor->getSceneManager()->play();
-        ImGui::PopStyleColor();
-        ImGui::SameLine(0, 2);
+    if (playing) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.10f,0.44f,0.20f,1.f));
+    else ImGui::PushStyleColor(ImGuiCol_Button, EditorColors::Bg3);
+    if (ImGui::Button("\xe2\x96\xb6##tb_play", ImVec2(btnSz, btnSz)) && !playing)
+        m_editor->getSceneManager()->play();
+    ImGui::PopStyleColor();
+    ImGui::SameLine(0, 2);
 
-        if (paused) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.44f,0.36f,0.08f,1.f));
-        else ImGui::PushStyleColor(ImGuiCol_Button, EditorColors::Bg3);
-        if (ImGui::Button("\xe2\x8f\xb8##tb_pause", ImVec2(btnSz, btnSz)) && playing)
-            m_editor->getSceneManager()->pause();
-        ImGui::PopStyleColor();
-        ImGui::SameLine(0, 2);
+    if (paused) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.44f,0.36f,0.08f,1.f));
+    else ImGui::PushStyleColor(ImGuiCol_Button, EditorColors::Bg3);
+    if (ImGui::Button("\xe2\x8f\xb8##tb_pause", ImVec2(btnSz, btnSz)) && playing)
+        m_editor->getSceneManager()->pause();
+    ImGui::PopStyleColor();
+    ImGui::SameLine(0, 2);
 
-        ImGui::PushStyleColor(ImGuiCol_Button, EditorColors::Bg3);
-        if (ImGui::Button("\xe2\x8f\xb9##tb_stop", ImVec2(btnSz, btnSz)))
-            m_editor->stopPlay();
-        ImGui::PopStyleColor();
-        ImGui::SameLine(0, 6);
+    ImGui::PushStyleColor(ImGuiCol_Button, EditorColors::Bg3);
+    if (ImGui::Button("\xe2\x8f\xb9##tb_stop", ImVec2(btnSz, btnSz)))
+        m_editor->stopPlay();
+    ImGui::PopStyleColor();
+    ImGui::SameLine(0, 6);
 
-        ImVec4 sCol = playing ? EditorColors::Ok : paused ? EditorColors::Warn : EditorColors::Tx2;
-        ImGui::PushStyleColor(ImGuiCol_Text, sCol);
-        ImGui::TextUnformatted(state);
-        ImGui::PopStyleColor();
-    }
+    ImVec4 sCol = playing ? EditorColors::Ok : paused ? EditorColors::Warn : EditorColors::Tx2;
+    ImGui::PushStyleColor(ImGuiCol_Text, sCol);
+    ImGui::TextUnformatted(state);
+    ImGui::PopStyleColor();
+}
 
+/// Right-aligned: shading mode and Show menus, and the fullscreen toggle (Esc leaves fullscreen).
+void SceneViewPanel::drawViewOptions(ImVec2 toolOrigin, float cW, float btnSz){
     const float litW = 50.f, showW = 58.f, iconW = btnSz;
     const float rightGroupW = litW + showW + iconW + 4.f * 2.f;
     float currentScreenX = ImGui::GetItemRectMax().x;
@@ -289,11 +308,6 @@ void SceneViewPanel::drawGizmoToolbar(){
         ImGui::SetTooltip(wasFullscreen ? "Exit fullscreen  (click or Esc)" : "Fullscreen");
     if (m_fullscreen && ImGui::IsKeyPressed(ImGuiKey_Escape, false))
         m_fullscreen = false;
-
-    ImGui::PopStyleVar(2);
-
-    ImGui::SetCursorScreenPos(ImVec2(toolOrigin.x, toolOrigin.y + toolH));
-    ImGui::Dummy(ImVec2(cW, 1.f));
 }
 
 void SceneViewPanel::drawGizmo(){

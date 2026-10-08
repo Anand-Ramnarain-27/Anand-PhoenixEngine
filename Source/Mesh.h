@@ -1,4 +1,5 @@
 #pragma once
+// GPU mesh: vertex / index buffers, bone weights and morph targets, plus its CPU copy for picking.
 
 #include "Globals.h"
 #include <string>

@@ -1,7 +1,10 @@
 #pragma once
+// Cubic-bezier easing curve and its ImGui editor widget.
+
 #include <imgui.h>
 #include <algorithm>
 
+/// CSS-style cubic bezier from (0,0) to (1,1) with control points p1 / p2; Eval(t) solves x(u) = t and returns y.
 struct EaseCurve {
     float p1x = 0.f, p1y = 0.f;
     float p2x = 1.f, p2y = 1.f;

@@ -1,4 +1,5 @@
 #pragma once
+// CPU heap of render-target views.
 
 #include "ModuleDescriptorsBase.h"
 #include "RenderTargetDesc.h"

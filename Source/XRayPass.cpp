@@ -227,7 +227,7 @@ void XRayPass::render(ID3D12GraphicsCommandList* cmd, GBufferPass& gbufferPass,
     const D3D12_VIEWPORT vp = { 0.f, 0.f, float(width), float(height), 0.f, 1.f };
     const D3D12_RECT sc = { 0, 0, LONG(width), LONG(height) };
 
-    // --- Mask ---------------------------------------------------------------------------------------
+    // 1. Mask (see XRayPass.h).
     BEGIN_EVENT(cmd, L"XRay Mask");
 
     if (mask.state != D3D12_RESOURCE_STATE_RENDER_TARGET){
@@ -277,7 +277,7 @@ void XRayPass::render(ID3D12GraphicsCommandList* cmd, GBufferPass& gbufferPass,
 
     END_EVENT(cmd);
 
-    // --- Composite ----------------------------------------------------------------------------------
+    // 2. Composite.
     BEGIN_EVENT(cmd, L"XRay Composite");
 
     CompositeConstants cc;

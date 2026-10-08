@@ -162,7 +162,7 @@ float SampleDirectionalShadow(float3 worldPos){
 }
 
 // Sum of Li(x, L) * Vis(x, L) * phase(rayDir, L) over lights visible at world-space point worldPos.
-// rayDir is the camera-to-point ray direction (the lecture's -V). Directional lights are always
+// rayDir is the camera-to-point ray direction (-V in the usual BRDF notation). Directional lights are always
 // evaluated (cheap, few of them); point/spot lights use this pixel's tile light list and are
 // skipped entirely when includePointSpot is false (the "bounded ray length" optimization).
 float3 AccumulateInScattering(float3 worldPos, float3 rayDir, uint tileIdx, bool includePointSpot){

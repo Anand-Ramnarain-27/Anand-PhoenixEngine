@@ -1,4 +1,6 @@
 #pragma once
+// Compute pass that bins point and spot lights into screen tiles.
+
 #include <d3d12.h>
 #include <wrl.h>
 using Microsoft::WRL::ComPtr;

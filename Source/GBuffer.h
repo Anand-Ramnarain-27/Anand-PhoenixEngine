@@ -1,9 +1,11 @@
 #pragma once
+// The deferred renderer's G-buffer targets: albedo, normal / metal / rough, emissive / AO and depth.
 
 #include "ShaderTableDesc.h"
 #include "RenderTargetDesc.h"
 #include "DepthStencilDesc.h"
 
+/// One set of targets per viewport, resized with it.
 class GBuffer {
 public:
     static constexpr int NUM_COLOR_RTS = 3;

@@ -1,4 +1,6 @@
 #pragma once
+// Projects ComponentDecal textures into the G-buffer before lighting.
+
 #include <d3d12.h>
 #include <wrl.h>
 using Microsoft::WRL::ComPtr;
@@ -44,13 +46,13 @@ struct DecalInstance {
 };
 static constexpr size_t kDecalCBBytes = sizeof(Matrix) * 3 + sizeof(Vector4) * 2;
 
+/// Draws each decal's box and writes albedo / emissive where it covers G-buffer surfaces.
 class DecalPass {
 public:
     static constexpr UINT MAX_DECALS = 64;
     // The editor renders the Scene and Game views in one frame, and up to FRAMES_IN_FLIGHT frames can be queued,
-    // so each (frame, view) gets its own slice of the CB ring. Sharing one slice let the second view overwrite the
-    // first view's matrices before the GPU read them: its decals then projected with the other camera and covered
-    // the whole screen.
+    // so each (frame, view) gets its own slice of the CB ring. With one shared slice the second view would
+    // overwrite the first view's matrices before the GPU reads them, projecting its decals with the other camera.
     static constexpr UINT MAX_VIEWS_PER_FRAME = 2;
     static constexpr UINT SLOTS_PER_FRAME = MAX_DECALS * MAX_VIEWS_PER_FRAME;
 

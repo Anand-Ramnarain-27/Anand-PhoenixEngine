@@ -81,13 +81,6 @@ void DragDropManager::QueueItems(std::vector<DropItem> items){
     m_queueCV.notify_all();
 }
 
-void DragDropManager::QueueFiles(const std::vector<fs::path>& paths){
-    std::vector<DropItem> items;
-    items.reserve(paths.size());
-    for (const auto& p : paths) items.push_back({ p, false });
-    QueueItems(std::move(items));
-}
-
 
 static void importFileTask(const fs::path& srcPath,
                             const std::string& assetsRoot,

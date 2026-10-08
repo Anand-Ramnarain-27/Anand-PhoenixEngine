@@ -1,4 +1,5 @@
 #pragma once
+// Imports a glTF scene's hierarchy, meshes, materials and skins into a Library scene cache.
 
 #include <string>
 #include <memory>
@@ -8,6 +9,7 @@
 class Model;
 namespace tinygltf { class Model; struct Primitive; }
 
+/// Entry point of a model import: walks the glTF nodes and calls the mesh, material and texture importers.
 class SceneImporter {
 public:
     struct SceneHeader {

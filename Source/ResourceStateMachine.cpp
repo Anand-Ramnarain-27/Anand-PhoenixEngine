@@ -189,6 +189,3 @@ bool ResourceStateMachine::Load(const std::string& path){
 }
 
 
-// ResourceStateMachine::DrawInspector() lives in ResourceStateMachineEditor.cpp
-// now - kept separate so this file (needed for SendTrigger's FindState/
-// FindClip lookups) can be linked into GameScript.dll without ImGui.

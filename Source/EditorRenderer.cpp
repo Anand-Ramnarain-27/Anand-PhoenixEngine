@@ -74,8 +74,6 @@ void ModuleEditor::render(){
 
     m_scriptWatcher.poll();
 
-    m_frameTransientBuffers.clear();
-
     cmd->Reset(d3d12->getCommandAllocator(), nullptr);
     cmd->EndQuery(m_gpuQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
 

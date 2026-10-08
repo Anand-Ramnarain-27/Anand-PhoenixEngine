@@ -1,4 +1,6 @@
 #pragma once
+// Tonemapping and gamma: HDR scene colour to the display target, with exposure and colour grading.
+
 #include "ShaderTableDesc.h"
 #include <d3d12.h>
 #include <wrl.h>

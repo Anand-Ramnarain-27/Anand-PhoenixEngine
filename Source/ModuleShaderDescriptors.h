@@ -1,4 +1,6 @@
 #pragma once
+// Shader-visible CBV/SRV/UAV heap, allocated in tables of 8 descriptors.
+
 #include "Module.h"
 #include <array>
 #include <string>
@@ -7,6 +9,7 @@
 
 class ShaderTableDesc;
 
+/// Hands out ShaderTableDesc tables; a table is freed when its last copy is destroyed.
 class ModuleShaderDescriptors : public Module {
     friend class ShaderTableDesc;
 

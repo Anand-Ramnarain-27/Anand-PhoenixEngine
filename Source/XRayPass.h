@@ -1,4 +1,5 @@
 #pragma once
+// X-ray silhouettes for tagged meshes hidden behind scene geometry.
 
 #include "ShaderTableDesc.h"
 #include "RenderTargetDesc.h"

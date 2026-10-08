@@ -1228,12 +1228,6 @@
   </ItemGroup>
   <ItemGroup>
     <!-- Shaders\Forward -->
-    <FxCompile Include="shaders\MeshPS.hlsl">
-      <Filter>Shaders\Forward</Filter>
-    </FxCompile>
-    <FxCompile Include="shaders\MeshVS.hlsl">
-      <Filter>Shaders\Forward</Filter>
-    </FxCompile>
     <FxCompile Include="shaders\PBRForwardPS.hlsl">
       <Filter>Shaders\Forward</Filter>
     </FxCompile>
@@ -1361,12 +1355,6 @@
     </FxCompile>
     <FxCompile Include="shaders\ParticleUpdateCS.hlsl">
       <Filter>Shaders\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="shaders\Noise3dVS.hlsl">
-      <Filter>Shaders\Forward</Filter>
-    </FxCompile>
-    <FxCompile Include="shaders\Noise3dPS.hlsl">
-      <Filter>Shaders\Forward</Filter>
     </FxCompile>
     <!-- Shaders\Environment -->
     <FxCompile Include="shaders\EnvironmentBRDFPS.hlsl">

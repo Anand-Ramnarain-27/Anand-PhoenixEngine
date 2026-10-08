@@ -1,4 +1,5 @@
 #pragma once
+// Shared implementation of the RTV and DSV descriptor heaps.
 
 #include <array>
 #include <memory>
@@ -13,6 +14,7 @@ struct D3D12_RENDER_TARGET_VIEW_DESC;
 struct D3D12_DEPTH_STENCIL_VIEW_DESC;
 
 template<D3D12_DESCRIPTOR_HEAP_TYPE HeapType, size_t MaxDescriptors, typename DescriptorType>
+/// Fixed-size CPU descriptor heap with generational handles (HandleManager) and ref-counted slots.
 class ModuleDescriptorsBase : public Module {
     static_assert(MaxDescriptors > 0, "Must have at least one descriptor slot");
 

@@ -1,4 +1,5 @@
 #pragma once
+// Forward PBR pass for transparent meshes, drawn after deferred lighting.
 
 #include "MeshPipeline.h"
 #include "MeshEntry.h"
@@ -13,83 +14,83 @@ using Microsoft::WRL::ComPtr;
 class EnvironmentSystem;
 
 struct FrameLightData {
-	std::vector<MeshPipeline::GPUDirectionalLight> dirLights;
-	std::vector<MeshPipeline::GPUPointLight> pointLights;
-	std::vector<MeshPipeline::GPUSpotLight> spotLights;
+    std::vector<MeshPipeline::GPUDirectionalLight> dirLights;
+    std::vector<MeshPipeline::GPUPointLight> pointLights;
+    std::vector<MeshPipeline::GPUSpotLight> spotLights;
 };
 
 class ForwardMeshPass {
 public:
-	ForwardMeshPass() = default;
-	~ForwardMeshPass() = default;
+    ForwardMeshPass() = default;
+    ~ForwardMeshPass() = default;
 
-	bool init(ID3D12Device* device, bool useMSAA = false);
+    bool init(ID3D12Device* device, bool useMSAA = false);
 
-	void render(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
-	            const FrameLightData& lights, const Vector3& cameraPos,
-	            const Matrix& viewProj, const EnvironmentSystem* env,
-	            const ShadowRenderData& shadow = ShadowRenderData{}, int samplerType = 0);
+    void render(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
+                const FrameLightData& lights, const Vector3& cameraPos,
+                const Matrix& viewProj, const EnvironmentSystem* env,
+                const ShadowRenderData& shadow = ShadowRenderData{}, int samplerType = 0);
 
-	void renderTransparent(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
-	                       const FrameLightData& lights, const Vector3& cameraPos,
-	                       const Matrix& viewProj, const EnvironmentSystem* env,
-	                       const ShadowRenderData& shadow = ShadowRenderData{}, int samplerType = 0);
+    void renderTransparent(ID3D12GraphicsCommandList* cmd, const std::vector<MeshEntry*>& meshes,
+                           const FrameLightData& lights, const Vector3& cameraPos,
+                           const Matrix& viewProj, const EnvironmentSystem* env,
+                           const ShadowRenderData& shadow = ShadowRenderData{}, int samplerType = 0);
 
-	MeshPipeline& getPipeline(){
-		return m_pipeline;
-	}
+    MeshPipeline& getPipeline(){
+        return m_pipeline;
+    }
 
 private:
-	bool createUploadBuffers(ID3D12Device* device);
-	bool createLightSRVs();
-	bool createFallbackTextures(ID3D12Device* device);
-	bool createMatTableRing();
+    bool createUploadBuffers(ID3D12Device* device);
+    bool createLightSRVs();
+    bool createFallbackTextures(ID3D12Device* device);
+    bool createMatTableRing();
 
-	void uploadLights(const FrameLightData& lights);
-	void uploadPerFrameCB(const FrameLightData& lights, const Vector3& cameraPos,
-	                      uint32_t envRoughLevels, const ShadowRenderData& shadow);
-	void writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj, UINT slot, D3D12_GPU_VIRTUAL_ADDRESS& outMvpVA, D3D12_GPU_VIRTUAL_ADDRESS& outInstVA);
+    void uploadLights(const FrameLightData& lights);
+    void uploadPerFrameCB(const FrameLightData& lights, const Vector3& cameraPos,
+                          uint32_t envRoughLevels, const ShadowRenderData& shadow);
+    void writePerDrawCBs(const MeshEntry& entry, const Matrix& viewProj, UINT slot, D3D12_GPU_VIRTUAL_ADDRESS& outMvpVA, D3D12_GPU_VIRTUAL_ADDRESS& outInstVA);
 
-	void renderWithPSO(ID3D12GraphicsCommandList* cmd, bool transparent,
-	                   const std::vector<MeshEntry*>& meshes,
-	                   const FrameLightData& lights, const Vector3& cameraPos,
-	                   const Matrix& viewProj, const EnvironmentSystem* env,
-	                   const ShadowRenderData& shadow,
-	                   int samplerType, UINT slotBase, UINT maxSlots);
+    void renderWithPSO(ID3D12GraphicsCommandList* cmd, bool transparent,
+                       const std::vector<MeshEntry*>& meshes,
+                       const FrameLightData& lights, const Vector3& cameraPos,
+                       const Matrix& viewProj, const EnvironmentSystem* env,
+                       const ShadowRenderData& shadow,
+                       int samplerType, UINT slotBase, UINT maxSlots);
 
-	MeshPipeline m_pipeline;
+    MeshPipeline m_pipeline;
 
-	static constexpr UINT MAX_OPAQUE = 256;
-	static constexpr UINT MAX_TRANSPARENT = 256;
-	static constexpr UINT MAX_INSTANCES = MAX_OPAQUE + MAX_TRANSPARENT;
+    static constexpr UINT MAX_OPAQUE = 256;
+    static constexpr UINT MAX_TRANSPARENT = 256;
+    static constexpr UINT MAX_INSTANCES = MAX_OPAQUE + MAX_TRANSPARENT;
 
-	ComPtr<ID3D12Resource> m_mvpRing;
-	void* m_mvpMapped = nullptr;
+    ComPtr<ID3D12Resource> m_mvpRing;
+    void* m_mvpMapped = nullptr;
 
-	ComPtr<ID3D12Resource> m_perFrameCB;
-	void* m_perFrameMapped = nullptr;
+    ComPtr<ID3D12Resource> m_perFrameCB;
+    void* m_perFrameMapped = nullptr;
 
-	ComPtr<ID3D12Resource> m_perInstanceRing;
-	void* m_perInstanceMapped = nullptr;
+    ComPtr<ID3D12Resource> m_perInstanceRing;
+    void* m_perInstanceMapped = nullptr;
 
-	ComPtr<ID3D12Resource> m_dirLightBuf;
-	ComPtr<ID3D12Resource> m_pointLightBuf;
-	ComPtr<ID3D12Resource> m_spotLightBuf;
-	void* m_dirLightMapped = nullptr;
-	void* m_pointLightMapped = nullptr;
-	void* m_spotLightMapped = nullptr;
+    ComPtr<ID3D12Resource> m_dirLightBuf;
+    ComPtr<ID3D12Resource> m_pointLightBuf;
+    ComPtr<ID3D12Resource> m_spotLightBuf;
+    void* m_dirLightMapped = nullptr;
+    void* m_pointLightMapped = nullptr;
+    void* m_spotLightMapped = nullptr;
 
-	ShaderTableDesc m_dirLightSRV;
-	ShaderTableDesc m_pointLightSRV;
-	ShaderTableDesc m_spotLightSRV;
+    ShaderTableDesc m_dirLightSRV;
+    ShaderTableDesc m_pointLightSRV;
+    ShaderTableDesc m_spotLightSRV;
 
-	ComPtr<ID3D12Resource> m_fallbackTex2D;
+    ComPtr<ID3D12Resource> m_fallbackTex2D;
 
-	ComPtr<ID3D12Resource> m_fallbackCube;
-	ShaderTableDesc m_fallbackIrradianceSRV;
-	ShaderTableDesc m_fallbackPrefilterSRV;
-	ShaderTableDesc m_fallbackBRDFSRV;
-	ShaderTableDesc m_fallbackShadowSRV;
+    ComPtr<ID3D12Resource> m_fallbackCube;
+    ShaderTableDesc m_fallbackIrradianceSRV;
+    ShaderTableDesc m_fallbackPrefilterSRV;
+    ShaderTableDesc m_fallbackBRDFSRV;
+    ShaderTableDesc m_fallbackShadowSRV;
 
-	std::vector<ShaderTableDesc> m_matRing;
+    std::vector<ShaderTableDesc> m_matRing;
 };

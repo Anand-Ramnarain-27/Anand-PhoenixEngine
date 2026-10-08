@@ -1,4 +1,6 @@
 #pragma once
+// Texture lookup shared by the effect passes (billboards, trails, particles, decals).
+
 #include "Application.h"
 #include "ModuleGPUResources.h"
 #include <d3d12.h>

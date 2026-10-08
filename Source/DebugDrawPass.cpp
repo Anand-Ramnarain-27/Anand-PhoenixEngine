@@ -343,7 +343,6 @@ public:
     }
 
     dd::GlyphTextureHandle createGlyphTexture(int width, int height, const void* pixels) override{
-        // Create and upload texture
 
         if (cpuTextHandle.ptr != 0)
         {
@@ -392,7 +391,6 @@ public:
             uploadFence->SetEventOnCompletion(uploadFenceValue, uploadEvent);
             WaitForSingleObject(uploadEvent, INFINITE);
 
-            // Create descriptors
             device->CreateShaderResourceView(glyphTexture.Get(), nullptr, cpuTextHandle);
         }
 

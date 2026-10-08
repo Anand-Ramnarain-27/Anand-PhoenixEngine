@@ -1,4 +1,6 @@
 #pragma once
+// Imports glTF animations into Library/Animations/<model>/*.anim.
+
 #include <string>
 
 namespace tinygltf { class Model; }

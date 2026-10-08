@@ -63,7 +63,6 @@ namespace {
         go->addComponent(std::move(comp));
     }
 
-    // ------------------------------------------------------------------ NPCs
     struct NpcDef {
         const char* prefab;
         const char* npcId;          // key into hub_content.json -> npcs
@@ -93,7 +92,6 @@ namespace {
         for (GameObject* c : node->getChildren()) tagMeshNodes(c, tag);
     }
 
-    // ------------------------------------------------------------------ UI pages
     struct Ctx {
         SceneGraph* scene;
         const Value* colors;   // hub_pages_layout.json "colors"

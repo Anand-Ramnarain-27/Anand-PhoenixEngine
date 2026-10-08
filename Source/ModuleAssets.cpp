@@ -574,11 +574,6 @@ UID ModuleAssets::findUID(const std::string& assetPath) const{
     return MetaFileManager::load(path, meta) ? meta.uid : 0;
 }
 
-// ModuleAssets::getPathFromUID() lives in ModuleAssetsCore.cpp now - kept
-// separate from this file's gltf-import pipeline (tinygltf/SceneImporter/
-// TextureImporter) so it can be linked into GameScript.dll (via PhoenixCore),
-// since ModuleResources::CreateResourceFromUID() calls it unconditionally.
-
 bool ModuleAssets::needsReimport(const std::string& assetPath) const{
     std::string path = normalisePath(assetPath);
     MetaData meta;
@@ -589,40 +584,4 @@ bool ModuleAssets::sceneExists(const std::string& sceneName) const{
     ModuleFileSystem* fsys = app->getFileSystem();
     std::string path = fsys->GetLibraryPath() + "Meshes/" + sceneName;
     return fsys->Exists(path.c_str()) && fsys->IsDirectory(path.c_str());
-}
-
-std::vector<ModuleAssets::SceneInfo> ModuleAssets::getImportedScenes() const{
-    std::vector<SceneInfo> scenes;
-    ModuleFileSystem* fsys = app->getFileSystem();
-    std::string meshesPath = fsys->GetLibraryPath() + "Meshes/";
-    if (!fsys->Exists(meshesPath.c_str())) return scenes;
-
-    try {
-        for (const auto& entry : fs::directory_iterator(meshesPath)){
-            if (!entry.is_directory()) continue;
-            SceneInfo info;
-            info.name = entry.path().filename().string();
-            info.path = normalisePath(entry.path().string());
-
-            std::string assetsRoot = app->getFileSystem()->GetAssetsPath();
-            info.uid = findUID(assetsRoot + "Models/" + info.name + "/" + info.name + ".gltf");
-
-            char* buffer = nullptr;
-            uint32_t size = fsys->Load((info.path + "/scene.meta").c_str(), &buffer);
-            if (buffer && size >= sizeof(SceneImporter::SceneHeader)){
-                SceneImporter::SceneHeader header;
-                memcpy(&header, buffer, sizeof(header));
-                if (header.magic == 0x53434E45 && header.version == 1){
-                    info.meshCount = header.meshCount;
-                    info.materialCount = header.materialCount;
-                }
-                delete[] buffer;
-            }
-            scenes.push_back(info);
-        }
-    }
-    catch (const std::exception& e){
-        PHX_LOG(Assets, Error, "ModuleAssets: Error listing scenes: %s", e.what());
-    }
-    return scenes;
 }

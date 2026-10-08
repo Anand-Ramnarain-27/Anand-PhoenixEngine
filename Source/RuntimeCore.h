@@ -20,6 +20,7 @@
 #include "PostProcessChain.h"
 #include "ColorLUT.h"
 #include "XRayPass.h"
+#include "EditorSceneSettings.h"
 
 #include <memory>
 #include <vector>
@@ -42,6 +43,7 @@ class RenderTexture;
 class GameObject;
 class SceneGraph;
 class ModuleCamera;
+class ComponentDirectionalLight;
 struct EditorViewport;
 
 /// Scene, simulation and rendering. `standalone` (the Player) drives its own frame: preRender() ticks and
@@ -107,6 +109,21 @@ private:
     void cullScene(ModuleCamera& cam);
     void updatePlayerUI(uint32_t w, uint32_t h);
 
+    // Steps of renderSceneWithCamera.
+    struct SceneView;
+    void gatherSceneMeshes(SceneView& v);
+    void dispatchSkinning(ID3D12GraphicsCommandList* cmd, SceneView& v);
+    void sortMeshesByPass(SceneView& v);
+    void gatherEffects(SceneView& v);
+    void renderShadows(ID3D12GraphicsCommandList* cmd, SceneView& v, ShadowRenderData& shadowData);
+    void renderDirectionalShadows(ID3D12GraphicsCommandList* cmd, SceneView& v, const ComponentDirectionalLight& light,
+                                  ShadowRenderData& shadowData);
+    OcclusionParams buildOcclusionParams(const SceneView& v) const;
+    void renderScenePasses(ID3D12GraphicsCommandList* cmd, SceneView& v, const ShadowRenderData& shadowData,
+                           const OcclusionParams& occlusion);
+    void drawEditorDebug(ID3D12GraphicsCommandList* cmd, SceneView& v);
+    void drawBoundsDebug(SceneGraph* scene);
+
     bool m_standalone;
 
     std::unique_ptr<DebugDrawPass> m_debugDraw;
@@ -161,6 +178,8 @@ private:
     void debugDrawLights(SceneGraph* scene, float lightSize);
 
     void renderStandaloneFrame();
+    RenderTexture* applyPlayerFog(ID3D12GraphicsCommandList* cmd, RenderTexture* hdrResult, const Matrix& view,
+                                  const Matrix& proj, const Vector3& pos, const EditorSceneSettings::Fog& fog);
 
     std::unique_ptr<XRayPass> m_xrayPass;
 

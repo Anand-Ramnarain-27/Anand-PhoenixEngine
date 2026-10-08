@@ -2,7 +2,6 @@
 #include "FileWatcher.h"
 #include <filesystem>
 #include <algorithm>
-#include <iostream>
 
 namespace fs = std::filesystem;
 
@@ -14,7 +13,7 @@ void FileWatcher::start(const std::string& rootDir, Callback cb){
 
     m_stopEvent = CreateEventA(nullptr, TRUE, FALSE, nullptr);
     if (m_stopEvent == INVALID_HANDLE_VALUE){
-        std::cerr << "[FileWatcher] Failed to create stop event\n";
+        PHX_LOG(Editor, Error, "[FileWatcher] Failed to create stop event");
         return;
     }
 
@@ -53,7 +52,7 @@ void FileWatcher::watchThread(){
     m_dirHandle = CreateFileA(m_root.c_str(), FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, nullptr);
 
     if (m_dirHandle == INVALID_HANDLE_VALUE){
-        std::cerr << "[FileWatcher] Cannot open directory: " << m_root << "\n";
+        PHX_LOG(Editor, Error, "[FileWatcher] Cannot open directory: %s", m_root.c_str());
         m_running = false;
         return;
     }
@@ -73,7 +72,7 @@ void FileWatcher::watchThread(){
         };
 
     if (!queueRead()){
-        std::cerr << "[FileWatcher] ReadDirectoryChangesW failed\n";
+        PHX_LOG(Editor, Error, "[FileWatcher] ReadDirectoryChangesW failed");
         CloseHandle(ov.hEvent);
         CloseHandle(m_dirHandle);
         m_running = false;

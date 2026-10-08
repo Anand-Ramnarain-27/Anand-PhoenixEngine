@@ -1,4 +1,6 @@
 #pragma once
+// Compute skinning and morph targets for animated meshes.
+
 #include <d3d12.h>
 #include <wrl/client.h>
 #include <vector>
@@ -7,6 +9,7 @@
 
 using Microsoft::WRL::ComPtr;
 
+/// Skins every animated mesh's vertices on the GPU each frame into buffers the geometry passes read.
 class SkinningPass {
 public:
     static constexpr uint32_t MAX_TOTAL_JOINTS = 1024;

@@ -1,4 +1,6 @@
 #pragma once
+// Editor panel for the AI navigation system: graph, agents and debug draw toggles.
+
 #include "EditorPanel.h"
 
 class NavigationDebugPanel : public EditorPanel {

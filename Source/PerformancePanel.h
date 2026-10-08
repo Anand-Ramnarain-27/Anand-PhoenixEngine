@@ -1,4 +1,6 @@
 #pragma once
+// Editor panel with the frame's GPU / CPU time, a per-pass breakdown and an FPS history graph.
+
 #include "EditorPanel.h"
 #include <cstdint>
 
@@ -15,6 +17,10 @@ protected:
     void drawContent() override;
 
 private:
+    void drawFrameSummary(float gpuMs, float cpuMs, float fps, float budgetPc);
+    void drawPassBreakdown(float gpuMs, float scale, float refTotal);
+    void drawFpsHistory();
+
     static constexpr int kHistory = 200;
     float m_fpsHistory[kHistory] = {};
     int m_fpsIdx = 0;

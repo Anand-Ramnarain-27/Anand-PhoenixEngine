@@ -1,4 +1,5 @@
 #pragma once
+// tinygltf configuration and accessor helpers shared by the glTF importers.
 
 #define TINYGLTF_NO_STB_IMAGE_WRITE
 #define TINYGLTF_NO_STB_IMAGE

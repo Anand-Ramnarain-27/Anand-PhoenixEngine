@@ -1,4 +1,6 @@
 #pragma once
+// Light view / projection maths for the shadow maps (cascade splits and fitting).
+
 #include <SimpleMath.h>
 #include <cstdint>
 

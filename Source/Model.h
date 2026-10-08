@@ -1,4 +1,5 @@
 #pragma once
+// A set of meshes and materials loaded together (an imported model or a procedural one).
 
 #include "Mesh.h"
 #include "Material.h"

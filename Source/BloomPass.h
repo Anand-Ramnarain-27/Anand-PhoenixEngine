@@ -1,4 +1,6 @@
 #pragma once
+// Bloom: bright-pass extract, Kawase downsample / upsample chain and composite.
+
 #include <d3d12.h>
 #include <wrl.h>
 using Microsoft::WRL::ComPtr;

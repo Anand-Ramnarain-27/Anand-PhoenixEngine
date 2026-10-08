@@ -1,4 +1,6 @@
 #pragma once
+// The editor module: panels, menus, selection, undo / redo, play mode and the editor's frame.
+
 #include "Module.h"
 #include "EditorSelection.h"
 #include "PrimitiveFactory.h"
@@ -38,6 +40,7 @@
 
 using Microsoft::WRL::ComPtr;
 
+/// One undoable editor action: `execute` applies (or re-applies) it, `undo` reverts it.
 struct EditorCommand {
     std::function<void()> execute;
     std::function<void()> undo;
@@ -81,7 +84,10 @@ class ColorLUT;
 struct FrameLightData;
 struct ShadowRenderData;
 class HotReloadManager;
+class ModuleCamera;
 
+/// Owns the editor panels and draws the dock space, menu bar and status bar each frame; renders the
+/// Scene and Game viewports through RuntimeCore and handles shortcuts, dialogs and prefab editing.
 class ModuleEditor : public Module {
 public:
     ModuleEditor();
@@ -93,7 +99,6 @@ public:
     void render() override;
 
     SceneManager* getSceneManager() const;
-    ForwardMeshPass* getMeshRenderPass() const;
     MeshPipeline* getMeshPipeline() const;
     EnvironmentSystem* getEnvSystem() const;
     DebugDrawPass* getDebugDraw() const;
@@ -231,18 +236,29 @@ private:
     PrefabEditSession m_prefabSession;
     bool m_pendingExitPrefab = false;
 
-    ComPtr<ID3D12Resource> createUploadBuffer(ID3D12Device*, SIZE_T, const wchar_t*);
     void updateMemory();
     void updateEffectsInEditMode(float dt);
     void handleNewScenePopup(ID3D12GraphicsCommandList* cmd);
     void drawDockspace();
     void drawMenuBar();
+    void drawFileMenu();
+    void drawEditMenu();
+    void drawGameObjectMenu();
+    void drawUIMenuItems();
+    void drawAshfallMenuItems();
+    void drawComponentMenu();
+    void drawDebugMenu();
+    void drawCameraCullingMenuItems(ModuleCamera& cam);
+    void drawWindowMenu();
+    /// Runs an Ashfall builder on the active scene and logs its message as success or failure.
+    void runSceneBuilder(bool (*build)(SceneGraph*, HotReloadManager*, std::string&), const char* okPrefix,
+                         const char* failPrefix);
+    void runSceneManagerBuilder(bool (*build)(SceneManager*, HotReloadManager*, std::string&), const char* okPrefix,
+                                const char* failPrefix);
     void drawStatusBar();
     void drawShadowMapPreview();
     void handleDialogs();
     void flushExitPrefabEdit();
     void handleShortcuts();
     void drawDragDropOverlay();
-
-    std::vector<ComPtr<ID3D12Resource>> m_frameTransientBuffers;
 };

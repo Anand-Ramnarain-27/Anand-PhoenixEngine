@@ -1,4 +1,6 @@
 #pragma once
+// Dear ImGui rendering for the editor, plus the editor's fonts and theme.
+
 #include <imgui.h>
 
 // Global font handles — set during ImGuiPass construction.

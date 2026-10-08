@@ -1,12 +1,13 @@
 #pragma once
+// Render targets of one editor viewport (Scene or Game view), resized with its window.
+
 #include <imgui.h>
 #include <memory>
 #include <stdint.h>
 #include "RenderTexture.h"
 
-class ModuleD3D12;
-class SceneManager;
-
+/// HDR scene target, LDR display target, their ping-pong scratch copies and the bloom mips. checkResize()
+/// notes a new window size; ViewportPanel::handleResize() then resizes the targets.
 struct EditorViewport {
     static constexpr int kNumBloomMips = 3;
 
@@ -32,6 +33,4 @@ struct EditorViewport {
             lastSize = size;
         }
     }
-
-    void applyResize(ModuleD3D12* d3d12, SceneManager* sm);
 };

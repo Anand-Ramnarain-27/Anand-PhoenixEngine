@@ -672,13 +672,6 @@ void AssetBrowserPanel::prefabRevert(){
     logResult(m_editor, ok, "Reverted.", "Revert failed.");
 }
 
-void AssetBrowserPanel::prefabDelete(const std::string& name){
-    std::string prefabDir = app->getFileSystem()->GetLibraryPath() + "Prefabs/";
-    app->getFileSystem()->Delete((prefabDir + name + ".prefab").c_str());
-    m_editor->log(("Deleted prefab: " + name).c_str(), EditorColors::Warning);
-    m_dirty = true;
-}
-
 void AssetBrowserPanel::prefabCreateVariant(const std::string& src, const std::string& dst){
     if (dst.empty()) return;
     bool ok = PrefabManager::createVariant(src, dst);

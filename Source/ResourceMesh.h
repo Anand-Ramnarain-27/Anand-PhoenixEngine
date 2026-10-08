@@ -1,4 +1,6 @@
 #pragma once
+// Ref-counted Mesh loaded from Library/Meshes.
+
 #include "ResourceCommon.h"
 #include <cstdint>
 #include <memory>

@@ -1,8 +1,10 @@
 #pragma once
+// Shader-visible heap holding the engine's fixed set of static samplers.
 
 #include "Module.h"
 
 
+/// All samplers are created up front and stay resident; shaders index them by type.
 class ModuleSamplerHeap : public Module {
 public:
     enum Type {

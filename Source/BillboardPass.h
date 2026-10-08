@@ -1,4 +1,6 @@
 #pragma once
+// Draws camera-facing sprites (ComponentBillboard and CPU particles).
+
 #include <d3d12.h>
 #include <wrl.h>
 using Microsoft::WRL::ComPtr;
@@ -55,6 +57,7 @@ struct BillboardInstance {
     bool premultiplied = false;   // wins over additive
 };
 
+/// Batches billboards per texture and blend mode into instanced draws from a per-frame upload ring.
 class BillboardPass {
 public:
     static constexpr UINT MAX_BILLBOARDS = 512;

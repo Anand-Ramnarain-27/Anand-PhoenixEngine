@@ -1,4 +1,6 @@
 #pragma once
+// Deferred lighting: lights the G-buffer with tiled light lists, shadows and IBL.
+
 #include <d3d12.h>
 #include <wrl.h>
 using Microsoft::WRL::ComPtr;
@@ -50,6 +52,8 @@ class GBufferPass;
 class EnvironmentSystem;
 struct FrameLightData;
 
+/// Full-screen pass that shades every G-buffer pixel; point and spot lights come from the tile lists
+/// LightCullingPass builds.
 class DeferredLightingPass {
 public:
     struct CbPerFrame {
