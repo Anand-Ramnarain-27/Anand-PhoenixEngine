@@ -42,7 +42,7 @@ private:
     std::string m_className;
     IScript* m_script = nullptr;
     bool m_started = false;
-    // Last known "Fields" object (JSON). Kept so saved values survive a save while the script DLL isn't
-    // loaded, or while the script no longer declares a field. See IScript::GetFields().
+    /// Last known "Fields" object (JSON). Kept so saved values survive a save while the script DLL isn't
+    /// loaded, or while the script no longer declares a field. See IScript::GetFields().
     std::string m_fieldsJson;
 };

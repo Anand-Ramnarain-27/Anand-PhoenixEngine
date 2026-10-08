@@ -27,8 +27,6 @@
 // through `app`. Creating a component or loading a model needs engine-executable code, so those go through the
 // EngineHooks function pointers RuntimeCore::init registers on the SceneManager.
 
-// ------------------------------------------------------------------ guards (VfxGuards.h)
-
 void VfxGuards::RejectOnce(const GameObject* go, const char* what, const char* detailFmt, ...){
     static std::mutex mtx;
     static std::set<std::pair<uint32_t, std::string>> seen;
@@ -95,8 +93,6 @@ namespace {
     }
 }
 
-// ------------------------------------------------------------------ objects
-
 GameObject* VFX::CreateObject(const std::string& name, GameObject* parent){
     if (!app || !app->getRuntimeCore()) return nullptr;
     SceneGraph* sg = app->getRuntimeCore()->getActiveModuleScene();
@@ -137,8 +133,6 @@ bool VFX::LoadMesh(GameObject* go, const std::string& modelAssetPath){
     if (!go || !sm || !sm->getEngineHooks().loadModel) return false;
     return sm->getEngineHooks().loadModel(go, modelAssetPath.c_str());
 }
-
-// ------------------------------------------------------------------ particles
 
 void VFX::ConfigureParticles(GameObject* go, const VfxParticleSettings& s){
     auto* ps = comp<ComponentParticleSystem>(go);
@@ -214,8 +208,6 @@ int VFX::LiveParticles(GameObject* go){
     return ps ? ps->aliveCount() + ps->pendingBurst : 0;
 }
 
-// ------------------------------------------------------------------ decals
-
 void VFX::SetDecal(GameObject* go, const std::string& texture, Vec3 colour, float opacity, float emissive, float albedoMix){
     if (auto* dc = comp<ComponentDecal>(go)){
         if (!VfxGuards::finite(colour) || !VfxGuards::finite(opacity) || !VfxGuards::finite(emissive) ||
@@ -266,8 +258,6 @@ bool VFX::PlaceDecal(GameObject* go, Vec3 position, Quat rotation, Vec3 size){
     return true;
 }
 
-// ------------------------------------------------------------------ lights
-
 void VFX::SetPointLight(GameObject* go, Vec3 colour, float intensity, float radius, bool transient){
     if (auto* pl = comp<ComponentPointLight>(go)){
         if (!VfxGuards::finite(colour) || !VfxGuards::finite(intensity) || !VfxGuards::finite(radius)){
@@ -287,8 +277,6 @@ void VFX::SetPointLight(GameObject* go, Vec3 colour, float intensity, float radi
 void VFX::SetLightEnabled(GameObject* go, bool enabled){
     if (auto* pl = comp<ComponentPointLight>(go)) pl->enabled = enabled;
 }
-
-// ------------------------------------------------------------------ trails
 
 void VFX::SetTrail(GameObject* go, const std::string& texture, Vec4 startColor, Vec4 endColor,
                    float width, float duration, int blend){
@@ -310,8 +298,6 @@ void VFX::SetTrailEmitting(GameObject* go, bool emitting, bool clear){
         if (clear) tr->clear();
     }
 }
-
-// ------------------------------------------------------------------ billboards
 
 void VFX::SetBillboard(GameObject* go, const std::string& texture, Vec2 size, Vec4 tint,
                        int sheetColumns, int sheetRows, float fps, bool loop, int alignment){
@@ -338,8 +324,6 @@ void VFX::SetBillboardSize(GameObject* go, Vec2 size){
     if (auto* bb = comp<ComponentBillboard>(go)) bb->size = size;
 }
 
-// ------------------------------------------------------------------ mesh overrides
-
 void VFX::SetMeshTint(GameObject* go, Vec4 tint, bool recursive){
     if (!VfxGuards::finite(tint)){ VfxGuards::RejectOnce(go, "mesh tint", "(non-finite)"); return; }
     forEachMesh(go, recursive, [&](ComponentMesh& cm){ cm.vfx.tint = tint; });
@@ -365,8 +349,6 @@ void VFX::SetMeshUVScroll(GameObject* go, Vec2 offset, Vec2 unitsPerSecond, bool
 void VFX::ClearMeshFx(GameObject* go, bool recursive){
     forEachMesh(go, recursive, [](ComponentMesh& cm){ cm.vfx = MeshVfxParams(); });
 }
-
-// ------------------------------------------------------------------ time
 
 void VFX::SetTimeScale(float scale){
     if (!VfxGuards::finite(scale)) scale = 1.f;

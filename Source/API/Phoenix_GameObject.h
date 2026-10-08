@@ -1,4 +1,6 @@
 #pragma once
+// Null-safe GameObject shortcuts for scripts (components, active state, name, tag, transform).
+
 #include "GameObject.h"
 #include "ComponentTransform.h"
 #include "ComponentRigidbody.h"
@@ -21,7 +23,7 @@ inline const char* GetName  (GameObject* go)             { return go ? go->getNa
 inline const char* GetTag   (GameObject* go)             { return go ? go->getTag().c_str() : ""; }
 inline void        SetTag   (GameObject* go, const char* tag){ if (go) go->setTag(tag ? tag : ""); }
 
-// Shorthand transform accessors
+//// Local position / scale / rotation, by reference. `go` must not be null.
 inline Vec3& Position(GameObject* go){ return go->getTransform()->position; }
 inline Vec3& Scale   (GameObject* go){ return go->getTransform()->scale; }
 inline Quat& Rotation(GameObject* go){ return go->getTransform()->rotation; }

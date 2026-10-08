@@ -1,4 +1,6 @@
 #pragma once
+// Sample script that calls the navigation, perception, steering and tag API as a link test.
+
 #include "IScript.h"
 #include "ScriptExport.h"
 

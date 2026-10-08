@@ -1,4 +1,6 @@
 #pragma once
+// Sample script: a minimal player script with state saved through Save() / Load().
+
 #include "IScript.h"
 #include "ScriptExport.h"
 

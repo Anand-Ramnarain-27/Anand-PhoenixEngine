@@ -1,4 +1,6 @@
 #pragma once
+// Math types of the scripting API (DirectXTK SimpleMath).
+
 #include "SimpleMath.h"
 
 namespace Phoenix {

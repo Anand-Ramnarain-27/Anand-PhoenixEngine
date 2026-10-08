@@ -1,7 +1,5 @@
-// Player.vcxproj's stub for PhoenixEngineLogToConsole() (declared in
-// HotReloadManager.cpp) - Player.exe has no editor UI/Console panel at
-// runtime, so there's nothing to forward to. See EngineLogBridge.cpp for
-// the real implementation Engine.vcxproj links instead.
+// Player's PhoenixEngineLogToConsole(): the Player has no Console panel, so script log lines are not forwarded.
+// The editor links EngineLogBridge.cpp instead.
 #include "Globals.h"
 
 void PhoenixEngineLogToConsole(const char* /*text*/, float, float, float, float){

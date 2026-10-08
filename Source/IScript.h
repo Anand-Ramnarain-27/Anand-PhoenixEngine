@@ -5,11 +5,11 @@
 
 class GameObject;
 
-// Serializable script fields. A script lists the members it wants exposed from GetFields(); ComponentScript
-// draws them in the Inspector, saves them into the scene/prefab JSON ("Fields") and writes them back before
-// Start(). The script DLL never touches ImGui or JSON for these - the engine does both.
-// Keep this file identical to ashfall's GameScript/IScript.h: it is part of the script DLL ABI.
-// GameScript declares fields with the PHX_* macros (GameScript/ScriptMacros.h, docs/SCRIPT_FIELDS.md).
+/// Serializable script fields. A script lists the members it wants exposed from GetFields(); ComponentScript
+/// draws them in the Inspector, saves them into the scene/prefab JSON ("Fields") and writes them back before
+/// Start(). The script DLL never touches ImGui or JSON for these - the engine does both.
+/// Keep this file identical to ashfall's GameScript/IScript.h: it is part of the script DLL ABI.
+/// GameScript declares fields with the PHX_* macros (GameScript/ScriptMacros.h, docs/SCRIPT_FIELDS.md).
 enum class ScriptFieldType : int {
     Int,       // int*
     Float,     // float*
@@ -27,13 +27,13 @@ enum class ScriptFieldType : int {
 enum ScriptFieldFlag : unsigned {
     ScriptFieldFlag_Hidden = 1u << 0,           // saved and loaded, not drawn
     ScriptFieldFlag_ReadOnly = 1u << 1,         // drawn greyed out (live while playing), never saved
-    // A String holding a JSON object of per-instance overrides over the .json file named by the AssetPath field
-    // `link` (the Inspector draws that file with the overrides in bold). Usually also Hidden.
+    /// A String holding a JSON object of per-instance overrides over the .json file named by the AssetPath field
+    /// `link` (the Inspector draws that file with the overrides in bold). Usually also Hidden.
     ScriptFieldFlag_ConfigOverrides = 1u << 2,
 };
 
-// An ObjectRef field's member. The engine fills `object` before Start() (and while editing); `path` is what is
-// saved: names from the scene root, '/'-separated ("VFX_TestRoot/VFX_Camera").
+/// An ObjectRef field's member. The engine fills `object` before Start() (and while editing); `path` is what is
+/// saved: names from the scene root, '/'-separated ("VFX_TestRoot/VFX_Camera").
 struct ScriptObjectRef {
     std::string path;
     GameObject* object = nullptr;
@@ -45,7 +45,7 @@ struct ScriptField {
     void* value = nullptr;        // points into the script instance; see ScriptFieldType for the pointee
     const char* tooltip = nullptr;
 
-    // ---- attributes (all optional; zero = off)
+    // Attributes (all optional; zero = off).
     unsigned flags = 0;                   // ScriptFieldFlag bits
     float rangeMin = 0.f, rangeMax = 0.f; // Int/Float: a slider clamped to [min, max] when min < max
     const char* header = nullptr;         // bold caption drawn above the field
@@ -83,7 +83,7 @@ public:
 
     virtual const char* getTypeName() const = 0;
 
-    // Append this script's serializable fields to `out` (see ScriptField). Called whenever the engine needs
-    // them, so the pointers only have to stay valid for the duration of the call.
+    /// Append this script's serializable fields to `out` (see ScriptField). Called whenever the engine needs
+    /// them, so the pointers only have to stay valid for the duration of the call.
     virtual void GetFields(ScriptFieldList& out){}
 };

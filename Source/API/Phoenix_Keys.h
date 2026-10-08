@@ -1,7 +1,9 @@
 #pragma once
+// Key, mouse-button and gamepad identifiers used by Phoenix::Input.
 
 namespace Phoenix {
 
+/// Keyboard keys; the values are Windows virtual-key codes.
 enum class Key : int {
     None      = 0,
     Back      = 0x08,

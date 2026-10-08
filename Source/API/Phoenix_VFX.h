@@ -1,4 +1,6 @@
 #pragma once
+// Runtime VFX building blocks for scripts: particles, decals, lights, trails, billboards, mesh FX, time scale.
+
 #include "API/Phoenix_Types.h"
 #include <string>
 
@@ -6,8 +8,8 @@ class GameObject;
 
 namespace Phoenix {
 
-// Settings for a particle layer (ComponentParticleSystem). Plain data defined only here, so the same layout is
-// seen by the engine and by GameScript.dll.
+/// Settings for a particle layer (ComponentParticleSystem). Plain data defined only here, so the same layout is
+/// seen by the engine and by GameScript.dll.
 struct VfxParticleSettings {
     int   maxParticles = 64;
     float emissionRate = 0.f;        // per second while playing; 0 = bursts only
@@ -42,26 +44,26 @@ struct VfxParticleSettings {
     int   layer = 0;
 };
 
-// Runtime VFX building blocks for the GameScript VFX manager (GameScript/VFX). Everything works on plain
-// GameObjects: create one (CreateObject), give it one effect component (Add*), then drive it with the setters.
-// All calls are data-only on the engine's components; a null or wrong object is ignored.
+/// Runtime VFX building blocks for the GameScript VFX manager (GameScript/VFX). Everything works on plain
+/// GameObjects: create one (CreateObject), give it one effect component (Add*), then drive it with the setters.
+/// All calls are data-only on the engine's components; a null or wrong object is ignored.
 struct VFX {
-    // ---- objects
+    // Objects.
     // A new, empty GameObject under `parent` (scene root when null). Safe during a script's Update.
     static GameObject* CreateObject(const std::string& name, GameObject* parent = nullptr);
     static void SetParent(GameObject* go, GameObject* parent);   // keeps the local transform
-    // Each adds the component if the object doesn't have one yet; false when the engine can't (no scene/hooks).
+    /// Each adds the component if the object doesn't have one yet; false when the engine can't (no scene/hooks).
     static bool AddParticles(GameObject* go);
     static bool AddDecal(GameObject* go);
     static bool AddPointLight(GameObject* go);
     static bool AddTrail(GameObject* go);
     static bool AddBillboard(GameObject* go);
-    // Sets the local transform; a non-finite position/rotation/scale is refused (logged once per object).
+    /// Sets the local transform; a non-finite position/rotation/scale is refused (logged once per object).
     static bool PlaceObject(GameObject* go, Vec3 position, Quat rotation, Vec3 scale);
-    // Gives the object a ComponentMesh showing an imported model (e.g. "Assets/.../PH_Sphere_fx.gltf").
+    /// Gives the object a ComponentMesh showing an imported model (e.g. "Assets/.../PH_Sphere_fx.gltf").
     static bool LoadMesh(GameObject* go, const std::string& modelAssetPath);
 
-    // ---- particles
+    // Particles.
     static void ConfigureParticles(GameObject* go, const VfxParticleSettings& s);
     static void PlayParticles(GameObject* go, bool restart = true);   // restart: the emission clock starts again
     static void StopParticles(GameObject* go, bool clearLive = false);
@@ -70,42 +72,42 @@ struct VFX {
     static void SetParticleRate(GameObject* go, float perSecond);
     static int  LiveParticles(GameObject* go);
 
-    // ---- decals: the decal projects along the object's local Z through a unit box (scale = size, Z = depth),
+    // Decals: the decal projects along the object's local Z through a unit box (scale = size, Z = depth),
     // so a ground decal is rotated -90 deg around X.
     static void SetDecal(GameObject* go, const std::string& texture, Vec3 colour, float opacity,
                          float emissive = 0.f, float albedoMix = 1.f);
     static void SetDecalOpacity(GameObject* go, float opacity);   // <= 0 disables it
-    // Sets the decal object's transform. Each size axis is clamped to >= 0.01 m and a non-finite pose is refused
-    // (the decal is switched off; logged once per object). Use this rather than writing the transform directly.
+    /// Sets the decal object's transform. Each size axis is clamped to >= 0.01 m and a non-finite pose is refused
+    /// (the decal is switched off; logged once per object). Use this rather than writing the transform directly.
     static bool PlaceDecal(GameObject* go, Vec3 position, Quat rotation, Vec3 size);
 
-    // ---- point lights. transient = one of the 4 VFX slots gathered before the level's lights (never shadowed).
+    // Point lights. transient = one of the 4 VFX slots gathered before the level's lights (never shadowed).
     static void SetPointLight(GameObject* go, Vec3 colour, float intensity, float radius, bool transient = true);
     static void SetLightEnabled(GameObject* go, bool enabled);
 
-    // ---- trails (blend: 0 alpha, 1 additive)
+    // Trails (blend: 0 alpha, 1 additive).
     static void SetTrail(GameObject* go, const std::string& texture, Vec4 startColor, Vec4 endColor,
                          float width, float duration, int blend = 1);
     static void SetTrailEmitting(GameObject* go, bool emitting, bool clear = false);
 
-    // ---- billboards (alignment: 0 screen, 1 world-up, 2 axial)
+    // Billboards (alignment: 0 screen, 1 world-up, 2 axial).
     static void SetBillboard(GameObject* go, const std::string& texture, Vec2 size, Vec4 tint,
                              int sheetColumns = 1, int sheetRows = 1, float fps = 0.f, bool loop = true, int alignment = 0);
     static void SetBillboardTint(GameObject* go, Vec4 tint);
     static void SetBillboardSize(GameObject* go, Vec2 size);
 
-    // ---- per-object mesh overrides (every ComponentMesh at or under `go` when recursive). Runtime only.
+    // Per-object mesh overrides (every ComponentMesh at or under `go` when recursive). Runtime only.
     // tint multiplies base colour; alpha < 1 draws the mesh in the transparent forward pass.
     static void SetMeshTint(GameObject* go, Vec4 tint, bool recursive = true);
-    // Replaces the material's base colour and alpha (w <= 0 = back to the material's). For VFX meshes such as a
-    // bubble or a beam, whose placeholder material has the wrong colour.
+    /// Replaces the material's base colour and alpha (w <= 0 = back to the material's). For VFX meshes such as a
+    /// bubble or a beam, whose placeholder material has the wrong colour.
     static void SetMeshBaseColor(GameObject* go, Vec4 color, bool recursive = true);
-    // colour added as emissive; rimPower 0 = flat over the surface, > 0 = fresnel rim (2-4 reads as a rim).
+    /// colour added as emissive; rimPower 0 = flat over the surface, > 0 = fresnel rim (2-4 reads as a rim).
     static void SetMeshGlow(GameObject* go, Vec3 colour, float rimPower = 0.f, bool recursive = true);
     static void SetMeshUVScroll(GameObject* go, Vec2 offset, Vec2 unitsPerSecond, bool recursive = true);
     static void ClearMeshFx(GameObject* go, bool recursive = true);
 
-    // ---- time. The scale applies to the scene, scripts, collision and animation from the next frame; it returns
+    // Time. The scale applies to the scene, scripts, collision and animation from the next frame; it returns
     // to 1 on scene load and when Play stops. HUD, camera shake and hit-stop timers use the unscaled delta.
     static void  SetTimeScale(float scale);
     static float GetTimeScale();

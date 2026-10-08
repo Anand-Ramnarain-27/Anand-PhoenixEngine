@@ -1,11 +1,14 @@
 #pragma once
+// Steering behaviours (seek, arrive, flee, pursue, evade, avoidance) for scripts.
+
 #include "API/Phoenix_Types.h"
 #include "SteeringBehaviors.h"
 #include <vector>
 
 namespace Phoenix {
 
-// Flat-argument wrapper around SteeringBehaviors:: for scripts.
+//// Flat-argument wrapper around SteeringBehaviors for scripts. Each returns a desired velocity (or, for
+/// ApplySteering, the new velocity after accelerating towards one).
 struct Steering {
     static Vec3 Seek(Vec3 position, Vec3 target, float maxSpeed){
         SteeringBehaviors::SteeringParams p; p.maxSpeed = maxSpeed;

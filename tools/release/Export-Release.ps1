@@ -82,7 +82,7 @@ function Sync-VendoredHeader([string]$src, [string]$dst, [string[]]$dropIncludes
     }
     [IO.File]::WriteAllText($dst, $newText, (New-Object Text.UTF8Encoding($false)))
     $script:copied++
-    Write-Host ("  copied     {0}  ->  {1}  (vendored header kept)" -f $src, $dst)
+    Write-Host ("  copied     {0}  ->  {1}  (vendored comment block kept)" -f $src, $dst)
 }
 
 $exeDir = Join-Path $engineRoot 'build\PhoenixEngine\Release\x64'

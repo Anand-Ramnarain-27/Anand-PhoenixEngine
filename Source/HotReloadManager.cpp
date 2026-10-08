@@ -92,21 +92,14 @@ bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLib
     }
     out.dllPath = dllPath;
 
-    // Hand this process's Application* across the DLL boundary, if the DLL
-    // wants it (GameScript.dll's GameScriptGlobals.cpp exports this so that
-    // Phoenix::Input/etc, statically linked into the DLL from PhoenixCore.lib,
-    // have a real Application to reach instead of a permanently-null one -
-    // a DLL has its own separate copy of any global, it never shares the
-    // EXE's). Optional: older/other script DLLs without this export just skip it.
+    // A DLL gets its own copy of every global, so the API code linked into it from PhoenixCore.lib would see a
+    // null `app`: hand it this process's Application. Optional - a DLL without the export skips it.
     using SetAppFn = void(*)(Application*);
     if (auto setApp = reinterpret_cast<SetAppFn>(GetProcAddress(out.handle, "SetPhoenixEngineApp")))
         setApp(app);
 
-    // Same handoff, for forwarding the script DLL's log messages into the
-    // editor's Console panel as well as OutputDebugStringA.
-    // PhoenixEngineLogToConsole() is defined in EngineLogBridge.cpp (real
-    // forward to ModuleEditor::log) or PlayerLogBridge.cpp (no-op stub) -
-    // whichever this binary links.
+    // Same handoff for the Console: the DLL's log lines also go to PhoenixEngineLogToConsole() (EngineLogBridge.cpp
+    // in the editor, a no-op PlayerLogBridge.cpp in the Player).
     using LogFn = void(*)(const char*, float, float, float, float);
     extern void PhoenixEngineLogToConsole(const char*, float, float, float, float);
     using SetLogFn = void(*)(LogFn);
