@@ -125,31 +125,31 @@ bool RuntimeCore::init(){
 
     m_decalPass = std::make_unique<DecalPass>();
     if (!m_decalPass->init(device)){
-        LOG("RuntimeCore: DecalPass init failed (non-fatal)");
+        PHX_LOG(Core, Error, "RuntimeCore: DecalPass init failed (non-fatal)");
         m_decalPass.reset();
     }
 
     m_billboardPass = std::make_unique<BillboardPass>();
     if (!m_billboardPass->init(device)){
-        LOG("RuntimeCore: BillboardPass init failed (non-fatal)");
+        PHX_LOG(Core, Error, "RuntimeCore: BillboardPass init failed (non-fatal)");
         m_billboardPass.reset();
     }
 
     m_trailPass = std::make_unique<TrailPass>();
     if (!m_trailPass->init(device)){
-        LOG("RuntimeCore: TrailPass init failed (non-fatal)");
+        PHX_LOG(Core, Error, "RuntimeCore: TrailPass init failed (non-fatal)");
         m_trailPass.reset();
     }
 
     m_particlePass = std::make_unique<ParticlePass>();
     if (!m_particlePass->init(device)){
-        LOG("RuntimeCore: ParticlePass init failed (non-fatal)");
+        PHX_LOG(Core, Error, "RuntimeCore: ParticlePass init failed (non-fatal)");
         m_particlePass.reset();
     }
 
     m_xrayPass = std::make_unique<XRayPass>();
     if (!m_xrayPass->init(device)){
-        LOG("RuntimeCore: XRayPass init failed (non-fatal)");
+        PHX_LOG(Core, Error, "RuntimeCore: XRayPass init failed (non-fatal)");
         m_xrayPass.reset();
     }
 
@@ -206,9 +206,9 @@ bool RuntimeCore::init(){
                 m_sceneManager->play();
             }
             else
-                LOG("RuntimeCore: BuildSettings.json found but scene 0 failed to load");
+                PHX_LOG(Core, Error, "RuntimeCore: BuildSettings.json found but scene 0 failed to load");
         } else {
-            LOG("RuntimeCore: No BuildSettings.json at '%s' — booting with an empty scene", bsPath.c_str());
+            PHX_LOG(Core, Info, "RuntimeCore: No BuildSettings.json at '%s' — booting with an empty scene", bsPath.c_str());
         }
     }
 
@@ -752,10 +752,10 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
                         const bool withinVertexCap = (curVertexOffset + vcount <= SkinningPass::MAX_TOTAL_VERTICES);
                         const bool withinJointCap = (curPaletteOffset + jcount <= SkinningPass::MAX_TOTAL_JOINTS);
                         if (!withinVertexCap)
-                            LOG("[SkinDebug] OVERFLOW: vertex cap %u exceeded (offset %u + count %u). Re-export at lower poly count.",
+                            PHX_LOG(Core, Warning, "[SkinDebug] OVERFLOW: vertex cap %u exceeded (offset %u + count %u). Re-export at lower poly count.",
                                 SkinningPass::MAX_TOTAL_VERTICES, curVertexOffset, vcount);
                         if (!withinJointCap)
-                            LOG("[SkinDebug] OVERFLOW: joint cap %u exceeded (offset %u + count %u).",
+                            PHX_LOG(Core, Warning, "[SkinDebug] OVERFLOW: joint cap %u exceeded (offset %u + count %u).",
                                 SkinningPass::MAX_TOTAL_JOINTS, curPaletteOffset, jcount);
                         const bool needsGpuJob = vertexReady && (hasBones || shouldMorph) && withinVertexCap && withinJointCap;
 
@@ -779,7 +779,7 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
                                     jointWorlds.push_back(jgo ? jgo->getTransform()->getGlobalMatrix() : Matrix::Identity);
                                 }
                                 if (nullJointCount > 0)
-                                    LOG("[SkinDebug] WARNING: %d/%d joint GOs are null",
+                                    PHX_LOG(Core, Warning, "[SkinDebug] WARNING: %d/%d joint GOs are null",
                                         nullJointCount, (int)joints.size());
 
                                 job.skin = &cm->getLocalSkin();

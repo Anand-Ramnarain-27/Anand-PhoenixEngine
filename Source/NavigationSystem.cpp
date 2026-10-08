@@ -4,7 +4,7 @@
 bool NavigationSystem::LoadWaypointGraph(const std::string& path){
     auto provider = std::make_unique<WaypointGraphProvider>();
     if (!provider->Load(path)){
-        LOG("NavigationSystem: failed to load waypoint graph '%s'", path.c_str());
+        PHX_LOG(AI, Error, "NavigationSystem: failed to load waypoint graph '%s'", path.c_str());
         return false;
     }
     m_activeProvider = std::move(provider);
@@ -37,7 +37,7 @@ int NavigationSystem::getDebugEdgeCount() const{
 bool NavigationSystem::LoadNamedGraph(const std::string& name, const std::string& path){
     auto provider = std::make_unique<WaypointGraphProvider>();
     if (!provider->Load(path)){
-        LOG("NavigationSystem: failed to load named graph '%s' from '%s'", name.c_str(), path.c_str());
+        PHX_LOG(AI, Error, "NavigationSystem: failed to load named graph '%s' from '%s'", name.c_str(), path.c_str());
         return false;
     }
     m_namedProviders[name] = std::move(provider);

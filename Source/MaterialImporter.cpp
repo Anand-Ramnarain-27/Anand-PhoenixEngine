@@ -29,14 +29,14 @@ std::string MaterialImporter::importTexture(int texIndex, const tinygltf::Model&
 		std::string ext = std::filesystem::path(uri).extension().string();
 		for (char& c : ext) c = (char)std::tolower((unsigned char)c);
 		if (ext == ".psd" || ext == ".psb"){
-			LOG("MaterialImporter: Skipping unsupported texture format '%s' — falling back to base colour", uri.c_str());
+			PHX_LOG(Assets, Warning, "MaterialImporter: Skipping unsupported texture format '%s' — falling back to base colour", uri.c_str());
 			return {};
 		}
 
 		std::string ddsPath = matFolder + TextureImporter::GetTextureName(uri.c_str()) + ".dds";
 		if (!fs->Exists(ddsPath.c_str()) || !fs->Exists(ImporterUtils::MetaPath(ddsPath).c_str())){
 			if (!TextureImporter::Import((basePath + uri).c_str(), ddsPath, type)){
-				LOG("MaterialImporter: Failed to import texture %s", (basePath + uri).c_str());
+				PHX_LOG(Assets, Error, "MaterialImporter: Failed to import texture %s", (basePath + uri).c_str());
 				return {};
 			}
 		}
@@ -49,7 +49,7 @@ std::string MaterialImporter::importTexture(int texIndex, const tinygltf::Model&
 		std::string ddsPath = matFolder + name + ".dds";
 		if (!fs->Exists(ddsPath.c_str()) || !fs->Exists(ImporterUtils::MetaPath(ddsPath).c_str())){
 			if (!TextureImporter::ImportFromMemory(img.image.data(), img.width, img.height, img.component, ddsPath, type)){
-				LOG("MaterialImporter: Failed to import embedded texture '%s'", name.c_str());
+				PHX_LOG(Assets, Error, "MaterialImporter: Failed to import embedded texture '%s'", name.c_str());
 				return {};
 			}
 		}
@@ -139,7 +139,7 @@ bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& 
 	std::vector<char> rawBuffer;
 	if (!ImporterUtils::LoadBlob(file, header, rawBuffer)) return false;
 	if (!ImporterUtils::ValidateHeader(header, 0x4D415452)){
-		LOG("MaterialImporter: Invalid file format: %s", file.c_str());
+		PHX_LOG(Assets, Error, "MaterialImporter: Invalid file format: %s", file.c_str());
 		return false;
 	}
 
@@ -159,7 +159,7 @@ bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& 
 	std::string metalRoughPath;
 
 	if (header.version != 9){
-		LOG("MaterialImporter: Version mismatch (%u), forcing reimport: %s",
+		PHX_LOG(Assets, Warning, "MaterialImporter: Version mismatch (%u), forcing reimport: %s",
 			header.version, file.c_str());
 		return false;
 	}
@@ -186,7 +186,7 @@ bool MaterialImporter::Load(const std::string& file, std::unique_ptr<Material>& 
 			ComPtr<ID3D12Resource> tex;
 			D3D12_GPU_DESCRIPTOR_HANDLE srv{};
 			if (!TextureImporter::Load(path, tex, srv)){
-				LOG("MaterialImporter: Failed to load texture %s", path.c_str());
+				PHX_LOG(Assets, Error, "MaterialImporter: Failed to load texture %s", path.c_str());
 				return false;
 			}
 			(outMaterial.get()->*setter)(tex, srv);
@@ -236,7 +236,7 @@ bool MaterialImporter::Save(const MaterialHeader& header,
 	append(metalRoughPath);
 
 	if (!ImporterUtils::SaveBlob(file, header, payload)){
-		LOG("MaterialImporter: Failed to save %s", file.c_str());
+		PHX_LOG(Assets, Error, "MaterialImporter: Failed to save %s", file.c_str());
 		return false;
 	}
 	return true;

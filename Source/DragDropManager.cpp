@@ -50,7 +50,7 @@ void DragDropManager::QueueItems(std::vector<DropItem> items){
             if (IsSupportedExtension(ext)){
                 filtered.push_back(std::move(item));
             } else {
-                LOG("DragDrop: Skipping unsupported extension for '%s'",
+                PHX_LOG(Editor, Warning, "DragDrop: Skipping unsupported extension for '%s'",
                     item.path.filename().string().c_str());
             }
         }
@@ -110,11 +110,11 @@ static void importFileTask(const fs::path& srcPath,
     bool alreadyInAssets = (srcPath.string().rfind(assetsRoot, 0) == 0);
     if (!alreadyInAssets){
         if (!fsys->Copy(srcPath.string().c_str(), destPath.c_str())){
-            LOG("DragDrop: Failed to copy '%s' -> '%s'",
+            PHX_LOG(Editor, Error, "DragDrop: Failed to copy '%s' -> '%s'",
                 srcPath.string().c_str(), destPath.c_str());
             return;
         }
-        LOG("DragDrop: Copied '%s' -> '%s'", srcPath.string().c_str(), destPath.c_str());
+        PHX_LOG(Editor, Info, "DragDrop: Copied '%s' -> '%s'", srcPath.string().c_str(), destPath.c_str());
     } else {
         destPath = srcPath.string();
     }
@@ -122,11 +122,11 @@ static void importFileTask(const fs::path& srcPath,
     std::lock_guard<std::mutex> lk(importMutex);
     UID uid = app->getAssets()->importAsset(destPath.c_str());
     if (uid != 0){
-        LOG("DragDrop: Imported '%s' (uid=%llu)", destPath.c_str(), uid);
+        PHX_LOG(Editor, Info, "DragDrop: Imported '%s' (uid=%llu)", destPath.c_str(), uid);
     }
     else
     {
-        LOG("DragDrop: importAsset returned 0 for '%s'", destPath.c_str());
+        PHX_LOG(Editor, Warning, "DragDrop: importAsset returned 0 for '%s'", destPath.c_str());
     }
 }
 
@@ -143,10 +143,10 @@ static void importFolderTask(const fs::path& srcFolder,
             fs::copy(srcFolder, destRoot,
                      fs::copy_options::recursive |
                      fs::copy_options::overwrite_existing);
-            LOG("DragDrop: Copied folder '%s' -> '%s'",
+            PHX_LOG(Editor, Info, "DragDrop: Copied folder '%s' -> '%s'",
                 srcFolder.string().c_str(), destRoot.string().c_str());
         } catch (const std::exception& ex){
-            LOG("DragDrop: Failed to copy folder '%s': %s",
+            PHX_LOG(Editor, Error, "DragDrop: Failed to copy folder '%s': %s",
                 srcFolder.string().c_str(), ex.what());
             return;
         }
@@ -166,17 +166,17 @@ static void importFolderTask(const fs::path& srcFolder,
             std::lock_guard<std::mutex> lk(importMutex);
             UID uid = app->getAssets()->importAsset(entry.path().string().c_str());
             if (uid != 0){
-                LOG("DragDrop: Imported '%s' from folder (uid=%llu)",
+                PHX_LOG(Editor, Info, "DragDrop: Imported '%s' from folder (uid=%llu)",
                     entry.path().filename().string().c_str(), uid);
             }
             else
             {
-                LOG("DragDrop: importAsset returned 0 for '%s'",
+                PHX_LOG(Editor, Warning, "DragDrop: importAsset returned 0 for '%s'",
                     entry.path().filename().string().c_str());
             }
         }
     } catch (...){
-        LOG("DragDrop: Error walking copied folder '%s'", destRoot.string().c_str());
+        PHX_LOG(Editor, Error, "DragDrop: Error walking copied folder '%s'", destRoot.string().c_str());
     }
 }
 
@@ -226,7 +226,7 @@ void DragDropManager::workerFunc(){
 
             if (doneFuture.wait_for(std::chrono::seconds(kImportTimeoutSecs)) ==
                 std::future_status::timeout){
-                LOG("DragDrop: Import of '%s' exceeded %ds, skipping to next file.",
+                PHX_LOG(Editor, Warning, "DragDrop: Import of '%s' exceeded %ds, skipping to next file.",
                     fname.c_str(), kImportTimeoutSecs);
             }
         }

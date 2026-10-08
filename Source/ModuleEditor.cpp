@@ -88,7 +88,20 @@ ComPtr<ID3D12Resource> ModuleEditor::createUploadBuffer(ID3D12Device* device, SI
     return buf;
 }
 
+namespace {
+// Routed PHX_LOG messages, handed over on the main thread by PhoenixLog::drainConsole().
+void consoleSink(LogLevel level, const char* text){
+    if (!app || !app->getEditor()) return;
+    ImVec4 color = EditorColors::White;
+    if (level == LogLevel::Error) color = EditorColors::Danger;
+    else if (level == LogLevel::Warning) color = EditorColors::Warning;
+    else if (level == LogLevel::Verbose) color = EditorColors::Muted;
+    app->getEditor()->log(text, color);
+}
+}
+
 bool ModuleEditor::init(){
+    PhoenixLog::setConsoleSink(&consoleSink);
     ModuleD3D12* d3d12 = app->getD3D12();
     ModuleShaderDescriptors* descs = app->getShaderDescriptors();
     ID3D12Device* device = d3d12->getDevice();
@@ -170,6 +183,7 @@ bool ModuleEditor::init(){
 }
 
 bool ModuleEditor::cleanUp(){
+    PhoenixLog::setConsoleSink(nullptr);
     DragDropManager::Get().Shutdown();
 
     if (m_dropTarget){

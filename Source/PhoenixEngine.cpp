@@ -158,7 +158,7 @@ static std::string handleDroppedFile(const char* srcPath){
 
     if (!isKnownAssetExtension(ext))
     {
-        LOG("Drop: Unsupported file type '%s' (%s)", ext.c_str(), srcPath);
+        PHX_LOG(Core, Warning, "Drop: Unsupported file type '%s' (%s)", ext.c_str(), srcPath);
         return "";
     }
 
@@ -182,10 +182,10 @@ static std::string handleDroppedFile(const char* srcPath){
     {
         if (!fsys->Copy(srcPath, destPath.c_str()))
         {
-            LOG("Drop: Failed to copy '%s' -> '%s'", srcPath, destPath.c_str());
+            PHX_LOG(Core, Error, "Drop: Failed to copy '%s' -> '%s'", srcPath, destPath.c_str());
             return "";
         }
-        LOG("Drop: Copied '%s' -> '%s'", srcPath, destPath.c_str());
+        PHX_LOG(Core, Info, "Drop: Copied '%s' -> '%s'", srcPath, destPath.c_str());
     }
     else
     {
@@ -196,10 +196,10 @@ static std::string handleDroppedFile(const char* srcPath){
         ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".dds" || ext == ".tga" || ext == ".bmp" || ext == ".hdr"){
         UID uid = app->getAssets()->importAsset(destPath.c_str());
         if (uid != 0) {
-            LOG("Drop: Imported '%s' (uid=%llu)", destPath.c_str(), uid);
+            PHX_LOG(Core, Info, "Drop: Imported '%s' (uid=%llu)", destPath.c_str(), uid);
         }
         else {
-            LOG("Drop: Import returned 0 for '%s'", destPath.c_str());
+            PHX_LOG(Core, Warning, "Drop: Import returned 0 for '%s'", destPath.c_str());
         }
     }
     else

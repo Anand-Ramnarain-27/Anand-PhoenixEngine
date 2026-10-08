@@ -117,7 +117,7 @@ bool ComponentMesh::loadModel(const char* filePath){
 
     UID sceneUID = 0;
     std::string canonicalPath = resolveCanonicalPath(filePath, sceneUID);
-    if (canonicalPath.empty()){ LOG("ComponentMesh: Cannot resolve '%s' - import it first", filePath); return false; }
+    if (canonicalPath.empty()){ PHX_LOG(Scene, Error, "ComponentMesh: Cannot resolve '%s' - import it first", filePath); return false; }
     m_modelUID = sceneUID;
     m_modelPath = canonicalPath;
     std::string sceneName = std::filesystem::path(canonicalPath).stem().string();
@@ -126,7 +126,7 @@ bool ComponentMesh::loadModel(const char* filePath){
     int meshCount = 0;
     while (app->getFileSystem()->Exists((meshFolder + std::to_string(meshCount) + ".mesh").c_str())) ++meshCount;
     if (meshCount == 0){
-        LOG("ComponentMesh: No meshes found, forcing reimport for '%s'", sceneName.c_str());
+        PHX_LOG(Scene, Warning, "ComponentMesh: No meshes found, forcing reimport for '%s'", sceneName.c_str());
         return false;
     }
 
@@ -147,7 +147,7 @@ bool ComponentMesh::loadModel(const char* filePath){
             }
 
             if (e.materialUID == 0){
-                LOG("ComponentMesh: submesh %d has invalid material, using default", i);
+                PHX_LOG(Scene, Error, "ComponentMesh: submesh %d has invalid material, using default", i);
                 e.materialUID = 0;
             }
         }
@@ -178,7 +178,7 @@ bool ComponentMesh::loadMeshSubset(const std::string& assetPath, int startMesh, 
 
     UID sceneUID = 0;
     std::string canonical = resolveCanonicalPath(assetPath.c_str(), sceneUID);
-    if (canonical.empty()){ LOG("ComponentMesh: Cannot resolve '%s' - import it first", assetPath.c_str()); return false; }
+    if (canonical.empty()){ PHX_LOG(Scene, Error, "ComponentMesh: Cannot resolve '%s' - import it first", assetPath.c_str()); return false; }
     m_modelUID = sceneUID;
     m_modelPath = canonical;
     m_meshFileStart = startMesh;
@@ -654,7 +654,7 @@ void ComponentMesh::onLoad(const std::string& jsonStr){
             m_hasPendingSkin = true;
         }
     } else if (doc.HasMember("SkinJointNames") && !doc.HasMember("SkinIBMs")){
-        LOG("ComponentMesh: scene JSON has SkinJointNames but no SkinIBMs — "
+        PHX_LOG(Scene, Warning, "ComponentMesh: scene JSON has SkinJointNames but no SkinIBMs — "
             "IBP was not saved. Re-import the model and re-save the scene.");
     }
 }
@@ -669,7 +669,7 @@ void ComponentMesh::resolveDeferredSkin(){
     bool ok = true;
     for (const auto& name : m_pendingJointNames){
         GameObject* jgo = findInSubtree(root, name);
-        if (!jgo){ LOG("ComponentMesh: skin joint '%s' not found", name.c_str()); ok = false; break; }
+        if (!jgo){ PHX_LOG(Scene, Warning, "ComponentMesh: skin joint '%s' not found", name.c_str()); ok = false; break; }
         joints.push_back(jgo);
     }
     if (ok) setSkinData(m_pendingSkin, std::move(joints));

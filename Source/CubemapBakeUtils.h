@@ -108,12 +108,12 @@ namespace CubemapPipelineBuilder {
 
         ComPtr<ID3DBlob> blob, err;
         if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))){
-            LOG("CubemapPipelineBuilder: root signature serialise failed: %s", err ? (char*)err->GetBufferPointer() : "unknown error");
+            PHX_LOG(Render, Error, "CubemapPipelineBuilder: root signature serialise failed: %s", err ? (char*)err->GetBufferPointer() : "unknown error");
             return false;
         }
 
         if (FAILED(device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&outRS)))){
-            LOG("CubemapPipelineBuilder: CreateRootSignature failed");
+            PHX_LOG(Render, Error, "CubemapPipelineBuilder: CreateRootSignature failed");
             return false;
         }
 
@@ -140,7 +140,7 @@ namespace CubemapPipelineBuilder {
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
         if (FAILED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&outPSO)))){
-            LOG("CubemapPipelineBuilder: PSO creation failed for '%ls'", psCsoPath);
+            PHX_LOG(Render, Error, "CubemapPipelineBuilder: PSO creation failed for '%ls'", psCsoPath);
             return false;
         }
 
@@ -154,7 +154,7 @@ namespace CubemapPipelineBuilder {
 
         ComPtr<ID3DBlob> blob, err;
         if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))){
-            LOG("CubemapPipelineBuilder: BRDF root signature serialise failed");
+            PHX_LOG(Render, Error, "CubemapPipelineBuilder: BRDF root signature serialise failed");
             return false;
         }
 
@@ -181,7 +181,7 @@ namespace CubemapPipelineBuilder {
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
         if (FAILED(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&outPSO)))){
-            LOG("CubemapPipelineBuilder: BRDF PSO creation failed");
+            PHX_LOG(Render, Error, "CubemapPipelineBuilder: BRDF PSO creation failed");
             return false;
         }
 

@@ -14,18 +14,18 @@
 
 bool TonemapPass::init(ID3D12Device* device){
     if (!createRootSignature(device)){
-        LOG("TonemapPass: root signature creation failed");
+        PHX_LOG(Render, Error, "TonemapPass: root signature creation failed");
         return false;
     }
     if (!createPSO(device)){
-        LOG("TonemapPass: PSO creation failed");
+        PHX_LOG(Render, Error, "TonemapPass: PSO creation failed");
         return false;
     }
     if (!createFallbackTextures(device)){
-        LOG("TonemapPass: fallback texture creation failed");
+        PHX_LOG(Render, Error, "TonemapPass: fallback texture creation failed");
         return false;
     }
-    LOG("TonemapPass: init OK");
+    PHX_LOG(Render, Info, "TonemapPass: init OK");
     return true;
 }
 
@@ -51,7 +51,7 @@ bool TonemapPass::createRootSignature(ID3D12Device* device){
 
     ComPtr<ID3DBlob> blob, err;
     if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))){
-        LOG("TonemapPass: root signature serialise failed: %s", err ? (char*)err->GetBufferPointer() : "unknown error");
+        PHX_LOG(Render, Error, "TonemapPass: root signature serialise failed: %s", err ? (char*)err->GetBufferPointer() : "unknown error");
         return false;
     }
 

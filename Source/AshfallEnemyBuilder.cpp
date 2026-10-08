@@ -91,7 +91,7 @@ bool BuildAshfallEnemyPrefabs(SceneGraph* scene, HotReloadManager* hotReload, st
         if (auto* anim = root->getComponent<ComponentAnimation>())
             anim->LoadStateMachineFromPath(assets + def.stateMachine);   // starts its DefaultState (Idle)
         else
-            LOG("[Enemies] %s has no ComponentAnimation: delete Library/Animations/<model>/ and re-import", def.model);
+            PHX_LOG(Editor, Warning, "[Enemies] %s has no ComponentAnimation: delete Library/Animations/<model>/ and re-import", def.model);
         for (GameObject* c : root->getChildren()) tagMeshNodes(c, "CameraIgnore");
 
         auto comp = ComponentFactory::CreateComponent(Component::Type::Script, root);

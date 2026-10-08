@@ -16,7 +16,7 @@ SceneGraph* SceneManager::getModuleScene() const{
 
 void SceneManager::requestSceneLoad(const std::string& filePath){
     if (!m_pendingScenePath.empty() && m_pendingScenePath != filePath)
-        LOG("SceneManager: scene load '%s' replaces pending '%s'", filePath.c_str(), m_pendingScenePath.c_str());
+        PHX_LOG(Scene, Info, "SceneManager: scene load '%s' replaces pending '%s'", filePath.c_str(), m_pendingScenePath.c_str());
     m_pendingScenePath = filePath;
 }
 
@@ -26,11 +26,11 @@ void SceneManager::requestPrefabSpawn(const std::string& prefabName, const Vecto
 
 bool SceneManager::requestTransition(const std::string& filePath){
     if (isTransitionActive()){
-        LOG("SceneManager: transition to '%s' ignored - another transition is running", filePath.c_str());
+        PHX_LOG(Scene, Warning, "SceneManager: transition to '%s' ignored - another transition is running", filePath.c_str());
         return false;
     }
     if (m_editingPrefab){
-        LOG("SceneManager: transition to '%s' ignored while editing a prefab", filePath.c_str());
+        PHX_LOG(Scene, Warning, "SceneManager: transition to '%s' ignored while editing a prefab", filePath.c_str());
         return false;
     }
     m_transition.requestedPath = filePath;

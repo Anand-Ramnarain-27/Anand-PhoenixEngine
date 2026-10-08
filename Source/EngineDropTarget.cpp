@@ -87,7 +87,7 @@ bool EngineDropTarget::tryExtractItems(IDataObject* pDataObj,
             if (DragDropManager::IsSupportedExtension(ext)){
                 outItems.push_back({ p, false });
             } else {
-                LOG("DragDrop: Skipping unsupported extension '%s': %s",
+                PHX_LOG(Editor, Warning, "DragDrop: Skipping unsupported extension '%s': %s",
                     ext.c_str(), p.filename().string().c_str());
             }
         }

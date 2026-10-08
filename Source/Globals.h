@@ -29,7 +29,9 @@ using namespace DirectX;
 using namespace DirectX::SimpleMath;
 using Microsoft::WRL::ComPtr;
 
-#define LOG(format, ...) ::log(__FILE__, __LINE__, format, __VA_ARGS__);
+#include "PhoenixLog.h"
+
+/// Uncategorised debugger output. Engine code logs through PHX_LOG; this stays for Phoenix::Debug (script API).
 void log(const char file[], int line, const char* format, ...);
 
 #define FRAMES_IN_FLIGHT 3

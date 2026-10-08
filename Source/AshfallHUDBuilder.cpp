@@ -186,9 +186,9 @@ bool BuildAshfallHUDPrefab(SceneGraph* scene, HotReloadManager* hotReload, std::
     const std::string assets = app->getFileSystem()->GetAssetsPath() + "Ashfall_UI/";
     Document layoutDoc, tokensDoc;
     if (!readJson(assets + "hud_layout.json", layoutDoc))
-        LOG("[HUD] %shud_layout.json missing or invalid: using built-in 1080p defaults", assets.c_str());
+        PHX_LOG(Editor, Error, "[HUD] %shud_layout.json missing or invalid: using built-in 1080p defaults", assets.c_str());
     if (!readJson(assets + "ui_tokens.json", tokensDoc))
-        LOG("[HUD] %sui_tokens.json missing or invalid: using built-in colours", assets.c_str());
+        PHX_LOG(Editor, Error, "[HUD] %sui_tokens.json missing or invalid: using built-in colours", assets.c_str());
 
     const Value* layout = layoutDoc.IsObject() ? &layoutDoc : nullptr;
     const Value* colors = tokensDoc.IsObject() ? member(&tokensDoc, "colors") : nullptr;
@@ -367,7 +367,7 @@ bool BuildAshfallHUDPrefab(SceneGraph* scene, HotReloadManager* hotReload, std::
         const Vector2 plate(std::round(slotsWidth + plainGaps * gap + dividers * kDividerSpan + pad.w + pad.y), 122.f);
         const std::string plateTex = "HUD/Sized/ability_plate_" + std::to_string((int)plate.x) + "x122.png";
         if (!std::ifstream(assets + plateTex).good())
-            LOG("[HUD] %s%s is missing: run Assets/Ashfall_UI/_tools/make_party_hud.py", assets.c_str(), plateTex.c_str());
+            PHX_LOG(Editor, Warning, "[HUD] %s%s is missing: run Assets/Ashfall_UI/_tools/make_party_hud.py", assets.c_str(), plateTex.c_str());
 
         GameObject* barGO = b.image(main, "HUD_AbilityBar", pinned({ .5f, 1.f }, offset, plate), tex(plateTex));
 

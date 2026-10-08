@@ -11,7 +11,7 @@ ResourceMesh::~ResourceMesh(){ UnloadFromMemory(); }
 bool ResourceMesh::LoadInMemory(){
     if (m_mesh) return true;
     std::unique_ptr<Mesh> mesh;
-    if (!MeshImporter::Load(libraryFile, mesh)){ LOG("ResourceMesh: Failed to load %s", libraryFile.c_str()); return false; }
+    if (!MeshImporter::Load(libraryFile, mesh)){ PHX_LOG(Assets, Error, "ResourceMesh: Failed to load %s", libraryFile.c_str()); return false; }
     m_mesh = std::move(mesh);
     return true;
 }
@@ -28,7 +28,7 @@ bool ResourceMesh::LoadInMemory(ID3D12GraphicsCommandList* cmd, ModuleStaticBuff
         return true;
     }
     std::unique_ptr<Mesh> mesh;
-    if (!MeshImporter::Load(libraryFile, cmd, staticBuffer, mesh)){ LOG("ResourceMesh: Failed to load %s into static buffer", libraryFile.c_str()); return false; }
+    if (!MeshImporter::Load(libraryFile, cmd, staticBuffer, mesh)){ PHX_LOG(Assets, Error, "ResourceMesh: Failed to load %s into static buffer", libraryFile.c_str()); return false; }
     m_mesh = std::move(mesh);
     return true;
 }

@@ -61,13 +61,13 @@ bool MeshPipeline::createRootSignature(ID3D12Device* device){
 	HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
 	if (FAILED(hr)){
 		if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
-		LOG("MeshPipeline: D3D12SerializeRootSignature failed 0x%08X", hr);
+		PHX_LOG(Render, Error, "MeshPipeline: D3D12SerializeRootSignature failed 0x%08X", hr);
 		return false;
 	}
 
 	hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&m_rootSig));
 	if (FAILED(hr)){
-		LOG("MeshPipeline: CreateRootSignature failed 0x%08X", hr);
+		PHX_LOG(Render, Error, "MeshPipeline: CreateRootSignature failed 0x%08X", hr);
 		return false;
 	}
 	return true;
@@ -95,14 +95,14 @@ bool MeshPipeline::createPSO(ID3D12Device* device, bool useMSAA){
 
 	HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_pso));
 	if (FAILED(hr)){
-		LOG("MeshPipeline: CreateGraphicsPipelineState failed 0x%08X", hr);
+		PHX_LOG(Render, Error, "MeshPipeline: CreateGraphicsPipelineState failed 0x%08X", hr);
 		return false;
 	}
 
 	desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_psoDoubleSided));
 	if (FAILED(hr)){
-		LOG("MeshPipeline: CreateGraphicsPipelineState (double-sided) failed 0x%08X", hr);
+		PHX_LOG(Render, Error, "MeshPipeline: CreateGraphicsPipelineState (double-sided) failed 0x%08X", hr);
 		return false;
 	}
 	return true;
@@ -145,14 +145,14 @@ bool MeshPipeline::createTransparentPSO(ID3D12Device* device){
 
 	HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_transparentPso));
 	if (FAILED(hr)){
-		LOG("MeshPipeline: CreateGraphicsPipelineState (transparent) failed 0x%08X", hr);
+		PHX_LOG(Render, Error, "MeshPipeline: CreateGraphicsPipelineState (transparent) failed 0x%08X", hr);
 		return false;
 	}
 
 	desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_transparentPsoDoubleSided));
 	if (FAILED(hr)){
-		LOG("MeshPipeline: CreateGraphicsPipelineState (transparent, double-sided) failed 0x%08X", hr);
+		PHX_LOG(Render, Error, "MeshPipeline: CreateGraphicsPipelineState (transparent, double-sided) failed 0x%08X", hr);
 		return false;
 	}
 	return true;

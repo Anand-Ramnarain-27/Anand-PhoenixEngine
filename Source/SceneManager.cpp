@@ -92,7 +92,7 @@ void SceneManager::stop(){
 
     auto* ms = activeScene->getModuleScene();
     if (hasSerializedState && ms){
-        if (!SceneSerializer::LoadTempScene(ms)){ LOG("SceneManager: Failed to restore temp scene, falling back to reset()"); activeScene->reset(); }
+        if (!SceneSerializer::LoadTempScene(ms)){ PHX_LOG(Scene, Error, "SceneManager: Failed to restore temp scene, falling back to reset()"); activeScene->reset(); }
         hasSerializedState = false;
     }
     else activeScene->reset();
@@ -125,11 +125,11 @@ bool SceneManager::processRuntimeRequests(){
 
         if (isTransitionActive()){
             // The transition owns the next scene change; a second, unfaded one would pop mid-fade.
-            LOG("SceneManager: ignoring script scene load '%s' during a level transition", path.c_str());
+            PHX_LOG(Scene, Warning, "SceneManager: ignoring script scene load '%s' during a level transition", path.c_str());
         }
         else if (replaceScene(path)){
             loaded = true;
-            LOG("SceneManager: script loaded scene %s", path.c_str());
+            PHX_LOG(Scene, Info, "SceneManager: script loaded scene %s", path.c_str());
         }
     }
 
@@ -139,7 +139,7 @@ bool SceneManager::processRuntimeRequests(){
         SceneGraph* ms = getModuleScene();
         for (const PendingSpawn& s : spawns){
             GameObject* go = ms ? PrefabManager::instantiatePrefab(s.prefabName, ms) : nullptr;
-            if (!go){ LOG("SceneManager: script prefab spawn failed: '%s'", s.prefabName.c_str()); continue; }
+            if (!go){ PHX_LOG(Scene, Error, "SceneManager: script prefab spawn failed: '%s'", s.prefabName.c_str()); continue; }
             ComponentTransform* t = go->getTransform();
             t->position = s.position;
             t->rotation = s.rotation;
@@ -191,21 +191,21 @@ void SceneManager::onViewportResized(uint32_t w, uint32_t h){
 }
 
 bool SceneManager::saveCurrentScene(const std::string& filePath){
-    if (m_editingPrefab){ LOG("SceneManager: Cannot save scene while editing a prefab"); return false; }
+    if (m_editingPrefab){ PHX_LOG(Scene, Error, "SceneManager: Cannot save scene while editing a prefab"); return false; }
     auto* ms = activeScene ? activeScene->getModuleScene() : nullptr;
-    if (!ms){ LOG("SceneManager: No active scene to save"); return false; }
+    if (!ms){ PHX_LOG(Scene, Warning, "SceneManager: No active scene to save"); return false; }
     // The editor's "current scene" file is still the one Play started in; saving now would write another
     // level's contents over it.
-    if (m_runtimeSceneChanged){ LOG("SceneManager: Cannot save - a script changed scenes during Play. Stop first."); return false; }
+    if (m_runtimeSceneChanged){ PHX_LOG(Scene, Error, "SceneManager: Cannot save - a script changed scenes during Play. Stop first."); return false; }
     if (!SceneSerializer::SaveScene(ms, filePath, &settings)) return false;
     if (state == PlayState::Stopped) m_currentScenePath = filePath;
     return true;
 }
 
 bool SceneManager::loadScene(const std::string& filePath){
-    if (m_editingPrefab){ LOG("SceneManager: Cannot load scene while editing a prefab"); return false; }
+    if (m_editingPrefab){ PHX_LOG(Scene, Error, "SceneManager: Cannot load scene while editing a prefab"); return false; }
     auto* ms = activeScene ? activeScene->getModuleScene() : nullptr;
-    if (!ms){ LOG("SceneManager: No active scene to load into"); return false; }
+    if (!ms){ PHX_LOG(Scene, Warning, "SceneManager: No active scene to load into"); return false; }
     // The old scene's meshes, textures and material buffers are freed as its GameObjects are destroyed, with
     // no fence tracking of their own: wait for every submitted frame that could still reference them. Callers
     // load between frames (no command list open), so this covers everything in flight.
@@ -220,17 +220,17 @@ bool SceneManager::loadScene(const std::string& filePath){
 bool SceneManager::replaceScene(const std::string& filePath){
     m_pendingSpawns.clear();   // queued for the scene being left
     if (m_editingPrefab){
-        LOG("SceneManager: ignoring scene load '%s' while editing a prefab", filePath.c_str());
+        PHX_LOG(Scene, Warning, "SceneManager: ignoring scene load '%s' while editing a prefab", filePath.c_str());
         return false;
     }
     if (!app->getFileSystem()->Exists(filePath.c_str())){
-        LOG("SceneManager: scene load failed, file not found: %s", filePath.c_str());
+        PHX_LOG(Scene, Error, "SceneManager: scene load failed, file not found: %s", filePath.c_str());
         return false;
     }
     if (m_onRuntimeSceneChange) m_onRuntimeSceneChange();
     clearActiveCamera();
     if (!loadScene(filePath)){
-        LOG("SceneManager: scene load failed: %s", filePath.c_str());
+        PHX_LOG(Scene, Error, "SceneManager: scene load failed: %s", filePath.c_str());
         return false;
     }
     if (state != PlayState::Stopped) m_runtimeSceneChanged = true;
@@ -239,7 +239,7 @@ bool SceneManager::replaceScene(const std::string& filePath){
 
 bool SceneManager::loadSceneByBuildIndex(int index, const BuildSettings& buildSettings){
     std::string path = buildSettings.getScenePathAtBuildIndex(index);
-    if (path.empty()){ LOG("SceneManager: No scene at build index %d", index); return false; }
+    if (path.empty()){ PHX_LOG(Scene, Warning, "SceneManager: No scene at build index %d", index); return false; }
     if (!std::filesystem::path(path).is_absolute()){
         std::string assetsPath = app->getFileSystem()->GetAssetsPath();
         std::string baseDir = assetsPath.substr(0, assetsPath.size() - std::string("Assets/").size());
@@ -250,7 +250,7 @@ bool SceneManager::loadSceneByBuildIndex(int index, const BuildSettings& buildSe
         // Scenes are saved in Library/Scenes: an entry with the wrong folder still finds a scene of that name there.
         const std::string fallback = app->getFileSystem()->GetLibraryPath() + "Scenes/" + std::filesystem::path(path).filename().string();
         if (std::filesystem::exists(fallback, ec)){
-            LOG("SceneManager: build scene '%s' not found, using '%s'", path.c_str(), fallback.c_str());
+            PHX_LOG(Scene, Warning, "SceneManager: build scene '%s' not found, using '%s'", path.c_str(), fallback.c_str());
             path = fallback;
         }
     }

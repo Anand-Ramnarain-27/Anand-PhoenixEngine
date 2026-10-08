@@ -35,11 +35,11 @@ bool HotReloadManager::reloadLibrary(const std::string& dllPath){
     }
     ScriptLibrary lib;
     if (!loadLibraryInternal(key, lib)){
-        LOG("[HotReload] FAILED to reload: %s", key.c_str());
+        PHX_LOG(Script, Error, "[HotReload] FAILED to reload: %s", key.c_str());
         return false;
     }
     m_libraries[key] = std::move(lib);
-    LOG("[HotReload] Reloaded: %s", key.c_str());
+    PHX_LOG(Script, Info, "[HotReload] Reloaded: %s", key.c_str());
     if (m_reloadCb) m_reloadCb(key);
     return true;
 }
@@ -62,7 +62,7 @@ IScript* HotReloadManager::createScript(const std::string& className) const{
         auto it = lib.factories.find(className);
         if (it != lib.factories.end()) return it->second();
     }
-    LOG("[HotReload] Unknown script class: '%s'", className.c_str());
+    PHX_LOG(Script, Warning, "[HotReload] Unknown script class: '%s'", className.c_str());
     return nullptr;
 }
 
@@ -86,7 +86,7 @@ bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLib
 
     out.handle = LoadLibraryA(dllPath.c_str());
     if (!out.handle){
-        LOG("[HotReload] LoadLibraryA failed for '%s' (GetLastError=%lu)",
+        PHX_LOG(Script, Error, "[HotReload] LoadLibraryA failed for '%s' (GetLastError=%lu)",
             dllPath.c_str(), GetLastError());
         return false;
     }
@@ -113,6 +113,14 @@ bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLib
     if (auto setLog = reinterpret_cast<SetLogFn>(GetProcAddress(out.handle, "SetPhoenixEngineLogFn")))
         setLog(&PhoenixEngineLogToConsole);
 
+    // The script DLL asks this before formatting a message, so the Console panel's per-category levels apply to
+    // script logs too. Optional, like the two above.
+    using LogFilterFn = bool(*)(const char*, int);
+    extern bool PhoenixEngineLogEnabled(const char*, int);
+    using SetLogFilterFn = void(*)(LogFilterFn);
+    if (auto setFilter = reinterpret_cast<SetLogFilterFn>(GetProcAddress(out.handle, "SetPhoenixEngineLogFilterFn")))
+        setFilter(&PhoenixEngineLogEnabled);
+
     auto base = reinterpret_cast<const BYTE*>(out.handle);
     auto dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
     auto nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
@@ -130,7 +138,7 @@ bool HotReloadManager::loadLibraryInternal(const std::string& dllPath, ScriptLib
             if (fn){
                 std::string className = sym + 7;
                 out.factories[className] = fn;
-                LOG("[HotReload] Registered script: '%s'", className.c_str());
+                PHX_LOG(Script, Verbose, "[HotReload] Registered script: '%s'", className.c_str());
             }
         }
     }

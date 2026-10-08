@@ -97,7 +97,7 @@ UID MetaFileManager::getOrCreateUID(const std::string& assetPath, ResourceBase::
 	meta.type = type;
 	meta.lastModified = getLastModified(assetPath);
 	save(assetPath, meta);
-	LOG("MetaFileManager: Created .meta for %s (uid=%llu)", assetPath.c_str(), meta.uid);
+	PHX_LOG(Assets, Verbose, "MetaFileManager: Created .meta for %s (uid=%llu)", assetPath.c_str(), meta.uid);
 	return meta.uid;
 }
 

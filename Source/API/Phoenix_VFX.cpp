@@ -45,7 +45,7 @@ void VfxGuards::RejectOnce(const GameObject* go, const char* what, const char* d
     char line[512] = {};
     snprintf(line, sizeof(line), "[VFX] rejected %s %s on %s (logged once per object and kind)",
              what ? what : "value", detail, go ? go->getName().c_str() : "<null>");
-    LOG("%s", line);
+    PHX_LOG(Script, Info, "%s", line);
     SceneManager* sm = app && app->getRuntimeCore() ? app->getRuntimeCore()->getSceneManager() : nullptr;
     if (sm && sm->getEngineHooks().logWarning) sm->getEngineHooks().logWarning(line);
 }

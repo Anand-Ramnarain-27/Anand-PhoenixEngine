@@ -28,18 +28,18 @@ void AnimationController::Play(UID uid, bool loop){
         m_animation = app->getResources()->RequestAnimation(uid);
 
     if (!m_animation){
-        LOG("AnimationController: Failed to load animation uid=%llu", uid);
+        PHX_LOG(Scene, Error, "AnimationController: Failed to load animation uid=%llu", uid);
         m_playing = false;
         return;
     }
 
     const auto& morphChs = m_animation->getMorphChannels();
     if (morphChs.empty()){
-        LOG("AnimationController: '%s' — no morph-weight channels", m_animation->getAnimName().c_str());
+        PHX_LOG(Scene, Verbose, "AnimationController: '%s' — no morph-weight channels", m_animation->getAnimName().c_str());
     } else {
-        LOG("AnimationController: '%s' — %d morph channel(s):", m_animation->getAnimName().c_str(), (int)morphChs.size());
+        PHX_LOG(Scene, Verbose, "AnimationController: '%s' — %d morph channel(s):", m_animation->getAnimName().c_str(), (int)morphChs.size());
         for (const auto& [nodeName, mc] : morphChs)
-            LOG("  morph channel node='%s'  keyframes=%u  targets=%u",
+            PHX_LOG(Scene, Verbose, "  morph channel node='%s'  keyframes=%u  targets=%u",
                 nodeName.c_str(), mc.numTime, mc.numTargets);
     }
 }

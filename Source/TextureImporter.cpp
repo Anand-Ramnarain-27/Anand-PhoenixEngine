@@ -64,13 +64,13 @@ static bool ProcessAndSave(ScratchImage& image, const std::string& outputPath, T
 	std::string normOutput = CanonicalPath(outputPath);
 	std::wstring wOutput = std::filesystem::path(normOutput).wstring();
 	if (FAILED(SaveToDDSFile(compressed.GetImages(), compressed.GetImageCount(), compressed.GetMetadata(), DDS_FLAGS_NONE, wOutput.c_str()))){
-		LOG("TextureImporter: Failed to save DDS '%s'", normOutput.c_str());
+		PHX_LOG(Assets, Error, "TextureImporter: Failed to save DDS '%s'", normOutput.c_str());
 		return false;
 	}
 
 	const TexMetadata& finalMeta = compressed.GetMetadata();
 	TextureImporter::SaveMetadata(normOutput, (uint32_t)finalMeta.width, (uint32_t)finalMeta.height, (uint32_t)finalMeta.mipLevels, (uint32_t)finalMeta.format);
-	LOG("TextureImporter: Imported '%s' (%dx%d, %d mips, fmt=%d)", normOutput.c_str(), (int)finalMeta.width, (int)finalMeta.height, (int)finalMeta.mipLevels, (int)finalMeta.format);
+	PHX_LOG(Assets, Verbose, "TextureImporter: Imported '%s' (%dx%d, %d mips, fmt=%d)", normOutput.c_str(), (int)finalMeta.width, (int)finalMeta.height, (int)finalMeta.mipLevels, (int)finalMeta.format);
 	return true;
 }
 
@@ -87,7 +87,7 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
 	else hr = LoadFromWICFile(wSource.c_str(), WIC_FLAGS_NONE, nullptr, image);
 
 	if (FAILED(hr)){
-		LOG("TextureImporter: Failed to load image '%s' 0x%08X", sourcePath, hr);
+		PHX_LOG(Assets, Error, "TextureImporter: Failed to load image '%s' 0x%08X", sourcePath, hr);
 		return false;
 	}
 
@@ -97,7 +97,7 @@ bool TextureImporter::Import(const char* sourcePath, const std::string& outputPa
 bool TextureImporter::ImportFromMemory(const unsigned char* data, int width, int height, int channels,
 	const std::string& outputPath, TextureType type){
 	if (!data || width <= 0 || height <= 0 || channels < 1 || channels > 4){
-		LOG("TextureImporter: ImportFromMemory invalid args (channels=%d, %dx%d)", channels, width, height);
+		PHX_LOG(Assets, Error, "TextureImporter: ImportFromMemory invalid args (channels=%d, %dx%d)", channels, width, height);
 		return false;
 	}
 
@@ -136,21 +136,21 @@ bool TextureImporter::Load(const std::string& file, ComPtr<ID3D12Resource>& outT
 	std::string normFile = CanonicalPath(file);
 	std::string metaPath = ImporterUtils::MetaPath(normFile);
 
-	LOG("Loading meta for: %s", normFile.c_str());
-	LOG("Meta path: %s", metaPath.c_str());
+	PHX_LOG(Assets, Verbose, "Loading meta for: %s", normFile.c_str());
+	PHX_LOG(Assets, Verbose, "Meta path: %s", metaPath.c_str());
 
 
 	TextureHeader header;
 	std::vector<char> rawBuffer;
 
 	if (!ImporterUtils::LoadBlob(metaPath, header, rawBuffer)){
-		LOG("TextureImporter: Missing metadata, regenerating for '%s'", normFile.c_str());
+		PHX_LOG(Assets, Warning, "TextureImporter: Missing metadata, regenerating for '%s'", normFile.c_str());
 
 		std::wstring wFile = std::filesystem::path(normFile).wstring();
 		DirectX::ScratchImage img;
 
 		if (FAILED(DirectX::LoadFromDDSFile(wFile.c_str(), DirectX::DDS_FLAGS_NONE, nullptr, img))){
-			LOG("TextureImporter: Failed to reload DDS for metadata '%s'", normFile.c_str());
+			PHX_LOG(Assets, Error, "TextureImporter: Failed to reload DDS for metadata '%s'", normFile.c_str());
 			return false;
 		}
 
@@ -170,13 +170,13 @@ bool TextureImporter::Load(const std::string& file, ComPtr<ID3D12Resource>& outT
 	}
 
 	if (!ImporterUtils::ValidateHeader(header, 0x54455854)){
-		LOG("TextureImporter: Bad metadata magic/version for '%s'", normFile.c_str());
+		PHX_LOG(Assets, Warning, "TextureImporter: Bad metadata magic/version for '%s'", normFile.c_str());
 		return false;
 	}
 
 	outTexture = app->getGPUResources()->createTextureFromFile(normFile, true);
 	if (!outTexture){
-		LOG("TextureImporter: Failed to create texture resource for '%s'", normFile.c_str());
+		PHX_LOG(Assets, Error, "TextureImporter: Failed to create texture resource for '%s'", normFile.c_str());
 		return false;
 	}
 
@@ -193,8 +193,8 @@ std::string TextureImporter::GetTextureName(const char* filePath){
 bool TextureImporter::SaveMetadata(const std::string& ddsPath, uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t format){
 	std::string normPath = CanonicalPath(ddsPath);
 
-	LOG("Saving meta for: %s", normPath.c_str());
-	LOG("Meta path: %s", ImporterUtils::MetaPath(normPath).c_str());
+	PHX_LOG(Assets, Verbose, "Saving meta for: %s", normPath.c_str());
+	PHX_LOG(Assets, Verbose, "Meta path: %s", ImporterUtils::MetaPath(normPath).c_str());
 
 	TextureHeader header;
 	header.width = width;

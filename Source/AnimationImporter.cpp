@@ -132,7 +132,7 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
                         }
                         values[vi] = f;
                     }
-                    LOG("AnimationImporter: quantized weights accessor (compType=%d normalized=%d) — converted %u values to float",
+                    PHX_LOG(Assets, Verbose, "AnimationImporter: quantized weights accessor (compType=%d normalized=%d) — converted %u values to float",
                         compType, (int)normalized, valCnt);
                 }
             }
@@ -149,7 +149,7 @@ static bool importOne(const tinygltf::Model& gltfModel, int animIdx,
                     if (!gltfMesh.primitives.empty()){
                         size_t meshTargets = gltfMesh.primitives[0].targets.size();
                         if (meshTargets > 0 && numTargets != (uint32_t)meshTargets){
-                            LOG("AnimationImporter: weights channel for node %d has %u targets but mesh has %zu",
+                            PHX_LOG(Assets, Warning, "AnimationImporter: weights channel for node %d has %u targets but mesh has %zu",
                                 nodeIdx, numTargets, meshTargets);
                         }
                     }
@@ -241,7 +241,7 @@ int AnimationImporter::ImportAll(const tinygltf::Model& gltfModel, const std::st
     fs->CreateDir(animsDir.c_str());
     fs->CreateDir(sceneDir.c_str());
 
-    LOG("AnimationImporter: '%s' — %d animation(s) in glTF", sceneName.c_str(), (int)gltfModel.animations.size());
+    PHX_LOG(Assets, Verbose, "AnimationImporter: '%s' — %d animation(s) in glTF", sceneName.c_str(), (int)gltfModel.animations.size());
 
     int count = 0;
     for (int i = 0; i < (int)gltfModel.animations.size(); ++i){
@@ -256,16 +256,16 @@ int AnimationImporter::ImportAll(const tinygltf::Model& gltfModel, const std::st
                 : "?";
             channelSummary += nodeName + ":" + ch.target_path + " ";
         }
-        LOG("AnimationImporter: anim[%d] '%s' — %d channel(s): %s",
+        PHX_LOG(Assets, Verbose, "AnimationImporter: anim[%d] '%s' — %d channel(s): %s",
             i, anim.name.c_str(), (int)anim.channels.size(), channelSummary.c_str());
 
         std::string outPath = ImporterUtils::IndexedPath(sceneDir, i, ".anim");
         if (importOne(gltfModel, i, sceneName, outPath))
             ++count;
         else
-            LOG("AnimationImporter: Skipped animation %d '%s' for '%s' (no valid keyframes)",
+            PHX_LOG(Assets, Warning, "AnimationImporter: Skipped animation %d '%s' for '%s' (no valid keyframes)",
                 i, anim.name.c_str(), sceneName.c_str());
     }
-    LOG("AnimationImporter: '%s' — wrote %d .anim file(s)", sceneName.c_str(), count);
+    PHX_LOG(Assets, Verbose, "AnimationImporter: '%s' — wrote %d .anim file(s)", sceneName.c_str(), count);
     return count;
 }

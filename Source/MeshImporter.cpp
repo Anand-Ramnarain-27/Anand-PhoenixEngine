@@ -116,7 +116,7 @@ bool MeshImporter::Import(const tinygltf::Primitive& primitive, const tinygltf::
                 indices[i] = *reinterpret_cast<const uint16_t*>(e);
             else if (type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
                 indices[i] = *reinterpret_cast<const uint32_t*>(e);
-            else { LOG("MeshImporter: Unsupported index format"); return false; }
+            else { PHX_LOG(Assets, Warning, "MeshImporter: Unsupported index format"); return false; }
         }
     }
     std::vector<Mesh::BoneWeight> boneWeights;
@@ -188,7 +188,7 @@ static bool LoadRaw(const std::string& file, MeshImporter::MeshHeader& header, s
     if (!ImporterUtils::ValidateHeader(header, 0x4853454D)) return false;
     const uint32_t vertexSize = (header.version >= 2) ? sizeof(Mesh::Vertex) : (sizeof(float) * 8);
     uint32_t expected = sizeof(MeshImporter::MeshHeader) + header.vertexCount * vertexSize + header.indexCount * sizeof(uint32_t);
-    if (expected != (uint32_t)rawBuffer.size()){ LOG("MeshImporter: Size mismatch loading %s (expected %u, got %u)", file.c_str(), expected, (uint32_t)rawBuffer.size()); return false; }
+    if (expected != (uint32_t)rawBuffer.size()){ PHX_LOG(Assets, Warning, "MeshImporter: Size mismatch loading %s (expected %u, got %u)", file.c_str(), expected, (uint32_t)rawBuffer.size()); return false; }
     const char* cursor = rawBuffer.data() + sizeof(MeshImporter::MeshHeader);
     vertices.resize(header.vertexCount);
     if (header.version >= 2){ memcpy(vertices.data(), cursor, header.vertexCount * sizeof(Mesh::Vertex)); cursor += header.vertexCount * sizeof(Mesh::Vertex); }
@@ -204,7 +204,7 @@ static bool LoadRaw(const std::string& file, MeshImporter::MeshHeader& header, s
 }
 
 bool MeshImporter::Load(const std::string& file, ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuffer, std::unique_ptr<Mesh>& outMesh){
-    if (!cmd || !staticBuffer){ LOG("MeshImporter::Load: cmd and staticBuffer must not be null"); return false; }
+    if (!cmd || !staticBuffer){ PHX_LOG(Assets, Error, "MeshImporter::Load: cmd and staticBuffer must not be null"); return false; }
     MeshHeader header;
     std::vector<Mesh::Vertex> vertices;
     std::vector<uint32_t> indices;

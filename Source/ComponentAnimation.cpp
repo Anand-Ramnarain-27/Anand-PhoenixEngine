@@ -154,7 +154,7 @@ void ComponentAnimation::LoadStateMachineFromPath(const std::string& path){
     if (path.empty()) return;
     auto sm = std::make_unique<ResourceStateMachine>(0);
     if (!sm->Load(path)){
-        LOG("ComponentAnimation: failed to load SM from '%s'", path.c_str());
+        PHX_LOG(Scene, Error, "ComponentAnimation: failed to load SM from '%s'", path.c_str());
         return;
     }
     m_ownedStateMachine = std::move(sm);
@@ -246,7 +246,7 @@ void ComponentAnimation::update(float deltaTime){
                                 ws += std::to_string(w[i]);
                                 if (i + 1 < n && i + 1 < 8) ws += ", ";
                             }
-                            LOG("ComponentAnimation '%s': node='%s' morph weights=[%s]",
+                            PHX_LOG(Scene, Verbose, "ComponentAnimation '%s': node='%s' morph weights=[%s]",
                                 owner->getName().c_str(), go->getName().c_str(), ws.c_str());
                         }
                     }
@@ -609,7 +609,7 @@ void ComponentAnimation::onSave(std::string& outJson) const{
 
 void ComponentAnimation::onLoad(const std::string& json){
     Document doc; doc.Parse(json.c_str());
-    if (doc.HasParseError()){ LOG("ComponentAnimation: JSON parse error"); return; }
+    if (doc.HasParseError()){ PHX_LOG(Scene, Error, "ComponentAnimation: JSON parse error"); return; }
 
     if (doc.HasMember("animUIDs") && doc["animUIDs"].IsArray()){
         std::vector<UID> uids;

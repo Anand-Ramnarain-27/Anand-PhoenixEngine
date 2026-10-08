@@ -144,7 +144,7 @@ namespace {
         std::ifstream probe(ctx.assetsRoot + "Ashfall_UI/" + relative, std::ios::binary);
         if (!probe){
             if (!ctx.missingTextures++) ctx.firstMissing = full;
-            LOG("[Hub] missing texture %s", full.c_str());
+            PHX_LOG(Editor, Warning, "[Hub] missing texture %s", full.c_str());
         }
         return full;
     }
@@ -268,12 +268,12 @@ bool BuildAshfallHubNPCPrefabs(SceneGraph* scene, HotReloadManager* hotReload, s
                     c->getTransform()->markDirty();
                     found = true;
                 }
-            if (!found) LOG("[Hub] %s: no Armature child to apply the rotation override to", def.prefab);
+            if (!found) PHX_LOG(Editor, Warning, "[Hub] %s: no Armature child to apply the rotation override to", def.prefab);
         }
         if (auto* anim = root->getComponent<ComponentAnimation>())
             anim->LoadStateMachineFromPath(assets + def.stateMachine);   // starts its DefaultState (idle)
         else
-            LOG("[Hub] %s has no ComponentAnimation: delete Library/Animations/<model>/ and re-import", def.model);
+            PHX_LOG(Editor, Warning, "[Hub] %s has no ComponentAnimation: delete Library/Animations/<model>/ and re-import", def.model);
         // The spring arm passes through the NPC; Sera still collides with it (collision only reads the top-level tag).
         for (GameObject* c : root->getChildren()) tagMeshNodes(c, "CameraIgnore");
 

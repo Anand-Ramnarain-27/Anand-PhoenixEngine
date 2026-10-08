@@ -84,10 +84,10 @@ void ModuleResources::AssetWatcherLoop(){
                 std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
                 if (ext == kMetaExt) continue;
                 std::string path = entry.path().string();
-                if (app->getAssets()->needsReimport(path)){ LOG("ModuleResources: Watcher: reimporting %s", path.c_str()); app->getAssets()->importAsset(path.c_str()); }
+                if (app->getAssets()->needsReimport(path)){ PHX_LOG(Assets, Info, "ModuleResources: Watcher: reimporting %s", path.c_str()); app->getAssets()->importAsset(path.c_str()); }
             }
         }
-        catch (const std::exception& e){ LOG("ModuleResources: Watcher error: %s", e.what()); }
+        catch (const std::exception& e){ PHX_LOG(Assets, Error, "ModuleResources: Watcher error: %s", e.what()); }
         std::this_thread::sleep_for(std::chrono::seconds(2));
     }
 }

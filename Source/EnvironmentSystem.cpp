@@ -35,13 +35,13 @@ std::unique_ptr<EnvironmentMap> EnvironmentSystem::loadCubemap(const std::string
 	env->cubemap = resources->createTextureFromFile(file, true);
 
 	if (!env->cubemap){
-		LOG("EnvironmentGenerator: failed to load cubemap '%s'", file.c_str());
+		PHX_LOG(Render, Error, "EnvironmentGenerator: failed to load cubemap '%s'", file.c_str());
 		return nullptr;
 	}
 	app->getD3D12()->flush();
 	env->srvTable = shaderDesc->allocTable("SkyboxCubemap");
 	if (!env->srvTable.isValid()){
-		LOG("EnvironmentGenerator: failed to alloc SRV table");
+		PHX_LOG(Render, Error, "EnvironmentGenerator: failed to alloc SRV table");
 		return nullptr;
 	}
 
@@ -53,7 +53,7 @@ std::unique_ptr<EnvironmentMap> EnvironmentSystem::loadCubemap(const std::string
 	srvDesc.TextureCube.MostDetailedMip = 0;
 	env->srvTable.createSRV(env->cubemap.Get(), 0, &srvDesc);
 
-	LOG("EnvironmentGenerator: cubemap loaded '%s'", file.c_str());
+	PHX_LOG(Render, Info, "EnvironmentGenerator: cubemap loaded '%s'", file.c_str());
 	return bakeIBL(d3d12, shaderDesc, std::move(env));
 }
 
@@ -65,7 +65,7 @@ std::unique_ptr<EnvironmentMap> EnvironmentSystem::loadHDRMap(const std::string&
 
 	if (!d3d12 || !resources || !shaderDesc || !samplerHeap) return nullptr;
 
-	LOG("EnvironmentGenerator: loading HDR '%s' (faceSize=%u)...", hdrFile.c_str(), cubeFaceSize);
+	PHX_LOG(Render, Verbose, "EnvironmentGenerator: loading HDR '%s' (faceSize=%u)...", hdrFile.c_str(), cubeFaceSize);
 
 	CommandContext ctx(d3d12, shaderDesc, samplerHeap);
 	if (!ctx.isValid()) return nullptr;
@@ -80,39 +80,39 @@ std::unique_ptr<EnvironmentMap> EnvironmentSystem::loadHDRMap(const std::string&
 
 	if (!m_hdrConverter.recordConversion(ctx.cmd(), *env)) return nullptr;
 	if (!ctx.submitAndReset("HDR conversion mip0")) return nullptr;
-	LOG("EnvironmentGenerator: mip 0 done.");
+	PHX_LOG(Render, Verbose, "EnvironmentGenerator: mip 0 done.");
 
 	for (uint32_t mip = 1; mip < numMips; ++mip){
 		if (!m_hdrConverter.recordMipLevel(device, ctx.cmd(), *env, mip)) return nullptr;
 		if (!ctx.submitAndReset("HDR mip blit")) return nullptr;
 	}
-	LOG("EnvironmentGenerator: mip chain done (%u levels).", numMips);
+	PHX_LOG(Render, Verbose, "EnvironmentGenerator: mip chain done (%u levels).", numMips);
 
 	if (!m_hdrConverter.finaliseSRV(*env)) return nullptr;
 
 	if (!m_iblGenerator.prepareResources(device, *env)){
-		LOG("EnvironmentGenerator: IBL prepareResources FAILED");
+		PHX_LOG(Render, Error, "EnvironmentGenerator: IBL prepareResources FAILED");
 		return nullptr;
 	}
 
 	if (!m_iblGenerator.bakeIrradiance(device, ctx.cmd(), *env)) return nullptr;
 	if (!ctx.submitAndReset("irradiance")) return nullptr;
-	LOG("EnvironmentGenerator: irradiance done.");
+	PHX_LOG(Render, Verbose, "EnvironmentGenerator: irradiance done.");
 
 	for (uint32_t mip = 0; mip < EnvironmentMap::NUM_ROUGHNESS_LEVELS; ++mip){
 		if (!m_iblGenerator.bakePrefilter(device, ctx.cmd(), *env, mip)) return nullptr;
 		if (!ctx.submitAndReset("prefilter")) return nullptr;
 	}
-	LOG("EnvironmentGenerator: prefilter done.");
+	PHX_LOG(Render, Verbose, "EnvironmentGenerator: prefilter done.");
 
 	if (!m_iblGenerator.bakeBRDFLut(device, ctx.cmd(), *env)) return nullptr;
 	if (!ctx.submit("BRDF LUT")) return nullptr;
-	LOG("EnvironmentGenerator: BRDF LUT done.");
+	PHX_LOG(Render, Verbose, "EnvironmentGenerator: BRDF LUT done.");
 
 	if (!m_iblGenerator.finaliseSRVs(*env)) return nullptr;
 
 	m_iblGenerator.releasePipelines();
-	LOG("EnvironmentGenerator: HDR load + IBL bake complete.");
+	PHX_LOG(Render, Info, "EnvironmentGenerator: HDR load + IBL bake complete.");
 	return env;
 }
 
@@ -122,16 +122,16 @@ std::unique_ptr<EnvironmentMap> EnvironmentSystem::bakeIBL(ModuleD3D12* d3d12, M
 	CommandContext ctx(d3d12, shaderDesc, samplerHeap);
 	if (!ctx.isValid()) return nullptr;
 
-	LOG("EnvironmentGenerator: starting IBL pre-computation...");
+	PHX_LOG(Render, Info, "EnvironmentGenerator: starting IBL pre-computation...");
 
 	if (!m_iblGenerator.generate(d3d12->getDevice(), ctx.cmd(), *env)){
-		LOG("EnvironmentGenerator: IBL pre-computation FAILED.");
+		PHX_LOG(Render, Error, "EnvironmentGenerator: IBL pre-computation FAILED.");
 		return nullptr;
 	}
 
 	if (!ctx.submitAndReset("IBL bake")) return nullptr;
 
 	m_iblGenerator.releasePipelines();
-	LOG("EnvironmentGenerator: IBL pre-computation done.");
+	PHX_LOG(Render, Info, "EnvironmentGenerator: IBL pre-computation done.");
 	return env;
 }

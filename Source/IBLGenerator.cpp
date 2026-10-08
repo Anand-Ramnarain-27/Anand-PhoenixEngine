@@ -21,7 +21,7 @@ bool IBLGenerator::ensureGeometry(ID3D12Device* device){
     m_cubeVB = resources->createDefaultBuffer(CubeGeometry::kCubeVerts, CubeGeometry::kCubeVertexSize, "IBL_CubeVB");
 
     if (!m_cubeVB){
-        LOG("IBLGenerator: failed to create cube vertex buffer");
+        PHX_LOG(Render, Error, "IBLGenerator: failed to create cube vertex buffer");
         return false;
     }
 
@@ -42,7 +42,7 @@ bool IBLGenerator::ensureFaceCB(ID3D12Device* device){
     m_faceCB = resources->createUploadBuffer(zero, totalSize, "IBL_FaceCB");
 
     if (!m_faceCB){
-        LOG("IBLGenerator: failed to create face constant buffer");
+        PHX_LOG(Render, Error, "IBLGenerator: failed to create face constant buffer");
         return false;
     }
 
@@ -60,7 +60,7 @@ bool IBLGenerator::ensurePassCB(ID3D12Device* device){
     m_passCB = resources->createUploadBuffer(zero, totalSize, "IBL_PassCB");
 
     if (!m_passCB){
-        LOG("IBLGenerator: failed to create pass constant buffer");
+        PHX_LOG(Render, Error, "IBLGenerator: failed to create pass constant buffer");
         return false;
     }
 
@@ -71,17 +71,17 @@ bool IBLGenerator::ensurePassCB(ID3D12Device* device){
 static bool allocateIBLResources(ID3D12Device* device, EnvironmentMap& env, ComPtr<ID3D12RootSignature>& irradianceRS, ComPtr<ID3D12PipelineState>& irradiancePSO, ComPtr<ID3D12RootSignature>& prefilterRS, ComPtr<ID3D12PipelineState>& prefilterPSO, ComPtr<ID3D12RootSignature>& brdfRS, ComPtr<ID3D12PipelineState>& brdfPSO){
 
     if (!D3D12ResourceFactory::createCubemapRT(device, IBLSettings::IrradianceSize, 1, DXGI_FORMAT_R16G16B16A16_FLOAT, L"IrradianceCubemap", env.irradianceCubemap)){
-        LOG("IBLGenerator: failed to create irradiance cubemap resource");
+        PHX_LOG(Render, Error, "IBLGenerator: failed to create irradiance cubemap resource");
         return false;
     }
 
     if (!D3D12ResourceFactory::createCubemapRT(device, IBLSettings::PrefilterSize, IBLSettings::NumRoughnessLevels, DXGI_FORMAT_R16G16B16A16_FLOAT, L"PrefilteredEnvCubemap", env.prefilteredCubemap)){
-        LOG("IBLGenerator: failed to create pre-filtered env cubemap resource");
+        PHX_LOG(Render, Error, "IBLGenerator: failed to create pre-filtered env cubemap resource");
         return false;
     }
 
     if (!D3D12ResourceFactory::create2DRT(device, IBLSettings::BRDFLUTSize, DXGI_FORMAT_R16G16_FLOAT, L"BRDFIntegrationLUT", env.brdfLUT)){
-        LOG("IBLGenerator: failed to create BRDF integration LUT resource");
+        PHX_LOG(Render, Error, "IBLGenerator: failed to create BRDF integration LUT resource");
         return false;
     }
 
@@ -93,17 +93,17 @@ static bool allocateIBLResources(ID3D12Device* device, EnvironmentMap& env, ComP
     brdfRS.Reset();
 
     if (!CubemapPipelineBuilder::buildCubeFacePipeline(device, L"IrradianceMapPS.cso", DXGI_FORMAT_R16G16B16A16_FLOAT, irradianceRS, irradiancePSO)){
-        LOG("IBLGenerator: failed to build irradiance pipeline");
+        PHX_LOG(Render, Error, "IBLGenerator: failed to build irradiance pipeline");
         return false;
     }
 
     if (!CubemapPipelineBuilder::buildCubeFacePipeline(device, L"PrefilterEnvMapPS.cso", DXGI_FORMAT_R16G16B16A16_FLOAT, prefilterRS, prefilterPSO)){
-        LOG("IBLGenerator: failed to build pre-filter pipeline");
+        PHX_LOG(Render, Error, "IBLGenerator: failed to build pre-filter pipeline");
         return false;
     }
 
     if (!CubemapPipelineBuilder::buildBRDFPipeline(device, brdfRS, brdfPSO)){
-        LOG("IBLGenerator: failed to build BRDF LUT pipeline");
+        PHX_LOG(Render, Error, "IBLGenerator: failed to build BRDF LUT pipeline");
         return false;
     }
 
@@ -115,7 +115,7 @@ static bool writeSRVs(EnvironmentMap& env){
 
     env.irradianceSRVTable = shaderDescs->allocTable("IBL_Irradiance");
     if (!env.irradianceSRVTable.isValid()){
-        LOG("IBLGenerator: failed to allocate irradiance SRV table");
+        PHX_LOG(Render, Error, "IBLGenerator: failed to allocate irradiance SRV table");
         return false;
     }
     {
@@ -130,7 +130,7 @@ static bool writeSRVs(EnvironmentMap& env){
 
     env.prefilteredSRVTable = shaderDescs->allocTable("IBL_Prefilter");
     if (!env.prefilteredSRVTable.isValid()){
-        LOG("IBLGenerator: failed to allocate pre-filter SRV table");
+        PHX_LOG(Render, Error, "IBLGenerator: failed to allocate pre-filter SRV table");
         return false;
     }
     {
@@ -145,7 +145,7 @@ static bool writeSRVs(EnvironmentMap& env){
 
     env.brdfLUTSRVTable = shaderDescs->allocTable("IBL_BRDF_LUT");
     if (!env.brdfLUTSRVTable.isValid()){
-        LOG("IBLGenerator: failed to allocate BRDF LUT SRV table");
+        PHX_LOG(Render, Error, "IBLGenerator: failed to allocate BRDF LUT SRV table");
         return false;
     }
     {
@@ -169,7 +169,7 @@ void IBLGenerator::renderCubeFace(ID3D12Device* device, ID3D12GraphicsCommandLis
 
     RenderTargetDesc rtv = rtDescs->create(target, faceIndex, mipLevel, rtvFmt);
     if (!rtv){
-        LOG("IBLGenerator: RTV alloc failed (face=%u mip=%u)", faceIndex, mipLevel);
+        PHX_LOG(Render, Error, "IBLGenerator: RTV alloc failed (face=%u mip=%u)", faceIndex, mipLevel);
         return;
     }
 
@@ -223,10 +223,10 @@ void IBLGenerator::renderCubeFace(ID3D12Device* device, ID3D12GraphicsCommandLis
 
 bool IBLGenerator::generate(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, EnvironmentMap& env){
 
-    LOG("IBLGenerator: starting IBL bake...");
+    PHX_LOG(Render, Info, "IBLGenerator: starting IBL bake...");
 
     if (!env.isValid()){
-        LOG("IBLGenerator: source environment map is not valid");
+        PHX_LOG(Render, Warning, "IBLGenerator: source environment map is not valid");
         return false;
     }
 
@@ -237,28 +237,28 @@ bool IBLGenerator::generate(ID3D12Device* device, ID3D12GraphicsCommandList* cmd
 
     if (!allocateIBLResources(device, env, m_irradianceRS, m_irradiancePSO, m_prefilterRS, m_prefilterPSO, m_brdfRS, m_brdfPSO)) return false;
 
-    LOG("IBLGenerator: baking irradiance map...");
+    PHX_LOG(Render, Verbose, "IBLGenerator: baking irradiance map...");
     for (uint32_t face = 0; face < 6; ++face) renderCubeFace(device, cmd, env.irradianceCubemap.Get(), face, 0, 1, IBLSettings::IrradianceSize, 0.0f, m_irradianceRS.Get(), m_irradiancePSO.Get(), env.srvTable.getGPUHandle(), DXGI_FORMAT_R16G16B16A16_FLOAT, 1024, int(IBLSettings::IrradianceSize));
 
-    LOG("IBLGenerator: baking pre-filtered env map (%u roughness levels)...", IBLSettings::NumRoughnessLevels);
+    PHX_LOG(Render, Verbose, "IBLGenerator: baking pre-filtered env map (%u roughness levels)...", IBLSettings::NumRoughnessLevels);
     for (uint32_t mip = 0; mip < IBLSettings::NumRoughnessLevels; ++mip){
         float roughness = (IBLSettings::NumRoughnessLevels > 1) ? float(mip) / float(IBLSettings::NumRoughnessLevels - 1) : 0.0f;
 
         for (uint32_t face = 0; face < 6; ++face) renderCubeFace(device, cmd, env.prefilteredCubemap.Get(), face, mip, IBLSettings::NumRoughnessLevels, IBLSettings::PrefilterSize, roughness, m_prefilterRS.Get(), m_prefilterPSO.Get(), env.srvTable.getGPUHandle(), DXGI_FORMAT_R16G16B16A16_FLOAT, 512, int(IBLSettings::PrefilterSize));
     }
 
-    LOG("IBLGenerator: baking BRDF integration LUT...");
+    PHX_LOG(Render, Verbose, "IBLGenerator: baking BRDF integration LUT...");
     if (!bakeBRDFLut(device, cmd, env)) return false;
     if (!writeSRVs(env)) return false;
 
-    LOG("IBLGenerator: IBL bake complete.");
+    PHX_LOG(Render, Info, "IBLGenerator: IBL bake complete.");
     return true;
 }
 
 bool IBLGenerator::prepareResources(ID3D12Device* device, EnvironmentMap& env){
 
     if (!env.isValid()){
-        LOG("IBLGenerator: source environment map is not valid");
+        PHX_LOG(Render, Warning, "IBLGenerator: source environment map is not valid");
         return false;
     }
 
@@ -274,7 +274,7 @@ bool IBLGenerator::bakeIrradiance(ID3D12Device* device, ID3D12GraphicsCommandLis
     ID3D12DescriptorHeap* heaps[] = { app->getShaderDescriptors()->getHeap(), samplers->getHeap() };
     cmd->SetDescriptorHeaps(2, heaps);
 
-    LOG("IBLGenerator: baking irradiance map...");
+    PHX_LOG(Render, Verbose, "IBLGenerator: baking irradiance map...");
     for (uint32_t face = 0; face < 6; ++face) renderCubeFace(device, cmd, env.irradianceCubemap.Get(), face, 0, 1, IBLSettings::IrradianceSize, 0.0f, m_irradianceRS.Get(), m_irradiancePSO.Get(), env.srvTable.getGPUHandle(), DXGI_FORMAT_R16G16B16A16_FLOAT, 1024, int(IBLSettings::IrradianceSize));
 
     return true;
@@ -287,7 +287,7 @@ bool IBLGenerator::bakePrefilter(ID3D12Device* device, ID3D12GraphicsCommandList
 
     float roughness = (IBLSettings::NumRoughnessLevels > 1) ? float(mipIndex) / float(IBLSettings::NumRoughnessLevels - 1) : 0.0f;
 
-    LOG("IBLGenerator: baking pre-filter mip %u (roughness=%.2f)...", mipIndex, roughness);
+    PHX_LOG(Render, Verbose, "IBLGenerator: baking pre-filter mip %u (roughness=%.2f)...", mipIndex, roughness);
     for (uint32_t face = 0; face < 6; ++face) renderCubeFace(device, cmd, env.prefilteredCubemap.Get(), face, mipIndex, IBLSettings::NumRoughnessLevels, IBLSettings::PrefilterSize, roughness, m_prefilterRS.Get(), m_prefilterPSO.Get(), env.srvTable.getGPUHandle(), DXGI_FORMAT_R16G16B16A16_FLOAT, 512, int(IBLSettings::PrefilterSize));
 
     return true;
@@ -303,7 +303,7 @@ bool IBLGenerator::bakeBRDFLut(ID3D12Device* device, ID3D12GraphicsCommandList* 
 
     RenderTargetDesc rtv = rtDescs->create(env.brdfLUT.Get());
     if (!rtv){
-        LOG("IBLGenerator: BRDF LUT RTV alloc failed");
+        PHX_LOG(Render, Error, "IBLGenerator: BRDF LUT RTV alloc failed");
         return false;
     }
 
@@ -335,6 +335,6 @@ bool IBLGenerator::bakeBRDFLut(ID3D12Device* device, ID3D12GraphicsCommandList* 
 bool IBLGenerator::finaliseSRVs(EnvironmentMap& env){
     if (!writeSRVs(env)) return false;
 
-    LOG("IBLGenerator: SRVs finalised.");
+    PHX_LOG(Render, Verbose, "IBLGenerator: SRVs finalised.");
     return true;
 }

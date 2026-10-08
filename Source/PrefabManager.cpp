@@ -155,7 +155,7 @@ GameObject* PrefabManager::deserialiseNode(const Value& node, SceneGraph* scene,
             auto type = static_cast<Component::Type>(cn["Type"].GetInt());
             auto comp = ComponentFactory::CreateComponent(type, go);
             if (comp){ comp->onLoad(cn["Data"].GetString()); go->addComponent(std::move(comp)); }
-            else LOG("PrefabManager: Could not create component type %d for '%s'", cn["Type"].GetInt(), name);
+            else PHX_LOG(Scene, Error, "PrefabManager: Could not create component type %d for '%s'", cn["Type"].GetInt(), name);
         }
     }
 
@@ -168,7 +168,7 @@ GameObject* PrefabManager::deserialiseNode(const Value& node, SceneGraph* scene,
 }
 
 bool PrefabManager::createPrefab(const GameObject* go, const std::string& prefabName){
-    if (!go || prefabName.empty()){ LOG("PrefabManager::createPrefab: null go or empty name"); return false; }
+    if (!go || prefabName.empty()){ PHX_LOG(Scene, Warning, "PrefabManager::createPrefab: null go or empty name"); return false; }
 
     app->getFileSystem()->CreateDir(getPrefabDir().c_str());
     Document doc; doc.SetObject(); auto& a = doc.GetAllocator();
@@ -184,19 +184,19 @@ bool PrefabManager::createPrefab(const GameObject* go, const std::string& prefab
     doc.AddMember("GameObject", goNode, a);
 
     std::string path = getPrefabPath(prefabName);
-    if (!writePrefabDocument(doc, path)){ LOG("PrefabManager::createPrefab: Cannot open '%s' for writing", path.c_str()); return false; }
-    LOG("PrefabManager: Saved prefab '%s' -> %s", prefabName.c_str(), path.c_str());
+    if (!writePrefabDocument(doc, path)){ PHX_LOG(Scene, Error, "PrefabManager::createPrefab: Cannot open '%s' for writing", path.c_str()); return false; }
+    PHX_LOG(Scene, Info, "PrefabManager: Saved prefab '%s' -> %s", prefabName.c_str(), path.c_str());
     return true;
 }
 
 GameObject* PrefabManager::instantiatePrefab(const std::string& prefabName, SceneGraph* scene){
     if (!scene || prefabName.empty()) return nullptr;
     std::string path = getPrefabPath(prefabName);
-    if (!app->getFileSystem()->Exists(path.c_str())){ LOG("PrefabManager::instantiatePrefab: Prefab not found: %s", path.c_str()); return nullptr; }
+    if (!app->getFileSystem()->Exists(path.c_str())){ PHX_LOG(Scene, Warning, "PrefabManager::instantiatePrefab: Prefab not found: %s", path.c_str()); return nullptr; }
 
     Document doc;
-    if (!readPrefabDocument(path, doc)){ LOG("PrefabManager::instantiatePrefab: JSON parse error in '%s': %s (offset %zu)", path.c_str(), GetParseError_En(doc.GetParseError()), doc.GetErrorOffset()); return nullptr; }
-    if (!doc.HasMember("GameObject") || !doc["GameObject"].IsObject()){ LOG("PrefabManager::instantiatePrefab: Missing 'GameObject' in '%s'", path.c_str()); return nullptr; }
+    if (!readPrefabDocument(path, doc)){ PHX_LOG(Scene, Error, "PrefabManager::instantiatePrefab: JSON parse error in '%s': %s (offset %zu)", path.c_str(), GetParseError_En(doc.GetParseError()), doc.GetErrorOffset()); return nullptr; }
+    if (!doc.HasMember("GameObject") || !doc["GameObject"].IsObject()){ PHX_LOG(Scene, Warning, "PrefabManager::instantiatePrefab: Missing 'GameObject' in '%s'", path.c_str()); return nullptr; }
 
     GameObject* go = deserialiseNode(doc["GameObject"], scene, nullptr);
     if (!go) return nullptr;
@@ -205,7 +205,7 @@ GameObject* PrefabManager::instantiatePrefab(const std::string& prefabName, Scen
     instData.prefabName = prefabName;
     instData.prefabUID = doc.HasMember("PrefabUID") ? doc["PrefabUID"].GetUint() : makePrefabUID(prefabName);
     linkInstance(go, instData);
-    LOG("PrefabManager: Instantiated prefab '%s' -> GO '%s'", prefabName.c_str(), go->getName().c_str());
+    PHX_LOG(Scene, Verbose, "PrefabManager: Instantiated prefab '%s' -> GO '%s'", prefabName.c_str(), go->getName().c_str());
     return go;
 }
 
@@ -226,11 +226,11 @@ bool PrefabManager::applyToPrefab(const GameObject* go, bool respectOverrides){
     if (!inst || inst->prefabName.empty()){
         const GameObject* root = findPrefabRoot(go);
         if (root && root != go){
-            LOG("PrefabManager::applyToPrefab: '%s' is a child � applying from prefab root '%s'",
+            PHX_LOG(Scene, Info, "PrefabManager::applyToPrefab: '%s' is a child � applying from prefab root '%s'",
                 go ? go->getName().c_str() : "null", root->getName().c_str());
             return applyToPrefab(root, respectOverrides);
         }
-        LOG("PrefabManager::applyToPrefab: '%s' is not a prefab instance", go ? go->getName().c_str() : "null");
+        PHX_LOG(Scene, Warning, "PrefabManager::applyToPrefab: '%s' is not a prefab instance", go ? go->getName().c_str() : "null");
         return false;
     }
     if (!respectOverrides) return createPrefab(go, inst->prefabName);
@@ -262,8 +262,8 @@ bool PrefabManager::applyToPrefab(const GameObject* go, bool respectOverrides){
     doc.AddMember("GameObject", goNode, a);
 
     std::string path = getPrefabPath(inst->prefabName);
-    if (!writePrefabDocument(doc, path)){ LOG("PrefabManager::applyToPrefab: Cannot write to '%s'", path.c_str()); return false; }
-    LOG("PrefabManager: Applied instance '%s' -> prefab '%s'", go->getName().c_str(), inst->prefabName.c_str());
+    if (!writePrefabDocument(doc, path)){ PHX_LOG(Scene, Error, "PrefabManager::applyToPrefab: Cannot write to '%s'", path.c_str()); return false; }
+    PHX_LOG(Scene, Info, "PrefabManager: Applied instance '%s' -> prefab '%s'", go->getName().c_str(), inst->prefabName.c_str());
     return true;
 }
 
@@ -272,15 +272,15 @@ bool PrefabManager::revertToPrefab(GameObject* go, SceneGraph* scene){
     if (!inst || inst->prefabName.empty()){
         const GameObject* root = findPrefabRoot(go);
         if (root && root != go){
-            LOG("PrefabManager::revertToPrefab: '%s' is a child � reverting from prefab root '%s'",
+            PHX_LOG(Scene, Info, "PrefabManager::revertToPrefab: '%s' is a child � reverting from prefab root '%s'",
                 go ? go->getName().c_str() : "null", root->getName().c_str());
             return revertToPrefab(const_cast<GameObject*>(root), scene);
         }
-        LOG("PrefabManager::revertToPrefab: '%s' is not a prefab instance", go ? go->getName().c_str() : "null");
+        PHX_LOG(Scene, Warning, "PrefabManager::revertToPrefab: '%s' is not a prefab instance", go ? go->getName().c_str() : "null");
         return false;
     }
     std::string path = getPrefabPath(inst->prefabName);
-    if (!app->getFileSystem()->Exists(path.c_str())){ LOG("PrefabManager::revertToPrefab: Prefab file missing: %s", path.c_str()); return false; }
+    if (!app->getFileSystem()->Exists(path.c_str())){ PHX_LOG(Scene, Warning, "PrefabManager::revertToPrefab: Prefab file missing: %s", path.c_str()); return false; }
 
     Document doc;
     if (!readPrefabDocument(path, doc) || !doc.HasMember("GameObject")) return false;
@@ -327,7 +327,7 @@ bool PrefabManager::revertToPrefab(GameObject* go, SceneGraph* scene){
 
     resolveSkinsInSubtree(go); // reverted mesh components re-stash pending skin data
     inst->overrides = savedOverrides;
-    LOG("PrefabManager: Reverted '%s' from prefab '%s'", go->getName().c_str(), inst->prefabName.c_str());
+    PHX_LOG(Scene, Info, "PrefabManager: Reverted '%s' from prefab '%s'", go->getName().c_str(), inst->prefabName.c_str());
     return true;
 }
 
@@ -395,7 +395,7 @@ GameObject* PrefabManager::deserializeGameObject(const std::string& data, SceneG
 bool PrefabManager::createVariant(const std::string& srcPrefabName, const std::string& dstPrefabName){
     if (srcPrefabName.empty() || dstPrefabName.empty()) return false;
     std::string srcPath = getPrefabPath(srcPrefabName);
-    if (!app->getFileSystem()->Exists(srcPath.c_str())){ LOG("PrefabManager::createVariant: Source not found: %s", srcPath.c_str()); return false; }
+    if (!app->getFileSystem()->Exists(srcPath.c_str())){ PHX_LOG(Scene, Warning, "PrefabManager::createVariant: Source not found: %s", srcPath.c_str()); return false; }
 
     app->getFileSystem()->CreateDir(getPrefabDir().c_str());
     Document doc;
@@ -413,7 +413,7 @@ bool PrefabManager::createVariant(const std::string& srcPrefabName, const std::s
     else doc.AddMember("PrefabUID", makePrefabUID(dstPrefabName), a);
 
     if (!writePrefabDocument(doc, getPrefabPath(dstPrefabName))) return false;
-    LOG("PrefabManager: Created variant '%s' from '%s'", dstPrefabName.c_str(), srcPrefabName.c_str());
+    PHX_LOG(Scene, Info, "PrefabManager: Created variant '%s' from '%s'", dstPrefabName.c_str(), srcPrefabName.c_str());
     return true;
 }
 

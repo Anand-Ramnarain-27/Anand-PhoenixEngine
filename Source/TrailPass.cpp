@@ -18,17 +18,13 @@ namespace {
 
 bool TrailPass::init(ID3D12Device* device){
     if (!m_pipeline.init(device)){
-        LOG("TrailPass: pipeline init failed");
+        PHX_LOG(Render, Error, "TrailPass: pipeline init failed");
         return false;
     }
     if (!createBuffers(device)) return false;
     if (!createFallbackTexture(device)) return false;
 
-    LOG("TrailPass: init OK");
-#ifdef PHOENIX_EDITOR
-    if (auto* ed = app->getEditor())
-        ed->log("TrailPass: initialized OK", ImVec4(0.5f, 1.f, 0.5f, 1.f));
-#endif
+    PHX_LOG(Render, Info, "TrailPass: init OK");
     return true;
 }
 
@@ -42,7 +38,7 @@ bool TrailPass::createBuffers(ID3D12Device* device){
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                                                       D3D12_RESOURCE_STATE_GENERIC_READ,
                                                       nullptr, IID_PPV_ARGS(&m_vbRing));
-        if (FAILED(hr)){ LOG("TrailPass: VB ring alloc failed 0x%08X", hr); return false; }
+        if (FAILED(hr)){ PHX_LOG(Render, Error, "TrailPass: VB ring alloc failed 0x%08X", hr); return false; }
         m_vbRing->SetName(L"Trail_VBRing");
         m_vbRing->Map(0, nullptr, &m_vbMapped);
     }
@@ -54,7 +50,7 @@ bool TrailPass::createBuffers(ID3D12Device* device){
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                                                       D3D12_RESOURCE_STATE_GENERIC_READ,
                                                       nullptr, IID_PPV_ARGS(&m_cbRing));
-        if (FAILED(hr)){ LOG("TrailPass: CB ring alloc failed 0x%08X", hr); return false; }
+        if (FAILED(hr)){ PHX_LOG(Render, Error, "TrailPass: CB ring alloc failed 0x%08X", hr); return false; }
         m_cbRing->SetName(L"Trail_CBRing");
         m_cbRing->Map(0, nullptr, &m_cbMapped);
     }
@@ -66,7 +62,7 @@ bool TrailPass::createFallbackTexture(ID3D12Device* device){
     const uint32_t white = 0xFFFFFFFFu;
     m_fallbackTex = app->getGPUResources()->createRawTexture2D(&white, sizeof(white), 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
     if (!m_fallbackTex){
-        LOG("TrailPass: fallback texture creation failed");
+        PHX_LOG(Render, Error, "TrailPass: fallback texture creation failed");
         return false;
     }
     m_fallbackTex->SetName(L"Trail_FallbackTex");
@@ -74,7 +70,7 @@ bool TrailPass::createFallbackTexture(ID3D12Device* device){
     auto* sd = app->getShaderDescriptors();
     m_fallbackSRV = sd->allocTable("Trail_FallbackSRV");
     if (!m_fallbackSRV.isValid()){
-        LOG("TrailPass: fallback SRV alloc failed");
+        PHX_LOG(Render, Error, "TrailPass: fallback SRV alloc failed");
         return false;
     }
     D3D12_SHADER_RESOURCE_VIEW_DESC sv = {};
@@ -96,14 +92,14 @@ D3D12_GPU_DESCRIPTOR_HANDLE TrailPass::getOrLoadTexture(const std::string& path)
 
     ComPtr<ID3D12Resource> tex = loadEffectTexture(path);
     if (!tex){
-        LOG("TrailPass: failed to load texture '%s', using fallback", path.c_str());
+        PHX_LOG(Render, Error, "TrailPass: failed to load texture '%s', using fallback", path.c_str());
         m_textureCache.emplace(path, CachedTexture{ nullptr, m_fallbackSRV });
         return m_fallbackSRV.getGPUHandle(0);
     }
 
     ShaderTableDesc srv = app->getShaderDescriptors()->allocTable(("Trail_SRV_" + path).c_str());
     if (!srv.isValid()){
-        LOG("TrailPass: SRV alloc failed for '%s', using fallback", path.c_str());
+        PHX_LOG(Render, Error, "TrailPass: SRV alloc failed for '%s', using fallback", path.c_str());
         m_textureCache.emplace(path, CachedTexture{ nullptr, m_fallbackSRV });
         return m_fallbackSRV.getGPUHandle(0);
     }
@@ -220,12 +216,12 @@ bool TrailPipeline::createRootSignature(ID3D12Device* device){
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
     if (FAILED(hr)){
         if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
-        LOG("TrailPipeline: serialize root sig failed 0x%08X", hr);
+        PHX_LOG(Render, Error, "TrailPipeline: serialize root sig failed 0x%08X", hr);
         return false;
     }
     hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
                                       IID_PPV_ARGS(&m_rootSig));
-    if (FAILED(hr)){ LOG("TrailPipeline: CreateRootSignature failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "TrailPipeline: CreateRootSignature failed 0x%08X", hr); return false; }
     return true;
 }
 
@@ -272,13 +268,13 @@ bool TrailPipeline::createPSO(ID3D12Device* device){
     desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 
     HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_pso));
-    if (FAILED(hr)){ LOG("TrailPipeline: CreateGraphicsPipelineState failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "TrailPipeline: CreateGraphicsPipelineState failed 0x%08X", hr); return false; }
 
     auto& art = desc.BlendState.RenderTarget[0];
     art.SrcBlend = D3D12_BLEND_SRC_ALPHA;
     art.DestBlend = D3D12_BLEND_ONE;
     hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_additivePso));
-    if (FAILED(hr)){ LOG("TrailPipeline: CreateGraphicsPipelineState (additive) failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "TrailPipeline: CreateGraphicsPipelineState (additive) failed 0x%08X", hr); return false; }
 
     return true;
 }

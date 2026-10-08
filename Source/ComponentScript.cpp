@@ -584,7 +584,7 @@ void ComponentScript::setScriptClass(const std::string& className,
     if (mgr){
         m_script = mgr->createScript(className);
         if (!m_script)
-            LOG("ScriptComponent: class '%s' not found in any loaded DLL",
+            PHX_LOG(Scene, Warning, "ScriptComponent: class '%s' not found in any loaded DLL",
                 className.c_str());
     }
 }

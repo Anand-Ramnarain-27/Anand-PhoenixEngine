@@ -64,7 +64,7 @@ namespace {
 
 bool DecalPass::init(ID3D12Device* device){
     if (!m_pipeline.init(device)){
-        LOG("DecalPass: pipeline init failed");
+        PHX_LOG(Render, Error, "DecalPass: pipeline init failed");
         return false;
     }
     if (!createUploadBuffers(device)) return false;
@@ -106,7 +106,7 @@ bool DecalPass::init(ID3D12Device* device){
     WaitForSingleObject(evt, INFINITE);
     CloseHandle(evt);
 
-    LOG("DecalPass: init OK");
+    PHX_LOG(Render, Info, "DecalPass: init OK");
     return true;
 }
 
@@ -118,7 +118,7 @@ bool DecalPass::createUploadBuffers(ID3D12Device* device){
     HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                                                   D3D12_RESOURCE_STATE_GENERIC_READ,
                                                   nullptr, IID_PPV_ARGS(&m_cbRing));
-    if (FAILED(hr)){ LOG("DecalPass: CB ring alloc failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "DecalPass: CB ring alloc failed 0x%08X", hr); return false; }
     m_cbRing->SetName(L"Decal_CBRing");
     m_cbRing->Map(0, nullptr, &m_cbMapped);
     return true;
@@ -164,7 +164,7 @@ bool DecalPass::createFallbackTexture(ID3D12Device* device, ID3D12GraphicsComman
     auto* sd = app->getShaderDescriptors();
     m_fallbackSRV = sd->allocTable("Decal_FallbackSRV");
     if (!m_fallbackSRV.isValid()){
-        LOG("DecalPass: fallback SRV alloc failed");
+        PHX_LOG(Render, Error, "DecalPass: fallback SRV alloc failed");
         return false;
     }
     D3D12_SHADER_RESOURCE_VIEW_DESC sv = {};
@@ -280,14 +280,14 @@ D3D12_GPU_DESCRIPTOR_HANDLE DecalPass::getOrLoadTexture(const std::string& path)
 
     ComPtr<ID3D12Resource> tex = loadEffectTexture(path);
     if (!tex){
-        LOG("DecalPass: failed to load texture '%s', using fallback", path.c_str());
+        PHX_LOG(Render, Error, "DecalPass: failed to load texture '%s', using fallback", path.c_str());
         m_textureCache.emplace(path, CachedTexture{ nullptr, m_fallbackSRV });
         return m_fallbackSRV.getGPUHandle(0);
     }
 
     ShaderTableDesc srv = app->getShaderDescriptors()->allocTable(("Decal_SRV_" + path).c_str());
     if (!srv.isValid()){
-        LOG("DecalPass: SRV alloc failed for '%s', using fallback", path.c_str());
+        PHX_LOG(Render, Error, "DecalPass: SRV alloc failed for '%s', using fallback", path.c_str());
         m_textureCache.emplace(path, CachedTexture{ nullptr, m_fallbackSRV });
         return m_fallbackSRV.getGPUHandle(0);
     }
@@ -328,12 +328,12 @@ bool DecalPipeline::createRootSignature(ID3D12Device* device){
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
     if (FAILED(hr)){
         if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
-        LOG("DecalPipeline: serialize root sig failed 0x%08X", hr);
+        PHX_LOG(Render, Error, "DecalPipeline: serialize root sig failed 0x%08X", hr);
         return false;
     }
     hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
                                       IID_PPV_ARGS(&m_rootSig));
-    if (FAILED(hr)){ LOG("DecalPipeline: CreateRootSignature failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "DecalPipeline: CreateRootSignature failed 0x%08X", hr); return false; }
     return true;
 }
 
@@ -395,6 +395,6 @@ bool DecalPipeline::createPSO(ID3D12Device* device){
     desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 
     HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_pso));
-    if (FAILED(hr)){ LOG("DecalPipeline: CreateGraphicsPipelineState failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "DecalPipeline: CreateGraphicsPipelineState failed 0x%08X", hr); return false; }
     return true;
 }

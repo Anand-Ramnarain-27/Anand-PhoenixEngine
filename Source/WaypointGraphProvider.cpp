@@ -108,7 +108,7 @@ bool WaypointGraphProvider::Load(const std::string& path){
     char* buf = nullptr;
     unsigned size = app->getFileSystem()->Load(path.c_str(), &buf);
     if (!buf || size == 0){
-        LOG("WaypointGraphProvider: could not read '%s'", path.c_str());
+        PHX_LOG(AI, Error, "WaypointGraphProvider: could not read '%s'", path.c_str());
         return false;
     }
 
@@ -117,7 +117,7 @@ bool WaypointGraphProvider::Load(const std::string& path){
     delete[] buf;
 
     if (doc.HasParseError() || !doc.HasMember("Nodes") || !doc["Nodes"].IsArray()){
-        LOG("WaypointGraphProvider: invalid graph JSON in '%s'", path.c_str());
+        PHX_LOG(AI, Error, "WaypointGraphProvider: invalid graph JSON in '%s'", path.c_str());
         return false;
     }
 
@@ -126,7 +126,7 @@ bool WaypointGraphProvider::Load(const std::string& path){
     for (SizeType i = 0; i < arr.Size(); ++i){
         const Value& v = arr[i];
         if (!v.HasMember("Id") || !v.HasMember("Position") || !v["Position"].IsArray()){
-            LOG("WaypointGraphProvider: Nodes[%u] missing Id/Position - skipped", i);
+            PHX_LOG(AI, Warning, "WaypointGraphProvider: Nodes[%u] missing Id/Position - skipped", i);
             continue;
         }
         Node n;

@@ -23,7 +23,7 @@ void Mesh::setData(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* staticBuf
     m_materialIndex = materialIndex;
     m_hasVertexBuffer = false;
     m_hasIndexBuffer = false;
-    if (!staticBuffer || vertices.empty()){ LOG("Mesh::setData(pool): invalid args - skipping GPU upload"); computeAABB(); return; }
+    if (!staticBuffer || vertices.empty()){ PHX_LOG(Render, Error, "Mesh::setData(pool): invalid args - skipping GPU upload"); computeAABB(); return; }
     const size_t vbSize = vertices.size() * sizeof(Vertex);
     m_vertexBufferView = staticBuffer->allocVertexBuffer(cmd, vertices.data(), vbSize, sizeof(Vertex), "MeshVB");
     m_hasVertexBuffer = (m_vertexBufferView.BufferLocation != 0);
@@ -62,7 +62,7 @@ void Mesh::setBoneWeights(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* st
             m_hasBoneWeightBuffer = true;
             return;
         }
-        LOG("Mesh::setBoneWeights: createDefaultBuffer failed — falling back to static buffer");
+        PHX_LOG(Render, Error, "Mesh::setBoneWeights: createDefaultBuffer failed — falling back to static buffer");
     }
 
     if (!cmd || !staticBuffer) return;
@@ -116,7 +116,7 @@ void Mesh::uploadToGPU(ID3D12GraphicsCommandList* cmd, ModuleStaticBuffer* stati
             m_boneWeightBufferView = staticBuffer->allocVertexBuffer(cmd, m_boneWeights.data(), sz, sizeof(BoneWeight), "MeshBoneWeightVB");
             m_hasBoneWeightBuffer = (m_boneWeightBufferView.BufferLocation != 0);
             if (!m_hasBoneWeightBuffer)
-                LOG("Mesh::uploadToGPU: bone weight upload FAILED via both committed and static buffer");
+                PHX_LOG(Render, Error, "Mesh::uploadToGPU: bone weight upload FAILED via both committed and static buffer");
         }
     }
     if (!m_hasMorphTargetBuffer && !m_morphVertexData.empty()){

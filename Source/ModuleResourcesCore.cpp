@@ -54,13 +54,13 @@ ResourceBase* ModuleResources::CreateResourceFromUID(UID uid){
             return r;
         }
         ResourceBase* r = CreateNonAnimationResource(rec.type, uid, rec.libraryPath, rec.textureUID, assetPath);
-        if (!r) LOG("ModuleResources: Unknown type for uid=%llu", uid);
+        if (!r) PHX_LOG(Assets, Warning, "ModuleResources: Unknown type for uid=%llu", uid);
         return r;
     }
     std::string assetPath = app->getAssets()->getPathFromUID(uid);
-    if (assetPath.empty()){ LOG("ModuleResources: No registry entry and no asset path for uid=%llu", uid); return nullptr; }
+    if (assetPath.empty()){ PHX_LOG(Assets, Warning, "ModuleResources: No registry entry and no asset path for uid=%llu", uid); return nullptr; }
     MetaData meta;
-    if (!MetaFileManager::load(assetPath, meta)){ LOG("ModuleResources: No meta file for %s", assetPath.c_str()); return nullptr; }
-    LOG("ModuleResources: uid=%llu not in registry, cannot create without library path", uid);
+    if (!MetaFileManager::load(assetPath, meta)){ PHX_LOG(Assets, Warning, "ModuleResources: No meta file for %s", assetPath.c_str()); return nullptr; }
+    PHX_LOG(Assets, Error, "ModuleResources: uid=%llu not in registry, cannot create without library path", uid);
     return nullptr;
 }

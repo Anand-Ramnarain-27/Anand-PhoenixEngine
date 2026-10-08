@@ -50,7 +50,7 @@ void ComponentTransform::onSave(std::string& outJson) const{
 
 void ComponentTransform::onLoad(const std::string& jsonStr){
     Document doc; doc.Parse(jsonStr.c_str());
-    if (doc.HasParseError()){ LOG("ComponentTransform: JSON parse error"); return; }
+    if (doc.HasParseError()){ PHX_LOG(Scene, Error, "ComponentTransform: JSON parse error"); return; }
     if (doc.HasMember("position")){ auto& p = doc["position"]; position = { p[0].GetFloat(), p[1].GetFloat(), p[2].GetFloat() }; }
     if (doc.HasMember("rotation")){ auto& r = doc["rotation"]; rotation = { r[0].GetFloat(), r[1].GetFloat(), r[2].GetFloat(), r[3].GetFloat() }; }
     if (doc.HasMember("scale")){ auto& s = doc["scale"]; scale = { s[0].GetFloat(), s[1].GetFloat(), s[2].GetFloat() }; }

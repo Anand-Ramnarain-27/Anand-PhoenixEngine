@@ -1,0 +1,40 @@
+# Reference description of the house style. Do not run it over whole files.
+#
+# The house style puts no space between ')' and '{' (`void f(){`). clang-format has no option for that and
+# always writes `) {`, so formatting a file rewrites most of its lines. Format new code by hand to match the
+# surrounding file. Everything below is the closest clang-format equivalent of the rest of the style.
+---
+Language: Cpp
+BasedOnStyle: LLVM
+Standard: c++20
+ColumnLimit: 120
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+AccessModifierOffset: -4
+NamespaceIndentation: None
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: true
+AllowShortBlocksOnASingleLine: Always
+AllowShortLambdasOnASingleLine: All
+AllowShortEnumsOnASingleLine: true
+PointerAlignment: Left
+ReferenceAlignment: Left
+SpaceBeforeParens: ControlStatements
+SpacesBeforeTrailingComments: 1
+AlignTrailingComments: true
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+BinPackArguments: true
+BinPackParameters: true
+# Globals.h must stay first in every engine .cpp; keep include order as written.
+SortIncludes: Never
+IncludeBlocks: Preserve
+FixNamespaceComments: true
+ReflowComments: false
+---
+Language: Json
+DisableFormat: true

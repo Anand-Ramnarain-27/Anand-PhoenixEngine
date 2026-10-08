@@ -235,6 +235,7 @@
     <ClInclude Include="EditorSceneSettings.h" />
     <ClInclude Include="EditorSelection.h" />
     <ClInclude Include="EditorViewport.h" />
+    <ClInclude Include="EmptyScene.h" />
     <ClInclude Include="EnvironmentMap.h" />
     <ClInclude Include="EnvironmentSystem.h" />
     <ClInclude Include="FileDialog.h" />
@@ -339,6 +340,7 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="GamePad.h" />
     <ClInclude Include="Globals.h" />
+    <ClInclude Include="PhoenixLog.h" />
     <ClInclude Include="ImGuiPass.h" />
     <ClInclude Include="Keyboard.h" />
     <ClInclude Include="Module.h" />
@@ -591,6 +593,7 @@
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </PrecompiledHeaderFile>
     </ClCompile>
+    <ClCompile Include="PhoenixLog.cpp" />
     <ClCompile Include="Globals.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>

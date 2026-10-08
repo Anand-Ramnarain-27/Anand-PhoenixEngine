@@ -29,7 +29,7 @@ namespace {
 		ComPtr<ID3D12Resource> buf;
 		HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buf));
 		if (FAILED(hr)){
-			LOG("ForwardMeshPass: upload buf failed 0x%08X", hr);
+			PHX_LOG(Render, Error, "ForwardMeshPass: upload buf failed 0x%08X", hr);
 			return nullptr;
 		}
 		buf->SetName(name);
@@ -95,14 +95,14 @@ namespace {
 
 bool ForwardMeshPass::init(ID3D12Device* device, bool useMSAA){
 	if (!m_pipeline.init(device, useMSAA)){
-		LOG("ForwardMeshPass: pipeline init failed");
+		PHX_LOG(Render, Error, "ForwardMeshPass: pipeline init failed");
 		return false;
 	}
 	if (!createUploadBuffers(device)) return false;
 	if (!createLightSRVs()) return false;
 	if (!createFallbackTextures(device)) return false;
 	if (!createMatTableRing()) return false;
-	LOG("ForwardMeshPass: init OK");
+	PHX_LOG(Render, Info, "ForwardMeshPass: init OK");
 	return true;
 }
 
@@ -134,7 +134,7 @@ bool ForwardMeshPass::createLightSRVs(){
 	m_spotLightSRV = sd->allocTable("MeshPass_SpotSRV");
 
 	if (!m_dirLightSRV.isValid() || !m_pointLightSRV.isValid() || !m_spotLightSRV.isValid()){
-		LOG("ForwardMeshPass: light SRV alloc failed");
+		PHX_LOG(Render, Error, "ForwardMeshPass: light SRV alloc failed");
 		return false;
 	}
 
@@ -156,7 +156,7 @@ bool ForwardMeshPass::createFallbackTextures(ID3D12Device* device){
 		auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 		HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &td, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&m_fallbackTex2D));
 		if (FAILED(hr)){
-			LOG("ForwardMeshPass: fallback Texture2D failed 0x%08X", hr);
+			PHX_LOG(Render, Error, "ForwardMeshPass: fallback Texture2D failed 0x%08X", hr);
 			return false;
 		}
 		m_fallbackTex2D->SetName(L"MeshPass_Fallback2D");
@@ -174,7 +174,7 @@ bool ForwardMeshPass::createFallbackTextures(ID3D12Device* device){
 		auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 		HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &td, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&m_fallbackCube));
 		if (FAILED(hr)){
-			LOG("ForwardMeshPass: fallback TextureCube failed 0x%08X", hr);
+			PHX_LOG(Render, Error, "ForwardMeshPass: fallback TextureCube failed 0x%08X", hr);
 			return false;
 		}
 		m_fallbackCube->SetName(L"MeshPass_FallbackCube");
@@ -184,7 +184,7 @@ bool ForwardMeshPass::createFallbackTextures(ID3D12Device* device){
 		m_fallbackBRDFSRV = app->getShaderDescriptors()->allocTable("MeshPass_FallbackBRDF");
 
 		if (!m_fallbackIrradianceSRV.isValid() || !m_fallbackPrefilterSRV.isValid() || !m_fallbackBRDFSRV.isValid()){
-			LOG("ForwardMeshPass: fallback IBL SRV alloc failed");
+			PHX_LOG(Render, Error, "ForwardMeshPass: fallback IBL SRV alloc failed");
 			return false;
 		}
 
@@ -195,7 +195,7 @@ bool ForwardMeshPass::createFallbackTextures(ID3D12Device* device){
 
 	m_fallbackShadowSRV = app->getShaderDescriptors()->allocTable("MeshPass_FallbackShadow");
 	if (!m_fallbackShadowSRV.isValid()){
-		LOG("ForwardMeshPass: fallback shadow SRV alloc failed");
+		PHX_LOG(Render, Error, "ForwardMeshPass: fallback shadow SRV alloc failed");
 		return false;
 	}
 	{
@@ -218,7 +218,7 @@ bool ForwardMeshPass::createMatTableRing(){
 	for (UINT i = 0; i < MAX_INSTANCES; ++i){
 		ShaderTableDesc t = sd->allocTable("MeshPass_MatTex");
 		if (!t.isValid()){
-			LOG("ForwardMeshPass: mat ring alloc failed at index %u", i);
+			PHX_LOG(Render, Error, "ForwardMeshPass: mat ring alloc failed at index %u", i);
 			return false;
 		}
 		writeFallbackTex2DSRV(t, MAT_SLOT_BASECOLOR, m_fallbackTex2D.Get());
@@ -370,7 +370,7 @@ void ForwardMeshPass::renderWithPSO(ID3D12GraphicsCommandList* cmd, bool transpa
 		if (!mesh) continue;
 
 		if (drawn >= maxSlots){
-			LOG("ForwardMeshPass: slot limit exceeded");
+			PHX_LOG(Render, Warning, "ForwardMeshPass: slot limit exceeded");
 			break;
 		}
 

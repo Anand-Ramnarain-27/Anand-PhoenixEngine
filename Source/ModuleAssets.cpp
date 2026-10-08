@@ -152,7 +152,7 @@ static void generateDefaultStateMachine(const std::string& sceneName, const std:
     fsys->CreateDir(smDir.c_str());
     fsys->Save(smPath.c_str(), sb.GetString(), (unsigned)sb.GetSize());
 
-    LOG("ModuleAssets: auto-generated default state machine for '%s' (%d clip(s), default='%s') -> %s",
+    PHX_LOG(Assets, Info, "ModuleAssets: auto-generated default state machine for '%s' (%d clip(s), default='%s') -> %s",
         sceneName.c_str(), (int)clips.size(), clips[defaultIdx].name.c_str(), smPath.c_str());
 }
 
@@ -198,12 +198,12 @@ void ModuleAssets::onAssetFileEvent(const std::string& absPath, FileWatcher::Eve
     case FileWatcher::Event::Added:
     case FileWatcher::Event::Modified:
         if (needsReimport(path)){
-            LOG("ModuleAssets: Detected change, re-importing %s", path.c_str());
+            PHX_LOG(Assets, Info, "ModuleAssets: Detected change, re-importing %s", path.c_str());
             importAsset(path.c_str());
         }
         break;
     case FileWatcher::Event::Deleted:
-        LOG("ModuleAssets: Detected deletion: %s", path.c_str());
+        PHX_LOG(Assets, Info, "ModuleAssets: Detected deletion: %s", path.c_str());
         deleteAsset(path);
         break;
     }
@@ -268,7 +268,7 @@ void ModuleAssets::refreshAssets(){
             std::string sceneName = entry.path().stem().string();
             if (!sceneExists(sceneName) || needsReimport(path) ||
                 materialCacheNeedsUpgrade(sceneName) || animCacheNeedsUpgrade(sceneName)){
-                LOG("ModuleAssets: (Re)importing model %s", path.c_str());
+                PHX_LOG(Assets, Verbose, "ModuleAssets: (Re)importing model %s", path.c_str());
                 importAsset(path.c_str());
             }
             else {
@@ -359,7 +359,7 @@ void ModuleAssets::importTexture(const std::string& path, const std::string& , U
     std::string outPath = outDir + TextureImporter::GetTextureName(path.c_str()) + ".dds";
 
     if (!fsys->Exists(outPath.c_str()) || needsReimport(path)){
-        LOG("ModuleAssets: Importing texture %s", path.c_str());
+        PHX_LOG(Assets, Verbose, "ModuleAssets: Importing texture %s", path.c_str());
         fsys->CreateDir(outDir.c_str());
         if (TextureImporter::Import(path.c_str(), outPath)){
             MetaData meta;
@@ -379,7 +379,7 @@ UID ModuleAssets::importAsset(const char* filePath){
 
     ModuleFileSystem* fsys = app->getFileSystem();
     if (!fsys->Exists(path.c_str())){
-        LOG("ModuleAssets: File does not exist: %s", path.c_str());
+        PHX_LOG(Assets, Warning, "ModuleAssets: File does not exist: %s", path.c_str());
         return 0;
     }
 
@@ -415,9 +415,9 @@ UID ModuleAssets::importAsset(const char* filePath){
 
         ok = (ext == ".gltf") ? loader.LoadASCIIFromFile(&gltfModel, &err, &warn, path.c_str()) : loader.LoadBinaryFromFile(&gltfModel, &err, &warn, path.c_str());
 
-        if (!warn.empty()) LOG("ModuleAssets: GLTF Warning: %s", warn.c_str());
+        if (!warn.empty()) PHX_LOG(Assets, Warning, "ModuleAssets: GLTF Warning: %s", warn.c_str());
         if (!ok){
-            LOG("ModuleAssets: Failed to load GLTF: %s", err.c_str());
+            PHX_LOG(Assets, Error, "ModuleAssets: Failed to load GLTF: %s", err.c_str());
             releaseGuard();
             return 0;
         }
@@ -427,7 +427,7 @@ UID ModuleAssets::importAsset(const char* filePath){
         for (char& c : baseDir) if (c == '\\') c = '/';
         baseDir += '/';
         if (!SceneImporter::ImportFromLoadedGLTF(gltfModel, sceneName, baseDir)){
-            LOG("ModuleAssets: Import failed for: %s", sceneName.c_str());
+            PHX_LOG(Assets, Error, "ModuleAssets: Import failed for: %s", sceneName.c_str());
             releaseGuard();
             return 0;
         }
@@ -447,7 +447,7 @@ UID ModuleAssets::importAsset(const char* filePath){
         if (ok) app->getResources()->registerTexture(uid, outPath);
     }
     else if (ext == ".fbx" || ext == ".stl" || ext == ".blend"){
-        LOG("ModuleAssets: Format not yet supported: %s", ext.c_str());
+        PHX_LOG(Assets, Warning, "ModuleAssets: Format not yet supported: %s", ext.c_str());
         releaseGuard();
         return uid;
     }
@@ -457,7 +457,7 @@ UID ModuleAssets::importAsset(const char* filePath){
         MetaFileManager::load(path, meta);
         meta.lastModified = MetaFileManager::getLastModified(path);
         MetaFileManager::save(path, meta);
-        LOG("ModuleAssets: Imported %s (uid=%llu)", path.c_str(), uid);
+        PHX_LOG(Assets, Verbose, "ModuleAssets: Imported %s (uid=%llu)", path.c_str(), uid);
     }
 
     releaseGuard();
@@ -505,7 +505,7 @@ void ModuleAssets::registerSceneSubResources(const std::string& filePath, const 
         animUIDs.push_back(animUID);
     }
 
-    LOG("ModuleAssets: Registered %d meshes, %d materials, %d animations for %s",
+    PHX_LOG(Assets, Verbose, "ModuleAssets: Registered %d meshes, %d materials, %d animations for %s",
         meshCount, materialCount, animCount, sceneName.c_str());
 
     generateDefaultStateMachine(sceneName, animUIDs);
@@ -552,7 +552,7 @@ void ModuleAssets::deleteAsset(const std::string& assetPath){
         m_pathToUID.erase(path);
         m_uidToPath.erase(uid);
     }
-    LOG("ModuleAssets: Asset deleted: %s", path.c_str());
+    PHX_LOG(Assets, Info, "ModuleAssets: Asset deleted: %s", path.c_str());
 }
 
 std::string ModuleAssets::getAssetPathForScene(const std::string& sceneName) const{
@@ -622,7 +622,7 @@ std::vector<ModuleAssets::SceneInfo> ModuleAssets::getImportedScenes() const{
         }
     }
     catch (const std::exception& e){
-        LOG("ModuleAssets: Error listing scenes: %s", e.what());
+        PHX_LOG(Assets, Error, "ModuleAssets: Error listing scenes: %s", e.what());
     }
     return scenes;
 }

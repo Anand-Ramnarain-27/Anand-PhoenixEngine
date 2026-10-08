@@ -46,7 +46,7 @@ bool SkyboxRenderer::createRootSignature(ID3D12Device* device){
 	ComPtr<ID3DBlob> blob;
 	ComPtr<ID3DBlob> err;
 	if (FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))){
-		LOG("SkyboxRenderer: root signature serialise failed: %s", err ? (char*)err->GetBufferPointer() : "unknown error");
+		PHX_LOG(Render, Error, "SkyboxRenderer: root signature serialise failed: %s", err ? (char*)err->GetBufferPointer() : "unknown error");
 		return false;
 	}
 

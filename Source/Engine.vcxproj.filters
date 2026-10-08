@@ -773,9 +773,6 @@
     <ClInclude Include="PrimitiveFactory.h">
       <Filter>Engine\Scene\Primitives</Filter>
     </ClInclude>
-    <ClInclude Include="par_shapes.h">
-      <Filter>Engine\Scene\Primitives</Filter>
-    </ClInclude>
     <!-- Engine\Scene\Serialization -->
     <ClInclude Include="SceneSerializer.h">
       <Filter>Engine\Scene\Serialization</Filter>
@@ -1561,5 +1558,227 @@
     <Filter Include="Shaders\PostProcess">
       <UniqueIdentifier>{a1b2c3d4-0001-0000-0000-000000000045}</UniqueIdentifier>
     </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Engine\UI\NodeEditor">
+      <UniqueIdentifier>{6b288a75-bf13-4803-bb8a-38b92815652f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\UI\Runtime">
+      <UniqueIdentifier>{fa434b11-f537-416e-8e07-d4115a4612d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Editor\Ashfall">
+      <UniqueIdentifier>{1d70c2f1-dc26-4c56-93c7-7276d81b2db5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="3rdParty\imgui-node-editor-master\imgui_node_editor.h">
+      <Filter>Engine\UI\NodeEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdParty\imgui-node-editor-master\imgui_node_editor_internal.h">
+      <Filter>Engine\UI\NodeEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="API\Phoenix_VFX.h">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClInclude>
+    <ClInclude Include="VfxGuards.h">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClInclude>
+    <ClInclude Include="EffectTextureLoader.h">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentTransform2D.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentCanvas.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentImage.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentLabel.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentButton.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentProgressBar.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentSelectable.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentCheckBox.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentSlider.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentInputBox.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentRadioGroup.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="UIDelegate.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="UIRadioGroup.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="UISelectable.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="UITestScene.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="AshfallHUDBuilder.h">
+      <Filter>Engine\Editor\Ashfall</Filter>
+    </ClInclude>
+    <ClInclude Include="AshfallHubBuilder.h">
+      <Filter>Engine\Editor\Ashfall</Filter>
+    </ClInclude>
+    <ClInclude Include="AshfallVfxBuilder.h">
+      <Filter>Engine\Editor\Ashfall</Filter>
+    </ClInclude>
+    <ClInclude Include="AshfallData.h">
+      <Filter>Engine\Editor\Ashfall</Filter>
+    </ClInclude>
+    <ClInclude Include="AshfallDataPanel.h">
+      <Filter>Engine\Editor\Ashfall</Filter>
+    </ClInclude>
+    <ClInclude Include="AshfallEnemyBuilder.h">
+      <Filter>Engine\Editor\Ashfall</Filter>
+    </ClInclude>
+    <ClInclude Include="UITypes.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="UIDrawItem.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="API\Phoenix_UI.h">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClInclude>
+    <ClInclude Include="UIJson.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="UIPass.h">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleUI.h">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClInclude>
+    <ClCompile Include="API\Phoenix_VFX.cpp">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClCompile>
+    <ClCompile Include="GameObjectComponentFactories.cpp">
+      <Filter>Engine\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="EngineLogBridge.cpp">
+      <Filter>Engine\Scripting</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentTransform2D.cpp">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentCanvas.cpp">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentImage.cpp">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentLabel.cpp">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentButton.cpp">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentProgressBar.cpp">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentCheckBox.cpp">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentSlider.cpp">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentInputBox.cpp">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentRadioGroup.cpp">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="UITestScene.cpp">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="AshfallHUDBuilder.cpp">
+      <Filter>Engine\Editor\Ashfall</Filter>
+    </ClCompile>
+    <ClCompile Include="AshfallHubBuilder.cpp">
+      <Filter>Engine\Editor\Ashfall</Filter>
+    </ClCompile>
+    <ClCompile Include="AshfallVfxBuilder.cpp">
+      <Filter>Engine\Editor\Ashfall</Filter>
+    </ClCompile>
+    <ClCompile Include="AshfallData.cpp">
+      <Filter>Engine\Editor\Ashfall</Filter>
+    </ClCompile>
+    <ClCompile Include="AshfallDataPanel.cpp">
+      <Filter>Engine\Editor\Ashfall</Filter>
+    </ClCompile>
+    <ClCompile Include="AshfallEnemyBuilder.cpp">
+      <Filter>Engine\Editor\Ashfall</Filter>
+    </ClCompile>
+    <ClCompile Include="API\Phoenix_UI.cpp">
+      <Filter>Engine\Scripting\API</Filter>
+    </ClCompile>
+    <ClCompile Include="UIPass.cpp">
+      <Filter>Engine\Rendering\Passes</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleUI.cpp">
+      <Filter>Engine\UI\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleAssetsCore.cpp">
+      <Filter>Engine\Assets</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleResourcesCore.cpp">
+      <Filter>Engine\Resources</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleResourcesFactories.cpp">
+      <Filter>Engine\Resources</Filter>
+    </ClCompile>
+    <ClCompile Include="RuntimeCoreCore.cpp">
+      <Filter>Engine\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="PrefabManagerCore.cpp">
+      <Filter>Engine\Scene\Prefabs</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentAnimationTrigger.cpp">
+      <Filter>Engine\Scene\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneManagerCore.cpp">
+      <Filter>Engine\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdParty\imgui-node-editor-master\imgui_node_editor.cpp">
+      <Filter>Engine\UI\NodeEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdParty\imgui-node-editor-master\imgui_node_editor_api.cpp">
+      <Filter>Engine\UI\NodeEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdParty\imgui-node-editor-master\imgui_canvas.cpp">
+      <Filter>Engine\UI\NodeEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdParty\imgui-node-editor-master\crude_json.cpp">
+      <Filter>Engine\UI\NodeEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="ResourceStateMachineEditor.cpp">
+      <Filter>Engine\Resources</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="PhoenixLog.cpp">
+      <Filter>Engine\Core</Filter>
+    </ClCompile>
+    <ClInclude Include="PhoenixLog.h">
+      <Filter>Engine\Core</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

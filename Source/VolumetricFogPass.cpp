@@ -24,7 +24,7 @@ namespace {
         HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd,
                                                       D3D12_RESOURCE_STATE_GENERIC_READ,
                                                       nullptr, IID_PPV_ARGS(&buf));
-        if (FAILED(hr)){ LOG("VolumetricFogPass: buf create failed 0x%08X", hr); return nullptr; }
+        if (FAILED(hr)){ PHX_LOG(Render, Error, "VolumetricFogPass: buf create failed 0x%08X", hr); return nullptr; }
         buf->SetName(name);
         if (mapped) buf->Map(0, nullptr, mapped);
         return buf;
@@ -44,38 +44,38 @@ namespace {
 bool VolumetricFogPass::init(ID3D12Device* device){
     m_device = device;
     if (!m_lightCulling.init(device)){
-        LOG("VolumetricFogPass: light culling init failed");
+        PHX_LOG(Render, Error, "VolumetricFogPass: light culling init failed");
         return false;
     }
     if (!createComputeRootSignature(device)){
-        LOG("VolumetricFogPass: compute root signature creation failed");
+        PHX_LOG(Render, Error, "VolumetricFogPass: compute root signature creation failed");
         return false;
     }
     if (!createComputePSO(device)){
-        LOG("VolumetricFogPass: compute PSO creation failed");
+        PHX_LOG(Render, Error, "VolumetricFogPass: compute PSO creation failed");
         return false;
     }
     if (!createCompositeRootSignature(device)){
-        LOG("VolumetricFogPass: composite root signature creation failed");
+        PHX_LOG(Render, Error, "VolumetricFogPass: composite root signature creation failed");
         return false;
     }
     if (!createCompositePSO(device)){
-        LOG("VolumetricFogPass: composite PSO creation failed");
+        PHX_LOG(Render, Error, "VolumetricFogPass: composite PSO creation failed");
         return false;
     }
     if (!createUploadBuffers(device)){
-        LOG("VolumetricFogPass: upload buffer creation failed");
+        PHX_LOG(Render, Error, "VolumetricFogPass: upload buffer creation failed");
         return false;
     }
     if (!createLightSRVs()){
-        LOG("VolumetricFogPass: light SRV creation failed");
+        PHX_LOG(Render, Error, "VolumetricFogPass: light SRV creation failed");
         return false;
     }
     if (!createFallbackShadow(device)){
-        LOG("VolumetricFogPass: fallback shadow texture creation failed");
+        PHX_LOG(Render, Error, "VolumetricFogPass: fallback shadow texture creation failed");
         return false;
     }
-    LOG("VolumetricFogPass: init OK");
+    PHX_LOG(Render, Info, "VolumetricFogPass: init OK");
     return true;
 }
 
@@ -114,7 +114,7 @@ bool VolumetricFogPass::createComputeRootSignature(ID3D12Device* device){
 
     ComPtr<ID3DBlob> blob, err;
     if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))){
-        LOG("VolumetricFogPass: compute root signature serialise failed: %s", err ? (char*)err->GetBufferPointer() : "unknown error");
+        PHX_LOG(Render, Error, "VolumetricFogPass: compute root signature serialise failed: %s", err ? (char*)err->GetBufferPointer() : "unknown error");
         return false;
     }
     return SUCCEEDED(device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&m_computeRootSig)));
@@ -151,7 +151,7 @@ bool VolumetricFogPass::createCompositeRootSignature(ID3D12Device* device){
 
     ComPtr<ID3DBlob> blob, err;
     if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &err))){
-        LOG("VolumetricFogPass: composite root signature serialise failed: %s", err ? (char*)err->GetBufferPointer() : "unknown error");
+        PHX_LOG(Render, Error, "VolumetricFogPass: composite root signature serialise failed: %s", err ? (char*)err->GetBufferPointer() : "unknown error");
         return false;
     }
     return SUCCEEDED(device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&m_compositeRootSig)));
@@ -232,7 +232,7 @@ bool VolumetricFogPass::createFallbackShadow(ID3D12Device* device){
     HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &td,
                                                   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                                                   nullptr, IID_PPV_ARGS(&m_fallbackTex2D));
-    if (FAILED(hr)){ LOG("VolumetricFogPass: fallback shadow tex failed 0x%08X", hr); return false; }
+    if (FAILED(hr)){ PHX_LOG(Render, Error, "VolumetricFogPass: fallback shadow tex failed 0x%08X", hr); return false; }
     m_fallbackTex2D->SetName(L"VolumetricFog_FallbackShadowTex");
 
     auto* sd = app->getShaderDescriptors();
@@ -303,7 +303,7 @@ bool VolumetricFogPass::ensureFogTexture(uint32_t width, uint32_t height, int vi
                                                     D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                                                     nullptr, IID_PPV_ARGS(&tex));
     if (FAILED(hr)){
-        LOG("VolumetricFogPass: fog texture create failed 0x%08X", hr);
+        PHX_LOG(Render, Error, "VolumetricFogPass: fog texture create failed 0x%08X", hr);
         return false;
     }
     tex->SetName(L"VolumetricFog_Tex");
@@ -312,7 +312,7 @@ bool VolumetricFogPass::ensureFogTexture(uint32_t width, uint32_t height, int vi
     m_fogSrv[viewportIndex] = sd->allocTable("VolumetricFog_SRV");
     m_fogUav[viewportIndex] = sd->allocTable("VolumetricFog_UAV");
     if (!m_fogSrv[viewportIndex].isValid() || !m_fogUav[viewportIndex].isValid()){
-        LOG("VolumetricFogPass: fog texture SRV/UAV alloc failed");
+        PHX_LOG(Render, Error, "VolumetricFogPass: fog texture SRV/UAV alloc failed");
         return false;
     }
 

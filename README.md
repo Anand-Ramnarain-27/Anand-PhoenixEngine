@@ -173,11 +173,15 @@ git clone https://github.com/Anand-Ramnarain-27/Anand-PhoenixEngine.git
 | Focus on object | F |
 | Speed boost | Hold Shift |
 
+## Documentation
+
+See [docs/README.md](docs/README.md) for the documentation index, including the [Scripting Guide](SCRIPTING_GUIDE.md).
+
 ---
 
 ## License
 
-Licensed under the **MIT License** — see [LICENCE.md](LICENCE.md). Third-party libraries are included with their respective licenses in `Licences/`.
+Licensed under the **MIT License** — see [LICENSE](LICENSE). Third-party libraries are included with their respective licenses under `Source/3rdParty/`.
 
 ## Author
 

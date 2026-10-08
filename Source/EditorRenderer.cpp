@@ -24,6 +24,7 @@
 #include <algorithm>
 
 void ModuleEditor::preRender(){
+    PhoenixLog::drainConsole();
     flushExitPrefabEdit();
     m_sceneView->handleResize();
     m_gameView->handleResize();

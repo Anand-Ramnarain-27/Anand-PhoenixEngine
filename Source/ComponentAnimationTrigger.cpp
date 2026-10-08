@@ -21,7 +21,7 @@
 void ComponentAnimation::pushLayer(UID animUID, float transitionTimeMs, bool loop){
     ResourceAnimation* anim = app->getResources()->RequestAnimation(animUID);
     if (!anim){
-        LOG("ComponentAnimation::pushLayer: failed to load animation uid=%llu", animUID);
+        PHX_LOG(Scene, Error, "ComponentAnimation::pushLayer: failed to load animation uid=%llu", animUID);
         return;
     }
     AnimLayer* layer = new AnimLayer();

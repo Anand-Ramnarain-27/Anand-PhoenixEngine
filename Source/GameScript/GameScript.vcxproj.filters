@@ -26,4 +26,27 @@
       <Filter>Scripts</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Test.h">
+      <Filter>Scripts\Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="UIDemoScript.h">
+      <Filter>Scripts\Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="$(SolutionDir)API\PhoenixAPI.h">
+      <Filter>Scripts\Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="$(SolutionDir)API\Phoenix_GameObject.h">
+      <Filter>Scripts\Headers</Filter>
+    </ClInclude>
+    <ClCompile Include="Test.cpp">
+      <Filter>Scripts</Filter>
+    </ClCompile>
+    <ClCompile Include="GameScriptGlobals.cpp">
+      <Filter>Scripts</Filter>
+    </ClCompile>
+    <ClCompile Include="UIDemoScript.cpp">
+      <Filter>Scripts</Filter>
+    </ClCompile>
+  </ItemGroup>
 </Project>

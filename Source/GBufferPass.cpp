@@ -23,7 +23,7 @@ namespace {
                                                       D3D12_RESOURCE_STATE_GENERIC_READ,
                                                       nullptr, IID_PPV_ARGS(&buf));
         if (FAILED(hr)){
-            LOG("GBufferPass: upload buf failed 0x%08X", hr);
+            PHX_LOG(Render, Error, "GBufferPass: upload buf failed 0x%08X", hr);
             return nullptr;
         }
         buf->SetName(name);
@@ -68,13 +68,13 @@ namespace {
 
 bool GBufferPass::init(ID3D12Device* device){
     if (!m_pipeline.init(device)){
-        LOG("GBufferPass: pipeline init failed");
+        PHX_LOG(Render, Error, "GBufferPass: pipeline init failed");
         return false;
     }
     if (!createUploadBuffers(device)) return false;
     if (!createFallbackTexture(device)) return false;
     if (!createFallbackTable()) return false;
-    LOG("GBufferPass: init OK");
+    PHX_LOG(Render, Info, "GBufferPass: init OK");
     return true;
 }
 
@@ -112,7 +112,7 @@ bool GBufferPass::createFallbackTexture(ID3D12Device* device){
                                                   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                                                   nullptr, IID_PPV_ARGS(&m_fallbackTex));
     if (FAILED(hr)){
-        LOG("GBufferPass: fallback texture failed 0x%08X", hr);
+        PHX_LOG(Render, Error, "GBufferPass: fallback texture failed 0x%08X", hr);
         return false;
     }
     m_fallbackTex->SetName(L"GBufferPass_FallbackTex");
@@ -123,7 +123,7 @@ bool GBufferPass::createFallbackTable(){
     auto* sd = app->getShaderDescriptors();
     m_fallbackTable = sd->allocTable("GBufferPass_MatFallback");
     if (!m_fallbackTable.isValid()){
-        LOG("GBufferPass: fallback table alloc failed");
+        PHX_LOG(Render, Error, "GBufferPass: fallback table alloc failed");
         return false;
     }
     for (UINT i = 0; i < 5; ++i)
@@ -248,7 +248,7 @@ void GBufferPass::render(ID3D12GraphicsCommandList* cmd,
                 // which floods OutputDebugString and tanks the frame rate.
                 static bool warned = false;
                 if (!warned){
-                    LOG("GBufferPass: MAX_INSTANCES (%u) exceeded — extra meshes skipped this frame.", MAX_INSTANCES);
+                    PHX_LOG(Render, Warning, "GBufferPass: MAX_INSTANCES (%u) exceeded — extra meshes skipped this frame.", MAX_INSTANCES);
                     warned = true;
                 }
                 break;
@@ -324,14 +324,14 @@ bool GBufferPipeline::createRootSignature(ID3D12Device* device){
     HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error);
     if (FAILED(hr)){
         if (error) OutputDebugStringA(static_cast<char*>(error->GetBufferPointer()));
-        LOG("GBufferPipeline: D3D12SerializeRootSignature failed 0x%08X", hr);
+        PHX_LOG(Render, Error, "GBufferPipeline: D3D12SerializeRootSignature failed 0x%08X", hr);
         return false;
     }
 
     hr = device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
                                       IID_PPV_ARGS(&m_rootSig));
     if (FAILED(hr)){
-        LOG("GBufferPipeline: CreateRootSignature failed 0x%08X", hr);
+        PHX_LOG(Render, Error, "GBufferPipeline: CreateRootSignature failed 0x%08X", hr);
         return false;
     }
     return true;
@@ -370,14 +370,14 @@ bool GBufferPipeline::createPSO(ID3D12Device* device){
 
     HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_pso));
     if (FAILED(hr)){
-        LOG("GBufferPipeline: CreateGraphicsPipelineState failed 0x%08X", hr);
+        PHX_LOG(Render, Error, "GBufferPipeline: CreateGraphicsPipelineState failed 0x%08X", hr);
         return false;
     }
 
     desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
     hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&m_psoDoubleSided));
     if (FAILED(hr)){
-        LOG("GBufferPipeline: CreateGraphicsPipelineState (double-sided) failed 0x%08X", hr);
+        PHX_LOG(Render, Error, "GBufferPipeline: CreateGraphicsPipelineState (double-sided) failed 0x%08X", hr);
         return false;
     }
     return true;

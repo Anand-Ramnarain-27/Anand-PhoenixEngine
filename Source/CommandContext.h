@@ -26,12 +26,12 @@ public:
 		if (!closeAndExecute(stage)) return false;
 
 		if (FAILED(m_alloc->Reset())){
-			LOG("CommandContext: alloc Reset() failed after '%s'", stage);
+			PHX_LOG(Render, Error, "CommandContext: alloc Reset() failed after '%s'", stage);
 			return false;
 		}
 
 		if (FAILED(m_cmd->Reset(m_alloc.Get(), nullptr))){
-			LOG("CommandContext: cmd Reset() failed after '%s'", stage);
+			PHX_LOG(Render, Error, "CommandContext: cmd Reset() failed after '%s'", stage);
 			return false;
 		}
 
@@ -58,7 +58,7 @@ private:
 
 	bool closeAndExecute(const char* stage){
 		if (FAILED(m_cmd->Close())){
-			LOG("CommandContext: cmd->Close() failed at '%s'", stage);
+			PHX_LOG(Render, Error, "CommandContext: cmd->Close() failed at '%s'", stage);
 			return false;
 		}
 
@@ -67,7 +67,7 @@ private:
 		getD3D12()->flush();
 
 		if (FAILED(getDevice()->GetDeviceRemovedReason())){
-			LOG("CommandContext: device removed after '%s'!", stage);
+			PHX_LOG(Render, Error, "CommandContext: device removed after '%s'!", stage);
 			return false;
 		}
 

@@ -55,7 +55,7 @@ namespace {
         vsnprintf(line, sizeof(line), format, ap);
         va_end(ap);
 
-        LOG("%s", line);
+        PHX_LOG(Scene, Info, "%s", line);
 #ifdef PHOENIX_EDITOR
         if (ModuleEditor* editor = app->getEditor()) editor->log(line);
 #endif

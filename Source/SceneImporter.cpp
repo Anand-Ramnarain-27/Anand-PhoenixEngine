@@ -100,7 +100,7 @@ namespace {
 }
 
 bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const std::string& sceneName, const std::string& basePath){
-    if (!CreateSceneDirectory(sceneName)) LOG("SceneImporter: Warning: CreateSceneDirectory returned false for %s (may already exist)", sceneName.c_str());
+    if (!CreateSceneDirectory(sceneName)) PHX_LOG(Assets, Verbose, "SceneImporter: Warning: CreateSceneDirectory returned false for %s (may already exist)", sceneName.c_str());
     ModuleFileSystem* fs = app->getFileSystem();
     std::string meshFolder = fs->GetLibraryPath() + "Meshes/" + sceneName;
     std::string matFolder = fs->GetLibraryPath() + "Materials/" + sceneName;
@@ -115,11 +115,11 @@ bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const
                 prim,
                 gltfModel,
                 ImporterUtils::IndexedPath(meshFolder, currentMeshIndex, ".mesh"))){
-                LOG("SceneImporter: Failed to import mesh %d", currentMeshIndex);
+                PHX_LOG(Assets, Error, "SceneImporter: Failed to import mesh %d", currentMeshIndex);
             }
 
             if (prim.material < -1 || prim.material >= (int)gltfModel.materials.size()){
-                LOG("SceneImporter: Invalid material index %d on mesh %d", prim.material, currentMeshIndex);
+                PHX_LOG(Assets, Error, "SceneImporter: Invalid material index %d on mesh %d", prim.material, currentMeshIndex);
             }
 
             meshIndex++;
@@ -130,7 +130,7 @@ bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const
 
         MaterialImporter::Import(mat, gltfModel, sceneName, ImporterUtils::IndexedPath(matFolder, k, ".mat"), k, basePath);
     }
-    if (!SaveSceneMetadata(sceneName, gltfModel)){ LOG("SceneImporter: Failed to save scene metadata"); return false; }
+    if (!SaveSceneMetadata(sceneName, gltfModel)){ PHX_LOG(Assets, Error, "SceneImporter: Failed to save scene metadata"); return false; }
     SaveNodeMetadata(sceneName, gltfModel);
     SaveSkinMetadata(sceneName, gltfModel);
     AnimationImporter::ImportAll(gltfModel, sceneName);
@@ -140,9 +140,9 @@ bool SceneImporter::ImportFromLoadedGLTF(const tinygltf::Model& gltfModel, const
 bool SceneImporter::LoadScene(const std::string& sceneName, std::unique_ptr<Model>& outModel){
     ModuleFileSystem* fs = app->getFileSystem();
     std::string folder = fs->GetLibraryPath() + "Meshes/" + sceneName;
-    if (!fs->Exists(folder.c_str())){ LOG("SceneImporter: Scene folder does not exist: %s", folder.c_str()); return false; }
+    if (!fs->Exists(folder.c_str())){ PHX_LOG(Assets, Warning, "SceneImporter: Scene folder does not exist: %s", folder.c_str()); return false; }
     SceneHeader header;
-    if (!LoadSceneMetadata(sceneName, header)){ LOG("SceneImporter: Failed to load metadata for %s", sceneName.c_str()); return false; }
+    if (!LoadSceneMetadata(sceneName, header)){ PHX_LOG(Assets, Error, "SceneImporter: Failed to load metadata for %s", sceneName.c_str()); return false; }
     return true;
 }
 
@@ -180,7 +180,7 @@ bool SceneImporter::LoadSceneMetadata(const std::string& sceneName, SceneHeader&
     std::vector<char> rawBuffer;
     std::string path = app->getFileSystem()->GetLibraryPath() + "Meshes/" + sceneName + "/scene.meta";
     if (!ImporterUtils::LoadBlob(path, header, rawBuffer)) return false;
-    if (!ImporterUtils::ValidateHeader(header, 0x53434E45)){ LOG("SceneImporter: Invalid scene metadata"); return false; }
+    if (!ImporterUtils::ValidateHeader(header, 0x53434E45)){ PHX_LOG(Assets, Error, "SceneImporter: Invalid scene metadata"); return false; }
     return true;
 }
 
@@ -276,7 +276,7 @@ bool SceneImporter::SaveSkinMetadata(const std::string& sceneName, const tinyglt
 
         std::vector<Matrix> ibms(jointCount, Matrix::Identity);
         if (skin.inverseBindMatrices < 0){
-            LOG("SceneImporter: skin '%s' has no inverseBindMatrices accessor — "
+            PHX_LOG(Assets, Warning, "SceneImporter: skin '%s' has no inverseBindMatrices accessor — "
                 "all IBP matrices default to Identity and skinning will be broken. "
                 "Re-export from the DCC tool with skinning enabled.",
                 skin.name.c_str());
@@ -329,7 +329,7 @@ bool SceneImporter::LoadSkins(const std::string& sceneName, std::vector<SkinInfo
             cur += jointCount * sizeof(int32_t);
 
             if (cur + jointCount * sizeof(Matrix) > end){
-                LOG("SceneImporter: stale skins.meta for skin '%s' — no IBP matrix block. "
+                PHX_LOG(Assets, Warning, "SceneImporter: stale skins.meta for skin '%s' — no IBP matrix block. "
                     "Re-import the model to fix.", si.name.c_str());
                 return false;
             }

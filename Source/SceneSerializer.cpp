@@ -159,14 +159,14 @@ bool SceneSerializer::SaveScene(const SceneGraph* scene, const std::string& file
         doc.Accept(writer);
         return app->getFileSystem()->Save(filePath.c_str(), sb.GetString(), (unsigned)sb.GetSize());
     }
-    catch (const std::exception& e){ LOG("SceneSerializer: Save exception: %s", e.what()); return false; }
-    catch (...){ LOG("SceneSerializer: Unknown save exception"); return false; }
+    catch (const std::exception& e){ PHX_LOG(Scene, Error, "SceneSerializer: Save exception: %s", e.what()); return false; }
+    catch (...){ PHX_LOG(Scene, Error, "SceneSerializer: Unknown save exception"); return false; }
 }
 
 bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, EditorSceneSettings* settings){
     if (!scene) return false;
     auto* fs = app->getFileSystem();
-    if (!fs->Exists(filePath.c_str())){ LOG("SceneSerializer: File not found: %s", filePath.c_str()); return false; }
+    if (!fs->Exists(filePath.c_str())){ PHX_LOG(Scene, Warning, "SceneSerializer: File not found: %s", filePath.c_str()); return false; }
 
     char* buf = nullptr;
     unsigned size = fs->Load(filePath.c_str(), &buf);
@@ -176,7 +176,7 @@ bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, 
     doc.Parse(buf, size);
     delete[] buf;
 
-    if (doc.HasParseError() || !doc.HasMember("Scene") || !doc["Scene"].HasMember("GameObjects")){ LOG("SceneSerializer: Invalid file or parse error"); return false; }
+    if (doc.HasParseError() || !doc.HasMember("Scene") || !doc["Scene"].HasMember("GameObjects")){ PHX_LOG(Scene, Error, "SceneSerializer: Invalid file or parse error"); return false; }
 
     const Value& goArray = doc["Scene"]["GameObjects"];
     scene->clear();
@@ -185,7 +185,7 @@ bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, 
     for (SizeType i = 0; i < goArray.Size(); ++i){
         const Value& node = goArray[i];
         uint32_t uid = readUID(node, "UID");
-        if (!uid){ LOG("SceneSerializer: UID has unexpected type, skipping"); continue; }
+        if (!uid){ PHX_LOG(Scene, Warning, "SceneSerializer: UID has unexpected type, skipping"); continue; }
         auto* go = scene->createGameObject(node["Name"].GetString());
         go->setActive(node["Active"].GetBool());
         if (node.HasMember("Tag") && node["Tag"].IsString()) go->setTag(node["Tag"].GetString());
@@ -204,7 +204,7 @@ bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, 
         if (parentID != 0){
             auto pit = uidMap.find(parentID);
             if (pit != uidMap.end()) go->setParent(pit->second);
-            else LOG("SceneSerializer: Parent UID %u not found for %s", parentID, go->getName().c_str());
+            else PHX_LOG(Scene, Warning, "SceneSerializer: Parent UID %u not found for %s", parentID, go->getName().c_str());
         }
 
         if (node.HasMember("PrefabLink") && node["PrefabLink"].IsObject()){
@@ -227,7 +227,7 @@ bool SceneSerializer::LoadScene(const std::string& filePath, SceneGraph* scene, 
             auto type = (Component::Type)cn["Type"].GetInt();
             auto comp = ComponentFactory::CreateComponent(type, go);
             if (comp){ comp->onLoad(cn["Data"].GetString()); go->addComponent(std::move(comp)); }
-            else LOG("SceneSerializer: Failed to create component type %d", (int)type);
+            else PHX_LOG(Scene, Error, "SceneSerializer: Failed to create component type %d", (int)type);
         }
     }
 

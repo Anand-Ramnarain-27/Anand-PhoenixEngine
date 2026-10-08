@@ -10,7 +10,7 @@
 bool ColorLUT::loadCube(ID3D12Device* device, const std::string& path){
     auto* fs = app->getFileSystem();
     if (!fs->Exists(path.c_str())){
-        LOG("ColorLUT: file not found '%s'", path.c_str());
+        PHX_LOG(Render, Warning, "ColorLUT: file not found '%s'", path.c_str());
         return false;
     }
 
@@ -41,7 +41,7 @@ bool ColorLUT::loadCube(ID3D12Device* device, const std::string& path){
     }
 
     if (lutSize <= 0 || data.size() != (size_t)lutSize * lutSize * lutSize * 3){
-        LOG("ColorLUT: invalid or incomplete .cube file '%s'", path.c_str());
+        PHX_LOG(Render, Error, "ColorLUT: invalid or incomplete .cube file '%s'", path.c_str());
         return false;
     }
 
@@ -55,7 +55,7 @@ bool ColorLUT::createTexture3D(ID3D12Device* device, int size, const std::vector
     auto heapDefault = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     if (FAILED(device->CreateCommittedResource(&heapDefault, D3D12_HEAP_FLAG_NONE, &texDesc,
             D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_texture)))){
-        LOG("ColorLUT: failed to create 3D texture resource");
+        PHX_LOG(Render, Error, "ColorLUT: failed to create 3D texture resource");
         return false;
     }
     m_texture->SetName(L"ColorLUT");
@@ -66,7 +66,7 @@ bool ColorLUT::createTexture3D(ID3D12Device* device, int size, const std::vector
     ComPtr<ID3D12Resource> uploadBuf;
     if (FAILED(device->CreateCommittedResource(&heapUpload, D3D12_HEAP_FLAG_NONE, &uploadDesc,
             D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&uploadBuf)))){
-        LOG("ColorLUT: failed to create upload buffer");
+        PHX_LOG(Render, Error, "ColorLUT: failed to create upload buffer");
         return false;
     }
 

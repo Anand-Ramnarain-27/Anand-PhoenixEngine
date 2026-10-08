@@ -905,7 +905,7 @@ void DrawToolbar(Doc& doc, bool showOpenButton){
         ImGui::SameLine();
         if (ImGui::SmallButton("Open in Ashfall Data")) RequestFocus(doc.assetPath);
     }
-    if (!msg.empty()) LOG("AshfallData: %s", msg.c_str());
+    if (!msg.empty()) PHX_LOG(Editor, Info, "AshfallData: %s", msg.c_str());
     ImGui::PopID();
 }
 

@@ -87,19 +87,19 @@ void ModuleD3D12::resize(){
     m_rtDescriptorHeap.Reset();
 
     DXGI_SWAP_CHAIN_DESC desc = {};
-    if (FAILED(m_swapChain->GetDesc(&desc))){ LOG("Failed to get swap chain desc"); return; }
+    if (FAILED(m_swapChain->GetDesc(&desc))){ PHX_LOG(Render, Error, "Failed to get swap chain desc"); return; }
 
     m_commandList->Reset(m_commandAllocators[m_currentBackBufferIdx].Get(), nullptr);
     m_commandList->Close();
 
     if (FAILED(m_swapChain->ResizeBuffers(FRAMES_IN_FLIGHT, w, h, desc.BufferDesc.Format, desc.Flags))){
-        LOG("Failed to resize swap chain"); return;
+        PHX_LOG(Render, Error, "Failed to resize swap chain"); return;
     }
 
     m_currentBackBufferIdx = m_swapChain->GetCurrentBackBufferIndex();
 
-    if (!createRenderTargets()) LOG("Failed to recreate render targets");
-    if (!createDepthStencil()) LOG("Failed to recreate depth stencil");
+    if (!createRenderTargets()) PHX_LOG(Render, Error, "Failed to recreate render targets");
+    if (!createDepthStencil()) PHX_LOG(Render, Error, "Failed to recreate depth stencil");
 }
 
 void ModuleD3D12::toggleFullscreen(){
