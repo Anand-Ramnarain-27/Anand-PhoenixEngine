@@ -2,21 +2,28 @@
 #include "ModuleCamera.h"
 #include "FrustumDebugDraw.h"
 #include "Application.h"
-#include "MathUtils.h"
 #include "Mouse.h"
 #include "Keyboard.h"
 #include "GamePad.h"
 #include <imgui.h>
 #include <algorithm>
 
-static constexpr float ORBIT_SENSITIVITY = 0.005f;
-static constexpr float PAN_SPEED = 1.0f;
-static constexpr float ZOOM_SPEED = 1.0f;
+static constexpr float kOrbitSensitivity = 0.005f;   // radians per mouse pixel
+static constexpr float kPanSpeed = 1.0f;
+static constexpr float kZoomSpeed = 1.0f;
+static constexpr float kTriggerClimbSpeed = 0.25f;   // gamepad triggers move the camera up / down
+// Pitch stops short of straight up / down, where the yaw axis would flip.
+static constexpr float kMaxPitch = XM_PIDIV2 - 0.01f;
+static constexpr float kMinOrbitRadius = 0.5f;
+static constexpr float kFocusDistance = 5.0f;
+static constexpr float kForwardRayLength = 20.0f;   // debug ray, capped by the far plane
+static constexpr float kDefaultNear = 0.1f;
+static constexpr float kDefaultFar = 500.0f;
 
 bool ModuleCamera::init(){
-    params = {};
-    position = params.translation;
-    rotation = Quaternion::Identity;
+    m_params = {};
+    m_position = m_params.translation;
+    m_rotation = Quaternion::Identity;
     focusOnTarget(Vector3::Zero);
     return true;
 }
@@ -27,36 +34,36 @@ void ModuleCamera::update(){
     GamePad::State gps = GamePad::Get().GetState(0);
 
     const float dt = app->getElapsedMilis() * 0.001f;
-    speedMultiplier = (ks.LeftShift || ks.RightShift) ? speedBoostMultiplier : 1.0f;
+    m_speedMultiplier = (ks.LeftShift || ks.RightShift) ? m_speedBoostMultiplier : 1.0f;
 
     const bool isOrbiting = (ks.LeftAlt || ks.RightAlt) && ms.leftButton;
     const bool isFlyMode = ms.rightButton && !isOrbiting;
 
-    const Vector2 mouseDelta(float(dragPosX - ms.x), float(dragPosY - ms.y));
-    const int wheelDelta = ms.scrollWheelValue - previousWheelValue;
-    previousWheelValue = ms.scrollWheelValue;
+    const Vector2 mouseDelta(float(m_dragPosX - ms.x), float(m_dragPosY - ms.y));
+    const int wheelDelta = ms.scrollWheelValue - m_previousWheelValue;
+    m_previousWheelValue = ms.scrollWheelValue;
 
     Vector3 translateLocal = Vector3::Zero;
     Vector2 rotateDelta = Vector2::Zero;
 
     if (isFlyMode || isOrbiting){
-        rotateDelta.x = mouseDelta.x * ORBIT_SENSITIVITY * speedMultiplier;
-        rotateDelta.y = mouseDelta.y * ORBIT_SENSITIVITY * speedMultiplier;
+        rotateDelta.x = mouseDelta.x * kOrbitSensitivity * m_speedMultiplier;
+        rotateDelta.y = mouseDelta.y * kOrbitSensitivity * m_speedMultiplier;
     }
 
     if (gps.IsConnected()){
-        rotateDelta.x += -gps.thumbSticks.rightX * dt * speedMultiplier;
-        rotateDelta.y += -gps.thumbSticks.rightY * dt * speedMultiplier;
-        translateLocal.x += gps.thumbSticks.leftX * dt * speedMultiplier;
-        translateLocal.z += -gps.thumbSticks.leftY * dt * speedMultiplier;
-        if (gps.IsLeftTriggerPressed()) translateLocal.y += 0.25f * dt * speedMultiplier;
-        if (gps.IsRightTriggerPressed()) translateLocal.y -= 0.25f * dt * speedMultiplier;
+        rotateDelta.x += -gps.thumbSticks.rightX * dt * m_speedMultiplier;
+        rotateDelta.y += -gps.thumbSticks.rightY * dt * m_speedMultiplier;
+        translateLocal.x += gps.thumbSticks.leftX * dt * m_speedMultiplier;
+        translateLocal.z += -gps.thumbSticks.leftY * dt * m_speedMultiplier;
+        if (gps.IsLeftTriggerPressed()) translateLocal.y += kTriggerClimbSpeed * dt * m_speedMultiplier;
+        if (gps.IsRightTriggerPressed()) translateLocal.y -= kTriggerClimbSpeed * dt * m_speedMultiplier;
     }
 
-    if (wheelDelta != 0) translateLocal.z -= float(wheelDelta) * ZOOM_SPEED * dt * speedMultiplier;
+    if (wheelDelta != 0) translateLocal.z -= float(wheelDelta) * kZoomSpeed * dt * m_speedMultiplier;
 
     if (isFlyMode){
-        const float mv = PAN_SPEED * dt * speedMultiplier;
+        const float mv = kPanSpeed * dt * m_speedMultiplier;
         if (ks.W) translateLocal.z -= mv;
         if (ks.S) translateLocal.z += mv;
         if (ks.A) translateLocal.x -= mv;
@@ -65,20 +72,20 @@ void ModuleCamera::update(){
         if (ks.E) translateLocal.y -= mv;
     }
 
-    if (ks.F && !prevFKeyState) focusOnTarget(Vector3::Zero);
-    prevFKeyState = ks.F;
+    if (ks.F && !m_prevFKeyState) focusOnTarget(Vector3::Zero);
+    m_prevFKeyState = ks.F;
 
     if (isOrbiting) updateOrbitMode(rotateDelta);
     else updateFlyMode(dt, translateLocal, rotateDelta);
 
-    dragPosX = ms.x;
-    dragPosY = ms.y;
+    m_dragPosX = ms.x;
+    m_dragPosY = ms.y;
 
     rebuildFrustum();
 }
 
 void ModuleCamera::rebuildFrustum(){
-    m_editorFrustum = Frustum::fromCamera(position, getForward(), getRight(), getUp(), fovY, aspectRatio, nearZ, farZ);
+    m_editorFrustum = Frustum::fromCamera(m_position, getForward(), getRight(), getUp(), fovY, aspectRatio, nearZ, farZ);
     m_cullFrustum = (cullSource == CullSource::GameCamera && m_hasGameFrustum) ? m_gameFrustum : m_editorFrustum;
 }
 
@@ -94,12 +101,12 @@ void ModuleCamera::buildDebugLines(FrustumDebugDraw& dd) const{
         dd.addFrustum(m_cullFrustum, isGameCam ? Vector3(0, 1, 0) : Vector3(1, 1, 0));
     }
 
-    if (debugDrawCameraAxes) dd.addAxes(position, getForward(), getRight(), getUp(), 0.5f);
+    if (debugDrawCameraAxes) dd.addAxes(m_position, getForward(), getRight(), getUp(), 0.5f);
 
     if (debugDrawForwardRay){
         Vector3 fwd = getForward();
-        dd.addLine(position, position + fwd * nearZ, Vector3(0, 1, 1));
-        dd.addLine(position + fwd * nearZ, position + fwd * std::min(farZ, 20.0f), Vector3(0, 0.5f, 0.5f));
+        dd.addLine(m_position, m_position + fwd * nearZ, Vector3(0, 1, 1));
+        dd.addLine(m_position + fwd * nearZ, m_position + fwd * std::min(farZ, kForwardRayLength), Vector3(0, 0.5f, 0.5f));
     }
 }
 
@@ -160,57 +167,57 @@ void ModuleCamera::onEditorDebugPanel(){
 
     ImGui::Separator();
     ImGui::Text("Camera Parameters");
-    float fovDeg = fovY * 57.2957795f;
-    if (ImGui::SliderFloat("FOV (Y)", &fovDeg, 10.f, 170.f)) fovY = fovDeg * 0.0174532925f;
+    float fovDeg = XMConvertToDegrees(fovY);
+    if (ImGui::SliderFloat("FOV (Y)", &fovDeg, 10.f, 170.f)) fovY = XMConvertToRadians(fovDeg);
     ImGui::DragFloat("Near", &nearZ, 0.01f, 0.01f, 10.0f);
     ImGui::DragFloat("Far", &farZ, 1.0f, 10.0f, 5000.0f);
     ImGui::SliderFloat("Aspect Ratio", &aspectRatio, 0.5f, 4.0f);
 
     ImGui::Separator();
     Vector3 fwd = getForward();
-    ImGui::Text("Position: %.2f  %.2f  %.2f", position.x, position.y, position.z);
+    ImGui::Text("Position: %.2f  %.2f  %.2f", m_position.x, m_position.y, m_position.z);
     ImGui::Text("Forward:  %.2f  %.2f  %.2f", fwd.x, fwd.y, fwd.z);
 }
 
 void ModuleCamera::updateFlyMode(float, const Vector3& translateLocal, const Vector2& rotateDelta){
-    params.polar += rotateDelta.x;
-    params.azimuthal = std::clamp(params.azimuthal + rotateDelta.y, -XM_PIDIV2 + 0.01f, XM_PIDIV2 - 0.01f);
-    rotation = Quaternion::CreateFromAxisAngle(Vector3::UnitX, params.azimuthal) * Quaternion::CreateFromAxisAngle(Vector3::UnitY, params.polar);
-    params.translation += Vector3::Transform(translateLocal, rotation);
-    position = params.translation;
+    m_params.polar += rotateDelta.x;
+    m_params.azimuthal = std::clamp(m_params.azimuthal + rotateDelta.y, -kMaxPitch, kMaxPitch);
+    m_rotation = Quaternion::CreateFromAxisAngle(Vector3::UnitX, m_params.azimuthal) * Quaternion::CreateFromAxisAngle(Vector3::UnitY, m_params.polar);
+    m_params.translation += Vector3::Transform(translateLocal, m_rotation);
+    m_position = m_params.translation;
     rebuildViewMatrix();
 }
 
 void ModuleCamera::updateOrbitMode(const Vector2& rotateDelta){
-    params.polar += rotateDelta.x;
-    params.azimuthal = std::clamp(params.azimuthal + rotateDelta.y, -XM_PIDIV2 + 0.01f, XM_PIDIV2 - 0.01f);
-    const float r = std::max((position - Vector3::Zero).Length(), 0.5f);
-    position = { r * sinf(params.polar) * cosf(params.azimuthal), r * sinf(params.azimuthal), r * cosf(params.polar) * cosf(params.azimuthal) };
-    params.translation = position;
-    view = Matrix::CreateLookAt(position, Vector3::Zero, Vector3::UnitY);
-    rotation = Quaternion::CreateFromRotationMatrix(Matrix(view).Invert());
+    m_params.polar += rotateDelta.x;
+    m_params.azimuthal = std::clamp(m_params.azimuthal + rotateDelta.y, -kMaxPitch, kMaxPitch);
+    const float r = std::max((m_position - Vector3::Zero).Length(), kMinOrbitRadius);
+    m_position = { r * sinf(m_params.polar) * cosf(m_params.azimuthal), r * sinf(m_params.azimuthal), r * cosf(m_params.polar) * cosf(m_params.azimuthal) };
+    m_params.translation = m_position;
+    m_view = Matrix::CreateLookAt(m_position, Vector3::Zero, Vector3::UnitY);
+    m_rotation = Quaternion::CreateFromRotationMatrix(Matrix(m_view).Invert());
 }
 
 void ModuleCamera::rebuildViewMatrix(){
     Quaternion inv;
-    rotation.Inverse(inv);
-    view = Matrix::CreateFromQuaternion(inv);
-    view.Translation(Vector3::Transform(-position, inv));
+    m_rotation.Inverse(inv);
+    m_view = Matrix::CreateFromQuaternion(inv);
+    m_view.Translation(Vector3::Transform(-m_position, inv));
 }
 
 void ModuleCamera::focusOnTarget(const Vector3& target){
-    Vector3 dir = position - target;
-    if (dir.LengthSquared() < 1e-6f) dir = Vector3(0.0f, 0.0f, 5.0f);
+    Vector3 dir = m_position - target;
+    if (dir.LengthSquared() < 1e-6f) dir = Vector3(0.0f, 0.0f, kFocusDistance);
     dir.Normalize();
-    params.translation = target + dir * 5.0f;
-    position = params.translation;
-    view = Matrix::CreateLookAt(position, target, Vector3::UnitY);
-    rotation = Quaternion::CreateFromRotationMatrix(Matrix(view).Invert());
-    params.polar = atan2f(dir.x, dir.z);
-    params.azimuthal = asinf(std::clamp(-dir.y, -1.0f, 1.0f));
+    m_params.translation = target + dir * kFocusDistance;
+    m_position = m_params.translation;
+    m_view = Matrix::CreateLookAt(m_position, target, Vector3::UnitY);
+    m_rotation = Quaternion::CreateFromRotationMatrix(Matrix(m_view).Invert());
+    m_params.polar = atan2f(dir.x, dir.z);
+    m_params.azimuthal = asinf(std::clamp(-dir.y, -1.0f, 1.0f));
 }
 
-Matrix ModuleCamera::getPerspectiveProj(float aspect, float fov){ return Matrix::CreatePerspectiveFieldOfView(fov, aspect, 0.1f, 500.0f); }
-Vector3 ModuleCamera::getForward() const { return Vector3::Transform(-Vector3::UnitZ, rotation); }
-Vector3 ModuleCamera::getRight() const { return Vector3::Transform(Vector3::UnitX, rotation); }
-Vector3 ModuleCamera::getUp() const { return Vector3::Transform(Vector3::UnitY, rotation); }
+Matrix ModuleCamera::getPerspectiveProj(float aspect, float fov){ return Matrix::CreatePerspectiveFieldOfView(fov, aspect, kDefaultNear, kDefaultFar); }
+Vector3 ModuleCamera::getForward() const { return Vector3::Transform(-Vector3::UnitZ, m_rotation); }
+Vector3 ModuleCamera::getRight() const { return Vector3::Transform(Vector3::UnitX, m_rotation); }
+Vector3 ModuleCamera::getUp() const { return Vector3::Transform(Vector3::UnitY, m_rotation); }

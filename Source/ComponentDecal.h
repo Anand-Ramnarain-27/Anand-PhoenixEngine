@@ -1,7 +1,10 @@
 #pragma once
+// Projected decal: a texture drawn onto the G-buffer inside the GameObject's unit box.
+
 #include "Component.h"
 #include "Globals.h"
 
+/// Projects `texturePath` onto the surfaces inside the GameObject's transformed unit box (drawn by DecalPass).
 class ComponentDecal : public Component {
 public:
     explicit ComponentDecal(GameObject* owner);
@@ -19,8 +22,8 @@ public:
     float opacity = 1.0f;
     bool enabled = true;
 
-    // Glow added into the G-buffer's emissive target (colour x texture x emissive), so a ring or glyph reads
-    // without a light. albedoMix 0 leaves the surface colour alone (a pure glow decal).
+    /// Glow added into the G-buffer's emissive target (colour x texture x emissive), so a ring or glyph reads
+    /// without a light. albedoMix 0 leaves the surface colour alone (a pure glow decal).
     float emissive = 0.0f;
     float albedoMix = 1.0f;
 };

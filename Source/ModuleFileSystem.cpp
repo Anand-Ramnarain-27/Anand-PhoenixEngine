@@ -2,7 +2,6 @@
 #include "ModuleFileSystem.h"
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 
 namespace fs = std::filesystem;
 
@@ -14,37 +13,39 @@ bool ModuleFileSystem::init(){
     GetModuleFileNameA(nullptr, exePath, MAX_PATH);
     std::string baseDir = std::filesystem::path(exePath).parent_path().string() + "/";
 
-    assetsPath = baseDir + "Assets/";
-    libraryPath = baseDir + "Library/";
+    m_assetsPath = baseDir + "Assets/";
+    m_libraryPath = baseDir + "Library/";
 
     CreateProjectDirectories();
-    std::cout << "[FileSystem] Initialized. Base: " << baseDir << "\n";
+    PHX_LOG(Core, Verbose, "FileSystem: project root %s", baseDir.c_str());
     return true;
 }
 
 bool ModuleFileSystem::cleanUp(){
-    std::cout << "[FileSystem] Shutdown\n";
     return true;
 }
 
 void ModuleFileSystem::CreateProjectDirectories(){
-    CreateDir(assetsPath.c_str());
-    CreateDir(libraryPath.c_str());
-    CreateDir((libraryPath + "Meshes").c_str());
-    CreateDir((libraryPath + "Materials").c_str());
-    CreateDir((libraryPath + "Textures").c_str());
-    CreateDir((libraryPath + "Scenes").c_str());
-    CreateDir((libraryPath + "Prefabs").c_str());
-    CreateDir((libraryPath + "metadata").c_str());
+    CreateDir(m_assetsPath.c_str());
+    CreateDir(m_libraryPath.c_str());
+    CreateDir((m_libraryPath + "Meshes").c_str());
+    CreateDir((m_libraryPath + "Materials").c_str());
+    CreateDir((m_libraryPath + "Textures").c_str());
+    CreateDir((m_libraryPath + "Scenes").c_str());
+    CreateDir((m_libraryPath + "Prefabs").c_str());
+    CreateDir((m_libraryPath + "metadata").c_str());
 }
 
 bool ModuleFileSystem::CreateDir(const char* path){
     try { return fs::exists(path) || fs::create_directories(path); }
-    catch (const fs::filesystem_error& e){ std::cerr << "[FileSystem] CreateDir error: " << e.what() << std::endl; return false; }
+    catch (const fs::filesystem_error& e){
+        PHX_LOG(Core, Error, "FileSystem: can't create '%s': %s", path, e.what());
+        return false;
+    }
 }
 
-const std::string& ModuleFileSystem::GetAssetsPath() const { return assetsPath; }
-const std::string& ModuleFileSystem::GetLibraryPath() const { return libraryPath; }
+const std::string& ModuleFileSystem::GetAssetsPath() const { return m_assetsPath; }
+const std::string& ModuleFileSystem::GetLibraryPath() const { return m_libraryPath; }
 
 unsigned int ModuleFileSystem::Load(const char* path, char** buffer) const{
     if (!Exists(path)) return 0;
@@ -53,7 +54,7 @@ unsigned int ModuleFileSystem::Load(const char* path, char** buffer) const{
     std::streamsize size = file.tellg();
     file.seekg(0, std::ios::beg);
     *buffer = new char[size];
-    if (!file.read(*buffer, size)){ delete[] * buffer; *buffer = nullptr; return 0; }
+    if (!file.read(*buffer, size)){ delete[] *buffer; *buffer = nullptr; return 0; }
     return (unsigned int)size;
 }
 

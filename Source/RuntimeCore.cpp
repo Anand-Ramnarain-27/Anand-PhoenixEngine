@@ -56,8 +56,94 @@
 
 static constexpr float kDeg2Rad = 0.0174532925f;
 
+namespace {
+// The frame after a blocking level load would otherwise see the whole load time as its delta.
+constexpr float kMaxDtAfterLoad = 1.f / 60.f;
+// Upper bound for Phoenix::VFX's time scale (slow-mo / fast-forward).
+constexpr float kMaxTimeScale = 4.f;
+const Vector4 kPlayerClearColor(0.05f, 0.05f, 0.1f, 1.0f);
+}
+
 RuntimeCore::RuntimeCore(bool standalone) : m_standalone(standalone){}
 RuntimeCore::~RuntimeCore() = default;
+
+// Engine functions GameScript.dll can't link (component constructors and model loading live in the executable,
+// not PhoenixCore.lib): scripts reach them through these pointers (Phoenix::VFX).
+void RuntimeCore::installEngineHooks(){
+    EngineHooks& hooks = m_sceneManager->getEngineHooks();
+    hooks.addComponent = [](GameObject* owner, int type) -> Component* {
+        if (!owner) return nullptr;
+        for (const auto& c : owner->getComponents())
+            if ((int)c->getType() == type) return c.get();
+        auto comp = ComponentFactory::CreateComponent((Component::Type)type, owner);
+        Component* raw = comp.get();
+        if (raw) owner->addComponent(std::move(comp));
+        return raw;
+    };
+    hooks.loadModel = [](GameObject* owner, const char* assetPath) -> bool {
+        if (!owner || !assetPath) return false;
+        auto* cm = owner->getComponent<ComponentMesh>();
+        if (!cm){
+            owner->addComponent(ComponentFactory::CreateComponent(Component::Type::Mesh, owner));
+            cm = owner->getComponent<ComponentMesh>();
+        }
+        return cm && cm->loadModel(assetPath);
+    };
+#ifdef PHOENIX_EDITOR
+    hooks.logWarning = [](const char* text){
+        if (text && app && app->getEditor()) app->getEditor()->log(text, ImVec4(1.f, 0.75f, 0.3f, 1.f));
+    };
+#endif
+}
+
+void RuntimeCore::loadScriptLibraries(){
+    std::string scriptDir = app->getFileSystem()->GetAssetsPath() + std::string("Scripts/");
+    app->getFileSystem()->CreateDir(scriptDir.c_str());
+    auto existing = app->getFileSystem()->GetFilesInDirectory(scriptDir.c_str(), ".dll");
+    for (const auto& path : existing)
+        m_hotReload->loadLibrary(path);
+}
+
+void RuntimeCore::createPlayerViewport(uint32_t w, uint32_t h){
+    m_playerViewport = std::make_unique<EditorViewport>();
+    m_playerViewport->rt = std::make_unique<RenderTexture>("PlayerColor", kSceneColorFormat, kPlayerClearColor, DXGI_FORMAT_D32_FLOAT, 1.0f);
+    m_playerViewport->rtScratch = std::make_unique<RenderTexture>("PlayerColorScratch", kSceneColorFormat, kPlayerClearColor);
+    m_playerViewport->display = std::make_unique<RenderTexture>("PlayerDisplay", DXGI_FORMAT_R8G8B8A8_UNORM, kPlayerClearColor);
+    m_playerViewport->displayScratch = std::make_unique<RenderTexture>("PlayerDisplayScratch", DXGI_FORMAT_R8G8B8A8_UNORM, kPlayerClearColor);
+    for (int i = 0; i < EditorViewport::kNumBloomMips; ++i)
+        m_playerViewport->bloomMips[i] = std::make_unique<RenderTexture>("PlayerBloomMip", kSceneColorFormat, Vector4(0.f, 0.f, 0.f, 1.0f));
+    resizePlayerViewport(w, h);
+}
+
+void RuntimeCore::resizePlayerViewport(uint32_t w, uint32_t h){
+    m_playerViewport->rt->resize(w, h);
+    m_playerViewport->rtScratch->resize(w, h);
+    m_playerViewport->display->resize(w, h);
+    m_playerViewport->displayScratch->resize(w, h);
+    uint32_t mw = w, mh = h;
+    for (int i = 0; i < EditorViewport::kNumBloomMips; ++i){
+        mw = std::max(1u, mw / 2);
+        mh = std::max(1u, mh / 2);
+        m_playerViewport->bloomMips[i]->resize(mw, mh);
+    }
+}
+
+// The Player boots straight into the first scene of its shipped build list.
+void RuntimeCore::bootStandaloneScene(){
+    BuildSettings buildSettings;
+    const std::string bsPath = app->getFileSystem()->GetLibraryPath() + "BuildSettings.json";
+    if (buildSettings.Load(bsPath)){
+        if (m_sceneManager->loadSceneByBuildIndex(0, buildSettings)){
+            applySkyboxFromSettings();
+            // The player has no Play button: scripts only update while playing, so start right away.
+            m_sceneManager->play();
+        }
+        else
+            PHX_LOG(Core, Error, "RuntimeCore: BuildSettings.json found but scene 0 failed to load");
+    } else {
+        PHX_LOG(Core, Info, "RuntimeCore: No BuildSettings.json at '%s' — booting with an empty scene", bsPath.c_str());
+    }
+}
 
 bool RuntimeCore::init(){
     ModuleD3D12* d3d12 = app->getD3D12();
@@ -71,42 +157,28 @@ bool RuntimeCore::init(){
     m_collisionResponse = std::make_unique<CollisionResponse>();
     m_navigationSystem = std::make_unique<NavigationSystem>();
     m_sceneManager = std::make_unique<SceneManager>();
-    {
-        EngineHooks& hooks = m_sceneManager->getEngineHooks();
-        hooks.addComponent = [](GameObject* owner, int type) -> Component* {
-            if (!owner) return nullptr;
-            for (const auto& c : owner->getComponents())
-                if ((int)c->getType() == type) return c.get();
-            auto comp = ComponentFactory::CreateComponent((Component::Type)type, owner);
-            Component* raw = comp.get();
-            if (raw) owner->addComponent(std::move(comp));
-            return raw;
-        };
-        hooks.loadModel = [](GameObject* owner, const char* assetPath) -> bool {
-            if (!owner || !assetPath) return false;
-            auto* cm = owner->getComponent<ComponentMesh>();
-            if (!cm){
-                owner->addComponent(ComponentFactory::CreateComponent(Component::Type::Mesh, owner));
-                cm = owner->getComponent<ComponentMesh>();
-            }
-            return cm && cm->loadModel(assetPath);
-        };
-#ifdef PHOENIX_EDITOR
-        hooks.logWarning = [](const char* text){
-            if (text && app && app->getEditor()) app->getEditor()->log(text, ImVec4(1.f, 0.75f, 0.3f, 1.f));
-        };
-#endif
-    }
+    installEngineHooks();
     m_sceneTransition = std::make_unique<SceneTransition>();
     m_meshRenderPass = std::make_unique<ForwardMeshPass>();
     m_hotReload = std::make_unique<HotReloadManager>();
 
-    std::string scriptDir = app->getFileSystem()->GetAssetsPath() + std::string("Scripts/");
-    app->getFileSystem()->CreateDir(scriptDir.c_str());
-    auto existing = app->getFileSystem()->GetFilesInDirectory(scriptDir.c_str(), ".dll");
-    for (const auto& path : existing)
-        m_hotReload->loadLibrary(path);
+    loadScriptLibraries();
 
+    if (!createRenderPasses(device)) return false;
+
+    m_sceneManager->setScene(std::make_unique<EmptyScene>(), device);
+
+    if (m_standalone){
+        createPlayerViewport(d3d12->getWindowWidth(), d3d12->getWindowHeight());
+        bootStandaloneScene();
+    }
+
+    return true;
+}
+
+// Required passes fail init; optional ones (decals, billboards, trails, particles, x-ray, skinning) are dropped
+// and the frame renders without them.
+bool RuntimeCore::createRenderPasses(ID3D12Device* device){
     if (!m_meshRenderPass->init(device)) return false;
 
     m_skinningPass = std::make_unique<SkinningPass>();
@@ -173,45 +245,6 @@ bool RuntimeCore::init(){
     m_envSystem = std::make_unique<EnvironmentSystem>();
     if (!m_envSystem->init(device, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT, false)) return false;
 
-    m_sceneManager->setScene(std::make_unique<EmptyScene>(), device);
-
-    if (m_standalone){
-        m_playerViewport = std::make_unique<EditorViewport>();
-        m_playerViewport->rt = std::make_unique<RenderTexture>("PlayerColor", kSceneColorFormat, Vector4(0.05f, 0.05f, 0.1f, 1.0f), DXGI_FORMAT_D32_FLOAT, 1.0f);
-        m_playerViewport->rtScratch = std::make_unique<RenderTexture>("PlayerColorScratch", kSceneColorFormat, Vector4(0.05f, 0.05f, 0.1f, 1.0f));
-        m_playerViewport->display = std::make_unique<RenderTexture>("PlayerDisplay", DXGI_FORMAT_R8G8B8A8_UNORM, Vector4(0.05f, 0.05f, 0.1f, 1.0f));
-        m_playerViewport->displayScratch = std::make_unique<RenderTexture>("PlayerDisplayScratch", DXGI_FORMAT_R8G8B8A8_UNORM, Vector4(0.05f, 0.05f, 0.1f, 1.0f));
-        for (int i = 0; i < EditorViewport::kNumBloomMips; ++i)
-            m_playerViewport->bloomMips[i] = std::make_unique<RenderTexture>("PlayerBloomMip", kSceneColorFormat, Vector4(0.f, 0.f, 0.f, 1.0f));
-
-        const uint32_t w = d3d12->getWindowWidth();
-        const uint32_t h = d3d12->getWindowHeight();
-        m_playerViewport->rt->resize(w, h);
-        m_playerViewport->rtScratch->resize(w, h);
-        m_playerViewport->display->resize(w, h);
-        m_playerViewport->displayScratch->resize(w, h);
-        uint32_t mw = w, mh = h;
-        for (int i = 0; i < EditorViewport::kNumBloomMips; ++i){
-            mw = std::max(1u, mw / 2);
-            mh = std::max(1u, mh / 2);
-            m_playerViewport->bloomMips[i]->resize(mw, mh);
-        }
-
-        BuildSettings buildSettings;
-        const std::string bsPath = app->getFileSystem()->GetLibraryPath() + "BuildSettings.json";
-        if (buildSettings.Load(bsPath)){
-            if (m_sceneManager->loadSceneByBuildIndex(0, buildSettings)){
-                applySkyboxFromSettings();
-                // The player has no Play button: scripts only update while playing, so start right away.
-                m_sceneManager->play();
-            }
-            else
-                PHX_LOG(Core, Error, "RuntimeCore: BuildSettings.json found but scene 0 failed to load");
-        } else {
-            PHX_LOG(Core, Info, "RuntimeCore: No BuildSettings.json at '%s' — booting with an empty scene", bsPath.c_str());
-        }
-    }
-
     return true;
 }
 
@@ -234,10 +267,6 @@ bool RuntimeCore::cleanUp(){
     return true;
 }
 
-// RuntimeCore::getActiveModuleScene() lives in RuntimeCoreCore.cpp now -
-// kept separate from this file's renderer/pass code so it can be linked
-// into GameScript.dll (via PhoenixCore) without the whole renderer.
-
 void RuntimeCore::applySkyboxFromSettings(){
     if (!m_sceneManager || !m_envSystem) return;
     const EditorSceneSettings::Skybox& sky = m_sceneManager->getSettings().skybox;
@@ -254,7 +283,7 @@ void RuntimeCore::tick(float dt, float aspectRatio){
     // collision and animation at most one 60 Hz frame instead.
     if (m_clampNextDt){
         m_clampNextDt = false;
-        dt = std::min(dt, 1.f / 60.f);
+        dt = std::min(dt, kMaxDtAfterLoad);
     }
 
     // Time scale (Phoenix::VFX hit-stop / slow-mo): everything below runs on the scaled delta; scripts that must
@@ -263,7 +292,7 @@ void RuntimeCore::tick(float dt, float aspectRatio){
         RuntimeTime& rt = m_sceneManager->getRuntimeTime();
         rt.unscaledDeltaTime = dt;
         rt.unscaledTime += dt;
-        dt *= std::clamp(rt.timeScale, 0.f, 4.f);
+        dt *= std::clamp(rt.timeScale, 0.f, kMaxTimeScale);
         rt.scaledTime += dt;
         m_vfxClock = rt.scaledTime;
     }
@@ -282,60 +311,7 @@ void RuntimeCore::tick(float dt, float aspectRatio){
 
     if (ModuleCamera* cam = app->getCamera()){
         if (aspectRatio > 0.f) cam->aspectRatio = aspectRatio;
-
-        SceneGraph* scene = getActiveModuleScene();
-        int visible = 0, total = 0;
-        if (scene){
-            std::vector<RenderOctree::Entry> entries;
-            std::function<void(GameObject*)> collect = [&](GameObject* node){
-                if (!node || !node->isActive()) return;
-                if (auto* cm = node->getComponent<ComponentMesh>()){
-                    if (cm->hasAABB()){
-                        Vector3 mn, mx;
-                        cm->getWorldAABB(mn, mx);
-                        entries.push_back({ node, AABB{ mn, mx } });
-                        ++total;
-                    } else {
-                        cm->setVisible(true);
-                    }
-                }
-                for (auto* child : node->getChildren()) collect(child);
-            };
-            collect(scene->getRoot());
-
-            if (cam->cullAlgorithm == ModuleCamera::CullAlgorithm::Octree){
-                m_renderOctree.clear();
-                for (const auto& e : entries) m_renderOctree.add(e.go, e.worldAABB);
-                m_renderOctree.build();
-                cam->octreeNodeCount = m_renderOctree.getNodeCount();
-                cam->octreeLeafCount = m_renderOctree.getLeafCount();
-
-                if (!cam->hasGameFrustum()){
-                    for (const auto& e : entries){ e.go->getComponent<ComponentMesh>()->setVisible(true); ++visible; }
-                } else {
-                    std::vector<GameObject*> visibleSet;
-                    m_renderOctree.query(cam->getGameFrustum(), visibleSet);
-                    std::unordered_set<GameObject*> visibleLookup(visibleSet.begin(), visibleSet.end());
-                    for (const auto& e : entries){
-                        // Octree query is a conservative broad phase (tests node regions,
-                        // not entries). Confirm each candidate with an exact AABB test.
-                        bool vis = visibleLookup.count(e.go) != 0 &&
-                                   cam->getGameFrustum().intersectsAABB(e.worldAABB.min, e.worldAABB.max);
-                        e.go->getComponent<ComponentMesh>()->setVisible(vis);
-                        if (vis) ++visible;
-                    }
-                }
-            } else {
-                cam->octreeNodeCount = 0;
-                cam->octreeLeafCount = 0;
-                for (const auto& e : entries){
-                    bool vis = !cam->hasGameFrustum() || cam->getGameFrustum().intersectsAABB(e.worldAABB.min, e.worldAABB.max);
-                    e.go->getComponent<ComponentMesh>()->setVisible(vis);
-                    if (vis) ++visible;
-                }
-            }
-        }
-        cam->setVisibilityStats(visible, total);
+        cullScene(*cam);
     }
 
     SceneGraph* activeScene = getActiveModuleScene();
@@ -353,6 +329,64 @@ void RuntimeCore::tick(float dt, float aspectRatio){
     if (m_trailPass) m_trailPass->beginFrame();
     if (m_particlePass) m_particlePass->beginFrame();
     if (m_decalPass) m_decalPass->beginFrame();
+}
+
+// Marks every mesh visible or culled against the game camera's frustum (everything is visible without one) and
+// records the counts on the camera for the stats overlay.
+void RuntimeCore::cullScene(ModuleCamera& cam){
+    SceneGraph* scene = getActiveModuleScene();
+    int visible = 0, total = 0;
+    if (scene){
+        std::vector<RenderOctree::Entry> entries;
+        std::function<void(GameObject*)> collect = [&](GameObject* node){
+            if (!node || !node->isActive()) return;
+            if (auto* cm = node->getComponent<ComponentMesh>()){
+                if (cm->hasAABB()){
+                    Vector3 mn, mx;
+                    cm->getWorldAABB(mn, mx);
+                    entries.push_back({ node, AABB{ mn, mx } });
+                    ++total;
+                } else {
+                    cm->setVisible(true);
+                }
+            }
+            for (auto* child : node->getChildren()) collect(child);
+        };
+        collect(scene->getRoot());
+
+        if (cam.cullAlgorithm == ModuleCamera::CullAlgorithm::Octree){
+            m_renderOctree.clear();
+            for (const auto& e : entries) m_renderOctree.add(e.go, e.worldAABB);
+            m_renderOctree.build();
+            cam.octreeNodeCount = m_renderOctree.getNodeCount();
+            cam.octreeLeafCount = m_renderOctree.getLeafCount();
+
+            if (!cam.hasGameFrustum()){
+                for (const auto& e : entries){ e.go->getComponent<ComponentMesh>()->setVisible(true); ++visible; }
+            } else {
+                std::vector<GameObject*> visibleSet;
+                m_renderOctree.query(cam.getGameFrustum(), visibleSet);
+                std::unordered_set<GameObject*> visibleLookup(visibleSet.begin(), visibleSet.end());
+                for (const auto& e : entries){
+                    // Octree query is a conservative broad phase (tests node regions,
+                    // not entries). Confirm each candidate with an exact AABB test.
+                    bool vis = visibleLookup.count(e.go) != 0 &&
+                               cam.getGameFrustum().intersectsAABB(e.worldAABB.min, e.worldAABB.max);
+                    e.go->getComponent<ComponentMesh>()->setVisible(vis);
+                    if (vis) ++visible;
+                }
+            }
+        } else {
+            cam.octreeNodeCount = 0;
+            cam.octreeLeafCount = 0;
+            for (const auto& e : entries){
+                bool vis = !cam.hasGameFrustum() || cam.getGameFrustum().intersectsAABB(e.worldAABB.min, e.worldAABB.max);
+                e.go->getComponent<ComponentMesh>()->setVisible(vis);
+                if (vis) ++visible;
+            }
+        }
+    }
+    cam.setVisibilityStats(visible, total);
 }
 
 namespace {
@@ -380,22 +414,18 @@ void RuntimeCore::preRender(){
         (m_playerViewport->rt->getWidth() != curW || m_playerViewport->rt->getHeight() != curH) &&
         curW > 0 && curH > 0){
         d3d12->flush();
-        m_playerViewport->rt->resize(curW, curH);
-        m_playerViewport->rtScratch->resize(curW, curH);
-        m_playerViewport->display->resize(curW, curH);
-        m_playerViewport->displayScratch->resize(curW, curH);
-        uint32_t mw = curW, mh = curH;
-        for (int i = 0; i < EditorViewport::kNumBloomMips; ++i){
-            mw = std::max(1u, mw / 2);
-            mh = std::max(1u, mh / 2);
-            m_playerViewport->bloomMips[i]->resize(mw, mh);
-        }
+        resizePlayerViewport(curW, curH);
     }
 
     const float dt = static_cast<float>(app->getElapsedMilis()) * 0.001f;
     const float aspect = (curH > 0) ? float(curW) / float(curH) : 0.f;
     tick(dt, aspect);
 
+    updatePlayerUI(curW, curH);
+}
+
+// The Player's in-game UI input: mouse, keyboard and gamepad (player 0) gathered into one UIInput per frame.
+void RuntimeCore::updatePlayerUI(uint32_t curW, uint32_t curH){
     if (ModuleUI* ui = app->getUI()){
         ModuleInput* input = app->getInput();
         const Phoenix::Vec2 mouse = input->getMousePosition();
@@ -852,7 +882,6 @@ void RuntimeCore::renderSceneWithCamera(ID3D12GraphicsCommandList* cmd, const Ma
 
     m_frameDrawCalls = 0;
     for (const MeshEntry* e : visibleMeshes) if (!e->shadowOnly) ++m_frameDrawCalls;
-    m_frameMeshCount = m_frameDrawCalls;
 
     if (!skinJobs.empty() && m_skinningPass){
         UINT frameIndex = app->getD3D12()->getCurrentBackBufferIdx();

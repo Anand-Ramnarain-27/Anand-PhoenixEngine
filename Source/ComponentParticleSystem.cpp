@@ -198,8 +198,9 @@ void ComponentParticleSystem::update(float dt){
     }
 }
 
-void ComponentParticleSystem::onEditor(){
 #ifdef PHOENIX_EDITOR
+// Play / Stop / Restart for particle and trail previews in edit mode (ModuleEditor's effects transport).
+void ComponentParticleSystem::drawEffectsTransport(){
     if (auto* ed = app->getEditor()){
         bool fxPlaying = ed->isEffectsPlaying();
         ImGui::SeparatorText("Effects Transport");
@@ -215,16 +216,9 @@ void ComponentParticleSystem::onEditor(){
         if (ImGui::Button("Restart All##fxps")) ed->effectsRestartAll();
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Clear + replay ALL particles and trails in scene");
     }
-    ImGui::Separator();
+}
 
-    ImGui::Checkbox("Enabled##ps", &enabled);
-    ImGui::SameLine();
-    if (ImGui::Checkbox("Playing##ps", &playing)){}
-    ImGui::SameLine();
-    if (ImGui::Button("Clear##ps")) clear();
-
-    ImGui::Spacing();
-
+void ComponentParticleSystem::drawEmitterSection(){
     if (RedCollapsingHeader("Emitter", ImGuiTreeNodeFlags_DefaultOpen)){
         ImGui::Checkbox("Looping", &looping);
         if (!looping) ImGui::DragFloat("Duration", &duration, 0.1f, 0.01f, 120.f);
@@ -249,7 +243,9 @@ void ComponentParticleSystem::onEditor(){
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Radial: each particle flies straight out from the centre through where it spawned.\nA negative speed pulls it inwards.");
     }
+}
 
+void ComponentParticleSystem::drawInitialValuesSection(){
     if (RedCollapsingHeader("Initial Values", ImGuiTreeNodeFlags_DefaultOpen)){
         ImGui::TextDisabled("Random range applied when each particle spawns");
         ImGui::DragFloat2("Lifetime", &lifeRange.x, 0.05f, 0.01f, 120.f);
@@ -258,7 +254,9 @@ void ComponentParticleSystem::onEditor(){
         ImGui::DragFloat2("Rotation (deg)", &rotationRange.x, 0.5f, -360.f, 360.f);
         ImGui::DragFloat3("Gravity", &gravity.x, 0.05f, -100.f, 100.f);
     }
+}
 
+void ComponentParticleSystem::drawTurbulenceSection(){
     if (RedCollapsingHeader("Turbulence (Perlin Noise)")){
         if (ImGui::Checkbox("Use turbulence##ps", &useTurbulence)) m_noisePreviewDirty = true;
         if (useTurbulence){
@@ -282,14 +280,18 @@ void ComponentParticleSystem::onEditor(){
             }
         }
     }
+}
 
+void ComponentParticleSystem::drawLifetimeSection(){
     if (RedCollapsingHeader("Over Lifetime", ImGuiTreeNodeFlags_DefaultOpen)){
         ImGui::ColorEdit4("Start colour", &startColor.x);
         ImGui::ColorEdit4("End colour", &endColor.x);
         ImGui::TextUnformatted("Size over lifetime");
         CurveWidget::Edit("##sizeCurve", sizeCurve, &startSizeMul, &endSizeMul, 0.01f, 0.f, 100.f);
     }
+}
 
+void ComponentParticleSystem::drawRenderSection(){
     if (RedCollapsingHeader("Render", ImGuiTreeNodeFlags_DefaultOpen)){
         ImGui::TextUnformatted("Texture");
         ImGui::SameLine(90.f);
@@ -316,7 +318,9 @@ void ComponentParticleSystem::onEditor(){
 
         ImGui::DragInt("Layer", &layer, 1.f, -100, 100);
     }
+}
 
+void ComponentParticleSystem::drawGpuSection(){
     if (RedCollapsingHeader("GPU Rendering")){
         ImGui::Checkbox("Use GPU batch rendering (ParticlePass)", &useGPU);
         if (useGPU){
@@ -326,6 +330,28 @@ void ComponentParticleSystem::onEditor(){
                                "on the GPU.");
         }
     }
+}
+#endif
+
+void ComponentParticleSystem::onEditor(){
+#ifdef PHOENIX_EDITOR
+    drawEffectsTransport();
+    ImGui::Separator();
+
+    ImGui::Checkbox("Enabled##ps", &enabled);
+    ImGui::SameLine();
+    ImGui::Checkbox("Playing##ps", &playing);
+    ImGui::SameLine();
+    if (ImGui::Button("Clear##ps")) clear();
+
+    ImGui::Spacing();
+
+    drawEmitterSection();
+    drawInitialValuesSection();
+    drawTurbulenceSection();
+    drawLifetimeSection();
+    drawRenderSection();
+    drawGpuSection();
 
     ImGui::Separator();
     int alive = (int)std::count_if(m_particles.begin(), m_particles.end(), [](const Particle& p){ return p.alive; });

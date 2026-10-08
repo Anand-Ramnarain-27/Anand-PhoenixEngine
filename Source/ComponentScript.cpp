@@ -37,13 +37,6 @@ std::string toJson(const Value& v){
     return buf.GetString();
 }
 
-// ---------------------------------------------------------------- one value of a field's type
-
-bool isStringType(ScriptFieldType t){
-    return t == ScriptFieldType::String || t == ScriptFieldType::Scene || t == ScriptFieldType::Prefab ||
-           t == ScriptFieldType::AssetPath;
-}
-
 size_t elemSize(ScriptFieldType t){
     switch (t){
         case ScriptFieldType::Int: case ScriptFieldType::Enum: return sizeof(int);
@@ -241,8 +234,6 @@ void applyFields(IScript* script, const std::string& fieldsJson){
     }
 }
 
-// ---------------------------------------------------------------- hierarchy paths (ObjectRef, Keep changes)
-
 GameObject* sceneRootOf(GameObject* go){
     GameObject* r = go;
     while (r && r->getParent()) r = r->getParent();
@@ -280,8 +271,6 @@ bool playing(){
     SceneManager* sm = rc ? rc->getSceneManager() : nullptr;
     return sm && sm->getState() != SceneManager::PlayState::Stopped;
 }
-
-// ---------------------------------------------------------------- drawing
 
 std::vector<std::string> listSceneNames(){
     std::vector<std::string> names;
@@ -458,8 +447,6 @@ bool drawField(const ScriptField& f, GameObject* owner){
     else changed = drawScalar(f, f.name, f.value, owner);
     return changed;
 }
-
-// ---------------------------------------------------------------- prefab instance comparison (editor)
 
 #ifdef PHOENIX_EDITOR
 // The nearest prefab-instance root at or above `go`, and the child indices from it down to `go`.

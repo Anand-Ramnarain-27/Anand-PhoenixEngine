@@ -21,17 +21,17 @@ SceneManager::~SceneManager(){ clearScene(); }
 void SceneManager::setScene(std::unique_ptr<IScene> scene, ID3D12Device* device){
     if (m_editingPrefab) exitPrefabEdit();
     clearScene();
-    if (scene && scene->initialize(device)){ activeScene = std::move(scene); activeScene->onEnter(); }
+    if (scene && scene->initialize(device)){ m_activeScene = std::move(scene); m_activeScene->onEnter(); }
 }
 
 void SceneManager::clearScene(){
     if (m_editingPrefab) exitPrefabEdit();
-    if (activeScene){
+    if (m_activeScene){
         if (auto* d3d = app->getD3D12()) d3d->flush();
-        activeScene->onExit(); activeScene->shutdown(); activeScene.reset();
+        m_activeScene->onExit(); m_activeScene->shutdown(); m_activeScene.reset();
     }
-    state = PlayState::Stopped;
-    hasSerializedState = false;
+    m_state = PlayState::Stopped;
+    m_hasSerializedState = false;
     m_currentScenePath.clear();
     m_pendingScenePath.clear();
     m_pendingSpawns.clear();
@@ -40,12 +40,6 @@ void SceneManager::clearScene(){
     m_runtimeTime.timeScale = 1.f;
     m_transition = {};
 }
-
-// SceneManager::getModuleScene() and requestSceneLoad()/requestPrefabSpawn()
-// live in SceneManagerCore.cpp now - kept separate from this file's
-// render()/updateAnimations()/play()/loadScene() so they can be linked into
-// GameScript.dll (via PhoenixCore) without
-// ComponentMesh/ComponentAnimation/SceneSerializer/ModuleD3D12.
 
 // The active game camera is a raw GameObject*; drop it before its scene is replaced. A loaded scene
 // re-sets it from whichever camera is saved with IsMainCamera.
@@ -57,29 +51,29 @@ static void clearActiveCamera(){
 }
 
 void SceneManager::play(){
-    if (!activeScene || m_editingPrefab) return;
-    if (state == PlayState::Stopped){
-        if (auto* ms = activeScene->getModuleScene()) hasSerializedState = SceneSerializer::SaveTempScene(ms);
+    if (!m_activeScene || m_editingPrefab) return;
+    if (m_state == PlayState::Stopped){
+        if (auto* ms = m_activeScene->getModuleScene()) m_hasSerializedState = SceneSerializer::SaveTempScene(ms);
         m_runtimeSceneChanged = false;
         m_scenePathAtPlay = m_currentScenePath;
-        m_lookAtPlay = { settings.skybox, settings.ambient, settings.gravityY, settings.postProcess, settings.fog,
-                          settings.xray, settings.occlusionFade };
+        m_lookAtPlay = { m_settings.skybox, m_settings.ambient, m_settings.gravityY, m_settings.postProcess, m_settings.fog,
+                          m_settings.xray, m_settings.occlusionFade };
         m_renderOverrides.reset();
         m_runtimeTime.timeScale = 1.f;
         m_pendingScenePath.clear();
         m_pendingSpawns.clear();
         m_transition = {};
     }
-    state = PlayState::Playing;
+    m_state = PlayState::Playing;
 }
 
 void SceneManager::pause(){
-    if (state == PlayState::Playing) state = PlayState::Paused;
-    else if (state == PlayState::Paused) state = PlayState::Playing;
+    if (m_state == PlayState::Playing) m_state = PlayState::Paused;
+    else if (m_state == PlayState::Paused) m_state = PlayState::Playing;
 }
 
 void SceneManager::stop(){
-    if (!activeScene || state == PlayState::Stopped) return;
+    if (!m_activeScene || m_state == PlayState::Stopped) return;
 
     if (auto* d3d = app->getD3D12()) d3d->flush();
 
@@ -90,13 +84,13 @@ void SceneManager::stop(){
     // restore below destroys it.
     clearActiveCamera();
 
-    auto* ms = activeScene->getModuleScene();
-    if (hasSerializedState && ms){
-        if (!SceneSerializer::LoadTempScene(ms)){ PHX_LOG(Scene, Error, "SceneManager: Failed to restore temp scene, falling back to reset()"); activeScene->reset(); }
-        hasSerializedState = false;
+    auto* ms = m_activeScene->getModuleScene();
+    if (m_hasSerializedState && ms){
+        if (!SceneSerializer::LoadTempScene(ms)){ PHX_LOG(Scene, Error, "SceneManager: Failed to restore temp scene, falling back to reset()"); m_activeScene->reset(); }
+        m_hasSerializedState = false;
     }
-    else activeScene->reset();
-    state = PlayState::Stopped;
+    else m_activeScene->reset();
+    m_state = PlayState::Stopped;
     m_renderOverrides.reset();
     m_runtimeTime.timeScale = 1.f;
 
@@ -105,13 +99,13 @@ void SceneManager::stop(){
     if (m_runtimeSceneChanged){
         m_runtimeSceneChanged = false;
         m_currentScenePath = m_scenePathAtPlay;
-        settings.skybox = m_lookAtPlay.skybox;
-        settings.ambient = m_lookAtPlay.ambient;
-        settings.gravityY = m_lookAtPlay.gravityY;
-        settings.postProcess = m_lookAtPlay.postProcess;
-        settings.fog = m_lookAtPlay.fog;
-        settings.xray = m_lookAtPlay.xray;
-        settings.occlusionFade = m_lookAtPlay.occlusionFade;
+        m_settings.skybox = m_lookAtPlay.skybox;
+        m_settings.ambient = m_lookAtPlay.ambient;
+        m_settings.gravityY = m_lookAtPlay.gravityY;
+        m_settings.postProcess = m_lookAtPlay.postProcess;
+        m_settings.fog = m_lookAtPlay.fog;
+        m_settings.xray = m_lookAtPlay.xray;
+        m_settings.occlusionFade = m_lookAtPlay.occlusionFade;
         if (RuntimeCore* rc = app->getRuntimeCore()) rc->applySkyboxFromSettings();
     }
 }
@@ -152,12 +146,12 @@ bool SceneManager::processRuntimeRequests(){
 
 void SceneManager::update(float deltaTime){
     if (m_editingPrefab) return;
-    if (activeScene && state == PlayState::Playing) activeScene->update(deltaTime);
+    if (m_activeScene && m_state == PlayState::Playing) m_activeScene->update(deltaTime);
 }
 
 void SceneManager::updateAnimations(float deltaTime){
     if (m_editingPrefab) return;
-    if (state == PlayState::Playing) return;
+    if (m_state == PlayState::Playing) return;
     auto* ms = getModuleScene();
     if (!ms) return;
     std::function<void(GameObject*)> visit = [&](GameObject* go){
@@ -183,34 +177,34 @@ void SceneManager::render(ID3D12GraphicsCommandList* cmd, const ModuleCamera& ca
         renderModuleScene(m_prefabScene, cmd);
         return;
     }
-    if (activeScene) activeScene->render(cmd, camera, w, h);
+    if (m_activeScene) m_activeScene->render(cmd, camera, w, h);
 }
 
 void SceneManager::onViewportResized(uint32_t w, uint32_t h){
-    if (activeScene) activeScene->onViewportResized(w, h);
+    if (m_activeScene) m_activeScene->onViewportResized(w, h);
 }
 
 bool SceneManager::saveCurrentScene(const std::string& filePath){
     if (m_editingPrefab){ PHX_LOG(Scene, Error, "SceneManager: Cannot save scene while editing a prefab"); return false; }
-    auto* ms = activeScene ? activeScene->getModuleScene() : nullptr;
+    auto* ms = m_activeScene ? m_activeScene->getModuleScene() : nullptr;
     if (!ms){ PHX_LOG(Scene, Warning, "SceneManager: No active scene to save"); return false; }
     // The editor's "current scene" file is still the one Play started in; saving now would write another
     // level's contents over it.
     if (m_runtimeSceneChanged){ PHX_LOG(Scene, Error, "SceneManager: Cannot save - a script changed scenes during Play. Stop first."); return false; }
-    if (!SceneSerializer::SaveScene(ms, filePath, &settings)) return false;
-    if (state == PlayState::Stopped) m_currentScenePath = filePath;
+    if (!SceneSerializer::SaveScene(ms, filePath, &m_settings)) return false;
+    if (m_state == PlayState::Stopped) m_currentScenePath = filePath;
     return true;
 }
 
 bool SceneManager::loadScene(const std::string& filePath){
     if (m_editingPrefab){ PHX_LOG(Scene, Error, "SceneManager: Cannot load scene while editing a prefab"); return false; }
-    auto* ms = activeScene ? activeScene->getModuleScene() : nullptr;
+    auto* ms = m_activeScene ? m_activeScene->getModuleScene() : nullptr;
     if (!ms){ PHX_LOG(Scene, Warning, "SceneManager: No active scene to load into"); return false; }
     // The old scene's meshes, textures and material buffers are freed as its GameObjects are destroyed, with
     // no fence tracking of their own: wait for every submitted frame that could still reference them. Callers
     // load between frames (no command list open), so this covers everything in flight.
     app->getD3D12()->flush();
-    if (!SceneSerializer::LoadScene(filePath, ms, &settings)) return false;
+    if (!SceneSerializer::LoadScene(filePath, ms, &m_settings)) return false;
     m_currentScenePath = filePath;
     m_renderOverrides.reset();
     m_runtimeTime.timeScale = 1.f;
@@ -233,7 +227,7 @@ bool SceneManager::replaceScene(const std::string& filePath){
         PHX_LOG(Scene, Error, "SceneManager: scene load failed: %s", filePath.c_str());
         return false;
     }
-    if (state != PlayState::Stopped) m_runtimeSceneChanged = true;
+    if (m_state != PlayState::Stopped) m_runtimeSceneChanged = true;
     return true;
 }
 
@@ -259,7 +253,7 @@ bool SceneManager::loadSceneByBuildIndex(int index, const BuildSettings& buildSe
 
 void SceneManager::enterPrefabEdit(SceneGraph* prefabScene, const std::string& prefabName){
     if (m_editingPrefab) exitPrefabEdit();
-    m_savedScene = activeScene ? activeScene->getModuleScene() : nullptr;
+    m_savedScene = m_activeScene ? m_activeScene->getModuleScene() : nullptr;
     m_prefabScene = prefabScene;
     m_prefabEditName = prefabName;
     m_editingPrefab = true;

@@ -1,7 +1,11 @@
 #pragma once
+// Camera-facing textured quad, optionally animated from a sprite sheet.
+
 #include "Component.h"
 #include "Globals.h"
 
+/// Drawn by BillboardPass. Screen aligns to the view plane, World to the camera position, Axial turns about
+/// the transform's up axis only.
 class ComponentBillboard : public Component {
 public:
     enum class Alignment {

@@ -166,47 +166,39 @@ static std::string sanitizeFileStem(const std::string& name){
     return out.empty() ? "Player" : out;
 }
 
-void BuildPipeline::run(BuildSettings settings){
-    if (settings.getEnabledSceneCount() == 0){ fail("No enabled scenes in the build list."); return; }
-    if (settings.outputDir.empty()){ fail("No output folder set."); return; }
+// Where the Player comes from:
+//  1. Prebuilt: <editor folder>/Player/Player.exe (+ its .cso shaders). A game project that ships the editor as a
+//     copied exe (ashfall/engine) gets it from tools/release/Export-Release.ps1 - no engine source needed.
+//  2. Compiled: the engine's Source/PhoenixEngine.sln, found by walking up from the editor (the engine repo's own
+//     build/PhoenixEngine/<cfg>/x64 layout), also looking beside each folder on the way (a sibling engine repo).
+bool BuildPipeline::locatePlayer(const fs::path& editorDir, PlayerSource& out){
+    out.prebuiltDir = editorDir / "Player";
+    out.prebuilt = fs::exists(out.prebuiltDir / "Player.exe");
+    if (out.prebuilt) return true;
 
-    char exePathBuf[MAX_PATH] = {};
-    GetModuleFileNameA(nullptr, exePathBuf, MAX_PATH);
-    const fs::path editorDir = fs::path(exePathBuf).parent_path();
-
-    // Where the Player comes from:
-    //  1. Prebuilt: <editor folder>/Player/Player.exe (+ its .cso shaders). A game project that ships the editor as a
-    //     copied exe (ashfall/engine) gets it from tools/release/Export-Release.ps1 - no engine source needed.
-    //  2. Compiled: the engine's Source/PhoenixEngine.sln, found by walking up from the editor (the engine repo's own
-    //     build/PhoenixEngine/<cfg>/x64 layout), also looking beside each folder on the way (a sibling engine repo).
-    const fs::path prebuiltDir = editorDir / "Player";
-    const bool prebuilt = fs::exists(prebuiltDir / "Player.exe");
-    fs::path repoRoot, slnPath;
-    if (!prebuilt){
-        std::error_code findEc;
-        for (fs::path dir = editorDir; !dir.empty() && slnPath.empty(); dir = dir.parent_path()){
-            if (fs::exists(dir / "Source" / "PhoenixEngine.sln")){ repoRoot = dir; slnPath = dir / "Source" / "PhoenixEngine.sln"; break; }
-            for (const auto& sib : fs::directory_iterator(dir, findEc)){
-                if (sib.is_directory(findEc) && fs::exists(sib.path() / "Source" / "PhoenixEngine.sln")){
-                    repoRoot = sib.path();
-                    slnPath = repoRoot / "Source" / "PhoenixEngine.sln";
-                    break;
-                }
+    std::error_code findEc;
+    for (fs::path dir = editorDir; !dir.empty() && out.slnPath.empty(); dir = dir.parent_path()){
+        if (fs::exists(dir / "Source" / "PhoenixEngine.sln")){ out.repoRoot = dir; out.slnPath = dir / "Source" / "PhoenixEngine.sln"; break; }
+        for (const auto& sib : fs::directory_iterator(dir, findEc)){
+            if (sib.is_directory(findEc) && fs::exists(sib.path() / "Source" / "PhoenixEngine.sln")){
+                out.repoRoot = sib.path();
+                out.slnPath = out.repoRoot / "Source" / "PhoenixEngine.sln";
+                break;
             }
-            if (dir == dir.parent_path()) break;
         }
-        if (slnPath.empty()){
-            fail("No prebuilt Player (" + (prebuiltDir / "Player.exe").string() + ") and no engine source "
-                 "(Source/PhoenixEngine.sln) found from " + editorDir.string() + ". Run tools/release/Export-Release.ps1 "
-                 "in the engine repo to put a prebuilt Player next to this editor.");
-            return;
-        }
+        if (dir == dir.parent_path()) break;
     }
+    if (out.slnPath.empty()){
+        fail("No prebuilt Player (" + (out.prebuiltDir / "Player.exe").string() + ") and no engine source "
+             "(Source/PhoenixEngine.sln) found from " + editorDir.string() + ". Run tools/release/Export-Release.ps1 "
+             "in the engine repo to put a prebuilt Player next to this editor.");
+        return false;
+    }
+    return true;
+}
 
-    std::string assetsSrc = app->getFileSystem()->GetAssetsPath();
-    std::string librarySrc = app->getFileSystem()->GetLibraryPath();
-    fs::path outputDir(settings.outputDir);
-
+bool BuildPipeline::checkOutputDir(const fs::path& outputDir, const fs::path& editorDir, const fs::path& repoRoot,
+                                   const std::string& assetsSrc){
     std::error_code ec;
     fs::path outputCanonical = fs::weakly_canonical(outputDir, ec);
     fs::path assetsCanonical = fs::weakly_canonical(assetsSrc, ec);
@@ -216,58 +208,65 @@ void BuildPipeline::run(BuildSettings settings){
     if ((!repoRoot.empty() && outputCanonical == repoCanonical) || outputCanonical == editorDirCanonical ||
         assetsCanonical.string().rfind(outputStr, 0) == 0){
         fail("Output folder can't be the project's own directory — pick a separate, empty folder.");
-        return;
+        return false;
     }
+    return true;
+}
 
-    fs::path playerBuildDir;
-    if (prebuilt){
+bool BuildPipeline::preparePlayer(const BuildSettings& settings, const PlayerSource& source, fs::path& outBuildDir){
+    if (source.prebuilt){
         // Exported as a Release build; the Configuration setting only matters when compiling from source.
-        setProgress(0.08f, "Using the prebuilt Player (" + prebuiltDir.string() + ")");
-        playerBuildDir = prebuiltDir;
-    } else {
-        setProgress(0.04f, "Locating MSBuild...");
-        std::string msbuildPath;
-        if (!findMSBuild(msbuildPath)){ fail("Could not locate MSBuild.exe. Is Visual Studio 2022 installed?"); return; }
-        setProgress(0.08f, "Compiling Player (" + settings.configuration + "|" + settings.platform + ")... this can take a minute");
-        if (!runMSBuild(msbuildPath, slnPath.string(), "Player", settings.configuration, settings.platform)){
-            m_status = Status::Failed;
-            return;
-        }
-        playerBuildDir = repoRoot / "build" / "Player" / settings.configuration / settings.platform;
-        if (!fs::exists(playerBuildDir / "Player.exe")){ fail("Player.exe was not produced at " + playerBuildDir.string()); return; }
+        setProgress(0.08f, "Using the prebuilt Player (" + source.prebuiltDir.string() + ")");
+        outBuildDir = source.prebuiltDir;
+        return true;
     }
+    setProgress(0.04f, "Locating MSBuild...");
+    std::string msbuildPath;
+    if (!findMSBuild(msbuildPath)){ fail("Could not locate MSBuild.exe. Is Visual Studio 2022 installed?"); return false; }
+    setProgress(0.08f, "Compiling Player (" + settings.configuration + "|" + settings.platform + ")... this can take a minute");
+    if (!runMSBuild(msbuildPath, source.slnPath.string(), "Player", settings.configuration, settings.platform)){
+        m_status = Status::Failed;
+        return false;
+    }
+    outBuildDir = source.repoRoot / "build" / "Player" / settings.configuration / settings.platform;
+    if (!fs::exists(outBuildDir / "Player.exe")){ fail("Player.exe was not produced at " + outBuildDir.string()); return false; }
+    return true;
+}
 
-    fs::create_directories(outputDir, ec);
-    if (ec){ fail("Could not create output folder: " + ec.message()); return; }
-
+bool BuildPipeline::copyPlayer(const fs::path& playerBuildDir, const fs::path& outputDir, const std::string& productName){
     setProgress(0.70f, "Copying Player executable and shaders...");
-    {
-        std::string msg;
-        if (!runRobocopy(playerBuildDir.string(), outputDir.string(), "/LEV:1", msg)){ fail(msg); return; }
-    }
+    std::string msg;
+    if (!runRobocopy(playerBuildDir.string(), outputDir.string(), "/LEV:1", msg)){ fail(msg); return false; }
 
-    std::string productName = sanitizeFileStem(settings.productName);
-    if (productName != "Player"){
+    const std::string stem = sanitizeFileStem(productName);
+    if (stem != "Player"){
         std::error_code renEc;
         if (fs::exists(outputDir / "Player.exe"))
-            fs::rename(outputDir / "Player.exe", outputDir / (productName + ".exe"), renEc);
+            fs::rename(outputDir / "Player.exe", outputDir / (stem + ".exe"), renEc);
         if (fs::exists(outputDir / "Player.pdb"))
-            fs::rename(outputDir / "Player.pdb", outputDir / (productName + ".pdb"), renEc);
+            fs::rename(outputDir / "Player.pdb", outputDir / (stem + ".pdb"), renEc);
     }
+    return true;
+}
 
+bool BuildPipeline::copyProjectData(const BuildSettings& settings, const std::string& assetsSrc,
+                                    const std::string& librarySrc, const fs::path& outputDir){
     setProgress(0.78f, "Copying Assets...");
     if (settings.stripSourceAssets){
         std::error_code assetsEc;
         fs::create_directories(outputDir / "Assets", assetsEc);
         std::string msg;
         std::string args = std::string("/MIR /XF ") + kStrippableAssetExtensions;
-        if (!runRobocopy(assetsSrc, (outputDir / "Assets").string(), args, msg)){ fail(msg); return; }
+        if (!runRobocopy(assetsSrc, (outputDir / "Assets").string(), args, msg)){ fail(msg); return false; }
     }
-    else if (!copyDirectoryContents(assetsSrc, (outputDir / "Assets").string())) { m_status = Status::Failed; return; }
+    else if (!copyDirectoryContents(assetsSrc, (outputDir / "Assets").string())){ m_status = Status::Failed; return false; }
 
     setProgress(0.92f, "Copying Library...");
-    if (!copyDirectoryContents(librarySrc, (outputDir / "Library").string())) { m_status = Status::Failed; return; }
+    if (!copyDirectoryContents(librarySrc, (outputDir / "Library").string())){ m_status = Status::Failed; return false; }
+    return true;
+}
 
+bool BuildPipeline::writeShippedSettings(const BuildSettings& settings, const std::string& librarySrc, const fs::path& outputDir){
     setProgress(0.98f, "Writing BuildSettings.json...");
     BuildSettings shipped;
     shipped.configuration = settings.configuration;
@@ -285,7 +284,7 @@ void BuildPipeline::run(BuildSettings settings){
             const fs::path inLibrary = fs::path("Library") / "Scenes" / rel.filename();
             if (!fs::exists(outputDir / inLibrary)){
                 fail("Scene in the build list not found: " + e.path + " (scenes live in Library/Scenes - re-add it)");
-                return;
+                return false;
             }
             rel = inLibrary;
         }
@@ -294,8 +293,37 @@ void BuildPipeline::run(BuildSettings settings){
     }
     if (!shipped.Save((outputDir / "Library" / "BuildSettings.json").string())){
         fail("Failed writing BuildSettings.json to the output folder");
-        return;
+        return false;
     }
+    return true;
+}
+
+void BuildPipeline::run(BuildSettings settings){
+    if (settings.getEnabledSceneCount() == 0){ fail("No enabled scenes in the build list."); return; }
+    if (settings.outputDir.empty()){ fail("No output folder set."); return; }
+
+    char exePathBuf[MAX_PATH] = {};
+    GetModuleFileNameA(nullptr, exePathBuf, MAX_PATH);
+    const fs::path editorDir = fs::path(exePathBuf).parent_path();
+
+    PlayerSource source;
+    if (!locatePlayer(editorDir, source)) return;
+
+    const std::string assetsSrc = app->getFileSystem()->GetAssetsPath();
+    const std::string librarySrc = app->getFileSystem()->GetLibraryPath();
+    const fs::path outputDir(settings.outputDir);
+    if (!checkOutputDir(outputDir, editorDir, source.repoRoot, assetsSrc)) return;
+
+    fs::path playerBuildDir;
+    if (!preparePlayer(settings, source, playerBuildDir)) return;
+
+    std::error_code ec;
+    fs::create_directories(outputDir, ec);
+    if (ec){ fail("Could not create output folder: " + ec.message()); return; }
+
+    if (!copyPlayer(playerBuildDir, outputDir, settings.productName)) return;
+    if (!copyProjectData(settings, assetsSrc, librarySrc, outputDir)) return;
+    if (!writeShippedSettings(settings, librarySrc, outputDir)) return;
 
     setProgress(1.f, "Build complete: " + outputDir.string());
     m_status = Status::Success;

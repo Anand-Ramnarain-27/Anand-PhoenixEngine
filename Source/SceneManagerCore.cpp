@@ -11,7 +11,7 @@
 
 SceneGraph* SceneManager::getModuleScene() const{
     if (m_editingPrefab && m_prefabScene) return m_prefabScene;
-    return activeScene ? activeScene->getModuleScene() : nullptr;
+    return m_activeScene ? m_activeScene->getModuleScene() : nullptr;
 }
 
 void SceneManager::requestSceneLoad(const std::string& filePath){

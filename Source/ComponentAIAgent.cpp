@@ -28,16 +28,16 @@ void ComponentAIAgent::updateBehavior(){
     if (target && target->getTransform()){
         float dist = (target->getTransform()->position - owner->getTransform()->position).Length();
         if (dist <= detectionRange){
-            behavior = Behavior::Chase;
+            m_behavior = Behavior::Chase;
             return;
         }
     }
 
-    behavior = patrolPoints.empty() ? Behavior::Idle : Behavior::Patrol;
+    m_behavior = patrolPoints.empty() ? Behavior::Idle : Behavior::Patrol;
 }
 
 void ComponentAIAgent::requestPathTo(const Vector3& goal){
-    if ((goal - lastGoal).LengthSquared() < kRepathThresholdSq && !currentPath.empty())
+    if ((goal - m_lastGoal).LengthSquared() < kRepathThresholdSq && !m_currentPath.empty())
         return;
 
     NavigationSystem* nav = app->getRuntimeCore()->getNavigationSystem();
@@ -45,9 +45,9 @@ void ComponentAIAgent::requestPathTo(const Vector3& goal){
 
     std::vector<Vector3> path;
     if (nav->FindPath(owner->getTransform()->position, goal, path)){
-        currentPath = std::move(path);
-        pathIndex = 0;
-        lastGoal = goal;
+        m_currentPath = std::move(path);
+        m_pathIndex = 0;
+        m_lastGoal = goal;
     }
 }
 
@@ -57,21 +57,21 @@ void ComponentAIAgent::update(float dt){
     ComponentTransform* t = owner->getTransform();
     if (!t) return;
 
-    if (behavior == Behavior::Idle){
-        currentPath.clear();
-        velocity = Vector3::Zero;
+    if (m_behavior == Behavior::Idle){
+        m_currentPath.clear();
+        m_velocity = Vector3::Zero;
         return;
     }
 
     Vector3 goal;
-    if (behavior == Behavior::Chase){
+    if (m_behavior == Behavior::Chase){
         SceneGraph* scene = app->getRuntimeCore()->getActiveModuleScene();
         GameObject* target = scene ? scene->findGameObjectByName(targetName) : nullptr;
         if (!target || !target->getTransform()) return;
         goal = target->getTransform()->position;
     } else { // Patrol
-        if (patrolTargetIndex >= (int)patrolPoints.size()) patrolTargetIndex = 0;
-        goal = patrolPoints[patrolTargetIndex];
+        if (m_patrolTargetIndex >= (int)patrolPoints.size()) m_patrolTargetIndex = 0;
+        goal = patrolPoints[m_patrolTargetIndex];
     }
 
     requestPathTo(goal);
@@ -81,27 +81,27 @@ void ComponentAIAgent::update(float dt){
     params.maxAccel = maxAccel;
     params.arriveRadius = arriveRadius;
 
-    Vector3 desired = SteeringBehaviors::PathFollow(t->position, currentPath, &pathIndex, params);
-    velocity = SteeringBehaviors::ApplySteering(velocity, desired, params, dt);
+    Vector3 desired = SteeringBehaviors::PathFollow(t->position, m_currentPath, &m_pathIndex, params);
+    m_velocity = SteeringBehaviors::ApplySteering(m_velocity, desired, params, dt);
 
-    if (velocity.LengthSquared() > 1e-6f){
-        t->position += velocity * dt;
+    if (m_velocity.LengthSquared() > 1e-6f){
+        t->position += m_velocity * dt;
         t->markDirty();
     }
 
-    if (behavior == Behavior::Patrol && pathIndex >= (int)currentPath.size() &&
+    if (m_behavior == Behavior::Patrol && m_pathIndex >= (int)m_currentPath.size() &&
         (t->position - goal).Length() < arriveRadius){
-        patrolTargetIndex = (patrolTargetIndex + 1) % (int)patrolPoints.size();
-        currentPath.clear();
-        lastGoal = Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
+        m_patrolTargetIndex = (m_patrolTargetIndex + 1) % (int)patrolPoints.size();
+        m_currentPath.clear();
+        m_lastGoal = Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
     }
 }
 
 void ComponentAIAgent::onEditor(){
     const char* behaviorNames[] = { "Idle", "Patrol", "Chase" };
     ImGui::SeparatorText("AI Agent");
-    ImGui::Text("Behavior: %s", behaviorNames[(int)behavior]);
-    ImGui::Text("Path waypoints remaining: %d", (int)currentPath.size() - pathIndex);
+    ImGui::Text("Behavior: %s", behaviorNames[(int)m_behavior]);
+    ImGui::Text("Path waypoints remaining: %d", (int)m_currentPath.size() - m_pathIndex);
 
     ImGui::SeparatorText("Movement");
     ImGui::DragFloat("Max Speed", &maxSpeed, 0.1f, 0.1f, 50.f, "%.2f");

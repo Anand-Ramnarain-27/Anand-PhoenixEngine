@@ -1,8 +1,13 @@
 #pragma once
+// Per-scene settings (saved with the scene) and the runtime state scripts layer on top of them.
+
 #include "ModuleD3D12.h"
 #include <imgui.h>
 #include "ImGuizmo.h"
 
+/// A scene's settings. The look (skybox, ambient, post-process, fog, x-ray, occlusion fade) and gravity are saved
+/// with the scene by SceneSerializer, whose JSON keys are part of the scene format; the editor's view and
+/// debug-draw toggles live here too but are session-only.
 struct EditorSceneSettings {
     bool showGrid = true;
     bool showAxis = true;
@@ -63,7 +68,7 @@ struct EditorSceneSettings {
         bool boundedRayLength = false;
     } fog;
 
-    // Silhouette drawn wherever scene geometry hides a mesh whose GameObject (or an ancestor) has one of these tags.
+    /// Silhouette drawn wherever scene geometry hides a mesh whose GameObject (or an ancestor) has one of these tags.
     struct XRayTag {
         std::string tag;
         Vector4 color = Vector4(0.35f, 0.85f, 1.0f, 1.0f);
@@ -81,7 +86,7 @@ struct EditorSceneSettings {
         };
     } xray;
 
-    // Dithered hole cut in opaque geometry between the camera and the focus (first object with xray.tags[0]).
+    /// Dithered hole cut in opaque geometry between the camera and the focus (first object with xray.tags[0]).
     struct OcclusionFade {
         bool enabled = true;
         float radius = 1.6f;
@@ -93,8 +98,8 @@ struct EditorSceneSettings {
     } occlusionFade;
 };
 
-// Script-set overrides layered on top of the scene's saved settings (Phoenix::Render). Cleared on scene load and
-// when Play mode stops.
+/// Script-set overrides layered on top of the scene's saved settings (Phoenix::Render). Cleared on scene load and
+/// when Play mode stops.
 struct RenderOverrides {
     int occlusionEnabled = -1;       // -1 = scene setting, 0 = off, 1 = on
     float occlusionRadius = -1.0f;   // < 0 = scene setting
@@ -108,19 +113,19 @@ struct RenderOverrides {
 class GameObject;
 class Component;
 
-// Engine functions handed to GameScript.dll through SceneManager (set by RuntimeCore::init). Component
-// constructors and model loading live in the engine executable, not in PhoenixCore.lib, so a script can't call
-// them directly; it calls these pointers instead (Phoenix::VFX).
+/// Engine functions handed to GameScript.dll through SceneManager (set by RuntimeCore::init). Component
+/// constructors and model loading live in the engine executable, not in PhoenixCore.lib, so a script can't call
+/// them directly; it calls these pointers instead (Phoenix::VFX).
 struct EngineHooks {
     Component* (*addComponent)(GameObject* owner, int componentType) = nullptr;   // Component::Type; existing one is returned
     bool (*loadModel)(GameObject* owner, const char* assetPath) = nullptr;        // adds/reuses a ComponentMesh
     void (*logWarning)(const char* text) = nullptr;                               // editor Console (null in the player)
 };
 
-// Game-time scaling (Phoenix::VFX hit-stop / slow-mo). RuntimeCore::tick multiplies the frame delta by timeScale
-// before the scene, scripts, collision and animation see it; the unscaled delta stays readable for things that
-// must keep real time (HUD, camera shake, the hit-stop timer itself). timeScale returns to 1 on scene load and
-// when Play mode stops.
+/// Game-time scaling (Phoenix::VFX hit-stop / slow-mo). RuntimeCore::tick multiplies the frame delta by timeScale
+/// before the scene, scripts, collision and animation see it; the unscaled delta stays readable for things that
+/// must keep real time (HUD, camera shake, the hit-stop timer itself). timeScale returns to 1 on scene load and
+/// when Play mode stops.
 struct RuntimeTime {
     float timeScale = 1.0f;
     float unscaledDeltaTime = 0.0f;   // this frame, before scaling

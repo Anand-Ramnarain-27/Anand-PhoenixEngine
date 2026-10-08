@@ -1,10 +1,14 @@
 #pragma once
+// Interface of a scene the SceneManager can host.
+
 #include <cstdint>
 #include <d3d12.h>
 
 class ModuleCamera;
 class SceneGraph;
 
+/// A hosted scene. Every scene the engine loads is an EmptyScene filled from a scene file; getModuleScene()
+/// exposes its SceneGraph to the rest of the engine.
 class IScene {
 public:
     virtual ~IScene() = default;

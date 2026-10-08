@@ -1,4 +1,6 @@
 #pragma once
+// Renderable mesh: imported model meshes and materials, LODs, skinning and morph targets.
+
 #include "Component.h"
 #include "MeshEntry.h"
 #include "ResourceModel.h"
@@ -15,11 +17,14 @@ class ResourceMaterial;
 class Model;
 class Material;
 
+/// One or more mesh + material entries (MeshEntry) for this GameObject, from a model asset or built
+/// procedurally. Skinned meshes bind their joints by name once the whole scene is loaded (resolveDeferredSkin).
 class ComponentMesh : public Component {
 public:
     explicit ComponentMesh(GameObject* owner);
     ~ComponentMesh() override;
 
+    /// Loads every mesh of an imported model asset.
     bool loadModel(const char* filePath);
     bool loadMeshSubset(const std::string& assetPath, int startMesh, int meshCount);
     void addMeshEntry(UID meshUID, UID materialUID);
@@ -48,9 +53,9 @@ public:
     const Vector3& getLocalAABBMax() const { return m_localAABBMax; }
     void getWorldAABB(Vector3& outMin, Vector3& outMax) const;
 
-    // Ray tests against the mesh's actual triangles (both faces), for collision that needs more than the
-    // bounding box - stairs, doorways, low props. Skinned meshes have none to offer (their CPU vertices are
-    // the bind pose), nor do meshes without CPU-side geometry; callers fall back to the bounds for those.
+    /// Ray tests against the mesh's actual triangles (both faces), for collision that needs more than the
+    /// bounding box - stairs, doorways, low props. Skinned meshes have none to offer (their CPU vertices are
+    /// the bind pose), nor do meshes without CPU-side geometry; callers fall back to the bounds for those.
     bool hasRaycastTriangles() const;
     // World-space ray, `dir` normalized. On a hit within maxDist: true, distance and world-space normal
     // (facing against the ray).
@@ -59,11 +64,12 @@ public:
     bool isVisible() const { return m_isVisible; }
     void setVisible(bool v){ m_isVisible = v; }
 
-    // Runtime-only VFX overrides for every entry of this mesh (not saved). Set through Phoenix::VFX.
+    /// Runtime-only VFX overrides for every entry of this mesh (not saved). Set through Phoenix::VFX.
     MeshVfxParams vfx;
 
     void setSkinData(const ResourceModel::Skin& skin, std::vector<GameObject*> joints);
 
+    /// Binds joint names stored by onLoad to the scene's GameObjects; call once the hierarchy is complete.
     void resolveDeferredSkin();
 
     bool hasSkinData() const { return m_hasSkin; }
@@ -82,6 +88,7 @@ public:
     const std::vector<LODLevel>& getLODLevels() const { return m_lodLevels; }
     bool hasLODLevels() const { return !m_lodLevels.empty(); }
 
+    /// Picks the LOD for `coverage` (fraction of the screen covered); forceIndex >= 0 overrides it.
     void updateLOD(float coverage, int forceIndex);
     int getCurrentLODIndex() const { return m_currentLOD; }
     float getLastScreenCoverage() const { return m_lastScreenCoverage; }

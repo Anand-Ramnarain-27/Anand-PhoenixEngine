@@ -35,8 +35,6 @@ struct PrefabManager::SerialiseCtx {
     explicit SerialiseCtx(Document& d) : doc(d), a(d.GetAllocator()){}
 };
 
-// PrefabManager::registry() lives in PrefabManagerCore.cpp now.
-
 uint32_t PrefabManager::makePrefabUID(const std::string& name){
     uint32_t hash = 2166136261u;
     for (unsigned char c : name){ hash ^= c; hash *= 16777619u; }
@@ -226,7 +224,7 @@ bool PrefabManager::applyToPrefab(const GameObject* go, bool respectOverrides){
     if (!inst || inst->prefabName.empty()){
         const GameObject* root = findPrefabRoot(go);
         if (root && root != go){
-            PHX_LOG(Scene, Info, "PrefabManager::applyToPrefab: '%s' is a child � applying from prefab root '%s'",
+            PHX_LOG(Scene, Info, "PrefabManager::applyToPrefab: '%s' is a child - applying from prefab root '%s'",
                 go ? go->getName().c_str() : "null", root->getName().c_str());
             return applyToPrefab(root, respectOverrides);
         }
@@ -272,7 +270,7 @@ bool PrefabManager::revertToPrefab(GameObject* go, SceneGraph* scene){
     if (!inst || inst->prefabName.empty()){
         const GameObject* root = findPrefabRoot(go);
         if (root && root != go){
-            PHX_LOG(Scene, Info, "PrefabManager::revertToPrefab: '%s' is a child � reverting from prefab root '%s'",
+            PHX_LOG(Scene, Info, "PrefabManager::revertToPrefab: '%s' is a child - reverting from prefab root '%s'",
                 go ? go->getName().c_str() : "null", root->getName().c_str());
             return revertToPrefab(const_cast<GameObject*>(root), scene);
         }
@@ -426,8 +424,6 @@ const PrefabInstanceData* PrefabManager::getInstanceData(const GameObject* go){
     return (it != registry().end()) ? &it->second : nullptr;
 }
 
-// PrefabManager::getInstanceDataMutable() lives in PrefabManagerCore.cpp now.
-
 std::vector<PrefabManager::PrefabInfo> PrefabManager::listPrefabsInfo(){
     std::vector<PrefabInfo> results;
     if (!app->getFileSystem()->Exists(getPrefabDir().c_str())) return results;
@@ -485,9 +481,6 @@ std::vector<std::string> PrefabManager::listPrefabs(){
     catch (...){}
     return names;
 }
-
-// PrefabManager::markComponentAdded()/markComponentRemoved() live in
-// PrefabManagerCore.cpp now.
 
 bool PrefabManager::prefabExists(const std::string& prefabName){ return app->getFileSystem()->Exists(getPrefabPath(prefabName).c_str()); }
 void PrefabManager::linkInstance(GameObject* go, const PrefabInstanceData& data){ if (go) registry()[go] = data; }

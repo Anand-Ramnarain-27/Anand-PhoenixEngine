@@ -1,10 +1,15 @@
 #pragma once
+// The editor's free-fly / orbit camera, plus the frustum-culling and LOD debug settings the renderer reads.
+
 #include "Module.h"
 #include "Frustum.h"
 
 class FrustumDebugDraw;
 class GameObject;
 
+/// Editor camera: right mouse + WASD/QE flies, Alt + left mouse orbits the origin, the wheel dollies, F refocuses,
+/// Shift speeds everything up; a connected gamepad flies too. Also holds the game camera's frustum (set by the
+/// active ComponentCamera) so culling can run from either camera, and the culling / LOD / AI-tick debug options.
 class ModuleCamera : public Module {
 public:
     enum class CullMode { None, Frustum };
@@ -17,39 +22,40 @@ public:
     bool init() override;
     void update() override;
 
-    void setEnable(bool flag){ enabled = flag; }
-    bool getEnabled() const { return enabled; }
+    const Matrix& getView() const { return m_view; }
+    const Quaternion& getRot() const { return m_rotation; }
+    const Vector3& getPos() const { return m_position; }
 
-    const Matrix& getView() const { return view; }
-    const Quaternion& getRot() const { return rotation; }
-    const Vector3& getPos() const { return position; }
+    float getPolar() const { return m_params.polar; }
+    float getAzimuthal() const { return m_params.azimuthal; }
+    const Vector3& getTranslation() const { return m_params.translation; }
 
-    float getPolar() const { return params.polar; }
-    float getAzimuthal() const { return params.azimuthal; }
-    const Vector3& getTranslation() const { return params.translation; }
+    void setPolar(float p){ m_params.polar = p; }
+    void setAzimuthal(float a){ m_params.azimuthal = a; }
+    void setTranslation(const Vector3& t){ m_params.translation = t; }
 
-    void setPolar(float p){ params.polar = p; }
-    void setAzimuthal(float a){ params.azimuthal = a; }
-    void setTranslation(const Vector3& t){ params.translation = t; }
-
-    void setSpeedBoost(float m){ speedBoostMultiplier = m; }
-    float getSpeedBoost() const { return speedBoostMultiplier; }
+    void setSpeedBoost(float m){ m_speedBoostMultiplier = m; }
+    float getSpeedBoost() const { return m_speedBoostMultiplier; }
 
     Vector3 getForward() const;
     Vector3 getRight() const;
     Vector3 getUp() const;
 
+    /// Moves to 5 units from `target`, keeping the current direction, and looks at it.
     void focusOnTarget(const Vector3& target);
+    /// Default editor projection (near 0.1, far 500).
     static Matrix getPerspectiveProj(float aspect, float fov = XM_PIDIV4);
 
     const Frustum& getEditorFrustum() const { return m_editorFrustum; }
     const Frustum& getCullFrustum() const { return m_cullFrustum; }
 
+    /// The active game camera's frustum, which RuntimeCore culls against.
     void setGameCameraFrustum(const Frustum& f){ m_gameFrustum = f; m_hasGameFrustum = true; }
     void clearGameCameraFrustum(){ m_hasGameFrustum = false; }
     const Frustum& getGameFrustum() const { return m_gameFrustum; }
     bool hasGameFrustum() const { return m_hasGameFrustum; }
 
+    /// Against the cull frustum (editor or game camera, per cullSource); always true with culling off.
     bool isVisible(const Vector3& aabbMin, const Vector3& aabbMax) const;
 
     GameObject* getActiveCamera() const { return m_activeCameraGO; }
@@ -74,6 +80,8 @@ public:
 
     ForceLOD forceLOD = ForceLOD::Auto;
 
+    /// Passed to every script's IScript::shouldTickAI, which decides whether a distant or off-screen script skips
+    /// its update this frame.
     float aiCullDistance = 50.0f;
     int aiCullTickRate = 10;
 
@@ -94,19 +102,18 @@ private:
         Vector3 translation = { 0.0f, 2.0f, 10.0f };
     };
 
-    Params params;
-    Quaternion rotation;
-    Vector3 position;
-    Matrix view = Matrix::Identity;
+    Params m_params;
+    Quaternion m_rotation;
+    Vector3 m_position;
+    Matrix m_view = Matrix::Identity;
 
-    int dragPosX = 0;
-    int dragPosY = 0;
-    int previousWheelValue = 0;
-    bool prevFKeyState = false;
-    bool enabled = true;
+    int m_dragPosX = 0;
+    int m_dragPosY = 0;
+    int m_previousWheelValue = 0;
+    bool m_prevFKeyState = false;
 
-    float speedMultiplier = 1.0f;
-    float speedBoostMultiplier = 5.0f;
+    float m_speedMultiplier = 1.0f;
+    float m_speedBoostMultiplier = 5.0f;
 
     Frustum m_editorFrustum;
     Frustum m_gameFrustum;

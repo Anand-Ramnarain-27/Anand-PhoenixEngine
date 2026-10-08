@@ -1,4 +1,6 @@
 #pragma once
+// View frustum as six inward-facing planes plus its eight corners, for culling and debug drawing.
+
 #include <array>
 #include <SimpleMath.h>
 
@@ -11,6 +13,7 @@ struct FrustumPlane {
     float signedDist(const Vector3& p) const { return normal.Dot(p) - d; }
 };
 
+/// Planes face inward: a point is inside when its signed distance to every plane is >= 0.
 struct Frustum {
     enum PlaneIdx { Near = 0, Far, Left, Right, Top, Bottom, COUNT };
     enum CornerIdx { NTL = 0, NTR, NBL, NBR, FTL, FTR, FBL, FBR, CORNER_COUNT };
@@ -19,6 +22,7 @@ struct Frustum {
     std::array<Vector3, CORNER_COUNT> corners;
     bool cornersValid = false;
 
+    /// From a camera's position and basis (right-handed, `fwd` = view direction) and its projection settings.
     static Frustum fromCamera(const Vector3& pos, const Vector3& fwd, const Vector3& right, const Vector3& up, float fovY, float aspect, float nearDist, float farDist){
         Frustum f;
         const float hNear = tanf(fovY * 0.5f) * nearDist;
@@ -49,6 +53,7 @@ struct Frustum {
         return f;
     }
 
+    /// From any view-projection matrix (D3D depth range 0..1), by unprojecting the NDC cube's corners.
     static Frustum fromViewProj(const Matrix& viewProj){
         Matrix inv = viewProj.Invert();
         static const Vector3 ndc[CORNER_COUNT] = {
@@ -74,6 +79,7 @@ struct Frustum {
         return f;
     }
 
+    /// Conservative: false only when all eight points are outside one plane.
     bool testVertsAgainstPlanes(const Vector3 verts[8]) const{
         for (const FrustumPlane& plane : planes){
             int outCount = 0;
@@ -87,20 +93,6 @@ struct Frustum {
         const Vector3 verts[8] = {
             {mn.x, mn.y, mn.z}, {mx.x, mn.y, mn.z}, {mn.x, mx.y, mn.z}, {mx.x, mx.y, mn.z},
             {mn.x, mn.y, mx.z}, {mx.x, mn.y, mx.z}, {mn.x, mx.y, mx.z}, {mx.x, mx.y, mx.z}
-        };
-        return testVertsAgainstPlanes(verts);
-    }
-
-    bool intersectsOBB(const Vector3& center, const Vector3& he, const Vector3 axes[3]) const{
-        const Vector3 verts[8] = {
-            center + axes[0] * he.x + axes[1] * he.y + axes[2] * he.z,
-            center - axes[0] * he.x + axes[1] * he.y + axes[2] * he.z,
-            center + axes[0] * he.x - axes[1] * he.y + axes[2] * he.z,
-            center - axes[0] * he.x - axes[1] * he.y + axes[2] * he.z,
-            center + axes[0] * he.x + axes[1] * he.y - axes[2] * he.z,
-            center - axes[0] * he.x + axes[1] * he.y - axes[2] * he.z,
-            center + axes[0] * he.x - axes[1] * he.y - axes[2] * he.z,
-            center - axes[0] * he.x - axes[1] * he.y - axes[2] * he.z
         };
         return testVertsAgainstPlanes(verts);
     }

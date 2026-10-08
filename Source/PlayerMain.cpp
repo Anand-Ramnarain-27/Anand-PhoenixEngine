@@ -1,3 +1,4 @@
+// Player entry point: the standalone game window, its message loop and a crash log (player_crash.log).
 #include "Globals.h"
 #include <windows.h>
 #include <ole2.h>
@@ -25,6 +26,10 @@ static LONG WINAPI PlayerCrashHandler(EXCEPTION_POINTERS* info){
 
 static const wchar_t kWindowClassName[] = L"PhoenixPlayerWindowClass";
 static const wchar_t kWindowTitle[] = L"Phoenix Player";
+
+// WM_SYSKEYDOWN lParam: bit 29 is set while Alt is held, bit 30 when the key was already down (auto-repeat).
+constexpr LPARAM kAltDownBit = 0x20000000;
+constexpr LPARAM kRepeatBit = 0x40000000;
 
 LRESULT CALLBACK PlayerWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam){
     switch (message){
@@ -60,7 +65,8 @@ LRESULT CALLBACK PlayerWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
         }
         break;
     case WM_SYSKEYDOWN:
-        if (wParam == VK_RETURN && (lParam & 0x60000000) == 0x20000000 && app)
+        // Alt+Enter, first press only.
+        if (wParam == VK_RETURN && (lParam & (kAltDownBit | kRepeatBit)) == kAltDownBit && app)
             app->getD3D12()->toggleFullscreen();
         Keyboard::ProcessMessage(message, wParam, lParam);
         break;

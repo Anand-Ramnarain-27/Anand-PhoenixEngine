@@ -15,9 +15,6 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
-#ifdef PHOENIX_EDITOR
-#include "ModuleEditor.h"
-#endif
 
 #pragma comment(lib, "psapi.lib")
 
@@ -46,8 +43,8 @@ namespace {
         return path.empty() ? std::string("(unsaved)") : std::filesystem::path(path).stem().string();
     }
 
-    // Every line goes to the debugger output, the editor console and scene_transitions.log, so the numbers are
-    // readable from the standalone player too.
+    // Every line goes to the log (debugger output and editor console) and to scene_transitions.log, so the
+    // numbers are readable from the standalone player too.
     void report(const char* format, ...){
         char line[1024];
         va_list ap;
@@ -56,9 +53,6 @@ namespace {
         va_end(ap);
 
         PHX_LOG(Scene, Info, "%s", line);
-#ifdef PHOENIX_EDITOR
-        if (ModuleEditor* editor = app->getEditor()) editor->log(line);
-#endif
         if (FILE* f = nullptr; fopen_s(&f, kLogFile, "a") == 0 && f){
             fprintf(f, "%s\n", line);
             fclose(f);
@@ -164,7 +158,7 @@ void SceneTransition::runLoad(SceneManager& sm, RuntimeCore& rc){
     SceneTransitionState& t = sm.getTransition();
     const Clock::time_point t0 = Clock::now();
 
-    // v1 unload safety: wait for every submitted frame before the old scene's GPU resources are freed (loadScene
+    // Unload safety: wait for every submitted frame before the old scene's GPU resources are freed (loadScene
     // flushes too; doing it here first keeps the GPU wait out of the scene-load number).
     app->getD3D12()->flush();
     const Clock::time_point t1 = Clock::now();

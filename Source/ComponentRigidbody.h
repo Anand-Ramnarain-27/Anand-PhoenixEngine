@@ -1,7 +1,10 @@
 #pragma once
+// Rigid-body state for the collision response solver (mass, velocity, restitution, gravity).
+
 #include "Component.h"
 #include "Globals.h"
 
+/// Integrated each update (gravity, damping) and pushed apart by CollisionResponse. Static bodies never move.
 class ComponentRigidbody final : public Component {
 public:
     explicit ComponentRigidbody(GameObject* owner);
@@ -23,6 +26,7 @@ public:
 
     bool isFastMoving = false;
 
+    /// 0 for static or massless bodies, which collision response treats as immovable.
     float getInvMass() const{
         return (isStatic || mass <= 0.f) ? 0.f : 1.f / mass;
     }

@@ -37,8 +37,8 @@ void CreateTestScene(SceneGraph* scene,
         charAnim->LoadStateMachineFromPath(smPath);
 
     auto* charMotion = character->createComponent<ComponentCharacterMotion>();
-    charMotion->mLinearSpeed = 5.f;
-    charMotion->mAngularSpeed = 2.f;
+    charMotion->linearSpeed = 5.f;
+    charMotion->angularSpeed = 2.f;
 
     GameObject* face = scene->createGameObject("TestFace");
     face->getTransform()->position = { 3.f, 0.f, 0.f };

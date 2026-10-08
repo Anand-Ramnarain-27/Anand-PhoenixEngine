@@ -1,8 +1,12 @@
 #pragma once
+// Game camera attached to a GameObject; the main one renders the Game view and the Player.
+
 #include "Component.h"
 #include "ModuleD3D12.h"
 #include "Frustum.h"
 
+/// Perspective camera looking down the transform's -Z. The main camera also feeds ModuleCamera the frustum used
+/// for game-camera culling.
 class ComponentCamera : public Component {
 public:
     explicit ComponentCamera(GameObject* owner);
@@ -34,7 +38,7 @@ public:
     void rebuildFrustum();
 
 private:
-    float m_fov = 0.785398163f;
+    float m_fov = XM_PIDIV4;
     float m_nearPlane = 0.1f;
     float m_farPlane = 200.0f;
     Vector4 m_backgroundColor = { 0.2f, 0.3f, 0.4f, 1.0f };

@@ -1,4 +1,6 @@
 #pragma once
+// Prefabs: GameObject hierarchies saved as Library/Prefabs/<name>.prefab, their scene instances and overrides.
+
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -10,6 +12,7 @@
 class GameObject;
 class SceneGraph;
 
+/// What an instance changed relative to its prefab, so apply / revert can skip or keep those edits.
 struct PrefabOverrideRecord {
     std::unordered_map<int, std::unordered_set<std::string>> modifiedProperties;
     std::vector<int> addedComponentTypes;
@@ -19,12 +22,15 @@ struct PrefabOverrideRecord {
     void clear(){ modifiedProperties.clear(); addedComponentTypes.clear(); removedComponentTypes.clear(); }
 };
 
+/// Link from an instance root in a scene to its prefab file.
 struct PrefabInstanceData {
     std::string prefabName;
     uint32_t prefabUID = 0;
     PrefabOverrideRecord overrides;
 };
 
+/// Static API over the prefab files and the instance registry (GameObject* -> PrefabInstanceData). Instance links
+/// are saved in scenes as "PrefabLink" and restored with linkInstance() on load.
 class PrefabManager {
 public:
     struct PrefabInfo {
@@ -39,7 +45,9 @@ public:
 
     static bool createPrefab(const GameObject* go, const std::string& prefabName);
     static GameObject* instantiatePrefab(const std::string& prefabName, SceneGraph* scene);
+    /// Writes the instance `go` belongs to back to its prefab file. `respectOverrides` false saves it as-is.
     static bool applyToPrefab(const GameObject* go, bool respectOverrides = true);
+    /// Rebuilds the instance `go` belongs to from its prefab file.
     static bool revertToPrefab(GameObject* go, SceneGraph* scene);
 
     static void markPropertyOverride(GameObject* go, int componentType, const std::string& propertyName);
@@ -74,8 +82,11 @@ public:
     static void linkInstance(GameObject* go, const PrefabInstanceData& data);
     static void unlinkInstance(GameObject* go);
 
+    /// Stable id from the prefab name (FNV-1a), never 0.
     static uint32_t makePrefabUID(const std::string& name);
 
+    /// Called by GameObject when a component is added / removed; recorded as an override on prefab instances.
+    /// Defined in PrefabManagerCore.cpp so they link into GameScript.dll.
     static void markComponentAdded(GameObject* go, int componentType);
     static void markComponentRemoved(GameObject* go, int componentType);
 

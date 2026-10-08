@@ -1,12 +1,14 @@
 #pragma once
+// Navigation agent: idle / patrol / chase along NavigationSystem paths.
+
 #include "Component.h"
 #include "Globals.h"
 #include <string>
 #include <vector>
 #include <cfloat>
 
-// Idle/Patrol/Chase agent: requests paths from NavigationSystem and moves
-// kinematically along them via SteeringBehaviors.
+/// Idle/Patrol/Chase agent: requests paths from NavigationSystem and moves kinematically along them via
+/// SteeringBehaviors.
 class ComponentAIAgent final : public Component {
 public:
     explicit ComponentAIAgent(GameObject* owner);
@@ -21,8 +23,8 @@ public:
     std::string targetName = "Player";
     std::vector<Vector3> patrolPoints;
 
-    Behavior getBehavior() const { return behavior; }
-    const std::vector<Vector3>& getCurrentPath() const { return currentPath; }
+    Behavior getBehavior() const { return m_behavior; }
+    const std::vector<Vector3>& getCurrentPath() const { return m_currentPath; }
 
     void update(float dt) override;
     void onEditor() override;
@@ -34,11 +36,11 @@ private:
     void updateBehavior();
     void requestPathTo(const Vector3& goal);
 
-    Behavior behavior = Behavior::Patrol;
-    Vector3 velocity = Vector3::Zero;
+    Behavior m_behavior = Behavior::Patrol;
+    Vector3 m_velocity = Vector3::Zero;
 
-    std::vector<Vector3> currentPath;
-    int pathIndex = 0;
-    int patrolTargetIndex = 0;
-    Vector3 lastGoal = Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
+    std::vector<Vector3> m_currentPath;
+    int m_pathIndex = 0;
+    int m_patrolTargetIndex = 0;
+    Vector3 m_lastGoal = Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
 };

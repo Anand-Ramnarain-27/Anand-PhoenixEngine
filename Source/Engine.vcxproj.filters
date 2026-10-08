@@ -64,9 +64,6 @@
     <ClCompile Include="SimpleMath.cpp">
       <Filter>Engine\Math</Filter>
     </ClCompile>
-    <ClCompile Include="MathUtils.cpp">
-      <Filter>Engine\Math</Filter>
-    </ClCompile>
     <!-- ============================================================ -->
     <!-- Engine\Camera                                                 -->
     <!-- ============================================================ -->
@@ -602,9 +599,6 @@
     <!-- Engine\Math                                                   -->
     <!-- ============================================================ -->
     <ClInclude Include="SimpleMath.h">
-      <Filter>Engine\Math</Filter>
-    </ClInclude>
-    <ClInclude Include="MathUtils.h">
       <Filter>Engine\Math</Filter>
     </ClInclude>
     <!-- ============================================================ -->

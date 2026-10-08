@@ -6,20 +6,20 @@ using namespace DirectX;
 using namespace Phoenix;
 
 ModuleInput::ModuleInput(HWND hWnd){
-    keyboard = std::make_unique<Keyboard>();
-    mouse    = std::make_unique<Mouse>();
-    gamePad  = std::make_unique<GamePad>();
-    mouse->SetWindow(hWnd);
+    m_keyboard = std::make_unique<Keyboard>();
+    m_mouse    = std::make_unique<Mouse>();
+    m_gamePad  = std::make_unique<GamePad>();
+    m_mouse->SetWindow(hWnd);
 }
 
 void ModuleInput::update(){
-    mousePrev = mouseCurr;
-    mouseCurr = mouse->GetState();
-    kbTracker.Update(keyboard->GetState());
-    mouseTracker.Update(mouseCurr);
+    m_mousePrev = m_mouseCurr;
+    m_mouseCurr = m_mouse->GetState();
+    m_kbTracker.Update(m_keyboard->GetState());
+    m_mouseTracker.Update(m_mouseCurr);
     for (int i = 0; i < kMaxPlayers; ++i){
-        padState[i] = gamePad->GetState(i, GamePad::DEAD_ZONE_CIRCULAR);
-        padTracker[i].Update(padState[i]);
+        m_padState[i] = m_gamePad->GetState(i, GamePad::DEAD_ZONE_CIRCULAR);
+        m_padTracker[i].Update(m_padState[i]);
     }
 }
 
@@ -27,45 +27,41 @@ void ModuleInput::resetState(){
     // The trackers are re-based on the current state twice: the first Update after a Reset reports everything
     // held as newly pressed, the second leaves no edges. A key held through the reset then reads as down but
     // never as "pressed", and the mouse delta is zero.
-    mouse->ResetScrollWheelValue();
-    mouseCurr = mouse->GetState();
-    mousePrev = mouseCurr;
-    const Keyboard::State keys = keyboard->GetState();
-    kbTracker.Reset();
-    kbTracker.Update(keys);
-    kbTracker.Update(keys);
-    mouseTracker.Reset();
-    mouseTracker.Update(mouseCurr);
-    mouseTracker.Update(mouseCurr);
+    m_mouse->ResetScrollWheelValue();
+    m_mouseCurr = m_mouse->GetState();
+    m_mousePrev = m_mouseCurr;
+    const Keyboard::State keys = m_keyboard->GetState();
+    m_kbTracker.Reset();
+    m_kbTracker.Update(keys);
+    m_kbTracker.Update(keys);
+    m_mouseTracker.Reset();
+    m_mouseTracker.Update(m_mouseCurr);
+    m_mouseTracker.Update(m_mouseCurr);
     for (int i = 0; i < kMaxPlayers; ++i){
-        padState[i] = gamePad->GetState(i, GamePad::DEAD_ZONE_CIRCULAR);
-        padTracker[i].Reset();
-        padTracker[i].Update(padState[i]);
-        padTracker[i].Update(padState[i]);
+        m_padState[i] = m_gamePad->GetState(i, GamePad::DEAD_ZONE_CIRCULAR);
+        m_padTracker[i].Reset();
+        m_padTracker[i].Update(m_padState[i]);
+        m_padTracker[i].Update(m_padState[i]);
     }
 }
 
-// ----- Keyboard -----
-
 bool ModuleInput::isKeyDown(Key k) const {
-    return keyboard->GetState().IsKeyDown(static_cast<Keyboard::Keys>(k));
+    return m_keyboard->GetState().IsKeyDown(static_cast<Keyboard::Keys>(k));
 }
 
 bool ModuleInput::isKeyPressed(Key k) const {
-    return kbTracker.IsKeyPressed(static_cast<Keyboard::Keys>(k));
+    return m_kbTracker.IsKeyPressed(static_cast<Keyboard::Keys>(k));
 }
 
 bool ModuleInput::isKeyReleased(Key k) const {
-    return kbTracker.IsKeyReleased(static_cast<Keyboard::Keys>(k));
+    return m_kbTracker.IsKeyReleased(static_cast<Keyboard::Keys>(k));
 }
-
-// ----- Mouse -----
 
 bool ModuleInput::isMouseDown(MouseButton btn) const {
     switch (btn){
-    case MouseButton::Left:   return mouseCurr.leftButton;
-    case MouseButton::Right:  return mouseCurr.rightButton;
-    case MouseButton::Middle: return mouseCurr.middleButton;
+    case MouseButton::Left:   return m_mouseCurr.leftButton;
+    case MouseButton::Right:  return m_mouseCurr.rightButton;
+    case MouseButton::Middle: return m_mouseCurr.middleButton;
     }
     return false;
 }
@@ -73,9 +69,9 @@ bool ModuleInput::isMouseDown(MouseButton btn) const {
 bool ModuleInput::isMousePressed(MouseButton btn) const {
     using BS = Mouse::ButtonStateTracker;
     switch (btn){
-    case MouseButton::Left:   return mouseTracker.leftButton   == BS::PRESSED;
-    case MouseButton::Right:  return mouseTracker.rightButton  == BS::PRESSED;
-    case MouseButton::Middle: return mouseTracker.middleButton == BS::PRESSED;
+    case MouseButton::Left:   return m_mouseTracker.leftButton   == BS::PRESSED;
+    case MouseButton::Right:  return m_mouseTracker.rightButton  == BS::PRESSED;
+    case MouseButton::Middle: return m_mouseTracker.middleButton == BS::PRESSED;
     }
     return false;
 }
@@ -83,32 +79,30 @@ bool ModuleInput::isMousePressed(MouseButton btn) const {
 bool ModuleInput::isMouseReleased(MouseButton btn) const {
     using BS = Mouse::ButtonStateTracker;
     switch (btn){
-    case MouseButton::Left:   return mouseTracker.leftButton   == BS::RELEASED;
-    case MouseButton::Right:  return mouseTracker.rightButton  == BS::RELEASED;
-    case MouseButton::Middle: return mouseTracker.middleButton == BS::RELEASED;
+    case MouseButton::Left:   return m_mouseTracker.leftButton   == BS::RELEASED;
+    case MouseButton::Right:  return m_mouseTracker.rightButton  == BS::RELEASED;
+    case MouseButton::Middle: return m_mouseTracker.middleButton == BS::RELEASED;
     }
     return false;
 }
 
 Vec2 ModuleInput::getMousePosition() const {
-    return Vec2{ static_cast<float>(mouseCurr.x), static_cast<float>(mouseCurr.y) };
+    return Vec2{ static_cast<float>(m_mouseCurr.x), static_cast<float>(m_mouseCurr.y) };
 }
 
 Vec2 ModuleInput::getMouseDelta() const {
-    return Vec2{ static_cast<float>(mouseCurr.x - mousePrev.x),
-                 static_cast<float>(mouseCurr.y - mousePrev.y) };
+    return Vec2{ static_cast<float>(m_mouseCurr.x - m_mousePrev.x),
+                 static_cast<float>(m_mouseCurr.y - m_mousePrev.y) };
 }
-
-// ----- Gamepad -----
 
 static int clampPlayer(int p, int max){ return (p < 0 || p >= max) ? 0 : p; }
 
 bool ModuleInput::isGamepadConnected(int player) const {
-    return padState[clampPlayer(player, kMaxPlayers)].IsConnected();
+    return m_padState[clampPlayer(player, kMaxPlayers)].IsConnected();
 }
 
 bool ModuleInput::isButtonDown(GamepadButton btn, int player) const {
-    const auto& s = padState[clampPlayer(player, kMaxPlayers)];
+    const auto& s = m_padState[clampPlayer(player, kMaxPlayers)];
     switch (btn){
     case GamepadButton::A:             return s.buttons.a;
     case GamepadButton::B:             return s.buttons.b;
@@ -129,7 +123,7 @@ bool ModuleInput::isButtonDown(GamepadButton btn, int player) const {
 }
 
 bool ModuleInput::isButtonPressed(GamepadButton btn, int player) const {
-    const auto& t = padTracker[clampPlayer(player, kMaxPlayers)];
+    const auto& t = m_padTracker[clampPlayer(player, kMaxPlayers)];
     using BS = GamePad::ButtonStateTracker;
     switch (btn){
     case GamepadButton::A:             return t.a             == BS::PRESSED;
@@ -151,7 +145,7 @@ bool ModuleInput::isButtonPressed(GamepadButton btn, int player) const {
 }
 
 bool ModuleInput::isButtonReleased(GamepadButton btn, int player) const {
-    const auto& t = padTracker[clampPlayer(player, kMaxPlayers)];
+    const auto& t = m_padTracker[clampPlayer(player, kMaxPlayers)];
     using BS = GamePad::ButtonStateTracker;
     switch (btn){
     case GamepadButton::A:             return t.a             == BS::RELEASED;
@@ -173,7 +167,7 @@ bool ModuleInput::isButtonReleased(GamepadButton btn, int player) const {
 }
 
 float ModuleInput::getGamepadAxis(GamepadAxis axis, int player) const {
-    const auto& s = padState[clampPlayer(player, kMaxPlayers)];
+    const auto& s = m_padState[clampPlayer(player, kMaxPlayers)];
     switch (axis){
     case GamepadAxis::LeftStickX:   return s.thumbSticks.leftX;
     case GamepadAxis::LeftStickY:   return s.thumbSticks.leftY;
@@ -186,5 +180,5 @@ float ModuleInput::getGamepadAxis(GamepadAxis axis, int player) const {
 }
 
 void ModuleInput::setVibration(float leftMotor, float rightMotor, int player){
-    gamePad->SetVibration(clampPlayer(player, kMaxPlayers), leftMotor, rightMotor);
+    m_gamePad->SetVibration(clampPlayer(player, kMaxPlayers), leftMotor, rightMotor);
 }

@@ -56,7 +56,7 @@ void ComponentDecal::onLoad(const std::string& json){
     auto mix = extract("albedoMix");
     if (!mix.empty()) albedoMix = std::stof(mix);
 
-    // "colour":[r,g,b] (saved since the start, but never read back before)
+    // "colour": [r, g, b]
     {
         const std::string k = "\"colour\":[";
         auto pos = json.find(k);
