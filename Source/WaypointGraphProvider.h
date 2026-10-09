@@ -13,6 +13,8 @@ public:
         // Optional "Cost" in the graph JSON (default 1): multiplies the length of every edge *into* this node, so a
         // path avoids it unless the detour is longer (e.g. orcs routing around their own traps). Must be > 0.
         float cost = 1.f;
+        // Set at runtime (Navigation::SetNodesBlocked, e.g. a closed gate): paths never route through it.
+        bool blocked = false;
     };
 
     bool FindPath(const Vector3& start, const Vector3& end,
@@ -21,6 +23,9 @@ public:
     const char* getName() const override { return "Waypoint Graph"; }
 
     bool Load(const std::string& path);
+
+    /// Blocks (or unblocks) every node within `radius` of `center`; returns how many changed state.
+    int SetNodesBlocked(const Vector3& center, float radius, bool blocked);
 
     void drawDebug() const;
 

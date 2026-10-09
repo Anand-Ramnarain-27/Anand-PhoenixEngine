@@ -18,6 +18,10 @@ struct Navigation {
     static bool LoadGraph(const std::string& name, const std::string& path);
     static bool FindPathNamed(const std::string& name, Vec3 start, Vec3 end, std::vector<Vec3>& outPath);
     static bool IsWalkableNamed(const std::string& name, Vec3 point);
+
+    /// Blocks (or unblocks) every node within `radius` of `center` so paths route around it (a closed gate).
+    /// `graphName` "" = the active graph and every named one. Returns how many nodes changed state.
+    static int SetNodesBlocked(const std::string& graphName, Vec3 center, float radius, bool blocked);
 };
 
 } // namespace Phoenix

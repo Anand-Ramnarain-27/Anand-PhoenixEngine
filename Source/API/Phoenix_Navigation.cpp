@@ -41,4 +41,10 @@ bool Navigation::IsWalkableNamed(const std::string& name, Vec3 point){
     return false;
 }
 
+int Navigation::SetNodesBlocked(const std::string& graphName, Vec3 center, float radius, bool blocked){
+    if (NavigationSystem* nav = getNav())
+        return nav->SetNodesBlocked(graphName, center, radius, blocked);
+    return 0;
+}
+
 } // namespace Phoenix

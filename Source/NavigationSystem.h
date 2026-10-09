@@ -32,6 +32,10 @@ public:
     bool IsWalkableNamed(const std::string& name, const Vector3& point,
                          const AgentProfile& profile = {}) const;
 
+    // Blocks / unblocks the nodes within `radius` of `center` (a closed gate). `name` "" = the active graph and every
+    // named one. Returns how many nodes changed state.
+    int SetNodesBlocked(const std::string& name, const Vector3& center, float radius, bool blocked);
+
 private:
     std::unique_ptr<INavProvider> m_activeProvider;
     std::unordered_map<std::string, std::unique_ptr<INavProvider>> m_namedProviders;

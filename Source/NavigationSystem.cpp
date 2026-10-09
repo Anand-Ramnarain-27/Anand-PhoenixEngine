@@ -34,6 +34,19 @@ int NavigationSystem::getDebugEdgeCount() const{
 
 // drawDebug() is in NavigationSystemDebug.cpp - needs debug_draw.hpp.
 
+int NavigationSystem::SetNodesBlocked(const std::string& name, const Vector3& center, float radius, bool blocked){
+    int changed = 0;
+    auto apply = [&](INavProvider* p){
+        if (auto* wp = dynamic_cast<WaypointGraphProvider*>(p)) changed += wp->SetNodesBlocked(center, radius, blocked);
+    };
+    if (name.empty()){
+        apply(m_activeProvider.get());
+        for (auto& kv : m_namedProviders) apply(kv.second.get());
+    }
+    else if (auto it = m_namedProviders.find(name); it != m_namedProviders.end()) apply(it->second.get());
+    return changed;
+}
+
 bool NavigationSystem::LoadNamedGraph(const std::string& name, const std::string& path){
     auto provider = std::make_unique<WaypointGraphProvider>();
     if (!provider->Load(path)){

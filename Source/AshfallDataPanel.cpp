@@ -29,6 +29,7 @@ void AshfallDataPanel::rescan(){
         { "Characters", "Assets/CharacterConfigs", ".json" },
         { "Party", "Assets/Party", ".json" },
         { "Encounters", "Assets/Encounters", ".json" },
+        { "Traps", "Assets/Traps", ".json" },
         { "VFX recipes (read-only)", "Assets/VFX/recipes", ".json", true },
     };
     fs::path assets = fs::path(app->getFileSystem()->GetAssetsPath());

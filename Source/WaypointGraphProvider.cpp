@@ -77,7 +77,7 @@ bool WaypointGraphProvider::FindPath(const Vector3& start, const Vector3& end,
         const Node* curNode = byId[current];
         for (int neighborId : curNode->neighborIds){
             auto it = byId.find(neighborId);
-            if (it == byId.end() || closed[neighborId]) continue;
+            if (it == byId.end() || closed[neighborId] || it->second->blocked) continue;
 
             float tentativeG = gScore[current] + (it->second->position - curNode->position).Length() * it->second->cost;
             if (tentativeG < gScore[neighborId]){
@@ -100,6 +100,17 @@ bool WaypointGraphProvider::FindPath(const Vector3& start, const Vector3& end,
     for (int id : nodePath) outPath.push_back(byId[id]->position);
     outPath.push_back(end);
     return true;
+}
+
+int WaypointGraphProvider::SetNodesBlocked(const Vector3& center, float radius, bool blocked){
+    int changed = 0;
+    const float r2 = radius * radius;
+    for (auto& n : nodes){
+        if ((n.position - center).LengthSquared() > r2 || n.blocked == blocked) continue;
+        n.blocked = blocked;
+        ++changed;
+    }
+    return changed;
 }
 
 bool WaypointGraphProvider::Load(const std::string& path){

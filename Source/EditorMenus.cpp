@@ -34,6 +34,7 @@
 #include "AshfallHubBuilder.h"
 #include "AshfallVfxBuilder.h"
 #include "AshfallEnemyBuilder.h"
+#include "AshfallTrapsBuilder.h"
 #include "ModuleUI.h"
 #include "HotReloadManager.h"
 #include "ComponentParticleSystem.h"
@@ -433,6 +434,8 @@ void ModuleEditor::drawAshfallMenuItems(){
         runSceneBuilder(BuildAshfallEnemyPrefabs, "Enemy prefabs saved: ", "Enemy prefabs not built: ");
     if (ImGui::MenuItem("Set Up Kraug Arena (AF_KraugsDen)", nullptr, false, !playing))
         runSceneManagerBuilder(SetUpAshfallKraugArena, "Kraug arena set up: ", "Kraug arena not set up: ");
+    if (ImGui::MenuItem("Set Up Traps & Puzzles (open level)", nullptr, false, !playing))
+        runSceneManagerBuilder(SetUpAshfallTrapsPuzzles, "Traps & puzzles set up: ", "Traps & puzzles not (fully) set up: ");
     if (ImGui::MenuItem("Build VFX Test Scene (on a new scene)", nullptr, false, !playing))
         runSceneManagerBuilder(BuildAshfallVfxTestScene, "VFX test scene saved: ", "VFX test scene not built: ");
 }

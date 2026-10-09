@@ -1631,6 +1631,9 @@
     <ClInclude Include="AshfallEnemyBuilder.h">
       <Filter>Engine\Editor\Ashfall</Filter>
     </ClInclude>
+    <ClInclude Include="AshfallTrapsBuilder.h">
+      <Filter>Engine\Editor\Ashfall</Filter>
+    </ClInclude>
     <ClInclude Include="UITypes.h">
       <Filter>Engine\UI\Runtime</Filter>
     </ClInclude>
@@ -1707,6 +1710,9 @@
       <Filter>Engine\Editor\Ashfall</Filter>
     </ClCompile>
     <ClCompile Include="AshfallEnemyBuilder.cpp">
+      <Filter>Engine\Editor\Ashfall</Filter>
+    </ClCompile>
+    <ClCompile Include="AshfallTrapsBuilder.cpp">
       <Filter>Engine\Editor\Ashfall</Filter>
     </ClCompile>
     <ClCompile Include="API\Phoenix_UI.cpp">
